@@ -5,6 +5,8 @@ import themes from '../config/themes'
 import Schedule from '../pages/Schedule/Schedule'
 import ScheduleSettings from '../pages/ScheduleSettings/ScheduleSettings'
 import Settings from '../pages/Settings/Settings'
+import { BlurView } from 'expo-blur'
+
 
 const Tab = createBottomTabNavigator()
 
@@ -16,22 +18,29 @@ export default function TabNavigator({ commonProps }) {
 	return (
 		<Tab.Navigator
 			screenOptions={{
-				tabBarStyle: {
-					backgroundColor: themeColors.backgroundColorTabNavigator, // Фон панелі з теми
-					paddingBottom: 10, // Відступ знизу
-					paddingTop: 0, // Відступ зверху
-					height: 70,
-					borderWidth: 0,
-					borderColor: '#00000000',
-					position: 'absolute',
-				},
-				tabBarLabelStyle: {
-					fontSize: 12, // Розмір тексту
-					fontWeight: 'bold', // Жирність тексту
-					color: themeColors.textColor2, // Колір тексту з теми
-				},
-				tabBarActiveTintColor: accent, // Колір активної вкладки
-				tabBarInactiveTintColor: themeColors.textColor2, // Колір неактивних вкладок
+			  tabBarStyle: {
+			    position: 'absolute',
+			    height: 70,
+			    paddingBottom: 10,
+			    paddingTop: 0,
+			    borderWidth: 0,
+			    borderColor: 'transparent',
+			    backgroundColor: 'transparent', // важливо — фон прозорий
+			  },
+			  tabBarBackground: () => (
+			    <BlurView
+			      tint={currentTheme === 'dark' ? 'dark' : 'light'}
+			      intensity={80}
+			      style={{ flex: 1 }}
+			    />
+			  ),
+			  tabBarLabelStyle: {
+			    fontSize: 12,
+			    fontWeight: 'bold',
+			    color: themeColors.textColor2,
+			  },
+			  tabBarActiveTintColor: accent,
+			  tabBarInactiveTintColor: themeColors.textColor2,
 			}}
 		>
 			<Tab.Screen

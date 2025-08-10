@@ -186,4 +186,14 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 	},
+	inputContainer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingHorizontal: 10,
+	},
+	input: {
+		flex: 1,
+		padding: 10,
+		marginRight: 10,
+	},
 })
