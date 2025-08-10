@@ -30,7 +30,7 @@ export default function TabNavigator({ commonProps }) {
 			  tabBarBackground: () => (
 			    <BlurView
 			      tint={currentTheme === 'dark' ? 'dark' : 'light'}
-			      intensity={80}
+			      intensity={100}
 			      style={{ flex: 1 }}
 			    />
 			  ),
