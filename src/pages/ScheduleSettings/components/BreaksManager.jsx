@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
 import {
 	FlatList,
 	StyleSheet,
@@ -6,49 +6,50 @@ import {
 	TextInput,
 	TouchableOpacity,
 	View,
-} from 'react-native'
+} from 'react-native';
+import { BlurView } from 'expo-blur';
+import useCurrentTheme from '../../../hooks/useCurrentTheme'; // новий імпорт
 
-export default function BreaksManager({
-	breaks,
-	setBreaks,
-	themeColors,
-	accent,
-}) {
-	const [tempBreaks, setTempBreaks] = useState([...breaks])
-	const [isChanged, setIsChanged] = useState(false)
+export default function BreaksManager({ breaks, setBreaks, themeColors, accent }) {
+	const [tempBreaks, setTempBreaks] = useState([...breaks]);
+	const [isChanged, setIsChanged] = useState(false);
+
+	const currentTheme = useCurrentTheme(); // отримаємо тему без пропсів
 
 	useEffect(() => {
-		setIsChanged(JSON.stringify(tempBreaks) !== JSON.stringify(breaks))
-	}, [tempBreaks, breaks])
+		setIsChanged(JSON.stringify(tempBreaks) !== JSON.stringify(breaks));
+	}, [tempBreaks, breaks]);
 
 	const handleBreakChange = (value, index) => {
-		const updatedBreaks = [...tempBreaks]
-		updatedBreaks[index] = Number(value)
-		setTempBreaks(updatedBreaks)
-	}
+		const updatedBreaks = [...tempBreaks];
+		updatedBreaks[index] = Number(value);
+		setTempBreaks(updatedBreaks);
+	};
 
 	const handleAddBreak = () => {
-		setTempBreaks([...tempBreaks, 10]) // Додаємо перерву на 10 хвилин за замовчуванням
-	}
+		setTempBreaks([...tempBreaks, 10]);
+	};
 
 	const handleRemoveBreak = index => {
-		const updatedBreaks = tempBreaks.filter((_, i) => i !== index)
-		setTempBreaks(updatedBreaks)
-	}
+		const updatedBreaks = tempBreaks.filter((_, i) => i !== index);
+		setTempBreaks(updatedBreaks);
+	};
 
 	const handleConfirm = () => {
 		if (isChanged) {
-			setBreaks(tempBreaks)
+			setBreaks(tempBreaks);
 		}
-	}
+	};
 
 	return (
 		<View style={styles.container}>
 			<Text style={[styles.title, { color: themeColors.textColor }]}>
 				Редагувати перерви:
 			</Text>
+
 			<FlatList
 				data={tempBreaks}
+				style={styles.containerBlock}
 				renderItem={({ item, index }) => (
 					<View
 						style={[
@@ -57,7 +58,6 @@ export default function BreaksManager({
 						]}
 					>
 						<Text style={[styles.breakLabel, { color: themeColors.textColor }]}>
-							{' '}
 							Перерва: {index + 1}
 						</Text>
 						<TextInput
@@ -68,9 +68,9 @@ export default function BreaksManager({
 									backgroundColor: themeColors.backgroundColor,
 								},
 							]}
-							keyboardType='number-pad'
+							keyboardType="number-pad"
 							value={String(item)}
-							onChangeText={value => handleBreakChange(value, index)}
+							onChangeText={(value) => handleBreakChange(value, index)}
 						/>
 						<TouchableOpacity
 							style={styles.removeButton}
@@ -82,36 +82,49 @@ export default function BreaksManager({
 				)}
 				keyExtractor={(item, index) => index.toString()}
 			/>
-			<TouchableOpacity
-				style={[styles.addButton, { backgroundColor: accent }]}
-				onPress={handleAddBreak}
+
+			{/* Панель з блюром */}
+			<BlurView
+				tint={currentTheme === 'dark' ? 'dark' : 'light'}
+				intensity={100}
+				style={styles.buttonsContainer}
 			>
-				<Text style={{ color: themeColors.textColor }}>Додати перерву</Text>
-			</TouchableOpacity>
-			<TouchableOpacity
-				style={[
-					styles.confirmButton,
-					{
-						backgroundColor: isChanged ? accent : themeColors.backgroundColor2,
-					},
-				]}
-				onPress={handleConfirm}
-				disabled={!isChanged}
-			>
-				<Text
-					style={[styles.confirmButtonText, { color: themeColors.textColor }]}
+				<TouchableOpacity
+					style={[styles.addButton, { backgroundColor: accent }]}
+					onPress={handleAddBreak}
 				>
-					Підтвердити
-				</Text>
-			</TouchableOpacity>
+					<Text style={{ color: themeColors.textColor }}>Додати перерву</Text>
+				</TouchableOpacity>
+
+				<TouchableOpacity
+					style={[
+						styles.confirmButton,
+						{
+							backgroundColor: isChanged ? accent : themeColors.backgroundColor2,
+						},
+					]}
+					onPress={handleConfirm}
+					disabled={!isChanged}
+				>
+					<Text
+						style={[styles.confirmButtonText, { color: themeColors.textColor }]}
+					>
+						Підтвердити
+					</Text>
+				</TouchableOpacity>
+			</BlurView>
 		</View>
-	)
+	);
 }
 
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		padding: 20,
+		marginBottom: 0,
+	},
+	containerBlock:{
+		paddingLeft:10,
+		paddingRight:10,
 	},
 	title: {
 		fontSize: 20,
@@ -132,7 +145,24 @@ const styles = StyleSheet.create({
 		shadowRadius: 4,
 		shadowOffset: { width: 0, height: 2 },
 		elevation: 2,
+		padding: 10,
+		
 	},
+	buttonsContainer: {
+	  position: 'absolute',
+	  bottom: 0,
+	  left: 0,
+	  right: 0,
+	  marginBottom: 80,
+	  marginRight: 20,
+	  marginLeft:15,
+	  flexDirection: 'row',
+	  justifyContent: 'space-around',
+	  padding: 10,
+	  borderRadius: 15,
+	  overflow: 'hidden', // щоб BlurView мав закруглення
+	},
+
 	breakLabel: {
 		fontSize: 16,
 		fontWeight: 'bold',
@@ -166,7 +196,6 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 20,
 		borderRadius: 10,
 		alignItems: 'center',
-		marginTop: 20,
 	},
 	addButtonText: {
 		color: '#fff',
@@ -179,7 +208,6 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 20,
 		borderRadius: 10,
 		alignItems: 'center',
-		marginTop: 10,
 	},
 	confirmButtonText: {
 		color: '#fff',

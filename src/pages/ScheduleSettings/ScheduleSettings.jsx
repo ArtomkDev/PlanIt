@@ -27,21 +27,16 @@ export default function ScheduleSettings(props) {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Налаштування розкладу</Text>
-
       {settingsItems.map((item, index) => (
         <TouchableOpacity
           key={index}
           style={styles.button}
           onPress={() =>
             navigation.navigate(item.screen, {
-              schedule,
-              authUser,
-              setSchedule,
-              onDataChange,
-              themeColors,
-              accent,
-            })
+            scheduleId: schedule.id, // або інші прості дані
+            themeColors,
+            accent,
+          })
           }
         >
           <Text style={styles.buttonText}>{item.label}</Text>
