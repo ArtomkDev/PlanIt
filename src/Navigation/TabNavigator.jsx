@@ -1,85 +1,125 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import React from 'react'
-import Icon from 'react-native-vector-icons/Ionicons'
-import themes from '../config/themes'
-import Schedule from '../pages/Schedule/Schedule'
-import ScheduleSettings from '../pages/ScheduleSettings/ScheduleSettings'
-import Settings from '../pages/Settings/Settings'
-import { BlurView } from 'expo-blur'
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
+import Icon from 'react-native-vector-icons/Ionicons';
+import themes from '../config/themes';
+import Schedule from '../pages/Schedule/Schedule';
+import ScheduleSettings from '../pages/ScheduleSettings/ScheduleSettings';
+import BreaksScreen from '../pages/ScheduleSettings/screens/BreaksScreen';
+import WeekScreen from '../pages/ScheduleSettings/screens/WeekScreen';
+import StartWeekScreen from '../pages/ScheduleSettings/screens/StartWeekScreen';
+import SubjectsScreen from '../pages/ScheduleSettings/screens/SubjectsScreen';
+import TeachersScreen from '../pages/ScheduleSettings/screens/TeachersScreen';
+import ResetDBScreen from '../pages/ScheduleSettings/screens/ResetDBScreen';
+import Settings from '../pages/Settings/Settings';
+import { BlurView } from 'expo-blur';
 
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-const Tab = createBottomTabNavigator()
+// Стек для налаштувань розкладу
+function ScheduleSettingsStack({ commonProps }) {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="ScheduleSettingsMain"
+        options={{ title: 'Налаштування розкладу' }}
+      >
+        {(props) => <ScheduleSettings {...props} {...commonProps} />}
+      </Stack.Screen>
+      <Stack.Screen name="Breaks">
+        {(props) => <BreaksScreen {...props} {...commonProps} />}
+      </Stack.Screen>
+      <Stack.Screen name="Weeks">
+        {(props) => <WeekScreen {...props} {...commonProps} />}
+      </Stack.Screen>
+      <Stack.Screen name="StartWeek">
+        {(props) => <StartWeekScreen {...props} {...commonProps} />}
+      </Stack.Screen>
+      <Stack.Screen name="Subjects">
+        {(props) => <SubjectsScreen {...props} {...commonProps} />}
+      </Stack.Screen>
+      <Stack.Screen name="Teachers">
+        {(props) => <TeachersScreen {...props} {...commonProps} />}
+      </Stack.Screen>
+      <Stack.Screen name="ResetDB">
+        {(props) => <ResetDBScreen {...props} {...commonProps} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
 
 export default function TabNavigator({ commonProps }) {
-	const [currentTheme, accentColor] = commonProps.theme || ['light', 'blue']
-	const themeColors = themes[currentTheme] || themes.light
-	const accent = themes.accentColors[accentColor] || themes.accentColors.blue
+  const [currentTheme, accentColor] = commonProps.theme || ['light', 'blue'];
+  const themeColors = themes[currentTheme] || themes.light;
+  const accent = themes.accentColors[accentColor] || themes.accentColors.blue;
 
-	return (
-		<Tab.Navigator
-			screenOptions={{
-			  tabBarStyle: {
-			    position: 'absolute',
-			    height: 70,
-			    paddingBottom: 10,
-			    paddingTop: 0,
-			    borderWidth: 0,
-			    borderColor: 'transparent',
-			    backgroundColor: 'transparent', // важливо — фон прозорий
-			  },
-			  tabBarBackground: () => (
-			    <BlurView
-			      tint={currentTheme === 'dark' ? 'dark' : 'light'}
-			      intensity={100}
-			      style={{ flex: 1 }}
-			    />
-			  ),
-			  tabBarLabelStyle: {
-			    fontSize: 12,
-			    fontWeight: 'bold',
-			    color: themeColors.textColor2,
-			  },
-			  tabBarActiveTintColor: accent,
-			  tabBarInactiveTintColor: themeColors.textColor2,
-			}}
-		>
-			<Tab.Screen
-				name='Home3_1'
-				options={{
-					tabBarLabel: 'Розклад', // Текст під вкладкою
-					tabBarIcon: ({ color, size }) => (
-						<Icon name='calendar' size={size} color={color} /> // Іконка
-					),
-					headerShown: false,
-				}}
-			>
-				{() => <Schedule {...commonProps} />}
-			</Tab.Screen>
-			<Tab.Screen
-				name='Home3_2'
-				options={{
-					tabBarLabel: 'Налаштування', // Текст під вкладкою
-					tabBarIcon: ({ color, size }) => (
-						<Icon name='settings' size={size} color={color} /> // Іконка
-					),
-					headerShown: false,
-				}}
-			>
-				{() => <ScheduleSettings {...commonProps} />}
-			</Tab.Screen>
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarStyle: {
+          position: 'absolute',
+          height: 70,
+          paddingBottom: 10,
+          paddingTop: 0,
+          borderWidth: 0,
+          borderColor: 'transparent',
+          backgroundColor: 'transparent',
+        },
+        tabBarBackground: () => (
+          <BlurView
+            tint={currentTheme === 'dark' ? 'dark' : 'light'}
+            intensity={100}
+            style={{ flex: 1 }}
+          />
+        ),
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: 'bold',
+          color: themeColors.textColor2,
+        },
+        tabBarActiveTintColor: accent,
+        tabBarInactiveTintColor: themeColors.textColor2,
+      }}
+    >
+      <Tab.Screen
+        name="Home3_1"
+        options={{
+          tabBarLabel: 'Розклад',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="calendar" size={size} color={color} />
+          ),
+          headerShown: false,
+        }}
+      >
+        {(props) => <Schedule {...props} {...commonProps} />}
+      </Tab.Screen>
 
-			<Tab.Screen
-				name='AccountSettings'
-				options={{
-					tabBarLabel: 'Акаунт',
-					tabBarIcon: ({ color, size }) => (
-						<Icon name='person' size={size} color={color} />
-					),
-					headerShown: false,
-				}}
-			>
-				{() => <Settings {...commonProps} />}
-			</Tab.Screen>
-		</Tab.Navigator>
-	)
+      <Tab.Screen
+        name="Home3_2"
+        options={{
+          tabBarLabel: 'Налаштування',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="settings" size={size} color={color} />
+          ),
+          headerShown: false,
+        }}
+      >
+        {(props) => <ScheduleSettingsStack commonProps={{ ...props, ...commonProps }} />}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="AccountSettings"
+        options={{
+          tabBarLabel: 'Акаунт',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="person" size={size} color={color} />
+          ),
+          headerShown: false,
+        }}
+      >
+        {(props) => <Settings {...props} {...commonProps} />}
+      </Tab.Screen>
+    </Tab.Navigator>
+  );
 }
