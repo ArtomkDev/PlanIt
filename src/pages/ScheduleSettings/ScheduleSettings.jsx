@@ -2,45 +2,41 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSchedule } from '../../context/ScheduleProvider';
+import themes from '../../config/themes';
 
-export default function ScheduleSettings(props) {
+export default function ScheduleSettings() {
   const navigation = useNavigation();
+  const { schedule } = useSchedule();
 
-  // Параметри тепер беремо з props (бо ми їх передаємо через Stack.Screen у TabNavigator)
-  const {
-    schedule,
-    authUser,
-    setSchedule,
-    onDataChange,
-    themeColors,
-    accent,
-  } = props ?? {};
+  // Отримуємо тему і кольори з schedule
+  const theme = schedule?.theme || ['light', 'blue'];
+  const [mode, accent] = theme;
+  const themeColors = themes.getColors(mode, accent);
 
   const settingsItems = [
     { label: 'Кількість перерв', screen: 'Breaks' },
     { label: 'Кількість тижнів', screen: 'Weeks' },
-    { label: 'Початкова дата', screen: 'StartWeek' }, // виправив назву під стек
-    { label: 'Пари', screen: 'Subjects' }, // щоб відповідало стеку
+    { label: 'Початкова дата', screen: 'StartWeek' },
+    { label: 'Пари', screen: 'Subjects' },
     { label: 'Викладачі', screen: 'Teachers' },
-    { label: 'Розклад', screen: 'Schedule' }, // додав зі стеку
-    { label: 'Скинути БД', screen: 'ResetDB' }, // зі стеку
+    { label: 'Розклад', screen: 'Schedule' },
+    { label: 'Скинути БД', screen: 'ResetDB' },
   ];
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
       {settingsItems.map((item, index) => (
         <TouchableOpacity
           key={index}
-          style={styles.button}
+          style={[styles.button, { backgroundColor: themeColors.backgroundColor2 }]}
           onPress={() =>
             navigation.navigate(item.screen, {
-            scheduleId: schedule.id, // або інші прості дані
-            themeColors,
-            accent,
-          })
+              scheduleId: schedule?.id, // передаємо тільки ID, решта даних через контекст
+            })
           }
         >
-          <Text style={styles.buttonText}>{item.label}</Text>
+          <Text style={[styles.buttonText, { color: themeColors.textColor }]}>{item.label}</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -50,23 +46,14 @@ export default function ScheduleSettings(props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#252527',
     padding: 16,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 20,
-  },
   button: {
-    backgroundColor: '#373737',
     padding: 14,
     borderRadius: 12,
     marginBottom: 12,
   },
   buttonText: {
     fontSize: 16,
-    color: '#fff',
   },
 });
