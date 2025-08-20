@@ -8,8 +8,8 @@ import ScheduleSettings from '../pages/ScheduleSettings/ScheduleSettings';
 import BreaksManager from '../pages/ScheduleSettings/components/BreaksManager';
 import WeekScreen from '../pages/ScheduleSettings/screens/WeekScreen';
 import StartWeekScreen from '../pages/ScheduleSettings/screens/StartWeekScreen';
-import SubjectsScreen from '../pages/ScheduleSettings/screens/SubjectsScreen';
-import TeachersScreen from '../pages/ScheduleSettings/screens/TeachersScreen';
+import SubjectsManager from '../pages/ScheduleSettings/components/SubjectsManager'
+import TeachersManager from '../pages/ScheduleSettings/components/TeachersManager'
 import ScheduleManager from '../pages/ScheduleSettings/components/ScheduleManager'
 import ResetDBScreen from '../pages/ScheduleSettings/screens/ResetDBScreen';
 import Settings from '../pages/Settings/Settings';
@@ -36,12 +36,10 @@ function ScheduleSettingsStack({ commonProps }) {
       <Stack.Screen name="StartWeek">
         {(props) => <StartWeekScreen {...props} {...commonProps} />}
       </Stack.Screen>
-      <Stack.Screen name="Subjects">
-        {(props) => <SubjectsScreen {...props} {...commonProps} />}
-      </Stack.Screen>
-      <Stack.Screen name="Teachers">
-        {(props) => <TeachersScreen {...props} {...commonProps} />}
-      </Stack.Screen>
+
+      <Stack.Screen name="Subjects" component={SubjectsManager} />
+
+      <Stack.Screen name="Teachers" component={TeachersManager} />
 
       <Stack.Screen name="Schedule" component={ScheduleManager} />
 
