@@ -5,11 +5,12 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import themes from '../config/themes';
 import Schedule from '../pages/Schedule/Schedule';
 import ScheduleSettings from '../pages/ScheduleSettings/ScheduleSettings';
-import BreaksScreen from '../pages/ScheduleSettings/screens/BreaksScreen';
+import BreaksManager from '../pages/ScheduleSettings/components/BreaksManager';
 import WeekScreen from '../pages/ScheduleSettings/screens/WeekScreen';
 import StartWeekScreen from '../pages/ScheduleSettings/screens/StartWeekScreen';
 import SubjectsScreen from '../pages/ScheduleSettings/screens/SubjectsScreen';
 import TeachersScreen from '../pages/ScheduleSettings/screens/TeachersScreen';
+import ScheduleManager from '../pages/ScheduleSettings/components/ScheduleManager'
 import ResetDBScreen from '../pages/ScheduleSettings/screens/ResetDBScreen';
 import Settings from '../pages/Settings/Settings';
 import { BlurView } from 'expo-blur';
@@ -27,9 +28,8 @@ function ScheduleSettingsStack({ commonProps }) {
       >
         {(props) => <ScheduleSettings {...props} {...commonProps} />}
       </Stack.Screen>
-      <Stack.Screen name="Breaks">
-        {(props) => <BreaksScreen {...props} {...commonProps} />}
-      </Stack.Screen>
+      <Stack.Screen name="Breaks" component={BreaksManager} />
+
       <Stack.Screen name="Weeks">
         {(props) => <WeekScreen {...props} {...commonProps} />}
       </Stack.Screen>
@@ -42,6 +42,9 @@ function ScheduleSettingsStack({ commonProps }) {
       <Stack.Screen name="Teachers">
         {(props) => <TeachersScreen {...props} {...commonProps} />}
       </Stack.Screen>
+
+      <Stack.Screen name="Schedule" component={ScheduleManager} />
+
       <Stack.Screen name="ResetDB">
         {(props) => <ResetDBScreen {...props} {...commonProps} />}
       </Stack.Screen>

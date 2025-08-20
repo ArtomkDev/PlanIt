@@ -7,20 +7,15 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native'
+import { useSchedule } from '../../../context/ScheduleProvider'
+import themes from '../../../config/themes'
 
-export default function ScheduleManager({
-	schedule,
-	setSchedule,
-	subjects,
-	themeColors,
-	accent,
-}) {
+export default function ScheduleManager() {
+	const { schedule, setScheduleDraft } = useSchedule()
+
 	const [initialized, setInitialized] = useState(false)
-	const [showRepeatMenu, setShowRepeatMenu] = useState(false)
-	const [selectedSubject, setSelectedSubject] = useState(null)
 	const [showSubjectModal, setShowSubjectModal] = useState(false)
-	const [showColorModal, setShowColorModal] = useState(false)
-	const [selectedColorSubject, setSelectedColorSubject] = useState(null)
+	const [selectedSubject, setSelectedSubject] = useState(null)
 
 	const daysOfWeek = [
 		'Понеділок',
@@ -32,6 +27,16 @@ export default function ScheduleManager({
 		'Неділя',
 	]
 
+	// витягуємо тему з schedule.theme
+	const themeName = schedule?.theme?.[0] || 'light'
+	const accentName = schedule?.theme?.[1] || 'blue'
+	const themeColors = themes[themeName]
+	const accent = themes.accentColors[accentName]
+
+	// наші предмети тепер зберігаються в schedule.subjects
+	const subjects = schedule?.subjects || []
+
+	// ініціалізація пустих тижнів
 	useEffect(() => {
 		if (!initialized && schedule?.repeat) {
 			const updatedSchedule = { ...schedule }
@@ -50,22 +55,16 @@ export default function ScheduleManager({
 				return updatedDay
 			})
 
-			if (needsUpdate) {
-				setSchedule(updatedSchedule)
-			}
+			if (needsUpdate) setScheduleDraft(updatedSchedule)
 			setInitialized(true)
 		}
-	}, [schedule, setSchedule, initialized])
+	}, [schedule, initialized])
 
-	const handleSubjectChange = (
-		dayIndex,
-		weekPart,
-		subjectIndex,
-		newSubjectId
-	) => {
+	// зміна предмету
+	const handleSubjectChange = (dayIndex, weekPart, subjectIndex, newSubjectId) => {
 		const updatedSchedule = { ...schedule }
 		updatedSchedule.schedule[dayIndex][weekPart][subjectIndex] = newSubjectId
-		setSchedule(updatedSchedule)
+		setScheduleDraft(updatedSchedule)
 	}
 
 	const openSubjectModal = (dayIndex, weekPart, subjectIndex) => {
@@ -87,15 +86,16 @@ export default function ScheduleManager({
 			updatedSchedule.schedule[dayIndex][weekPart] = []
 		}
 		updatedSchedule.schedule[dayIndex][weekPart].push(0)
-		setSchedule(updatedSchedule)
+		setScheduleDraft(updatedSchedule)
 	}
 
 	const handleRemoveSubject = (dayIndex, weekPart, subjectIndex) => {
 		const updatedSchedule = { ...schedule }
-		updatedSchedule.schedule[dayIndex][weekPart] = updatedSchedule.schedule[
-			dayIndex
-		][weekPart].filter((_, index) => index !== subjectIndex)
-		setSchedule(updatedSchedule)
+		updatedSchedule.schedule[dayIndex][weekPart] =
+			updatedSchedule.schedule[dayIndex][weekPart].filter(
+				(_, index) => index !== subjectIndex
+			)
+		setScheduleDraft(updatedSchedule)
 	}
 
 	if (!schedule || !schedule.schedule) {
@@ -107,12 +107,16 @@ export default function ScheduleManager({
 	}
 
 	return (
-		<View style={styles.container}>
+		<View style={[
+			styles.container,
+			{ backgroundColor: themeColors.backgroundColor },
+		]}>		
 			{schedule.schedule.map((day, dayIndex) => (
 				<View key={dayIndex} style={styles.dayContainer}>
 					<Text style={[styles.dayTitle, { color: themeColors.textColor }]}>
 						{daysOfWeek[dayIndex]}
 					</Text>
+
 					{Object.keys(day)
 						.sort(
 							(a, b) =>
@@ -134,7 +138,10 @@ export default function ScheduleManager({
 								{day[weekPart].map((subjectId, subjectIndex) => (
 									<View key={subjectIndex} style={styles.subjectContainer}>
 										<TouchableOpacity
-											style={styles.subjectButton}
+											style={[
+												styles.subjectButton,
+												{ backgroundColor: accent },
+											]}
 											onPress={() =>
 												openSubjectModal(dayIndex, weekPart, subjectIndex)
 											}
@@ -155,6 +162,7 @@ export default function ScheduleManager({
 										</TouchableOpacity>
 									</View>
 								))}
+
 								<TouchableOpacity
 									style={[styles.addSubjectButton, { backgroundColor: accent }]}
 									onPress={() => handleAddDefaultSubject(dayIndex, weekPart)}
@@ -173,12 +181,9 @@ export default function ScheduleManager({
 				</View>
 			))}
 
+			{/* модалка вибору предмету */}
 			{showSubjectModal && (
-				<Modal
-					transparent={true}
-					animationType='slide'
-					visible={showSubjectModal}
-				>
+				<Modal transparent={true} animationType="slide" visible={showSubjectModal}>
 					<View style={styles.modalContainer}>
 						<View
 							style={[
@@ -225,7 +230,6 @@ export default function ScheduleManager({
 }
 
 const styles = StyleSheet.create({
-	// Стили залишаються аналогічними з додаванням стилів для модального вікна
 	modalContainer: {
 		flex: 1,
 		flexDirection: 'column-reverse',
@@ -263,42 +267,6 @@ const styles = StyleSheet.create({
 	container: {
 		padding: 20,
 	},
-	title: {
-		fontSize: 20,
-		fontWeight: 'bold',
-		marginBottom: 20,
-	},
-	repeatContainer: {
-		marginBottom: 20,
-	},
-	repeatLabel: {
-		fontSize: 16,
-		marginBottom: 10,
-	},
-	repeatButton: {
-		backgroundColor: '#4CAF50',
-		padding: 10,
-		borderRadius: 5,
-		marginBottom: 10,
-	},
-	repeatButtonText: {
-		color: '#fff',
-		fontSize: 16,
-		textAlign: 'center',
-	},
-	repeatMenu: {
-		marginTop: 10,
-	},
-	repeatOption: {
-		padding: 10,
-		backgroundColor: '#f0f0f0',
-		marginBottom: 5,
-		borderRadius: 5,
-	},
-	repeatOptionText: {
-		fontSize: 16,
-		textAlign: 'center',
-	},
 	dayContainer: {
 		marginBottom: 20,
 	},
@@ -328,33 +296,17 @@ const styles = StyleSheet.create({
 	subjectContainer: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		justifyContent: 'space-between', // Розташування кнопок у рядку
+		justifyContent: 'space-between',
 		marginBottom: 10,
 		borderRadius: 5,
 	},
-	picker: {
-		height: 50,
-		width: '100%',
-		marginBottom: 10,
-	},
-	removeSubjectButton: {
-		backgroundColor: '#FF5733',
-		padding: 10,
-		borderRadius: 5,
-	},
-	removeSubjectButtonText: {
-		color: '#fff',
-		fontSize: 16,
-		textAlign: 'center',
-	},
-
 	subjectButton: {
-		flex: 1, // Займає все доступне місце
+		flex: 1,
 		paddingVertical: 10,
 		paddingHorizontal: 15,
 		borderRadius: 5,
 		backgroundColor: '#4CAF50',
-		marginRight: 10, // Простір між кнопкою вибору та видалення
+		marginRight: 10,
 	},
 	subjectButtonText: {
 		color: '#fff',
@@ -372,28 +324,5 @@ const styles = StyleSheet.create({
 		color: '#fff',
 		fontSize: 16,
 		textAlign: 'center',
-	},
-	repeatButtons: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		marginTop: 10,
-	},
-	weekButton: {
-		flex: 1,
-		marginHorizontal: 5,
-		paddingVertical: 10,
-		borderRadius: 5,
-		backgroundColor: '#f0f0f0',
-		alignItems: 'center',
-	},
-	weekButtonActive: {
-		backgroundColor: '#4CAF50',
-	},
-	weekButtonText: {
-		fontSize: 16,
-		color: '#000',
-	},
-	weekButtonTextActive: {
-		color: '#fff',
 	},
 })

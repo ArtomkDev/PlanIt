@@ -8,17 +8,26 @@ import {
 	View,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import useCurrentTheme from '../../../hooks/useCurrentTheme'; // новий імпорт
 
-export default function BreaksManager({ breaks, setBreaks, themeColors, accent }) {
-	const [tempBreaks, setTempBreaks] = useState([...breaks]);
+import { useSchedule } from '../../../context/ScheduleProvider'; // ⚡ беремо розклад з провайдера
+import useCurrentTheme from '../../../hooks/useCurrentTheme';
+import themes from '../../../config/themes';
+
+export default function BreaksManager() {
+	const { schedule, setScheduleDraft } = useSchedule(); // ⚡ отримаємо дані та функцію для змін
+	const [tempBreaks, setTempBreaks] = useState([...schedule.breaks]);
 	const [isChanged, setIsChanged] = useState(false);
 
-	const currentTheme = useCurrentTheme(); // отримаємо тему без пропсів
+	// ⚡ тема + акцент з розкладу
+	const [themeMode, accentName] = schedule.theme;
+	const themeColors = themes[themeMode];
+	const accent = themes.accentColors[accentName];
+
+	const currentTheme = useCurrentTheme();
 
 	useEffect(() => {
-		setIsChanged(JSON.stringify(tempBreaks) !== JSON.stringify(breaks));
-	}, [tempBreaks, breaks]);
+		setIsChanged(JSON.stringify(tempBreaks) !== JSON.stringify(schedule.breaks));
+	}, [tempBreaks, schedule.breaks]);
 
 	const handleBreakChange = (value, index) => {
 		const updatedBreaks = [...tempBreaks];
@@ -30,19 +39,23 @@ export default function BreaksManager({ breaks, setBreaks, themeColors, accent }
 		setTempBreaks([...tempBreaks, 10]);
 	};
 
-	const handleRemoveBreak = index => {
+	const handleRemoveBreak = (index) => {
 		const updatedBreaks = tempBreaks.filter((_, i) => i !== index);
 		setTempBreaks(updatedBreaks);
 	};
 
 	const handleConfirm = () => {
 		if (isChanged) {
-			setBreaks(tempBreaks);
+			// ⚡ оновлюємо розклад через ScheduleProvider
+			setScheduleDraft(prev => ({ ...prev, breaks: tempBreaks }));
 		}
 	};
 
 	return (
-		<View style={styles.container}>
+		<View style={[
+			styles.container,
+			{ backgroundColor: themeColors.backgroundColor },
+		]}>
 			<Text style={[styles.title, { color: themeColors.textColor }]}>
 				Редагувати перерви:
 			</Text>
@@ -100,7 +113,9 @@ export default function BreaksManager({ breaks, setBreaks, themeColors, accent }
 					style={[
 						styles.confirmButton,
 						{
-							backgroundColor: isChanged ? accent : themeColors.backgroundColor2,
+							backgroundColor: isChanged
+								? accent
+								: themeColors.backgroundColor2,
 						},
 					]}
 					onPress={handleConfirm}
@@ -118,18 +133,11 @@ export default function BreaksManager({ breaks, setBreaks, themeColors, accent }
 }
 
 const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		marginBottom: 0,
-	},
-	containerBlock:{
-		paddingLeft:10,
-		paddingRight:10,
-	},
+	container: { flex: 1, marginBottom: 0 },
+	containerBlock: { paddingLeft: 10, paddingRight: 10 },
 	title: {
 		fontSize: 20,
 		fontWeight: 'bold',
-		color: '#333',
 		marginBottom: 20,
 		textAlign: 'center',
 	},
@@ -137,47 +145,32 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		marginBottom: 15,
-		backgroundColor: '#fff',
 		padding: 10,
 		borderRadius: 10,
-		shadowColor: '#000',
-		shadowOpacity: 0.1,
-		shadowRadius: 4,
-		shadowOffset: { width: 0, height: 2 },
 		elevation: 2,
-		padding: 10,
-		
 	},
 	buttonsContainer: {
-	  position: 'absolute',
-	  bottom: 0,
-	  left: 0,
-	  right: 0,
-	  marginBottom: 80,
-	  marginRight: 20,
-	  marginLeft:15,
-	  flexDirection: 'row',
-	  justifyContent: 'space-around',
-	  padding: 10,
-	  borderRadius: 15,
-	  overflow: 'hidden', // щоб BlurView мав закруглення
+		position: 'absolute',
+		bottom: 0,
+		left: 0,
+		right: 0,
+		marginBottom: 80,
+		marginRight: 20,
+		marginLeft: 15,
+		flexDirection: 'row',
+		justifyContent: 'space-around',
+		padding: 10,
+		borderRadius: 15,
+		overflow: 'hidden',
 	},
-
-	breakLabel: {
-		fontSize: 16,
-		fontWeight: 'bold',
-		color: '#555',
-		marginRight: 10,
-	},
+	breakLabel: { fontSize: 16, fontWeight: 'bold', marginRight: 10 },
 	input: {
 		borderRadius: 5,
 		padding: 10,
 		marginRight: 10,
 		width: 60,
 		textAlign: 'center',
-		backgroundColor: '#f7f7f7',
 		fontSize: 16,
-		color: '#333',
 	},
 	removeButton: {
 		backgroundColor: '#ff5c5c',
@@ -185,36 +178,20 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 12,
 		borderRadius: 5,
 	},
-	removeButtonText: {
-		color: '#fff',
-		fontWeight: 'bold',
-		fontSize: 14,
-	},
+	removeButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
 	addButton: {
-		backgroundColor: '#4caf50',
 		paddingVertical: 15,
 		paddingHorizontal: 20,
 		borderRadius: 10,
 		alignItems: 'center',
 	},
-	addButtonText: {
-		color: '#fff',
-		fontWeight: 'bold',
-		fontSize: 16,
-	},
+	addButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 	confirmButton: {
-		backgroundColor: '#007bff',
 		paddingVertical: 15,
 		paddingHorizontal: 20,
 		borderRadius: 10,
 		alignItems: 'center',
 	},
-	confirmButtonText: {
-		color: '#fff',
-		fontWeight: 'bold',
-		fontSize: 16,
-	},
-	disabledButton: {
-		backgroundColor: '#ccc',
-	},
-})
+	confirmButtonText: { fontWeight: 'bold', fontSize: 16 },
+	disabledButton: { backgroundColor: '#ccc' },
+});

@@ -20,8 +20,9 @@ export default function ScheduleSettings(props) {
     { label: 'Кількість перерв', screen: 'Breaks' },
     { label: 'Кількість тижнів', screen: 'Weeks' },
     { label: 'Початкова дата', screen: 'StartWeek' }, // виправив назву під стек
-    { label: 'Теми', screen: 'Subjects' }, // щоб відповідало стеку
-    { label: 'Викладачі', screen: 'Teachers' }, // додав зі стеку
+    { label: 'Пари', screen: 'Subjects' }, // щоб відповідало стеку
+    { label: 'Викладачі', screen: 'Teachers' },
+    { label: 'Розклад', screen: 'Schedule' }, // додав зі стеку
     { label: 'Скинути БД', screen: 'ResetDB' }, // зі стеку
   ];
 

@@ -5,12 +5,7 @@ import SignOutButton from './components/SignOutButton'
 import ThemeSettings from './components/ThemeSettings'
 
 const Settings = ({
-	autoSaveInterval,
-	handleAutoSaveIntervalChange,
-	theme, // Передаємо тему як пропс
-	onThemeChange,
-	themeColors, // Оброблені кольори для теми
-	accent, // Акцентний колір
+	themeColors,
 }) => {
 	return (
 		<View
@@ -23,19 +18,9 @@ const Settings = ({
 				Налаштування акаунту
 			</Text>
 
-			<AutoSaveIntervalSettings
-				autoSaveInterval={autoSaveInterval}
-				onIntervalChange={handleAutoSaveIntervalChange}
-				themeColors={themeColors} 
-				accent={accent} 
-			/>
+			<AutoSaveIntervalSettings/>
 
-			<ThemeSettings
-				currentTheme={theme}
-				onThemeChange={onThemeChange}
-				themeColors={themeColors}
-				accent={accent} 
-			/>
+			<ThemeSettings/>
 
 			<SignOutButton />
 		</View>
