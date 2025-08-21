@@ -10,7 +10,6 @@ import {
 import { BlurView } from 'expo-blur';
 
 import { useSchedule } from '../../../context/ScheduleProvider'; // ⚡ беремо розклад з провайдера
-import useCurrentTheme from '../../../hooks/useCurrentTheme';
 import themes from '../../../config/themes';
 
 export default function BreaksManager() {
@@ -23,7 +22,6 @@ export default function BreaksManager() {
 	const themeColors = themes[themeMode];
 	const accent = themes.accentColors[accentName];
 
-	const currentTheme = useCurrentTheme();
 
 	useEffect(() => {
 		setIsChanged(JSON.stringify(tempBreaks) !== JSON.stringify(schedule.breaks));

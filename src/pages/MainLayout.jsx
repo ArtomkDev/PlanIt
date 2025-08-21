@@ -1,4 +1,3 @@
-// src/pages/MainLayout.jsx
 import { StatusBar } from 'expo-status-bar'
 import React from 'react'
 import { Button, StyleSheet, View, Text } from 'react-native'
@@ -14,15 +13,16 @@ export default function MainLayout() {
     isDirty,
     isLoading,
     error,
-    theme,
-    autoSaveInterval,
   } = useSchedule()
 
-  const [currentTheme, accentColor] = theme || ['light', 'blue']
-  const themeColors = themes[currentTheme] || themes.light
-
+  // якщо розклад ще не завантажений
   if (isLoading) return <Text>Завантаження...</Text>
   if (error) return <Text>Помилка: {error}</Text>
+  if (!schedule) return <Text>Немає даних розкладу</Text>
+
+  // дістаємо тему із schedule
+  const [currentTheme, accentColor] = schedule.theme || ['light', 'blue']
+  const themeColors = themes[currentTheme] || themes.light
 
   return (
     <View style={[{ flex: 1, paddingTop: 40, backgroundColor: themeColors.backgroundColor }]}>
