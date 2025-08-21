@@ -9,6 +9,7 @@ import {
 import DaySchedule from './components/DaySchedule'
 import Header from './components/Header'
 import NavigationButtons from './components/NavigationButtons'
+import { DayScheduleProvider } from '../../context/DayScheduleProvider'
 
 const screenWidth = Dimensions.get('window').width
 
@@ -80,15 +81,10 @@ export default function Schedule({
 				themeColors={themeColors}
 			/>
 			<NavigationButtons changeDate={changeDate} themeColors={themeColors} />
-			<DaySchedule
-				date={currentDate}
-				getDaySchedule={getDaySchedule}
-				subjects={subjects}
-				lessonTimes={lessonTimes}
-				accent={accent}
-				themeColors={themeColors}
-				teachers={schedule?.teachers || []} // Забезпечте, що це завжди масив
-			/>
+			<DayScheduleProvider date={currentDate}>
+  				<DaySchedule />
+			</DayScheduleProvider>
+
 			{!isToday && (
 				<TouchableOpacity
 					style={[styles.todayButton, { backgroundColor: accent }]}
