@@ -78,9 +78,8 @@ export default function Schedule({
 				daysOfWeek={daysOfWeek}
 				currentDate={currentDate}
 				getDayIndex={getDayIndex}
-				themeColors={themeColors}
 			/>
-			<NavigationButtons changeDate={changeDate} themeColors={themeColors} />
+			<NavigationButtons changeDate={changeDate} />
 			<DayScheduleProvider date={currentDate}>
   				<DaySchedule />
 			</DayScheduleProvider>
