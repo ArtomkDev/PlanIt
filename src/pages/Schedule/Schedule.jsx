@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import {
-	Dimensions,
 	StyleSheet,
 	Text,
 	TouchableOpacity,
@@ -10,18 +9,25 @@ import DaySchedule from './components/DaySchedule'
 import Header from './components/Header'
 import NavigationButtons from './components/NavigationButtons'
 import { DayScheduleProvider } from '../../context/DayScheduleProvider'
+import { useSchedule } from '../../context/ScheduleProvider'
+import themes from '../../config/themes'
 
-const screenWidth = Dimensions.get('window').width
-
-export default function Schedule({
-	schedule,
-	lessonTimes,
-	theme,
-	themeColors,
-	accent,
-	onThemeChange,
-}) {
+export default function Schedule() {
+	const { schedule } = useSchedule()   // ⚡ беремо з контексту
 	const [currentDate, setCurrentDate] = useState(new Date())
+
+	if (!schedule) {
+		return (
+			<View style={styles.container}>
+				<Text>Розклад не завантажено</Text>
+			</View>
+		)
+	}
+
+	// ⚡ розпаковуємо дані з розкладу
+	const [themeMode, accentName] = schedule.theme || ['light', 'blue']
+	const themeColors = themes[themeMode]
+	const accent = themes.accentColors[accentName]
 
 	const daysOfWeek = [
 		'Понеділок',
@@ -33,7 +39,6 @@ export default function Schedule({
 		'Неділя',
 	]
 
-	const subjects = schedule?.subjects || []
 	const repeatWeeks = schedule?.repeat || 1
 	const mondayFirstWeek = schedule?.starting_week
 		? new Date(schedule.starting_week)
@@ -47,16 +52,8 @@ export default function Schedule({
 			(date - mondayFirstWeek) / (1000 * 60 * 60 * 24)
 		)
 		return (
-			(((Math.floor(diffDays / 7) % repeatWeeks) + repeatWeeks) % repeatWeeks) +
-			1
+			(((Math.floor(diffDays / 7) % repeatWeeks) + repeatWeeks) % repeatWeeks) + 1
 		)
-	}
-
-	const getDaySchedule = date => {
-		const dayIndex = getDayIndex(date)
-		if (!schedule?.schedule) return []
-		const currentWeek = calculateCurrentWeek(date)
-		return schedule.schedule[dayIndex]?.[`week${currentWeek}`] || []
 	}
 
 	const changeDate = direction => {
@@ -81,7 +78,7 @@ export default function Schedule({
 			/>
 			<NavigationButtons changeDate={changeDate} />
 			<DayScheduleProvider date={currentDate}>
-  				<DaySchedule />
+				<DaySchedule />
 			</DayScheduleProvider>
 
 			{!isToday && (

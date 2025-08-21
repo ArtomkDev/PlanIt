@@ -22,6 +22,8 @@ export default function ScheduleSettings() {
     { label: 'Викладачі', screen: 'Teachers' },
     { label: 'Розклад', screen: 'Schedule' },
     { label: 'Скинути БД', screen: 'ResetDB' },
+    { label: 'Авто збереження', screen: 'AutoSave' },
+    { label: 'Теми', screen: 'Theme' },
   ];
 
   return (

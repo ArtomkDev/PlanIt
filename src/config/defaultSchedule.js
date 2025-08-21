@@ -69,7 +69,13 @@ const defaultSchedule = {
 			phone: '09340005',
 		},
 	],
-	schedule: Array(7).fill({ week1: [], week2: [], week3: [], week4: [] }),
+	schedule: Array.from({ length: 7 }, () => ({
+	  week1: [],
+	  week2: [],
+	  week3: [],
+	  week4: [],
+	})),
+
 }
 
 export default defaultSchedule

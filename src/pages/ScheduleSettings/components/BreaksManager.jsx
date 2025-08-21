@@ -56,10 +56,6 @@ export default function BreaksManager() {
 			styles.container,
 			{ backgroundColor: themeColors.backgroundColor },
 		]}>
-			<Text style={[styles.title, { color: themeColors.textColor }]}>
-				Редагувати перерви:
-			</Text>
-
 			<FlatList
 				data={tempBreaks}
 				style={styles.containerBlock}
@@ -98,9 +94,9 @@ export default function BreaksManager() {
 
 			{/* Панель з блюром */}
 			<BlurView
-				tint={currentTheme === 'dark' ? 'dark' : 'light'}
-				intensity={100}
-				style={styles.buttonsContainer}
+			  	tint={themeMode === 'dark' ? 'dark' : 'light'}
+			  	intensity={100}
+			  	style={styles.buttonsContainer}
 			>
 				<TouchableOpacity
 					style={[styles.addButton, { backgroundColor: accent }]}
@@ -133,8 +129,8 @@ export default function BreaksManager() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, marginBottom: 0 },
-	containerBlock: { paddingLeft: 10, paddingRight: 10 },
+	container: { flex: 1, marginBottom: 0},
+	containerBlock: { paddingLeft: 10, paddingRight: 10 , paddingTop: 15},
 	title: {
 		fontSize: 20,
 		fontWeight: 'bold',

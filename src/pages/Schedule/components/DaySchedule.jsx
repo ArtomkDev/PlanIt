@@ -1,15 +1,56 @@
-import React from "react";
-import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
+// src/pages/Schedule/components/DaySchedule.jsx
+import React, { useMemo } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
+import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
 
-export default function DaySchedule() {
-  const { currentDate, getDaySchedule, subjects, lessonTimes, teachers } =
-    useDaySchedule();
+// ✅ Допоміжна функція для додавання хвилин
+function addMinutes(timeStr, minsToAdd) {
+  if (!timeStr) return null;
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes + minsToAdd);
+  return date.toTimeString().slice(0, 5); // формат HH:MM
+}
 
-  // отримуємо масив предметів для поточного дня
-  const scheduleForDay = getDaySchedule(currentDate);
-  
+// ✅ Генерація часів занять
+function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
+  if (!startTime || !duration) return [];
+
+  let times = [];
+  let currentStart = startTime;
+
+  for (let i = 0; i < lessonsCount; i++) {
+    const end = addMinutes(currentStart, duration);
+    times.push({ start: currentStart, end });
+    currentStart = addMinutes(end, breaks?.[i] || 0);
+  }
+
+  return times;
+}
+
+export default function DaySchedule() {
+  const { currentDate, getDaySchedule } = useDaySchedule();
+  const { schedule } = useSchedule();
+
+  // ✅ дістаємо дані через крапку
+  const {
+    start_time = "08:30",
+    duration = 45,
+    breaks = [],
+    subjects = [],
+    teachers = [],
+  } = schedule || {};
+
+  // Отримуємо предмети на цей день
+  const scheduleForDay = getDaySchedule ? getDaySchedule(currentDate) : [];
+
+  // Генеруємо часи уроків
+  const lessonTimes = useMemo(() => {
+    return buildLessonTimes(start_time, duration, breaks, scheduleForDay.length);
+  }, [start_time, duration, breaks, scheduleForDay]);
+
   return (
     <View style={styles.dayContainer}>
       {scheduleForDay.length > 0 ? (
@@ -23,10 +64,7 @@ export default function DaySchedule() {
           return (
             <View
               key={index}
-              style={[
-                styles.subjectContainer,
-                { backgroundColor: subjectColor },
-              ]}
+              style={[styles.subjectContainer, { backgroundColor: subjectColor }]}
             >
               <Text style={styles.subjectName}>{subject?.name || "—"}</Text>
               {timeInfo.start && timeInfo.end && (
@@ -68,10 +106,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     marginTop: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
 });
