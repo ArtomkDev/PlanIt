@@ -23,10 +23,29 @@ import ResetDB from '../pages/ScheduleSettings/components/ResetDB';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Стек для налаштувань розкладу
+
 function ScheduleSettingsStack() {
+  const { schedule } = useSchedule();                  // ✅ беремо тему з контексту
+  const [themeMode] = schedule?.theme || ['light', 'blue'];
+
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerTransparent: true,
+        headerBackground: () => (
+          <BlurView
+            tint={themeMode === 'dark' ? 'dark' : 'light'} // ✅ міняється залежно від теми
+            intensity={90}
+            style={{ flex: 1 }}
+          />
+        ),
+        headerTitleStyle: {
+          color: themeMode === 'dark' ? '#fff' : '#000', // ✅ текст теж адаптується
+          fontSize: 18,
+          fontWeight: 'bold',
+        },
+      }}
+    >
       <Stack.Screen
         name="ScheduleSettingsMain"
         component={ScheduleSettings}
@@ -45,12 +64,14 @@ function ScheduleSettingsStack() {
   );
 }
 
-export default function TabNavigator() {
-  const { theme } = useSchedule(); // витягаємо з контексту
-  const [currentTheme, accentColor] = theme || ['light', 'blue'];
 
-  const themeColors = themes[currentTheme] || themes.light;
-  const accent = themes.accentColors[accentColor] || themes.accentColors.blue;
+
+export default function TabNavigator() {
+  const { schedule } = useSchedule(); // ✅ беремо повний schedule
+  const [themeMode, accentName] = schedule?.theme || ['light', 'blue'];
+
+  const themeColors = themes[themeMode] || themes.light;
+  const accent = themes.accentColors[accentName] || themes.accentColors.blue;
 
   return (
     <Tab.Navigator
@@ -66,9 +87,9 @@ export default function TabNavigator() {
         },
         tabBarBackground: () => (
           <BlurView
-            tint={currentTheme === 'dark' ? 'dark' : 'light'}
-            intensity={100}
-            style={{ flex: 1 }}
+            tint={themeMode === 'dark' ? 'dark' : 'light'} // ✅ як у BreaksManager
+            intensity={90}
+            style={{ flex: 1, overflow: 'hidden' }} // ✅ важливо для того самого ефекту
           />
         ),
         tabBarLabelStyle: {

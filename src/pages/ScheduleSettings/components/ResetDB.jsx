@@ -3,6 +3,7 @@ import React from 'react'
 import { Alert, Button, StyleSheet, View } from 'react-native'
 import { auth, db } from '../../../../firebase' // Firebase auth і Firestore
 import defaultSchedule from '../../../config/defaultSchedule'
+import SettingsScreenLayout from '../SettingsScreenLayout'
 
 export default function ResetDB() {
 	const resetFirestore = async () => {
@@ -24,13 +25,15 @@ export default function ResetDB() {
 	}
 
 	return (
-		<View style={styles.container}>
-			<Button
-				title='Оновити дані у Firestore'
-				onPress={resetFirestore}
-				color='red'
-			/>
-		</View>
+		<SettingsScreenLayout>
+			<View style={styles.container}>
+				<Button
+					title='Оновити дані у Firestore'
+					onPress={resetFirestore}
+					color='red'
+				/>
+			</View>
+		</SettingsScreenLayout>
 	)
 }
 

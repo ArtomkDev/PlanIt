@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
+import SettingsScreenLayout from "../SettingsScreenLayout";
 
 export default function TeachersManager() {
   const { schedule, setScheduleDraft } = useSchedule();
@@ -61,70 +62,72 @@ export default function TeachersManager() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
-      <Text style={[styles.header, { color: themeColors.textColor }]}>
-        Manage Teachers
-      </Text>
-
-      <TextInput
-        style={[
-          styles.input,
-          { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
-        ]}
-        placeholder="Teacher Name"
-        placeholderTextColor={themeColors.textColor2}
-        value={newTeacher.name}
-        onChangeText={(text) => setNewTeacher({ ...newTeacher, name: text })}
-      />
-
-      <TextInput
-        style={[
-          styles.input,
-          { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
-        ]}
-        placeholder="Phone"
-        placeholderTextColor={themeColors.textColor2}
-        value={newTeacher.phone}
-        onChangeText={(text) => setNewTeacher({ ...newTeacher, phone: text })}
-      />
-
-      <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
-        onPress={handleAddTeacher}
-      >
-        <Text style={[styles.addButtonText, { color: themeColors.textColor }]}>
-          {isEditMode ? "Save Changes" : "Add Teacher"}
+    <SettingsScreenLayout>
+      <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
+        <Text style={[styles.header, { color: themeColors.textColor }]}>
+          Manage Teachers
         </Text>
-      </TouchableOpacity>
 
-      <FlatList
-        data={teachers}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View
-            style={[styles.teacherItem, { backgroundColor: themeColors.backgroundColor2 }]}
-          >
-            <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
-              {item.name} - {item.phone}
-            </Text>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[styles.editButton, { backgroundColor: themeColors.accentColor }]}
-                onPress={() => handleEditTeacher(item)}
-              >
-                <Text style={{ color: themeColors.textColor }}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.removeButton, { backgroundColor: themes.accentColors.red }]}
-                onPress={() => handleRemoveTeacher(item.id)}
-              >
-                <Text style={{ color: themeColors.textColor }}>Видалити</Text>
-              </TouchableOpacity>
+        <TextInput
+          style={[
+            styles.input,
+            { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
+          ]}
+          placeholder="Teacher Name"
+          placeholderTextColor={themeColors.textColor2}
+          value={newTeacher.name}
+          onChangeText={(text) => setNewTeacher({ ...newTeacher, name: text })}
+        />
+
+        <TextInput
+          style={[
+            styles.input,
+            { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
+          ]}
+          placeholder="Phone"
+          placeholderTextColor={themeColors.textColor2}
+          value={newTeacher.phone}
+          onChangeText={(text) => setNewTeacher({ ...newTeacher, phone: text })}
+        />
+
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
+          onPress={handleAddTeacher}
+        >
+          <Text style={[styles.addButtonText, { color: themeColors.textColor }]}>
+            {isEditMode ? "Save Changes" : "Add Teacher"}
+          </Text>
+        </TouchableOpacity>
+
+        <FlatList
+          data={teachers}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <View
+              style={[styles.teacherItem, { backgroundColor: themeColors.backgroundColor2 }]}
+            >
+              <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
+                {item.name} - {item.phone}
+              </Text>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.editButton, { backgroundColor: themeColors.accentColor }]}
+                  onPress={() => handleEditTeacher(item)}
+                >
+                  <Text style={{ color: themeColors.textColor }}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.removeButton, { backgroundColor: themes.accentColors.red }]}
+                  onPress={() => handleRemoveTeacher(item.id)}
+                >
+                  <Text style={{ color: themeColors.textColor }}>Видалити</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
-      />
-    </View>
+          )}
+        />
+      </View>
+    </SettingsScreenLayout>
   );
 }
 

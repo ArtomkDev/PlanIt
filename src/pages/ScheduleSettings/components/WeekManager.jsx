@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
+import SettingsScreenLayout from '../SettingsScreenLayout';
 
 export default function WeekManager() {
   const { schedule, setScheduleDraft } = useSchedule();
@@ -13,32 +14,34 @@ export default function WeekManager() {
   };
 
   return (
-    <View style={styles.repeatContainer}>
-      <Text style={[styles.repeatLabel, { color: themeColors.textColor }]}>
-        Кількість тижнів повторення:
-      </Text>
-      <View style={styles.repeatButtons}>
-        {[1, 2, 3, 4].map((value) => (
-          <TouchableOpacity
-            key={value}
-            onPress={() => handleSelectRepeatOption(value)}
-            style={[
-              styles.weekButton,
-              {
-                backgroundColor:
-                  schedule.repeat === value
-                    ? themeColors.accentColor
-                    : themeColors.backgroundColor2,
-              },
-            ]}
-          >
-            <Text style={[styles.weekButtonText, { color: themeColors.textColor }]}>
-              {value}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <SettingsScreenLayout>
+      <View style={styles.repeatContainer}>
+        <Text style={[styles.repeatLabel, { color: themeColors.textColor }]}>
+          Кількість тижнів повторення:
+        </Text>
+        <View style={styles.repeatButtons}>
+          {[1, 2, 3, 4].map((value) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => handleSelectRepeatOption(value)}
+              style={[
+                styles.weekButton,
+                {
+                  backgroundColor:
+                    schedule.repeat === value
+                      ? themeColors.accentColor
+                      : themeColors.backgroundColor2,
+                },
+              ]}
+            >
+              <Text style={[styles.weekButtonText, { color: themeColors.textColor }]}>
+                {value}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-    </View>
+    </SettingsScreenLayout>
   );
 }
 

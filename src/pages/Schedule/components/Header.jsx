@@ -32,6 +32,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
+    paddingTop: 20,
   },
   dayOfWeekText: { fontSize: 20, fontWeight: "bold" },
   dateText: { fontSize: 16 },

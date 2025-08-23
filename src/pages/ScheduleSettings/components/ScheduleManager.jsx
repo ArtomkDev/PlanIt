@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import { useSchedule } from '../../../context/ScheduleProvider'
 import themes from '../../../config/themes'
+import SettingsScreenLayout from '../SettingsScreenLayout'
 
 export default function ScheduleManager() {
 	const { schedule, setScheduleDraft } = useSchedule()
@@ -107,125 +108,127 @@ export default function ScheduleManager() {
 	}
 
 	return (
-		<View style={[
-			styles.container,
-			{ backgroundColor: themeColors.backgroundColor },
-		]}>		
-			{schedule.schedule.map((day, dayIndex) => (
-				<View key={dayIndex} style={styles.dayContainer}>
-					<Text style={[styles.dayTitle, { color: themeColors.textColor }]}>
-						{daysOfWeek[dayIndex]}
-					</Text>
+		<SettingsScreenLayout>
+			<View style={[
+				styles.container,
+				{ backgroundColor: themeColors.backgroundColor },
+			]}>		
+				{schedule.schedule.map((day, dayIndex) => (
+					<View key={dayIndex} style={styles.dayContainer}>
+						<Text style={[styles.dayTitle, { color: themeColors.textColor }]}>
+							{daysOfWeek[dayIndex]}
+						</Text>
 
-					{Object.keys(day)
-						.sort(
-							(a, b) =>
-								parseInt(a.replace('week', '')) -
-								parseInt(b.replace('week', ''))
-						)
-						.slice(0, schedule.repeat)
-						.map(weekPart => (
-							<View key={weekPart} style={styles.weekPartContainer}>
-								<Text
-									style={[
-										styles.weekPartTitle,
-										{ color: themeColors.textColor },
-									]}
-								>
-									{weekPart}
-								</Text>
-
-								{day[weekPart].map((subjectId, subjectIndex) => (
-									<View key={subjectIndex} style={styles.subjectContainer}>
-										<TouchableOpacity
-											style={[
-												styles.subjectButton,
-												{ backgroundColor: accent },
-											]}
-											onPress={() =>
-												openSubjectModal(dayIndex, weekPart, subjectIndex)
-											}
-										>
-											<Text style={styles.subjectButtonText}>
-												{subjects.find(s => s.id === subjectId)?.name ||
-													'Вибрати предмет'}
-											</Text>
-										</TouchableOpacity>
-
-										<TouchableOpacity
-											style={styles.removeSubjectButton}
-											onPress={() =>
-												handleRemoveSubject(dayIndex, weekPart, subjectIndex)
-											}
-										>
-											<Text style={styles.removeSubjectButtonText}>В</Text>
-										</TouchableOpacity>
-									</View>
-								))}
-
-								<TouchableOpacity
-									style={[styles.addSubjectButton, { backgroundColor: accent }]}
-									onPress={() => handleAddDefaultSubject(dayIndex, weekPart)}
-								>
+						{Object.keys(day)
+							.sort(
+								(a, b) =>
+									parseInt(a.replace('week', '')) -
+									parseInt(b.replace('week', ''))
+							)
+							.slice(0, schedule.repeat)
+							.map(weekPart => (
+								<View key={weekPart} style={styles.weekPartContainer}>
 									<Text
 										style={[
-											styles.addSubjectButtonText,
+											styles.weekPartTitle,
 											{ color: themeColors.textColor },
 										]}
 									>
-										Додати пару
+										{weekPart}
 									</Text>
-								</TouchableOpacity>
-							</View>
-						))}
-				</View>
-			))}
 
-			{/* модалка вибору предмету */}
-			{showSubjectModal && (
-				<Modal transparent={true} animationType="slide" visible={showSubjectModal}>
-					<View style={styles.modalContainer}>
-						<View
-							style={[
-								styles.modalContent,
-								{ backgroundColor: themeColors.backgroundColor2 },
-							]}
-						>
-							<Text
-								style={[styles.modalTitle, { color: themeColors.textColor }]}
-							>
-								Виберіть предмет
-							</Text>
-							<FlatList
-								data={subjects}
-								keyExtractor={item => item.id.toString()}
-								renderItem={({ item }) => (
+									{day[weekPart].map((subjectId, subjectIndex) => (
+										<View key={subjectIndex} style={styles.subjectContainer}>
+											<TouchableOpacity
+												style={[
+													styles.subjectButton,
+													{ backgroundColor: accent },
+												]}
+												onPress={() =>
+													openSubjectModal(dayIndex, weekPart, subjectIndex)
+												}
+											>
+												<Text style={styles.subjectButtonText}>
+													{subjects.find(s => s.id === subjectId)?.name ||
+														'Вибрати предмет'}
+												</Text>
+											</TouchableOpacity>
+
+											<TouchableOpacity
+												style={styles.removeSubjectButton}
+												onPress={() =>
+													handleRemoveSubject(dayIndex, weekPart, subjectIndex)
+												}
+											>
+												<Text style={styles.removeSubjectButtonText}>В</Text>
+											</TouchableOpacity>
+										</View>
+									))}
+
 									<TouchableOpacity
-										style={styles.subjectOption}
-										onPress={() => handleSelectSubject(item.id)}
+										style={[styles.addSubjectButton, { backgroundColor: accent }]}
+										onPress={() => handleAddDefaultSubject(dayIndex, weekPart)}
 									>
 										<Text
 											style={[
-												styles.subjectOptionText,
+												styles.addSubjectButtonText,
 												{ color: themeColors.textColor },
 											]}
 										>
-											{item.name}
+											Додати пару
 										</Text>
 									</TouchableOpacity>
-								)}
-							/>
-							<TouchableOpacity
-								style={styles.closeModalButton}
-								onPress={() => setShowSubjectModal(false)}
-							>
-								<Text style={styles.closeModalButtonText}>Закрити</Text>
-							</TouchableOpacity>
-						</View>
+								</View>
+							))}
 					</View>
-				</Modal>
-			)}
-		</View>
+				))}
+
+				{/* модалка вибору предмету */}
+				{showSubjectModal && (
+					<Modal transparent={true} animationType="slide" visible={showSubjectModal}>
+						<View style={styles.modalContainer}>
+							<View
+								style={[
+									styles.modalContent,
+									{ backgroundColor: themeColors.backgroundColor2 },
+								]}
+							>
+								<Text
+									style={[styles.modalTitle, { color: themeColors.textColor }]}
+								>
+									Виберіть предмет
+								</Text>
+								<FlatList
+									data={subjects}
+									keyExtractor={item => item.id.toString()}
+									renderItem={({ item }) => (
+										<TouchableOpacity
+											style={styles.subjectOption}
+											onPress={() => handleSelectSubject(item.id)}
+										>
+											<Text
+												style={[
+													styles.subjectOptionText,
+													{ color: themeColors.textColor },
+												]}
+											>
+												{item.name}
+											</Text>
+										</TouchableOpacity>
+									)}
+								/>
+								<TouchableOpacity
+									style={styles.closeModalButton}
+									onPress={() => setShowSubjectModal(false)}
+								>
+									<Text style={styles.closeModalButtonText}>Закрити</Text>
+								</TouchableOpacity>
+							</View>
+						</View>
+					</Modal>
+				)}
+			</View>
+		</SettingsScreenLayout>
 	)
 }
 

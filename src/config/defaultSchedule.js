@@ -4,6 +4,7 @@ const defaultSchedule = {
 	start_time: '08:30',
 	auto_save: 60,
 	repeat: 1,
+	starting_week: '2025-08-18',
 	theme: ['dark', 'red'],
 	subjects: [
 		{
@@ -18,28 +19,28 @@ const defaultSchedule = {
 			name: 'Ukrainian Language',
 			teacher: 1,
 			zoom_link: 'https://zoom.com/lesson2',
-			color: 'red',
+			color: 'blue',
 		},
 		{
 			id: 3,
 			name: 'Biology',
 			teacher: 4,
 			zoom_link: 'https://zoom.com/lesson3',
-			color: 'red',
+			color: 'green',
 		},
 		{
 			id: 4,
 			name: 'Physics',
 			teacher: 5,
 			zoom_link: 'https://zoom.com/lesson4',
-			color: 'red',
+			color: 'yellow',
 		},
 		{
 			id: 5,
 			name: 'Informatics',
 			teacher: 3,
 			zoom_link: 'https://zoom.com/lesson5',
-			color: 'red',
+			color: 'purple',
 		},
 	],
 	teachers: [

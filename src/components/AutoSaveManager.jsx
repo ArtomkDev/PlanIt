@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, Text } from "react-native";
+import { Animated, Easing, StyleSheet, Text, Pressable } from "react-native";
 import { useSchedule } from "../context/ScheduleProvider"; // беремо дані з контексту
 
 export default function AutoSaveManager() {
@@ -12,7 +12,6 @@ export default function AutoSaveManager() {
 
   const heightAnim = useRef(new Animated.Value(0)).current;
 
-  // Запускаємо автозбереження лише після рендеру
   useEffect(() => {
     if (isDirty) {
       const startTimeout = setTimeout(() => {
@@ -46,7 +45,6 @@ export default function AutoSaveManager() {
     timerRef.current = setInterval(() => {
       setTimeLeft((prevTime) => {
         if (prevTime > 1) return prevTime - 1;
-        // зберігаємо після завершення рендеру
         requestAnimationFrame(saveChanges);
         return autoSaveInterval;
       });
@@ -73,15 +71,16 @@ export default function AutoSaveManager() {
 
   const getDisplayText = () => {
     if (isSaving) return "Збереження...";
-    if (showSavedMessage) return "Збережено";
     if (isDirty) return `Час до автозбереження: ${timeLeft} сек.`;
-    return "Всі зміни збережені.";
+    return "Всі зміни збережені!";
   };
 
   return (
-    <Animated.View style={[styles.container, { height: heightAnim }]}>
-      <Text style={styles.text}>{getDisplayText()}</Text>
-    </Animated.View>
+    <Pressable onPress={saveChanges}>
+      <Animated.View style={[styles.container, { height: heightAnim }]}>
+        <Text style={styles.text}>{getDisplayText()}</Text>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -91,6 +90,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     height: 10,
+    justifyContent: "center",
   },
   text: {
     fontSize: 12,

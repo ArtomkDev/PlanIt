@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import themes from '../../../config/themes'
 import { useSchedule } from '../../../context/ScheduleProvider'
+import SettingsScreenLayout from '../SettingsScreenLayout'
 
 export default function SubjectsManager() {
   const { schedule, setScheduleDraft, isLoading } = useSchedule()
@@ -111,149 +112,151 @@ export default function SubjectsManager() {
   }
 
   return (
-   	<View style={[
-		styles.container,
-		{ backgroundColor: themeColors.backgroundColor },
-	]}>
-      <Text style={[styles.header, { color: themeColors.textColor }]}>
-        Manage Subjects
-      </Text>
-
-      <TextInput
-        style={[
-          styles.input,
-          { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
-        ]}
-        placeholder="Subject Name"
-        value={newSubject.name}
-        onChangeText={text => setNewSubject(prev => ({ ...prev, name: text }))}
-      />
-
-      <TouchableOpacity
-        style={[
-          styles.input,
-          { borderColor: themeColors.textColor2, backgroundColor: themeColors.backgroundColor2 },
-        ]}
-        onPress={toggleModal}
-      >
-        <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
-          {selectedTeacher || 'Select Teacher'}
+    <SettingsScreenLayout>
+   	  <View style={[
+		  styles.container,
+		  { backgroundColor: themeColors.backgroundColor },
+	    ]}>
+        <Text style={[styles.header, { color: themeColors.textColor }]}>
+          Manage Subjects
         </Text>
-      </TouchableOpacity>
 
-      <TextInput
-        style={[
-          styles.input,
-          { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
-        ]}
-        placeholder="Zoom Link"
-        value={newSubject.zoom_link}
-        onChangeText={text => setNewSubject(prev => ({ ...prev, zoom_link: text }))}
-      />
+        <TextInput
+          style={[
+            styles.input,
+            { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
+          ]}
+          placeholder="Subject Name"
+          value={newSubject.name}
+          onChangeText={text => setNewSubject(prev => ({ ...prev, name: text }))}
+        />
 
-      <View style={styles.colorSelector}>
-        {Object.entries(themes.accentColors).map(([colorName, colorValue]) => (
-          <TouchableOpacity
-            key={colorName}
-            style={[
-              styles.colorCircle,
-              {
-                backgroundColor: colorValue,
-                borderWidth: newSubject.color === colorName ? 2 : 0,
-              },
-            ]}
-            onPress={() => handleColorSelect(colorName)}
-          />
-        ))}
-      </View>
+        <TouchableOpacity
+          style={[
+            styles.input,
+            { borderColor: themeColors.textColor2, backgroundColor: themeColors.backgroundColor2 },
+          ]}
+          onPress={toggleModal}
+        >
+          <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
+            {selectedTeacher || 'Select Teacher'}
+          </Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: accent }]}
-        onPress={handleAddOrSave}
-      >
-        <Text style={[styles.addButtonText, { color: themeColors.textColor }]}>
-          {isEditMode ? 'Save Changes' : 'Add Subject'}
-        </Text>
-      </TouchableOpacity>
+        <TextInput
+          style={[
+            styles.input,
+            { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
+          ]}
+          placeholder="Zoom Link"
+          value={newSubject.zoom_link}
+          onChangeText={text => setNewSubject(prev => ({ ...prev, zoom_link: text }))}
+        />
 
-      <Modal
-        transparent
-        visible={isModalVisible}
-        animationType="slide"
-        onRequestClose={toggleModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: themeColors.backgroundColor2 },
-            ]}
-          >
-            <Text style={[styles.modalHeader, { color: themeColors.textColor }]}>
-              Select Teacher
-            </Text>
-            <FlatList
-              data={teachers}
-              keyExtractor={item => item.id.toString()}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[
-                    styles.teacherItem,
-                    { backgroundColor: themeColors.backgroundColor3 },
-                  ]}
-                  onPress={() => handleTeacherSelect(item.id)}
-                >
-                  <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
-                    {item.name}
-                  </Text>
-                </Pressable>
-              )}
-            />
+        <View style={styles.colorSelector}>
+          {Object.entries(themes.accentColors).map(([colorName, colorValue]) => (
             <TouchableOpacity
-              style={[styles.closeModalButton, { backgroundColor: accent }]}
-              onPress={toggleModal}
-            >
-              <Text style={[styles.closeModalButtonText, { color: themeColors.textColor }]}>
-                Close
-              </Text>
-            </TouchableOpacity>
-          </View>
+              key={colorName}
+              style={[
+                styles.colorCircle,
+                {
+                  backgroundColor: colorValue,
+                  borderWidth: newSubject.color === colorName ? 2 : 0,
+                },
+              ]}
+              onPress={() => handleColorSelect(colorName)}
+            />
+          ))}
         </View>
-      </Modal>
 
-      <FlatList
-        data={subjects}
-        keyExtractor={item => item.id.toString()}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.subjectItem,
-              { backgroundColor: themeColors.backgroundColor2 },
-            ]}
-          >
-            <Text style={[styles.subjectText, { color: themeColors.textColor }]}>
-              {item.name} - {getTeacherName(item.teacher)}
-            </Text>
-            <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: accent }]}
+          onPress={handleAddOrSave}
+        >
+          <Text style={[styles.addButtonText, { color: themeColors.textColor }]}>
+            {isEditMode ? 'Save Changes' : 'Add Subject'}
+          </Text>
+        </TouchableOpacity>
+
+        <Modal
+          transparent
+          visible={isModalVisible}
+          animationType="slide"
+          onRequestClose={toggleModal}
+        >
+          <View style={styles.modalOverlay}>
+            <View
+              style={[
+                styles.modalContent,
+                { backgroundColor: themeColors.backgroundColor2 },
+              ]}
+            >
+              <Text style={[styles.modalHeader, { color: themeColors.textColor }]}>
+                Select Teacher
+              </Text>
+              <FlatList
+                data={teachers}
+                keyExtractor={item => item.id.toString()}
+                renderItem={({ item }) => (
+                  <Pressable
+                    style={[
+                      styles.teacherItem,
+                      { backgroundColor: themeColors.backgroundColor3 },
+                    ]}
+                    onPress={() => handleTeacherSelect(item.id)}
+                  >
+                    <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
+                      {item.name}
+                    </Text>
+                  </Pressable>
+                )}
+              />
               <TouchableOpacity
-                onPress={() => handleEditSubject(item)}
-                style={[styles.editButton, { backgroundColor: accent }]}
+                style={[styles.closeModalButton, { backgroundColor: accent }]}
+                onPress={toggleModal}
               >
-                <Text style={[styles.actionButtonText, { color: themeColors.textColor }]}>
-                  Edit
+                <Text style={[styles.closeModalButtonText, { color: themeColors.textColor }]}>
+                  Close
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleRemoveSubject(item.id)}
-                style={styles.removeButton}
-              >
-                <Text style={styles.actionButtonText}>Remove</Text>
               </TouchableOpacity>
             </View>
           </View>
-        )}
-      />
-    </View>
+        </Modal>
+
+        <FlatList
+          data={subjects}
+          keyExtractor={item => item.id.toString()}
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.subjectItem,
+                { backgroundColor: themeColors.backgroundColor2 },
+              ]}
+            >
+              <Text style={[styles.subjectText, { color: themeColors.textColor }]}>
+                {item.name} - {getTeacherName(item.teacher)}
+              </Text>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  onPress={() => handleEditSubject(item)}
+                  style={[styles.editButton, { backgroundColor: accent }]}
+                >
+                  <Text style={[styles.actionButtonText, { color: themeColors.textColor }]}>
+                    Edit
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleRemoveSubject(item.id)}
+                  style={styles.removeButton}
+                >
+                  <Text style={styles.actionButtonText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        />
+      </View>
+    </SettingsScreenLayout>
   )
 }
 

@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
+import SettingsScreenLayout from "../SettingsScreenLayout";
 
 const AutoSaveIntervalSettings = () => {
   const { schedule, setScheduleDraft } = useSchedule();
@@ -48,39 +49,41 @@ const AutoSaveIntervalSettings = () => {
   const isValueChanged = tempInterval !== currentInterval;
 
   return (
-    <View style={styles.inputContainer}>
-      <Text style={[styles.label, { color: themeColors.textColor }]}>
-        Інтервал автозбереження (секунди):
-      </Text>
-
-      <TextInput
-        style={[
-          styles.input,
-          {
-            borderColor: themeColors.textColor2,
-            color: themeColors.textColor,
-          },
-        ]}
-        keyboardType="number-pad"
-        value={String(tempInterval)}
-        onChangeText={(value) => setTempInterval(Number(value))}
-      />
-
-      <TouchableOpacity
-        style={[
-          styles.confirmButton,
-          {
-            backgroundColor: isValueChanged
-              ? accent
-              : themeColors.backgroundColor2,
-          },
-        ]}
-        onPress={confirmIntervalChange}
-        disabled={!isValueChanged}
-      >
-        <Text style={{ color: themeColors.textColor }}>Підтвердити</Text>
-      </TouchableOpacity>
-    </View>
+    <SettingsScreenLayout>
+      <View style={styles.inputContainer}>
+        <Text style={[styles.label, { color: themeColors.textColor }]}>
+          Інтервал автозбереження (секунди):
+        </Text>
+    
+        <TextInput
+          style={[
+            styles.input,
+            {
+              borderColor: themeColors.textColor2,
+              color: themeColors.textColor,
+            },
+          ]}
+          keyboardType="number-pad"
+          value={String(tempInterval)}
+          onChangeText={(value) => setTempInterval(Number(value))}
+        />
+  
+        <TouchableOpacity
+          style={[
+            styles.confirmButton,
+            {
+              backgroundColor: isValueChanged
+                ? accent
+                : themeColors.backgroundColor2,
+            },
+          ]}
+          onPress={confirmIntervalChange}
+          disabled={!isValueChanged}
+        >
+          <Text style={{ color: themeColors.textColor }}>Підтвердити</Text>
+        </TouchableOpacity>
+      </View>
+    </SettingsScreenLayout>
   );
 };
 

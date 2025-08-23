@@ -1,6 +1,9 @@
 import { StatusBar } from 'expo-status-bar'
 import React from 'react'
 import { Button, StyleSheet, View, Text } from 'react-native'
+import { BlurView } from 'expo-blur'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
 import AutoSaveManager from '../components/AutoSaveManager'
 import TabNavigator from '../Navigation/TabNavigator'
 import { useSchedule } from '../context/ScheduleProvider'
@@ -15,27 +18,38 @@ export default function MainLayout() {
     error,
   } = useSchedule()
 
+  const insets = useSafeAreaInsets()
+
   // якщо розклад ще не завантажений
   if (isLoading) return <Text>Завантаження...</Text>
   if (error) return <Text>Помилка: {error}</Text>
   if (!schedule) return <Text>Немає даних розкладу</Text>
 
   // дістаємо тему із schedule
-  const [currentTheme, accentColor] = schedule.theme || ['light', 'blue']
+  const [currentTheme] = schedule.theme || ['light', 'blue']
   const themeColors = themes[currentTheme] || themes.light
 
   return (
-    <View style={[{ flex: 1, paddingTop: 40, backgroundColor: themeColors.backgroundColor }]}>
+    <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
+      {/* Розмиття під статус-бар */}
+      <BlurView
+        intensity={100}
+        tint={currentTheme === 'dark' ? 'dark' : 'light'}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top, // висота статус-бара
+        }}
+      />
+
       <StatusBar
+        translucent
         style={currentTheme === 'dark' ? 'light' : 'dark'}
-        backgroundColor={themeColors.backgroundColor}
-        animated={true}
       />
 
       <View style={styles.container}>
-        {isDirty && (
-          <Button title="Зберегти зараз" onPress={saveNow} />
-        )}
         <TabNavigator />
       </View>
 

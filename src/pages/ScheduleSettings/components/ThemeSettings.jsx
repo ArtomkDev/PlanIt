@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import themes from "../../../config/themes";
 import { useSchedule } from "../../../context/ScheduleProvider";
+import SettingsScreenLayout from "../SettingsScreenLayout";
 
 const ThemeSettings = () => {
   const { schedule, setScheduleDraft } = useSchedule();
@@ -44,52 +45,54 @@ const ThemeSettings = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.title, { color: themeColors.textColor }]}>
-        Виберіть тему
-      </Text>
-      <View style={styles.themeContainer}>
-        <TouchableOpacity
-          style={[
-            styles.themeButton,
-            { backgroundColor: themeColors.backgroundColor2 },
-            selectedMode === "dark" && {
-              ...styles.selectedTheme,
-              backgroundColor: themeColors.accentColor,
-            },
-          ]}
-          onPress={() => setSelectedMode("dark")}
-        >
-          <Text style={[styles.themeButtonText, { color: themeColors.textColor }]}>
-            Темна
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.themeButton,
-            { backgroundColor: themeColors.backgroundColor2 },
-            selectedMode === "light" && {
-              ...styles.selectedTheme,
-              backgroundColor: themeColors.accentColor,
-            },
-          ]}
-          onPress={() => setSelectedMode("light")}
-        >
-          <Text style={[styles.themeButtonText, { color: themeColors.textColor }]}>
-            Світла
-          </Text>
-        </TouchableOpacity>
-      </View>
+    <SettingsScreenLayout>
+      <View style={styles.container}>
+        <Text style={[styles.title, { color: themeColors.textColor }]}>
+          Виберіть тему
+        </Text>
+        <View style={styles.themeContainer}>
+          <TouchableOpacity
+            style={[
+              styles.themeButton,
+              { backgroundColor: themeColors.backgroundColor2 },
+              selectedMode === "dark" && {
+                ...styles.selectedTheme,
+                backgroundColor: themeColors.accentColor,
+              },
+            ]}
+            onPress={() => setSelectedMode("dark")}
+          >
+            <Text style={[styles.themeButtonText, { color: themeColors.textColor }]}>
+              Темна
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.themeButton,
+              { backgroundColor: themeColors.backgroundColor2 },
+              selectedMode === "light" && {
+                ...styles.selectedTheme,
+                backgroundColor: themeColors.accentColor,
+              },
+            ]}
+            onPress={() => setSelectedMode("light")}
+          >
+            <Text style={[styles.themeButtonText, { color: themeColors.textColor }]}>
+              Світла
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <Text style={[styles.title, { color: themeColors.textColor }]}>
-        Виберіть колір
-      </Text>
-      <View style={styles.colorsContainer}>
-        {Object.keys(themes.accentColors).map((colorName) =>
-          renderColorOption(colorName)
-        )}
+        <Text style={[styles.title, { color: themeColors.textColor }]}>
+          Виберіть колір
+        </Text>
+        <View style={styles.colorsContainer}>
+          {Object.keys(themes.accentColors).map((colorName) =>
+            renderColorOption(colorName)
+          )}
+        </View>
       </View>
-    </View>
+    </SettingsScreenLayout>
   );
 };
 

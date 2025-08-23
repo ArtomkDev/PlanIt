@@ -5,6 +5,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
+import SettingsScreenLayout from '../SettingsScreenLayout';
 
 export default function StartWeekScreen() {
   const { schedule, setScheduleDraft } = useSchedule();
@@ -45,38 +46,40 @@ export default function StartWeekScreen() {
   };
 
   return (
-    <View style={styles.inputContainer}>
-      <Button
-        title={`Вибрати дату (${getMondayOfWeek(selectedDate).toISOString().split('T')[0]})`}
-        onPress={() => setShowPicker(!showPicker)}
-        color={themeColors.accentColor}
-      />
+    <SettingsScreenLayout>
+      <View style={styles.inputContainer}>
+        <Button
+          title={`Вибрати дату (${getMondayOfWeek(selectedDate).toISOString().split('T')[0]})`}
+          onPress={() => setShowPicker(!showPicker)}
+          color={themeColors.accentColor}
+        />
 
-      {showPicker && (
-        <View
-          style={
-            Platform.OS === 'web'
-              ? styles.webPicker
-              : [styles.pickerContainer, { backgroundColor: themeColors.backgroundColor2 }]
-          }
-        >
-          {Platform.OS === 'web' ? (
-            <DatePicker
-              selected={selectedDate}
-              onChange={(date) => handleDateSelection(date)}
-              inline
-            />
-          ) : (
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display="default"
-              onChange={(event, date) => handleDateSelection(date)}
-            />
-          )}
-        </View>
-      )}
-    </View>
+        {showPicker && (
+          <View
+            style={
+              Platform.OS === 'web'
+                ? styles.webPicker
+                : [styles.pickerContainer, { backgroundColor: themeColors.backgroundColor2 }]
+            }
+          >
+            {Platform.OS === 'web' ? (
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date) => handleDateSelection(date)}
+                inline
+              />
+            ) : (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) => handleDateSelection(date)}
+              />
+            )}
+          </View>
+        )}
+      </View>
+    </SettingsScreenLayout>
   );
 }
 

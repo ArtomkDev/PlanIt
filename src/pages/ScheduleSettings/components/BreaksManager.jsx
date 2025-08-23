@@ -100,7 +100,7 @@ export default function BreaksManager() {
 					style={[styles.addButton, { backgroundColor: accent }]}
 					onPress={handleAddBreak}
 				>
-					<Text style={{ color: themeColors.textColor }}>Додати перерву</Text>
+					<Text style={[styles.confirmButtonText, { color: themeColors.textColor }]}>Додати перерву</Text>
 				</TouchableOpacity>
 
 				<TouchableOpacity
@@ -127,8 +127,8 @@ export default function BreaksManager() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, marginBottom: 0},
-	containerBlock: { paddingLeft: 10, paddingRight: 10 , paddingTop: 15},
+	container: { flex: 1, marginBottom: 0,},
+	containerBlock: { paddingLeft: 10, paddingRight: 10 , paddingTop: 15, paddingBottom: 150, paddingTop: 100,},
 	title: {
 		fontSize: 20,
 		fontWeight: 'bold',
