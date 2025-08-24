@@ -12,8 +12,6 @@ import themes from '../config/themes'
 export default function MainLayout() {
   const {
     schedule,
-    saveNow,
-    isDirty,
     isLoading,
     error,
   } = useSchedule()

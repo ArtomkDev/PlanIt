@@ -23,5 +23,5 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, paddingTop: 100, paddingBottom: 32 },
+  content: { padding: 16, paddingTop: 100, paddingBottom: 60 },
 });

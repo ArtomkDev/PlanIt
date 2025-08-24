@@ -7,9 +7,11 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native'
+import { Swipeable } from 'react-native-gesture-handler'
 import { useSchedule } from '../../../context/ScheduleProvider'
 import themes from '../../../config/themes'
 import SettingsScreenLayout from '../SettingsScreenLayout'
+import { Ionicons } from '@expo/vector-icons'
 
 export default function ScheduleManager() {
 	const { schedule, setScheduleDraft } = useSchedule()
@@ -28,13 +30,12 @@ export default function ScheduleManager() {
 		'Неділя',
 	]
 
-	// витягуємо тему з schedule.theme
+	// тема
 	const themeName = schedule?.theme?.[0] || 'light'
 	const accentName = schedule?.theme?.[1] || 'blue'
 	const themeColors = themes[themeName]
 	const accent = themes.accentColors[accentName]
 
-	// наші предмети тепер зберігаються в schedule.subjects
 	const subjects = schedule?.subjects || []
 
 	// ініціалізація пустих тижнів
@@ -107,12 +108,24 @@ export default function ScheduleManager() {
 		return <Text>Invalid schedule data</Text>
 	}
 
+	// свайп-кнопка справа
+	const renderRightActions = (dayIndex, weekPart, subjectIndex) => (
+		<TouchableOpacity
+			style={styles.deleteAction}
+			onPress={() => handleRemoveSubject(dayIndex, weekPart, subjectIndex)}
+		>
+			<Ionicons name="trash" size={24} color="#fff" />
+		</TouchableOpacity>
+	)
+
 	return (
 		<SettingsScreenLayout>
-			<View style={[
-				styles.container,
-				{ backgroundColor: themeColors.backgroundColor },
-			]}>		
+			<View
+				style={[
+					styles.container,
+					{ backgroundColor: themeColors.backgroundColor },
+				]}
+			>
 				{schedule.schedule.map((day, dayIndex) => (
 					<View key={dayIndex} style={styles.dayContainer}>
 						<Text style={[styles.dayTitle, { color: themeColors.textColor }]}>
@@ -138,45 +151,40 @@ export default function ScheduleManager() {
 									</Text>
 
 									{day[weekPart].map((subjectId, subjectIndex) => (
-										<View key={subjectIndex} style={styles.subjectContainer}>
+										<Swipeable
+											key={subjectIndex}
+											renderRightActions={() =>
+												renderRightActions(dayIndex, weekPart, subjectIndex)
+											}
+										>
 											<TouchableOpacity
 												style={[
 													styles.subjectButton,
-													{ backgroundColor: accent },
+													{ backgroundColor: 'rgba(0,0,0,0.05)' },
 												]}
 												onPress={() =>
 													openSubjectModal(dayIndex, weekPart, subjectIndex)
 												}
 											>
-												<Text style={styles.subjectButtonText}>
+												<Text
+													style={[
+														styles.subjectButtonText,
+														{ color: themeColors.textColor },
+													]}
+												>
 													{subjects.find(s => s.id === subjectId)?.name ||
 														'Вибрати предмет'}
 												</Text>
 											</TouchableOpacity>
-
-											<TouchableOpacity
-												style={styles.removeSubjectButton}
-												onPress={() =>
-													handleRemoveSubject(dayIndex, weekPart, subjectIndex)
-												}
-											>
-												<Text style={styles.removeSubjectButtonText}>В</Text>
-											</TouchableOpacity>
-										</View>
+										</Swipeable>
 									))}
 
 									<TouchableOpacity
 										style={[styles.addSubjectButton, { backgroundColor: accent }]}
 										onPress={() => handleAddDefaultSubject(dayIndex, weekPart)}
 									>
-										<Text
-											style={[
-												styles.addSubjectButtonText,
-												{ color: themeColors.textColor },
-											]}
-										>
-											Додати пару
-										</Text>
+										<Ionicons name="add" size={20} color="#fff" />
+										<Text style={styles.addSubjectButtonText}>Додати пару</Text>
 									</TouchableOpacity>
 								</View>
 							))}
@@ -233,99 +241,95 @@ export default function ScheduleManager() {
 }
 
 const styles = StyleSheet.create({
+	container: {
+		padding: 16,
+	},
+	dayContainer: {
+		marginBottom: 24,
+	},
+	dayTitle: {
+		fontSize: 20,
+		fontWeight: '600',
+		marginBottom: 12,
+	},
+	weekPartContainer: {
+		marginBottom: 16,
+		padding: 12,
+		borderRadius: 12,
+		backgroundColor: 'rgba(0,0,0,0.03)',
+	},
+	weekPartTitle: {
+		fontSize: 16,
+		fontWeight: '500',
+		marginBottom: 8,
+	},
+	subjectButton: {
+		paddingVertical: 14,
+		paddingHorizontal: 16,
+		borderRadius: 12,
+		marginBottom: 10,
+	},
+	subjectButtonText: {
+		fontSize: 16,
+		fontWeight: '500',
+	},
+	addSubjectButton: {
+		marginTop: 8,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		paddingVertical: 12,
+		borderRadius: 12,
+	},
+	addSubjectButtonText: {
+		color: '#fff',
+		fontSize: 16,
+		fontWeight: '600',
+		marginLeft: 6,
+	},
+	// swipe action
+	deleteAction: {
+		backgroundColor: '#ef4444',
+		justifyContent: 'center',
+		alignItems: 'center',
+		width: 70,
+		marginBottom: 10,
+		borderRadius: 12,
+	},
+	// модалка
 	modalContainer: {
 		flex: 1,
-		flexDirection: 'column-reverse',
-		backgroundColor: 'rgba(0, 0, 0, 0)',
+		justifyContent: 'flex-end',
+		backgroundColor: 'rgba(0, 0, 0, 0.3)',
 	},
 	modalContent: {
-		backgroundColor: '#ddd',
+		borderTopLeftRadius: 20,
+		borderTopRightRadius: 20,
 		padding: 20,
-		borderRadius: 10,
+		maxHeight: '60%',
 	},
 	modalTitle: {
 		fontSize: 18,
-		fontWeight: 'bold',
-		marginBottom: 10,
+		fontWeight: '600',
+		marginBottom: 12,
 	},
 	subjectOption: {
-		padding: 10,
+		paddingVertical: 12,
 		borderBottomWidth: 1,
-		borderBottomColor: '#ccc',
+		borderBottomColor: 'rgba(0,0,0,0.1)',
 	},
 	subjectOptionText: {
 		fontSize: 16,
 	},
 	closeModalButton: {
-		backgroundColor: '#FF5733',
-		padding: 10,
-		borderRadius: 5,
-		marginTop: 10,
+		marginTop: 16,
+		padding: 14,
+		borderRadius: 12,
+		backgroundColor: '#f3f4f6',
 	},
 	closeModalButtonText: {
-		color: '#fff',
-		textAlign: 'center',
-		fontSize: 16,
-	},
-	container: {
-		padding: 20,
-	},
-	dayContainer: {
-		marginBottom: 20,
-	},
-	dayTitle: {
-		fontSize: 18,
-		fontWeight: 'bold',
-		marginBottom: 10,
-	},
-	weekPartContainer: {
-		marginBottom: 10,
-	},
-	weekPartTitle: {
-		fontSize: 16,
-		marginBottom: 5,
-	},
-	addSubjectButton: {
-		backgroundColor: '#2196F3',
-		padding: 10,
-		borderRadius: 5,
-		marginBottom: 10,
-	},
-	addSubjectButtonText: {
-		color: '#fff',
 		fontSize: 16,
 		textAlign: 'center',
-	},
-	subjectContainer: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'space-between',
-		marginBottom: 10,
-		borderRadius: 5,
-	},
-	subjectButton: {
-		flex: 1,
-		paddingVertical: 10,
-		paddingHorizontal: 15,
-		borderRadius: 5,
-		backgroundColor: '#4CAF50',
-		marginRight: 10,
-	},
-	subjectButtonText: {
-		color: '#fff',
-		fontSize: 16,
-		textAlign: 'center',
-	},
-	removeSubjectButton: {
-		width: '10%',
-		paddingVertical: 10,
-		paddingHorizontal: 15,
-		borderRadius: 5,
-		backgroundColor: '#fF5733',
-	},
-	removeSubjectButtonText: {
-		color: '#fff',
-		fontSize: 16,
-		textAlign: 'center',
+		fontWeight: '500',
 	},
 })

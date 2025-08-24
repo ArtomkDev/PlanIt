@@ -1,5 +1,4 @@
-// src/pages/ScheduleSettings/components/SubjectsManager.jsx
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   FlatList,
   Modal,
@@ -9,247 +8,223 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native'
-import themes from '../../../config/themes'
-import { useSchedule } from '../../../context/ScheduleProvider'
-import SettingsScreenLayout from '../SettingsScreenLayout'
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import themes from "../../../config/themes";
+import { useSchedule } from "../../../context/ScheduleProvider";
+import SettingsScreenLayout from "../SettingsScreenLayout";
+import useUniqueId from "../../../hooks/useUniqueId"; // ⬅️ новий хук
 
 export default function SubjectsManager() {
-  const { schedule, setScheduleDraft, isLoading } = useSchedule()
+  const { schedule, setScheduleDraft, isLoading } = useSchedule();
+  const generateId = useUniqueId(); // ⬅️ використовуємо хук
 
   if (isLoading || !schedule) {
-    return <Text style={{ padding: 20 }}>Loading...</Text>
+    return <Text style={{ padding: 20 }}>Loading...</Text>;
   }
 
-  // тема й акцент лежать у schedule.theme: [themeName, accentName]
-  const themeName = schedule?.theme?.[0] || 'light'
-  const accentName = schedule?.theme?.[1] || 'blue'
-  const themeColors = themes[themeName] || themes.light
-  const accent = themes.accentColors[accentName] || themes.accentColors.blue
+  const themeName = schedule?.theme?.[0] || "light";
+  const accentName = schedule?.theme?.[1] || "blue";
+  const themeColors = themes[themeName] || themes.light;
+  const accent = themes.accentColors[accentName] || themes.accentColors.blue;
 
-  const subjects = schedule?.subjects || []
-  const teachers = schedule?.teachers || []
+  const subjects = schedule?.subjects || [];
+  const teachers = schedule?.teachers || [];
 
   const [newSubject, setNewSubject] = useState({
-    name: '',
-    teacher: '',
-    zoom_link: '',
-    color: 'red',
-  })
+    name: "",
+    teacher: "",
+    zoom_link: "",
+    color: "red",
+  });
 
-  const [isModalVisible, setIsModalVisible] = useState(false)
-  const [isEditMode, setIsEditMode] = useState(false)
-  const [editSubjectId, setEditSubjectId] = useState(null)
-  const [selectedTeacher, setSelectedTeacher] = useState('')
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editSubjectId, setEditSubjectId] = useState(null);
+  const [selectedTeacher, setSelectedTeacher] = useState("");
 
   const getTeacherName = (teacherId) => {
-    const teacher = teachers.find(t => t.id === teacherId)
-    return teacher ? teacher.name : 'Unknown Teacher'
-  }
+    const teacher = teachers.find((t) => t.id === teacherId);
+    return teacher ? teacher.name : "Unknown Teacher";
+  };
 
   const handleColorSelect = (color) => {
-    setNewSubject(prev => ({ ...prev, color }))
-  }
+    setNewSubject((prev) => ({ ...prev, color }));
+  };
 
   const handleAddOrSave = () => {
     if (!newSubject.teacher) {
-      alert('Please select a teacher.')
-      return
+      alert("Please select a teacher.");
+      return;
     }
 
     if (isEditMode) {
-      // редагування існуючого
-      setScheduleDraft(prev => ({
+      setScheduleDraft((prev) => ({
         ...prev,
-        subjects: prev.subjects.map(s =>
+        subjects: prev.subjects.map((s) =>
           s.id === editSubjectId ? { ...s, ...newSubject } : s
         ),
-      }))
-      setIsEditMode(false)
-      setEditSubjectId(null)
+      }));
+      setIsEditMode(false);
+      setEditSubjectId(null);
     } else {
-      // додавання нового
-      const nextId =
-        subjects.length > 0
-          ? subjects.reduce((m, s) => Math.max(m, Number(s.id) || 0), 0) + 1
-          : 1
-
-      setScheduleDraft(prev => ({
+      setScheduleDraft((prev) => ({
         ...prev,
-        subjects: [...prev.subjects, { ...newSubject, id: nextId }],
-      }))
+        subjects: [...prev.subjects, { ...newSubject, id: generateId() }], // ⬅️ новий ID
+      }));
     }
 
-    setNewSubject({ name: '', teacher: '', zoom_link: '', color: 'red' })
-    setSelectedTeacher('')
-  }
+    setNewSubject({ name: "", teacher: "", zoom_link: "", color: "red" });
+    setSelectedTeacher("");
+  };
 
   const handleEditSubject = (subject) => {
     setNewSubject({
       name: subject.name,
       teacher: subject.teacher,
       zoom_link: subject.zoom_link,
-      color: subject.color || 'red',
-    })
-    setSelectedTeacher(getTeacherName(subject.teacher))
-    setIsEditMode(true)
-    setEditSubjectId(subject.id)
-  }
+      color: subject.color || "red",
+    });
+    setSelectedTeacher(getTeacherName(subject.teacher));
+    setIsEditMode(true);
+    setEditSubjectId(subject.id);
+  };
 
   const handleRemoveSubject = (id) => {
-    setScheduleDraft(prev => ({
+    setScheduleDraft((prev) => ({
       ...prev,
-      subjects: prev.subjects.filter(s => s.id !== id),
-    }))
-  }
+      subjects: prev.subjects.filter((s) => s.id !== id),
+    }));
+  };
 
-  const toggleModal = () => setIsModalVisible(v => !v)
+  const toggleModal = () => setIsModalVisible((v) => !v);
 
   const handleTeacherSelect = (teacherId) => {
-    setNewSubject(prev => ({ ...prev, teacher: teacherId }))
-    setSelectedTeacher(getTeacherName(teacherId))
-    toggleModal()
-  }
+    setNewSubject((prev) => ({ ...prev, teacher: teacherId }));
+    setSelectedTeacher(getTeacherName(teacherId));
+    toggleModal();
+  };
 
   return (
     <SettingsScreenLayout>
-   	  <View style={[
-		  styles.container,
-		  { backgroundColor: themeColors.backgroundColor },
-	    ]}>
+      <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
         <Text style={[styles.header, { color: themeColors.textColor }]}>
           Manage Subjects
         </Text>
 
+        {/* Назва предмету */}
         <TextInput
-          style={[
-            styles.input,
-            { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
-          ]}
+          style={[styles.input, { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 }]}
           placeholder="Subject Name"
+          placeholderTextColor={themeColors.textColor2}
           value={newSubject.name}
-          onChangeText={text => setNewSubject(prev => ({ ...prev, name: text }))}
+          onChangeText={(text) => setNewSubject((prev) => ({ ...prev, name: text }))}
         />
 
-        <TouchableOpacity
-          style={[
-            styles.input,
-            { borderColor: themeColors.textColor2, backgroundColor: themeColors.backgroundColor2 },
-          ]}
+        {/* Викладач */}
+        <Pressable
+          style={[styles.input, {
+            flexDirection: "row", justifyContent: "space-between",
+            alignItems: "center", backgroundColor: themeColors.backgroundColor2
+          }]}
           onPress={toggleModal}
         >
-          <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
-            {selectedTeacher || 'Select Teacher'}
+          <Text style={{ color: themeColors.textColor, fontSize: 16 }}>
+            {selectedTeacher || "Select Teacher"}
           </Text>
-        </TouchableOpacity>
+          <Ionicons name="chevron-down" size={20} color={themeColors.textColor} />
+        </Pressable>
 
+        {/* Zoom посилання */}
         <TextInput
-          style={[
-            styles.input,
-            { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
-          ]}
+          style={[styles.input, { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 }]}
           placeholder="Zoom Link"
+          placeholderTextColor={themeColors.textColor2}
           value={newSubject.zoom_link}
-          onChangeText={text => setNewSubject(prev => ({ ...prev, zoom_link: text }))}
+          onChangeText={(text) => setNewSubject((prev) => ({ ...prev, zoom_link: text }))}
         />
 
-        <View style={styles.colorSelector}>
-          {Object.entries(themes.accentColors).map(([colorName, colorValue]) => (
-            <TouchableOpacity
-              key={colorName}
-              style={[
-                styles.colorCircle,
-                {
-                  backgroundColor: colorValue,
-                  borderWidth: newSubject.color === colorName ? 2 : 0,
-                },
-              ]}
-              onPress={() => handleColorSelect(colorName)}
-            />
-          ))}
-        </View>
+        {/* Вибір кольору */}
+        <Text style={{ fontSize: 16, fontWeight: "500", marginBottom: 8, color: themeColors.textColor }}>
+          Subject Color
+        </Text>
 
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: accent }]}
-          onPress={handleAddOrSave}
-        >
+        <FlatList
+          data={Object.entries(themes.accentColors)}
+          keyExtractor={([name]) => name}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 6 }}
+          renderItem={({ item }) => {
+            const [colorName, colorValue] = item;
+            const isSelected = newSubject.color === colorName;
+
+            return (
+              <TouchableOpacity
+                style={[styles.colorCircle, {
+                  backgroundColor: colorValue,
+                  borderWidth: isSelected ? 3 : 1,
+                  borderColor: isSelected ? accent : "#ccc",
+                }]}
+                onPress={() => handleColorSelect(colorName)}
+              />
+            );
+          }}
+        />
+
+        {/* Додати/Зберегти */}
+        <TouchableOpacity style={[styles.addButton, { backgroundColor: accent }]} onPress={handleAddOrSave}>
           <Text style={[styles.addButtonText, { color: themeColors.textColor }]}>
-            {isEditMode ? 'Save Changes' : 'Add Subject'}
+            {isEditMode ? "💾 Save Changes" : "➕ Add Subject"}
           </Text>
         </TouchableOpacity>
 
-        <Modal
-          transparent
-          visible={isModalVisible}
-          animationType="slide"
-          onRequestClose={toggleModal}
-        >
+        {/* Модалка вибору викладача */}
+        <Modal transparent visible={isModalVisible} animationType="fade">
           <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalContent,
-                { backgroundColor: themeColors.backgroundColor2 },
-              ]}
-            >
+            <View style={[styles.modalContent, { backgroundColor: themeColors.backgroundColor2 }]}>
               <Text style={[styles.modalHeader, { color: themeColors.textColor }]}>
                 Select Teacher
               </Text>
               <FlatList
                 data={teachers}
-                keyExtractor={item => item.id.toString()}
+                keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
                   <Pressable
-                    style={[
-                      styles.teacherItem,
-                      { backgroundColor: themeColors.backgroundColor3 },
-                    ]}
+                    style={[styles.teacherItem, { backgroundColor: themeColors.backgroundColor3 }]}
                     onPress={() => handleTeacherSelect(item.id)}
                   >
-                    <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
+                    <Text style={{ color: themeColors.textColor, fontSize: 16 }}>
                       {item.name}
                     </Text>
                   </Pressable>
                 )}
               />
-              <TouchableOpacity
-                style={[styles.closeModalButton, { backgroundColor: accent }]}
-                onPress={toggleModal}
-              >
-                <Text style={[styles.closeModalButtonText, { color: themeColors.textColor }]}>
-                  Close
-                </Text>
+              <TouchableOpacity style={[styles.closeModalButton, { backgroundColor: accent }]} onPress={toggleModal}>
+                <Text style={styles.closeModalButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
+        {/* Список предметів */}
         <FlatList
           data={subjects}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
-            <View
-              style={[
-                styles.subjectItem,
-                { backgroundColor: themeColors.backgroundColor2 },
-              ]}
-            >
-              <Text style={[styles.subjectText, { color: themeColors.textColor }]}>
-                {item.name} - {getTeacherName(item.teacher)}
-              </Text>
+            <View style={[styles.subjectCard, { backgroundColor: themeColors.backgroundColor2 }]}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View style={[styles.subjectColor, { backgroundColor: themes.accentColors[item.color] }]} />
+                <Text style={[styles.subjectText, { color: themeColors.textColor }]}>
+                  {item.name} · {getTeacherName(item.teacher)}
+                </Text>
+              </View>
               <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={() => handleEditSubject(item)}
-                  style={[styles.editButton, { backgroundColor: accent }]}
-                >
-                  <Text style={[styles.actionButtonText, { color: themeColors.textColor }]}>
-                    Edit
-                  </Text>
+                <TouchableOpacity onPress={() => handleEditSubject(item)}>
+                  <Ionicons name="create-outline" size={22} color={accent} />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleRemoveSubject(item.id)}
-                  style={styles.removeButton}
-                >
-                  <Text style={styles.actionButtonText}>Remove</Text>
+                <TouchableOpacity onPress={() => handleRemoveSubject(item.id)}>
+                  <Ionicons name="trash-outline" size={22} color="tomato" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -257,50 +232,27 @@ export default function SubjectsManager() {
         />
       </View>
     </SettingsScreenLayout>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  input: { padding: 10, marginBottom: 15, borderRadius: 5 },
-  teacherText: { fontSize: 16, color: '#333' },
-  addButton: {
-    backgroundColor: '#28A745',
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  addButtonText: { color: '#FFF', fontSize: 16 },
-  subjectItem: {
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 5,
-    backgroundColor: '#f9f9f9',
-  },
-  subjectText: { fontSize: 16, marginBottom: 5 },
-  actionButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  editButton: { backgroundColor: '#007BFF', padding: 5, borderRadius: 5 },
-  removeButton: { backgroundColor: '#FF6347', padding: 5, borderRadius: 5 },
-  actionButtonText: { color: '#FFF', fontSize: 14 },
-  modalOverlay: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: { width: '80%', backgroundColor: '#fff', padding: 20, borderRadius: 10 },
-  modalHeader: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  teacherItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#ccc' },
-  closeModalButton: {
-    backgroundColor: '#FF6347',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 15,
-    alignItems: 'center',
-  },
-  closeModalButtonText: { color: '#fff' },
-  colorSelector: { flexDirection: 'row', marginBottom: 15 },
-  colorCircle: {
-    width: 30, height: 30, borderRadius: 15, marginRight: 10, borderColor: '#000',
-  },
-})
+  header: { fontSize: 22, fontWeight: "600", marginBottom: 15 },
+  input: { padding: 12, borderRadius: 10, marginBottom: 12 },
+  colorCircle: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
+  addButton: { padding: 14, borderRadius: 12, alignItems: "center", marginBottom: 20, shadowColor: "#000",
+    shadowOpacity: 0.2, shadowOffset: { width: 0, height: 2 }, shadowRadius: 5, elevation: 3 },
+  addButtonText: { fontSize: 16, fontWeight: "600" },
+  subjectCard: { flexDirection: "row", justifyContent: "space-between", padding: 14, borderRadius: 12,
+    marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4, elevation: 2 },
+  subjectColor: { width: 14, height: 14, borderRadius: 7, marginRight: 10 },
+  subjectText: { fontSize: 16, fontWeight: "500" },
+  actionButtons: { flexDirection: "row", gap: 12 },
+  modalOverlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)" },
+  modalContent: { width: "80%", borderRadius: 14, padding: 20 },
+  modalHeader: { fontSize: 18, fontWeight: "600", marginBottom: 10 },
+  teacherItem: { padding: 12, borderRadius: 8, marginBottom: 8 },
+  closeModalButton: { padding: 12, borderRadius: 10, marginTop: 15, alignItems: "center" },
+  closeModalButtonText: { color: "#fff", fontSize: 16, fontWeight: "500" },
+});

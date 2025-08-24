@@ -6,16 +6,11 @@ import SettingsScreenLayout from "../SettingsScreenLayout";
 
 const ThemeSettings = () => {
   const { schedule, setScheduleDraft } = useSchedule();
-
-  // Тема з контексту (['dark','blue'])
   const currentTheme = schedule?.theme || ["dark", "blue"];
   const [selectedMode, setSelectedMode] = useState(currentTheme[0]);
   const [selectedColor, setSelectedColor] = useState(currentTheme[1]);
-
-  // Отримуємо актуальні кольори
   const themeColors = themes.getColors(selectedMode, selectedColor);
 
-  // Оновлюємо контекст при зміні локального вибору
   useEffect(() => {
     if (currentTheme[0] !== selectedMode || currentTheme[1] !== selectedColor) {
       setScheduleDraft((prev) => ({
@@ -27,69 +22,80 @@ const ThemeSettings = () => {
 
   const renderColorOption = (colorName) => {
     const colorValue = themes.accentColors[colorName];
+    const isSelected = selectedColor === colorName;
 
     return (
       <TouchableOpacity
         key={colorName}
         style={[
-          styles.colorOption,
+          styles.colorTile,
           { backgroundColor: colorValue },
-          selectedColor === colorName && {
-            ...styles.selectedColor,
-            borderColor: themeColors.textColor2,
-          },
+          isSelected && styles.colorTileSelected,
         ]}
         onPress={() => setSelectedColor(colorName)}
-      />
+      >
+        {isSelected && <Text style={styles.checkmark}>✓</Text>}
+      </TouchableOpacity>
     );
   };
 
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
-        <Text style={[styles.title, { color: themeColors.textColor }]}>
-          Виберіть тему
+        {/* Заголовок */}
+        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
+          🎨 Вибір теми
         </Text>
+
+        {/* Кнопки вибору */}
         <View style={styles.themeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.themeButton,
-              { backgroundColor: themeColors.backgroundColor2 },
-              selectedMode === "dark" && {
-                ...styles.selectedTheme,
-                backgroundColor: themeColors.accentColor,
-              },
-            ]}
-            onPress={() => setSelectedMode("dark")}
-          >
-            <Text style={[styles.themeButtonText, { color: themeColors.textColor }]}>
-              Темна
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.themeButton,
-              { backgroundColor: themeColors.backgroundColor2 },
-              selectedMode === "light" && {
-                ...styles.selectedTheme,
-                backgroundColor: themeColors.accentColor,
-              },
-            ]}
-            onPress={() => setSelectedMode("light")}
-          >
-            <Text style={[styles.themeButtonText, { color: themeColors.textColor }]}>
-              Світла
-            </Text>
-          </TouchableOpacity>
+          {[
+            { key: "dark", label: "🌙 Темна" },
+            { key: "light", label: "☀️ Світла" },
+          ].map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={[
+                styles.themeCard,
+                { backgroundColor: themeColors.backgroundColor2 },
+                selectedMode === item.key && {
+                  borderColor: themeColors.accentColor,
+                  borderWidth: 2,
+                  shadowColor: themeColors.accentColor,
+                },
+              ]}
+              onPress={() => setSelectedMode(item.key)}
+            >
+              <Text style={[styles.themeCardText, { color: themeColors.textColor }]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <Text style={[styles.title, { color: themeColors.textColor }]}>
-          Виберіть колір
+        {/* Кольори */}
+        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
+          🌈 Акцентний колір
         </Text>
         <View style={styles.colorsContainer}>
           {Object.keys(themes.accentColors).map((colorName) =>
             renderColorOption(colorName)
           )}
+        </View>
+
+        {/* Превʼю */}
+        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
+          👀 Попередній перегляд
+        </Text>
+        <View
+          style={[
+            styles.previewCard,
+            { backgroundColor: themeColors.backgroundColor2 },
+          ]}
+        >
+          <Text style={[styles.previewText, { color: themeColors.textColor }]}>
+            Це приклад тексту у {selectedMode === "dark" ? "темній" : "світлій"} темі з акцентом {selectedColor}.
+          </Text>
         </View>
       </View>
     </SettingsScreenLayout>
@@ -98,43 +104,69 @@ const ThemeSettings = () => {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
     padding: 20,
   },
-  title: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 10,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
   },
   themeContainer: {
     flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 20,
   },
-  themeButton: {
+  themeCard: {
     flex: 1,
-    padding: 10,
+    padding: 15,
+    marginHorizontal: 5,
+    borderRadius: 12,
     alignItems: "center",
-    borderRadius: 5,
-    marginRight: 10,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
-  themeButtonText: {
-    fontSize: 14,
+  themeCardText: {
+    fontSize: 16,
     fontWeight: "bold",
   },
   colorsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "flex-start",
     marginBottom: 20,
   },
-  colorOption: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-    marginBottom: 10,
+  colorTile: {
+    width: 70,
+    height: 50,
+    borderRadius: 10,
+    margin: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  selectedColor: {
+  colorTileSelected: {
     borderWidth: 3,
+    borderColor: "#fff",
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+  checkmark: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 18,
+  },
+  previewCard: {
+    borderRadius: 12,
+    padding: 20,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  previewText: {
+    fontSize: 14,
   },
 });
 

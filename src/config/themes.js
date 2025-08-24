@@ -26,15 +26,34 @@ const themes = {
     textColorScheduleCard: '#252527',
   },
   accentColors: {
-    red: '#fdabab',
-    blue: '#00457E',
-    green: '#C6F8BD',
-    yellow: '#F7FAB2',
-    orange: '#FFD7A6',
-    purple: '#9BBFF8',
-    pink: '#FAC1FA',
-    grey: '#7a7a80',
-  },
+  // Базові
+  red: "#FD6A6A",
+  blue: "#4A90E2",
+  green: "#6FCF97",
+  yellow: "#F2C94C",
+  orange: "#F2994A",
+  purple: "#9B51E0",
+  pink: "#FF70A6",
+  grey: "#7A7A80",
+
+  // Пастельні
+  pastelBlue: "#AECBFA",
+  pastelGreen: "#B9FBC0",
+  pastelPink: "#FFD6E0",
+  pastelPurple: "#E0BBE4",
+  pastelYellow: "#FFF5BA",
+
+  // Неонові
+  neonCyan: "#00FFF7",
+  neonPink: "#FF4DFF",
+  neonOrange: "#FF9500",
+
+  // Глибокі
+  deepBlue: "#00264D",
+  deepRed: "#8B0000",
+  deepPurple: "#2E0854",
+  deepTeal: "#014D4E",
+},
 
   /**
    * Отримати повну палітру кольорів

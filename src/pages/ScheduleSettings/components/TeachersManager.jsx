@@ -7,21 +7,23 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
 import SettingsScreenLayout from "../SettingsScreenLayout";
+import useUniqueId from "../../../hooks/useUniqueId";
 
 export default function TeachersManager() {
   const { schedule, setScheduleDraft } = useSchedule();
   const teachers = schedule?.teachers || [];
   const [mode, accent] = schedule?.theme || ["light", "blue"];
-
-  // ✅ беремо кольори з getColors()
   const themeColors = themes.getColors(mode, accent);
 
   const [newTeacher, setNewTeacher] = useState({ name: "", phone: "" });
   const [isEditMode, setIsEditMode] = useState(false);
   const [editTeacherId, setEditTeacherId] = useState(null);
+
+  const generateId = useUniqueId();
 
   const handleAddTeacher = () => {
     if (!newTeacher.name.trim()) return;
@@ -36,7 +38,7 @@ export default function TeachersManager() {
       } else {
         updated.teachers = [
           ...updated.teachers,
-          { id: Date.now(), ...newTeacher },
+          { id: generateId(), ...newTeacher },
         ];
       }
 
@@ -63,15 +65,24 @@ export default function TeachersManager() {
 
   return (
     <SettingsScreenLayout>
-      <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: themeColors.backgroundColor },
+        ]}
+      >
         <Text style={[styles.header, { color: themeColors.textColor }]}>
           Manage Teachers
         </Text>
 
+        {/* Name */}
         <TextInput
           style={[
             styles.input,
-            { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
+            {
+              color: themeColors.textColor,
+              backgroundColor: themeColors.backgroundColor2,
+            },
           ]}
           placeholder="Teacher Name"
           placeholderTextColor={themeColors.textColor2}
@@ -79,10 +90,14 @@ export default function TeachersManager() {
           onChangeText={(text) => setNewTeacher({ ...newTeacher, name: text })}
         />
 
+        {/* Phone */}
         <TextInput
           style={[
             styles.input,
-            { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2 },
+            {
+              color: themeColors.textColor,
+              backgroundColor: themeColors.backgroundColor2,
+            },
           ]}
           placeholder="Phone"
           placeholderTextColor={themeColors.textColor2}
@@ -90,37 +105,54 @@ export default function TeachersManager() {
           onChangeText={(text) => setNewTeacher({ ...newTeacher, phone: text })}
         />
 
+        {/* Add / Save */}
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
           onPress={handleAddTeacher}
         >
-          <Text style={[styles.addButtonText, { color: themeColors.textColor }]}>
-            {isEditMode ? "Save Changes" : "Add Teacher"}
+          <Text
+            style={[styles.addButtonText, { color: themeColors.textOnAccent }]}
+          >
+            {isEditMode ? "💾 Save Changes" : "➕ Add Teacher"}
           </Text>
         </TouchableOpacity>
 
+        {/* Teachers list */}
         <FlatList
           data={teachers}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <View
-              style={[styles.teacherItem, { backgroundColor: themeColors.backgroundColor2 }]}
+              style={[
+                styles.teacherCard,
+                { backgroundColor: themeColors.backgroundColor2 },
+              ]}
             >
-              <Text style={[styles.teacherText, { color: themeColors.textColor }]}>
-                {item.name} - {item.phone}
-              </Text>
+              <View>
+                <Text
+                  style={[
+                    styles.teacherName,
+                    { color: themeColors.textColor },
+                  ]}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  style={[
+                    styles.teacherPhone,
+                    { color: themeColors.textColor2 },
+                  ]}
+                >
+                  {item.phone}
+                </Text>
+              </View>
+
               <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.editButton, { backgroundColor: themeColors.accentColor }]}
-                  onPress={() => handleEditTeacher(item)}
-                >
-                  <Text style={{ color: themeColors.textColor }}>Edit</Text>
+                <TouchableOpacity onPress={() => handleEditTeacher(item)}>
+                  <Ionicons name="create-outline" size={22} color={themeColors.accentColor} />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.removeButton, { backgroundColor: themes.accentColors.red }]}
-                  onPress={() => handleRemoveTeacher(item.id)}
-                >
-                  <Text style={{ color: themeColors.textColor }}>Видалити</Text>
+                <TouchableOpacity onPress={() => handleRemoveTeacher(item.id)}>
+                  <Ionicons name="trash-outline" size={22} color="tomato" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -133,13 +165,37 @@ export default function TeachersManager() {
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  header: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  input: { padding: 10, marginBottom: 15, borderRadius: 5 },
-  addButton: { padding: 10, borderRadius: 5, alignItems: "center", marginBottom: 15 },
-  addButtonText: { fontSize: 16 },
-  teacherItem: { marginBottom: 10, padding: 10, borderRadius: 5 },
-  teacherText: { fontSize: 16, marginBottom: 5 },
-  actionButtons: { flexDirection: "row", justifyContent: "space-between" },
-  editButton: { padding: 5, borderRadius: 5, marginRight: 10 },
-  removeButton: { padding: 5, borderRadius: 5 },
+  header: { fontSize: 22, fontWeight: "600", marginBottom: 15 },
+  input: {
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  addButton: {
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  addButtonText: { fontSize: 16, fontWeight: "600" },
+  teacherCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  teacherName: { fontSize: 16, fontWeight: "500" },
+  teacherPhone: { fontSize: 14, marginTop: 2 },
+  actionButtons: { flexDirection: "row", gap: 12, alignItems: "center" },
 });
