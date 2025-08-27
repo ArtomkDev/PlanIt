@@ -1,19 +1,29 @@
 // src/context/ScheduleProvider.js
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { auth } from "../../firebase";
-import { getSchedule as fetchSchedule, saveSchedule as persistSchedule } from "../../firestore";
+import {
+  getSchedule as fetchSchedule,
+  saveSchedule as persistSchedule,
+} from "../../firestore";
 
 const ScheduleContext = createContext(null);
 
 export const ScheduleProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [data, setData] = useState(null);       // зберігаємо ВСІ дані з Firestore
+  const [data, setData] = useState(null); // ВСІ дані з Firestore (але не віддаємо назовні)
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Авторизація + завантаження
+  // завантаження
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (u) => {
       setUser(u);
@@ -38,30 +48,49 @@ export const ScheduleProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // ID активного розкладу
   const currentScheduleId = data?.global?.currentScheduleId || null;
 
-  // Активний розклад = schedule (щоб старі компоненти працювали як раніше)
+  // активний розклад
   const schedule = useMemo(() => {
     if (!data || !currentScheduleId || !Array.isArray(data.schedules)) return null;
-    return data.schedules.find(s => s.id === currentScheduleId) || null;
+    return data.schedules.find((s) => s.id === currentScheduleId) || null;
   }, [data, currentScheduleId]);
 
-  // Локальне оновлення даних
+  const global = data?.global || null;
+
+  // оновлення тільки активного розкладу
   const setScheduleDraft = useCallback((updater) => {
-    setData(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      return next;
+    setData((prev) => {
+      if (!prev) return prev;
+      const nextSchedules = prev.schedules.map((s) =>
+        s.id === prev.global.currentScheduleId
+          ? typeof updater === "function"
+            ? updater(s)
+            : updater
+          : s
+      );
+      return { ...prev, schedules: nextSchedules };
     });
     setIsDirty(true);
   }, []);
 
-  // Зберегти зараз
+  // оновлення global (напр. вибір іншого розкладу)
+  const setGlobalDraft = useCallback((updater) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const nextGlobal =
+        typeof updater === "function" ? updater(prev.global) : updater;
+      return { ...prev, global: nextGlobal };
+    });
+    setIsDirty(true);
+  }, []);
+
+  // збереження
   const saveNow = useCallback(async () => {
     if (!user || !data || isSaving || !isDirty) return;
     setIsSaving(true);
     try {
-      await persistSchedule(user.uid, data); // зберігаємо ВСІ дані (включно з schedules + global)
+      await persistSchedule(user.uid, data);
       setIsDirty(false);
     } catch (e) {
       setError(e?.message || "Помилка збереження розкладу");
@@ -73,9 +102,10 @@ export const ScheduleProvider = ({ children }) => {
 
   const value = {
     user,
-    data,          // всі дані (глобал + schedules)
-    schedule,      // тільки активний розклад (для старих компонентів)
+    schedule,       // поточний розклад
+    global,         // глобальні налаштування (activeId, theme тощо)
     setScheduleDraft,
+    setGlobalDraft,
     saveNow,
     isDirty,
     isSaving,
@@ -83,7 +113,11 @@ export const ScheduleProvider = ({ children }) => {
     error,
   };
 
-  return <ScheduleContext.Provider value={value}>{children}</ScheduleContext.Provider>;
+  return (
+    <ScheduleContext.Provider value={value}>
+      {children}
+    </ScheduleContext.Provider>
+  );
 };
 
 export const useSchedule = () => {
