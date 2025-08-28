@@ -3,6 +3,7 @@ import NetInfo from '@react-native-community/netinfo'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from './firebase'
 import defaultSchedule from './src/config/defaultSchedule';
+import createDefaultData from './src/config/createDefaultData';
 
 
 // Отримання локального розкладу
@@ -27,31 +28,33 @@ const saveLocalSchedule = async schedule => {
 
 // Отримання розкладу
 export const getSchedule = async userId => {
-	const netInfo = await NetInfo.fetch()
-	if (!netInfo.isConnected) {
-		console.log('Немає інтернету. Завантаження локального розкладу...')
-		const localSchedule = await getLocalSchedule()
-		return localSchedule || defaultSchedule
-	}
+  const netInfo = await NetInfo.fetch();
+  if (!netInfo.isConnected) {
+    console.log('Немає інтернету. Завантаження локального розкладу...');
+    const local = await getLocalSchedule();
+    return local || createDefaultData();
+  }
 
-	try {
-		const userDocRef = doc(db, 'schedules', userId)
-		const docSnap = await getDoc(userDocRef)
-		if (docSnap.exists()) {
-			const schedule = docSnap.data().schedule
-			await saveLocalSchedule(schedule)
-			return schedule
-		} else {
-			await setDoc(userDocRef, { schedule: defaultSchedule })
-			await saveLocalSchedule(defaultSchedule)
-			return defaultSchedule
-		}
-	} catch (error) {
-		console.error('Помилка отримання розкладу:', error)
-		const localSchedule = await getLocalSchedule()
-		return localSchedule || defaultSchedule
-	}
-}
+  try {
+    const userDocRef = doc(db, 'schedules', userId);
+    const docSnap = await getDoc(userDocRef);
+
+    if (docSnap.exists()) {
+      const schedule = docSnap.data().schedule;
+      await saveLocalSchedule(schedule);
+      return schedule;
+    } else {
+      const newData = createDefaultData();
+      await setDoc(userDocRef, { schedule: newData });
+      await saveLocalSchedule(newData);
+      return newData;
+    }
+  } catch (error) {
+    console.error('Помилка отримання розкладу:', error);
+    const local = await getLocalSchedule();
+    return local || createDefaultData();
+  }
+};
 
 // Збереження розкладу
 export const saveSchedule = async (userId, schedule) => {
