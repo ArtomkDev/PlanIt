@@ -37,6 +37,7 @@ export default function ScheduleSettings() {
         { label: 'Початкова дата', screen: 'StartWeek', icon: 'calendar-outline', desc: 'Звідси рахується № тижня' },
         { label: 'Кількість перерв', screen: 'Breaks', icon: 'timer-outline', meta: breaksCount ? String(breaksCount) : undefined, desc: 'Довжина та кількість перерв' },
         { label: 'Розклад', screen: 'Schedule', icon: 'grid-outline', desc: 'Редактор занять по днях' },
+        { label: 'Глобальний розклад', screen: 'ScheduleSwitcher', icon: 'grid-outline', desc: 'Змінити глобальний розклад' },
       ],
     },
     {

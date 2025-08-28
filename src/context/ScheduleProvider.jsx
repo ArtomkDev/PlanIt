@@ -100,18 +100,33 @@ export const ScheduleProvider = ({ children }) => {
     }
   }, [user, data, isSaving, isDirty]);
 
+  const addSchedule = useCallback((schedule) => {
+  setData((prev) => {
+    if (!prev) return prev;
+    const nextSchedules = [...(prev.schedules || []), schedule];
+    return {
+      ...prev,
+      schedules: nextSchedules,
+    };
+  });
+  setIsDirty(true);
+}, []);
+
+
   const value = {
-    user,
-    schedule,       // поточний розклад
-    global,         // глобальні налаштування (activeId, theme тощо)
-    setScheduleDraft,
-    setGlobalDraft,
-    saveNow,
-    isDirty,
-    isSaving,
-    isLoading,
-    error,
-  };
+  user,
+  schedule,
+  global,
+  schedules: data?.schedules || [],
+  setScheduleDraft,
+  setGlobalDraft,
+  addSchedule,   // <--- новий метод
+  saveNow,
+  isDirty,
+  isSaving,
+  isLoading,
+  error,
+};
 
   return (
     <ScheduleContext.Provider value={value}>
