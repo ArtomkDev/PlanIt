@@ -100,6 +100,14 @@ export const ScheduleProvider = ({ children }) => {
     }
   }, [user, data, isSaving, isDirty]);
 
+  // ScheduleProvider.js
+  const [isEditing, setIsEditing] = useState(false);
+  
+  const toggleEditing = useCallback(() => {
+    setIsEditing((prev) => !prev);
+  }, []);
+
+
   const addSchedule = useCallback((schedule) => {
   setData((prev) => {
     if (!prev) return prev;
@@ -114,19 +122,22 @@ export const ScheduleProvider = ({ children }) => {
 
 
   const value = {
-  user,
-  schedule,
-  global,
-  schedules: data?.schedules || [],
-  setScheduleDraft,
-  setGlobalDraft,
-  addSchedule,   // <--- новий метод
-  saveNow,
-  isDirty,
-  isSaving,
-  isLoading,
-  error,
-};
+    user,
+    schedule,
+    global,
+    schedules: data?.schedules || [],
+    setScheduleDraft,
+    setGlobalDraft,
+    addSchedule,
+    saveNow,
+    isDirty,
+    isSaving,
+    isLoading,
+    error,
+    isEditing,       // <-- новий стан
+    toggleEditing,   // <-- метод перемикання
+  };
+
 
   return (
     <ScheduleContext.Provider value={value}>

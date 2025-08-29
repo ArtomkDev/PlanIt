@@ -4,7 +4,7 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
 
 export default function NavigationButtons({ changeDate, currentDate }) {
-  const { schedule } = useSchedule();
+  const { schedule, isEditing, toggleEditing } = useSchedule();
 
   if (!schedule) return null;
 
@@ -32,6 +32,7 @@ export default function NavigationButtons({ changeDate, currentDate }) {
 
   return (
     <View style={styles.navigationContainer}>
+
       {weekDays.map((day, index) => {
         const isActive = day.date.toDateString() === currentDate.toDateString();
         return (
@@ -51,6 +52,18 @@ export default function NavigationButtons({ changeDate, currentDate }) {
           </TouchableOpacity>
         );
       })}
+
+      {/* Кнопка редагування */}
+      <TouchableOpacity
+        style={[
+          styles.editButton,
+          { backgroundColor: isEditing ? themeColors.accentColor : themeColors.backgroundColor2 },
+        ]}
+        onPress={toggleEditing}
+      >
+        <Text style={styles.editText}>✎</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }
@@ -58,10 +71,23 @@ export default function NavigationButtons({ changeDate, currentDate }) {
 const styles = StyleSheet.create({
   navigationContainer: {
     width: 70,
-    justifyContent: "space-around",
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingVertical: 20,
     paddingTop: 94,
+  },
+  editButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  editText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
   },
   navButton: {
     width: 50,
