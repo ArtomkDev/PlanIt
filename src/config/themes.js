@@ -2,7 +2,8 @@ const themes = {
   light: {
     backgroundColor: '#fff',
     backgroundColor2: '#e1e1e1',
-    backgroundColor3: '#0a0a0a',
+    backgroundColor3: '#aaaaaaff',
+    backgroundColor4: '#f1f1f1ff',
 
     backgroundColorTabNavigator: '#fff',
 
@@ -16,6 +17,7 @@ const themes = {
     backgroundColor: '#252527',
     backgroundColor2: '#373737',
     backgroundColor3: '#000',
+    backgroundColor4: '#222',
 
     backgroundColorTabNavigator: '#252527f0',
 

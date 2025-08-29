@@ -31,7 +31,7 @@ export default function MainLayout() {
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       {/* Розмиття під статус-бар */}
       <BlurView
-        intensity={100}
+        intensity={90}
         tint={currentTheme === 'dark' ? 'dark' : 'light'}
         style={{
           position: 'absolute',

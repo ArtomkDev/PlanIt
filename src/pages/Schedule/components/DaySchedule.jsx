@@ -82,17 +82,10 @@ export default function DaySchedule() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1 , paddingTop: 90,},
   scrollContent: { padding: 10, paddingBottom: 40 },
-  card: {
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
+  card: { borderRadius: 12, padding: 14, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 6, elevation: 3, },
+
   cardHeader: { alignItems: "flex-end" },
   cardTime: { fontSize: 13, fontWeight: "500", color: "#fff" },
   cardBody: { marginTop: 5 },
