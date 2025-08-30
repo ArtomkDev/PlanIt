@@ -5,7 +5,7 @@ import { useSchedule } from "./ScheduleProvider";
 const DayScheduleContext = createContext(null);
 
 export const DayScheduleProvider = ({ children, date }) => {
-  const { schedule } = useSchedule();
+  const { schedule, reloadAllSchedules } = useSchedule();
 
   // ✅ нормалізація дати (час = 00:00:00)
   const normalizeDate = (d) => {
@@ -43,9 +43,11 @@ export const DayScheduleProvider = ({ children, date }) => {
     return schedule.schedule[dayIndex]?.[`week${currentWeek}`] || [];
   };
 
+
+
   const value = useMemo(
     () => ({
-      currentDate: date, // ⚡ беремо дату із props
+      currentDate: date,
       getDaySchedule,
       getDayIndex,
       calculateCurrentWeek,
@@ -53,8 +55,9 @@ export const DayScheduleProvider = ({ children, date }) => {
       teachers: schedule?.teachers || [],
       lessonTimes: schedule?.lessonTimes || [],
       isToday: date.toDateString() === new Date().toDateString(),
+      reloadDaySchedule: () => reloadAllSchedules(), // ⚡️ тепер є метод
     }),
-    [date, schedule]
+    [date, schedule, reloadAllSchedules]
   );
 
   return (

@@ -19,9 +19,10 @@ export default function MainLayout() {
   const insets = useSafeAreaInsets()
 
   // якщо розклад ще не завантажений
-  if (isLoading) return <Text>Завантаження...</Text>
-  if (error) return <Text>Помилка: {error}</Text>
+  if (isLoading && !schedule) return <Text>Завантаження...</Text>
+  if (error && !schedule) return <Text>Помилка: {error}</Text>
   if (!schedule) return <Text>Немає даних розкладу</Text>
+
 
   // дістаємо тему із schedule
   const [currentTheme] = schedule.theme || ['light', 'blue']

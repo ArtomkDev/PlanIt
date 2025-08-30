@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  RefreshControl, // ⬅️ додаємо
 } from "react-native";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import LessonEditor from "./LessonEditor";
 import themes from "../../../config/themes";
 
-// допоміжна функція — додає хвилини до часу
 function addMinutes(timeStr, minsToAdd) {
   if (!timeStr) return null;
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -21,7 +21,6 @@ function addMinutes(timeStr, minsToAdd) {
   return date.toTimeString().slice(0, 5);
 }
 
-// рахує час початку/кінця пар
 function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
   if (!startTime || !duration) return [];
   let times = [];
@@ -36,7 +35,8 @@ function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
 }
 
 export default function DaySchedule() {
-  const { currentDate, getDaySchedule } = useDaySchedule();
+  const { currentDate, getDaySchedule, reloadDaySchedule } = useDaySchedule(); 
+  // ⚡️ припускаю, що в DayScheduleProvider можна зробити метод reloadDaySchedule(), який заново тягне дані з Firebase
   const { schedule, isEditing } = useSchedule();
 
   const {
@@ -47,8 +47,6 @@ export default function DaySchedule() {
     teachers = [],
   } = schedule || {};
 
-  // ⚡️ тепер тут зберігаються тільки id предметів
-  // приклад: [ "math", "physics", null, "history" ]
   const scheduleForDay = getDaySchedule ? getDaySchedule(currentDate) : [];
 
   const lessonTimes = useMemo(() => {
@@ -57,6 +55,19 @@ export default function DaySchedule() {
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (reloadDaySchedule) {
+        await reloadDaySchedule(currentDate); // ⬅️ тягнемо заново з firebase
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const openEditor = (lesson) => {
     setEditingLesson(lesson);
@@ -73,6 +84,9 @@ export default function DaySchedule() {
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={     // ⬅️ додаємо pull-to-refresh тільки для цього ScrollView
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {scheduleForDay.length > 0 ? (
           scheduleForDay.map((subjectId, index) => {

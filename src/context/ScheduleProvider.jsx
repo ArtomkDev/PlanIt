@@ -23,6 +23,8 @@ export const ScheduleProvider = ({ children }) => {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // завантаження
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (u) => {
@@ -107,6 +109,23 @@ export const ScheduleProvider = ({ children }) => {
     setIsEditing((prev) => !prev);
   }, []);
 
+  // ScheduleProvider.js
+  const reloadAllSchedules = useCallback(async () => {
+    if (!user) return;
+    setIsRefreshing(true);  // ⚡️ а не isLoading
+    try {
+      const fetchedData = await fetchSchedule(user.uid);
+      setData(fetchedData);
+      setIsDirty(false);
+      setError(null);
+    } catch (e) {
+      setError(e?.message || "Помилка оновлення розкладу");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [user]);
+
+
 
   const addSchedule = useCallback((schedule) => {
   setData((prev) => {
@@ -130,13 +149,16 @@ export const ScheduleProvider = ({ children }) => {
     setGlobalDraft,
     addSchedule,
     saveNow,
+    reloadAllSchedules, // ⚡️ додали сюди
     isDirty,
     isSaving,
     isLoading,
+    isRefreshing,
     error,
-    isEditing,       // <-- новий стан
-    toggleEditing,   // <-- метод перемикання
+    isEditing,
+    toggleEditing,
   };
+
 
 
   return (

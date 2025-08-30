@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginTop: 12,
   },
   editText: {
     color: "#fff",
