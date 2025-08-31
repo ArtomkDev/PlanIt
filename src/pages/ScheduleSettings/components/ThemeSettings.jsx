@@ -1,3 +1,4 @@
+// ThemeSettings.jsx
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import themes from "../../../config/themes";
@@ -5,17 +6,17 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../SettingsScreenLayout";
 
 const ThemeSettings = () => {
-  const { schedule, setScheduleDraft } = useSchedule();
-  const currentTheme = schedule?.theme || ["dark", "blue"];
+  const { global, setGlobalDraft } = useSchedule();
+  const currentTheme = global?.theme || ["light", "blue"];  // 👈 тепер беремо з global
   const [selectedMode, setSelectedMode] = useState(currentTheme[0]);
   const [selectedColor, setSelectedColor] = useState(currentTheme[1]);
   const themeColors = themes.getColors(selectedMode, selectedColor);
 
   useEffect(() => {
     if (currentTheme[0] !== selectedMode || currentTheme[1] !== selectedColor) {
-      setScheduleDraft((prev) => ({
+      setGlobalDraft((prev) => ({
         ...prev,
-        theme: [selectedMode, selectedColor],
+        theme: [selectedMode, selectedColor],  // 👈 тепер зберігаємо глобально
       }));
     }
   }, [selectedMode, selectedColor]);
@@ -42,12 +43,11 @@ const ThemeSettings = () => {
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
-        {/* Заголовок */}
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           🎨 Вибір теми
         </Text>
 
-        {/* Кнопки вибору */}
+        {/* Темний/світлий */}
         <View style={styles.themeContainer}>
           {[
             { key: "dark", label: "🌙 Темна" },
@@ -73,7 +73,7 @@ const ThemeSettings = () => {
           ))}
         </View>
 
-        {/* Кольори */}
+        {/* Акцентні кольори */}
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           🌈 Акцентний колір
         </Text>
@@ -103,14 +103,8 @@ const ThemeSettings = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
+  container: { padding: 20 },
+  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 12 },
   themeContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -126,10 +120,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
-  themeCardText: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  themeCardText: { fontSize: 16, fontWeight: "bold" },
   colorsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -153,11 +144,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
   },
-  checkmark: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 18,
-  },
+  checkmark: { color: "#fff", fontWeight: "bold", fontSize: 18 },
   previewCard: {
     borderRadius: 12,
     padding: 20,
@@ -165,9 +152,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
-  previewText: {
-    fontSize: 14,
-  },
+  previewText: { fontSize: 14 },
 });
 
 export default ThemeSettings;

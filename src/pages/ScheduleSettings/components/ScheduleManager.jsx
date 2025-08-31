@@ -14,7 +14,7 @@ import SettingsScreenLayout from '../SettingsScreenLayout'
 import { Ionicons } from '@expo/vector-icons'
 
 export default function ScheduleManager() {
-	const { schedule, setScheduleDraft } = useSchedule()
+	const { global, schedule, setScheduleDraft } = useSchedule()
 
 	const [initialized, setInitialized] = useState(false)
 	const [showSubjectModal, setShowSubjectModal] = useState(false)
@@ -31,10 +31,8 @@ export default function ScheduleManager() {
 	]
 
 	// тема
-	const themeName = schedule?.theme?.[0] || 'light'
-	const accentName = schedule?.theme?.[1] || 'blue'
-	const themeColors = themes[themeName]
-	const accent = themes.accentColors[accentName]
+  	const [mode, accent] = global?.theme || ["light", "blue"];
+  	const themeColors = themes.getColors(mode, accent);
 
 	const subjects = schedule?.subjects || []
 
@@ -180,7 +178,7 @@ export default function ScheduleManager() {
 									))}
 
 									<TouchableOpacity
-										style={[styles.addSubjectButton, { backgroundColor: accent }]}
+										style={[styles.addSubjectButton, { backgroundColor: themeColors.accentColor }]}
 										onPress={() => handleAddDefaultSubject(dayIndex, weekPart)}
 									>
 										<Ionicons name="add" size={20} color="#fff" />

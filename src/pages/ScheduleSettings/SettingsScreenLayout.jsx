@@ -5,8 +5,8 @@ import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 
 export default function SettingsScreenLayout({ children, contentContainerStyle }) {
-  const { schedule } = useSchedule();
-  const theme = schedule?.theme || ['light', 'blue'];
+  const { global, schedule } = useSchedule();
+  const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
 
@@ -23,5 +23,5 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, paddingTop: 100, paddingBottom: 60 },
+  content: {paddingTop: 100, paddingBottom: 60 },
 });

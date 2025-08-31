@@ -5,8 +5,8 @@ import themes from '../../../config/themes';
 import SettingsScreenLayout from '../SettingsScreenLayout';
 
 export default function WeekManager() {
-  const { schedule, setScheduleDraft } = useSchedule();
-  const [mode, accent] = schedule?.theme || ['light', 'blue'];
+  const { global, schedule, setScheduleDraft } = useSchedule();
+  const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   const handleSelectRepeatOption = (value) => {

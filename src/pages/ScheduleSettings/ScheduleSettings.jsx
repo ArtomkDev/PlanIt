@@ -9,10 +9,10 @@ import themes from '../../config/themes';
 
 export default function ScheduleSettings() {
   const navigation = useNavigation();
-  const { schedule } = useSchedule();
+  const { global, schedule } = useSchedule();
 
   // Тема з контексту
-  const theme = schedule?.theme || ['light', 'blue'];
+  const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
 

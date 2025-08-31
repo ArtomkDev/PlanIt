@@ -9,29 +9,16 @@ import {
 } from "react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../SettingsScreenLayout";
+import themes from '../../../config/themes';
 
 const AutoSaveIntervalSettings = () => {
-  const { schedule, setScheduleDraft } = useSchedule();
+  const { global, schedule, setScheduleDraft } = useSchedule();
 
-  // ✅ дані з контексту
   const currentInterval = schedule?.auto_save ?? 60;
   const [tempInterval, setTempInterval] = useState(currentInterval);
 
-  // ✅ кольори теж лежать у schedule.theme
-  const [mode, accent] = schedule?.theme ?? ["light", "#007bff"];
-
-  const themeColors =
-    mode === "dark"
-      ? {
-          textColor: "#fff",
-          textColor2: "#aaa",
-          backgroundColor2: "#333",
-        }
-      : {
-          textColor: "#000",
-          textColor2: "#555",
-          backgroundColor2: "#eee",
-        };
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
 
   const confirmIntervalChange = () => {
     const correctedInterval = tempInterval < 30 ? 30 : tempInterval;
@@ -73,7 +60,7 @@ const AutoSaveIntervalSettings = () => {
             styles.confirmButton,
             {
               backgroundColor: isValueChanged
-                ? accent
+                ? themeColors.accentColor
                 : themeColors.backgroundColor2,
             },
           ]}

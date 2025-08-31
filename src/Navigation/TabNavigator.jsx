@@ -1,12 +1,11 @@
-// src/navigation/TabNavigator.jsx
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { BlurView } from 'expo-blur';
 
 import themes from '../config/themes';
 import { useSchedule } from '../context/ScheduleProvider';
+import AppBlur from '../components/AppBlur';
 
 import Schedule from '../pages/Schedule/Schedule';
 import ScheduleSettings from '../pages/ScheduleSettings/ScheduleSettings';
@@ -24,24 +23,17 @@ import ScheduleSwitcher from '../pages/ScheduleSettings/components/ScheduleSwitc
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-
 function ScheduleSettingsStack() {
-  const { schedule } = useSchedule();                  // ✅ беремо тему з контексту
-  const [themeMode] = schedule?.theme || ['light', 'blue'];
+  const { global, schedule } = useSchedule();
+  const [themeMode] = global?.theme || ['light', 'blue'];
 
   return (
     <Stack.Navigator
       screenOptions={{
         headerTransparent: true,
-        headerBackground: () => (
-          <BlurView
-            tint={themeMode === 'dark' ? 'dark' : 'light'} // ✅ міняється залежно від теми
-            intensity={90}
-            style={{ flex: 1 }}
-          />
-        ),
+        headerBackground: () => <AppBlur style={{ flex: 1 }} />,
         headerTitleStyle: {
-          color: themeMode === 'dark' ? '#fff' : '#000', // ✅ текст теж адаптується
+          color: themeMode === 'dark' ? '#fff' : '#000',
           fontSize: 18,
           fontWeight: 'bold',
         },
@@ -66,14 +58,11 @@ function ScheduleSettingsStack() {
   );
 }
 
-
-
 export default function TabNavigator() {
-  const { schedule } = useSchedule(); // ✅ беремо повний schedule
-  const [themeMode, accentName] = schedule?.theme || ['light', 'blue'];
+  const { global ,schedule } = useSchedule();
 
-  const themeColors = themes[themeMode] || themes.light;
-  const accent = themes.accentColors[accentName] || themes.accentColors.blue;
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
 
   return (
     <Tab.Navigator
@@ -83,24 +72,19 @@ export default function TabNavigator() {
           height: 70,
           paddingBottom: 10,
           paddingTop: 0,
-          borderWidth: 0,
-          borderColor: 'transparent',
-          backgroundColor: 'transparent',
+          backgroundColor: 'transparent', // ✅ blur робить фон
+          elevation: 0, // ✅ без тіней на Android
+          shadowOpacity: 0, // ✅ без тіней на iOS
+          borderTopWidth: 0,  // ✅ прибирає верхню лінію
         },
-        tabBarBackground: () => (
-          <BlurView
-            tint={themeMode === 'dark' ? 'dark' : 'light'} // ✅ як у BreaksManager
-            intensity={90}
-            style={{ flex: 1, overflow: 'hidden' }} // ✅ важливо для того самого ефекту
-          />
-        ),
+        tabBarBackground: () => <AppBlur style={{ flex: 1, overflow: 'hidden' }} />,
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: 'bold',
-          color: themeColors.textColor2,
         },
-        tabBarActiveTintColor: accent,
+        tabBarActiveTintColor: themeColors.accentColor,
         tabBarInactiveTintColor: themeColors.textColor2,
+        headerShown: false,
       }}
     >
       <Tab.Screen
@@ -111,7 +95,6 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <Icon name="calendar" size={size} color={color} />
           ),
-          headerShown: false,
         }}
       />
 
@@ -123,7 +106,6 @@ export default function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <Icon name="settings" size={size} color={color} />
           ),
-          headerShown: false,
         }}
       />
     </Tab.Navigator>

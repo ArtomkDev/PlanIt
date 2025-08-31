@@ -4,12 +4,13 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
 
 export default function NavigationButtons({ changeDate, currentDate }) {
-  const { schedule, isEditing, toggleEditing } = useSchedule();
+  const { global, schedule, isEditing, toggleEditing } = useSchedule();
 
   if (!schedule) return null;
 
-  const [mode, accent] = schedule.theme || ["light", "blue"];
+  const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+
 
   const daysOfWeek = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
 

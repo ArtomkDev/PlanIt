@@ -14,9 +14,10 @@ import SettingsScreenLayout from "../SettingsScreenLayout";
 import useUniqueId from "../../../hooks/useUniqueId";
 
 export default function TeachersManager() {
-  const { schedule, setScheduleDraft } = useSchedule();
+  const { global, schedule, setScheduleDraft } = useSchedule();
   const teachers = schedule?.teachers || [];
-  const [mode, accent] = schedule?.theme || ["light", "blue"];
+  
+  const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   const [newTeacher, setNewTeacher] = useState({ name: "", phone: "" });

@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  RefreshControl, // ⬅️ додаємо
+  RefreshControl,
+  Platform,
 } from "react-native";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
@@ -35,8 +36,7 @@ function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
 }
 
 export default function DaySchedule() {
-  const { currentDate, getDaySchedule, reloadDaySchedule } = useDaySchedule(); 
-  // ⚡️ припускаю, що в DayScheduleProvider можна зробити метод reloadDaySchedule(), який заново тягне дані з Firebase
+  const { currentDate, getDaySchedule, reloadDaySchedule } = useDaySchedule();
   const { schedule, isEditing } = useSchedule();
 
   const {
@@ -54,29 +54,38 @@ export default function DaySchedule() {
   }, [start_time, duration, breaks, scheduleForDay]);
 
   const [editorVisible, setEditorVisible] = useState(false);
-  const [editingLesson, setEditingLesson] = useState(null);
-
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       if (reloadDaySchedule) {
-        await reloadDaySchedule(currentDate); // ⬅️ тягнемо заново з firebase
+        await reloadDaySchedule(currentDate);
       }
     } finally {
       setRefreshing(false);
     }
   };
 
-  const openEditor = (lesson) => {
-    setEditingLesson(lesson);
-    setEditorVisible(true);
+  const handlePressLesson = (lesson) => {
+    setSelectedLesson(lesson);
+    if (isEditing) {
+      setEditorVisible(true);
+    } else {
+      setViewerVisible(true);
+    }
   };
 
   const closeEditor = () => {
     setEditorVisible(false);
-    setEditingLesson(null);
+    setSelectedLesson(null);
+  };
+
+  const closeViewer = () => {
+    setViewerVisible(false);
+    setSelectedLesson(null);
   };
 
   return (
@@ -84,9 +93,13 @@ export default function DaySchedule() {
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={     // ⬅️ додаємо pull-to-refresh тільки для цього ScrollView
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        refreshControl={
+          Platform.OS !== "web" ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          ) : undefined
         }
+        overScrollMode="always"
+        bounces={true}
       >
         {scheduleForDay.length > 0 ? (
           scheduleForDay.map((subjectId, index) => {
@@ -101,7 +114,9 @@ export default function DaySchedule() {
                 key={index}
                 style={[styles.card, { backgroundColor: subjectColor + "CC" }]}
                 activeOpacity={0.8}
-                onPress={() => openEditor({ subjectId, index })}
+                onPress={() =>
+                  handlePressLesson({ subject, teacher, timeInfo, index })
+                }
               >
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTime}>
@@ -119,31 +134,65 @@ export default function DaySchedule() {
           <Text style={styles.noData}>Немає пар на цей день</Text>
         )}
 
-        {isEditing && (
-          <TouchableOpacity
-            style={styles.addCard}
-            onPress={() => openEditor(null)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.plus}>＋</Text>
-          </TouchableOpacity>
-        )}
+        {/* Кнопка-заглушка завжди займає місце */}
+        <TouchableOpacity
+          style={[styles.addCard, !isEditing && styles.addCardHidden]}
+          onPress={() => isEditing && handlePressLesson(null)}
+          activeOpacity={isEditing ? 0.7 : 1}
+          disabled={!isEditing}
+        >
+          <Text style={[styles.plus, !isEditing && styles.plusHidden]}>＋</Text>
+        </TouchableOpacity>
       </ScrollView>
 
+      {/* Модалка редагування */}
       <Modal
         visible={editorVisible}
         animationType="slide"
         onRequestClose={closeEditor}
       >
-        <LessonEditor lesson={editingLesson} onClose={closeEditor} />
+        <LessonEditor lesson={selectedLesson} onClose={closeEditor} />
+      </Modal>
+
+      {/* Модалка перегляду */}
+      <Modal
+        visible={viewerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeViewer}
+      >
+        <View style={styles.viewerOverlay}>
+          <View style={styles.viewerBox}>
+            <Text style={styles.viewerTitle}>
+              {selectedLesson?.subject?.name || "—"}
+            </Text>
+            <Text>Викладач: {selectedLesson?.teacher?.name || "—"}</Text>
+            <Text>
+              Час: {selectedLesson?.timeInfo?.start || "—"} -{" "}
+              {selectedLesson?.timeInfo?.end || "—"}
+            </Text>
+            <TouchableOpacity
+              onPress={closeViewer}
+              style={styles.viewerCloseBtn}
+            >
+              <Text style={{ color: "#fff" }}>Закрити</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 90 },
-  scrollContent: { padding: 10, paddingBottom: 40 },
+  container: {
+    flex: 1,
+    paddingTop: 90,
+  },
+  scrollContent: {
+    padding: 10,
+    paddingBottom: 160,
+  },
   card: {
     borderRadius: 12,
     padding: 14,
@@ -158,8 +207,12 @@ const styles = StyleSheet.create({
   cardBody: { marginTop: 5 },
   cardTitle: { fontSize: 18, fontWeight: "700", color: "#fff" },
   cardTeacher: { fontSize: 14, color: "#f0f0f0", marginTop: 2 },
-  noData: { textAlign: "center", marginTop: 20, fontSize: 16, color: "#666" },
-
+  noData: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+    color: "#666",
+  },
   addCard: {
     borderRadius: 12,
     padding: 14,
@@ -172,5 +225,36 @@ const styles = StyleSheet.create({
     height: 80,
     backgroundColor: "transparent",
   },
+  addCardHidden: {
+    opacity: 0, // невидима, але місце займає
+  },
   plus: { fontSize: 32, color: "#aaa", fontWeight: "300" },
+  plusHidden: {
+    color: "transparent",
+  },
+  // Viewer styles
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  viewerBox: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    width: "80%",
+  },
+  viewerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  viewerCloseBtn: {
+    marginTop: 15,
+    backgroundColor: "#333",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
 });

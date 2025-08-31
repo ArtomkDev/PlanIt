@@ -11,9 +11,10 @@ import themes from '../config/themes'
 
 export default function MainLayout() {
   const {
+    global,
     schedule,
     isLoading,
-    error,
+    error
   } = useSchedule()
 
   const insets = useSafeAreaInsets()
@@ -25,7 +26,7 @@ export default function MainLayout() {
 
 
   // дістаємо тему із schedule
-  const [currentTheme] = schedule.theme || ['light', 'blue']
+  const [currentTheme] = global.theme || ['light', 'blue']
   const themeColors = themes[currentTheme] || themes.light
 
   return (

@@ -16,17 +16,15 @@ import SettingsScreenLayout from "../SettingsScreenLayout";
 import useUniqueId from "../../../hooks/useUniqueId"; // ⬅️ новий хук
 
 export default function SubjectsManager() {
-  const { schedule, setScheduleDraft, isLoading } = useSchedule();
+  const { global, schedule, setScheduleDraft, isLoading } = useSchedule();
   const generateId = useUniqueId(); // ⬅️ використовуємо хук
 
   if (isLoading || !schedule) {
     return <Text style={{ padding: 20 }}>Loading...</Text>;
   }
 
-  const themeName = schedule?.theme?.[0] || "light";
-  const accentName = schedule?.theme?.[1] || "blue";
-  const themeColors = themes[themeName] || themes.light;
-  const accent = themes.accentColors[accentName] || themes.accentColors.blue;
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
 
   const subjects = schedule?.subjects || [];
   const teachers = schedule?.teachers || [];
@@ -164,7 +162,7 @@ export default function SubjectsManager() {
                 style={[styles.colorCircle, {
                   backgroundColor: colorValue,
                   borderWidth: isSelected ? 3 : 1,
-                  borderColor: isSelected ? accent : "#ccc",
+                  borderColor: isSelected ? themeColors.accentColor : "#ccc",
                 }]}
                 onPress={() => handleColorSelect(colorName)}
               />

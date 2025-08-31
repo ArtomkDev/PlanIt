@@ -8,7 +8,7 @@ import { useSchedule } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
 
 export default function Schedule() {
-  const { schedule } = useSchedule();
+  const { global, schedule } = useSchedule();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   if (!schedule) {
@@ -19,8 +19,8 @@ export default function Schedule() {
     );
   }
 
-  const [themeMode, accentName] = schedule.theme || ["light", "blue"];
-  const themeColors = themes[themeMode];
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
 
   const changeDate = (newDate) => setCurrentDate(newDate);
 

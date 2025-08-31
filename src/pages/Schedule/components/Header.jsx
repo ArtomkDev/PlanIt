@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Modal, FlatList } from "react-native";
-import { BlurView } from "expo-blur";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
+import AppBlur from "../../../components/AppBlur";
 
 export default function Header({ currentDate }) {
-  const { schedule, schedules, setGlobalDraft } = useSchedule();
+  const { global, schedule, schedules, setGlobalDraft } = useSchedule();
   const [modalVisible, setModalVisible] = useState(false);
 
   if (!schedule) return null;
 
-  const [mode, accent] = schedule.theme || ["light", "blue"];
+  const [mode, accent] = global.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   const handleSelectSchedule = (id) => {
@@ -20,10 +20,11 @@ export default function Header({ currentDate }) {
 
   return (
     <View style={styles.headerWrapper}>
-      <BlurView intensity={90} tint={mode === "dark" ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+
+    <AppBlur />
       
+
       <View style={styles.headerContent}>
-        {/* Назва розкладу з обрізанням при довгому тексті */}
         <TouchableOpacity 
           onPress={() => setModalVisible(true)} 
           style={styles.scheduleWrapper}

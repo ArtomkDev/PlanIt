@@ -8,14 +8,13 @@ import themes from '../../../config/themes';
 import SettingsScreenLayout from '../SettingsScreenLayout';
 
 export default function StartWeekScreen() {
-  const { schedule, setScheduleDraft } = useSchedule();
+  const { global, schedule, setScheduleDraft } = useSchedule();
 
   const [showPicker, setShowPicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Використовуємо тему з розкладу або дефолт
-  const theme = schedule?.theme || ['light', 'blue'];
-  const [mode, accent] = theme;
+  const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   useEffect(() => {

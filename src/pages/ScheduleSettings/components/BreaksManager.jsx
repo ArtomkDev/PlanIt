@@ -8,20 +8,18 @@ import {
 	View,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import AppBlur from '../../../components/AppBlur';
 
 import { useSchedule } from '../../../context/ScheduleProvider'; // ⚡ беремо розклад з провайдера
 import themes from '../../../config/themes';
 
 export default function BreaksManager() {
-	const { schedule, setScheduleDraft } = useSchedule(); // ⚡ отримаємо дані та функцію для змін
+	const { global, schedule, setScheduleDraft } = useSchedule(); // ⚡ отримаємо дані та функцію для змін
 	const [tempBreaks, setTempBreaks] = useState([...schedule.breaks]);
 	const [isChanged, setIsChanged] = useState(false);
 
-	// ⚡ тема + акцент з розкладу
-	const [themeMode, accentName] = schedule.theme;
-	const themeColors = themes[themeMode];
-	const accent = themes.accentColors[accentName];
-
+  	const [mode, accent] = global?.theme || ["light", "blue"];
+  	const themeColors = themes.getColors(mode, accent);
 
 	useEffect(() => {
 		setIsChanged(JSON.stringify(tempBreaks) !== JSON.stringify(schedule.breaks));
@@ -92,36 +90,39 @@ export default function BreaksManager() {
 
 			{/* Панель з блюром */}
 			<BlurView
-			  	tint={themeMode === 'dark' ? 'dark' : 'light'}
+			  	tint={	mode === 'dark' ? 'dark' : 'light'}
 			  	intensity={100}
 			  	style={styles.buttonsContainer}
 			>
-				<TouchableOpacity
-					style={[styles.addButton, { backgroundColor: accent }]}
-					onPress={handleAddBreak}
-				>
-					<Text style={[styles.confirmButtonText, { color: themeColors.textColor }]}>Додати перерву</Text>
-				</TouchableOpacity>
-
-				<TouchableOpacity
-					style={[
-						styles.confirmButton,
-						{
-							backgroundColor: isChanged
-								? accent
-								: themeColors.backgroundColor2,
-						},
-					]}
-					onPress={handleConfirm}
-					disabled={!isChanged}
-				>
-					<Text
-						style={[styles.confirmButtonText, { color: themeColors.textColor }]}
-					>
-						Підтвердити
-					</Text>
-				</TouchableOpacity>
+			  <TouchableOpacity
+			    style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
+			    onPress={handleAddBreak}
+			  >
+			    <Text style={[styles.confirmButtonText, { color: themeColors.textColor }]}>
+			      Додати перерву
+			    </Text>
+			  </TouchableOpacity>
+						
+			  <TouchableOpacity
+			    style={[
+			      styles.confirmButton,
+			      {
+			        backgroundColor: isChanged
+			          ? themeColors.accentColor
+			          : themeColors.backgroundColor2,
+			      },
+			    ]}
+			    onPress={handleConfirm}
+			    disabled={!isChanged}
+			  >
+			    <Text
+			      style={[styles.confirmButtonText, { color: themeColors.textColor }]}
+			    >
+			      Підтвердити
+			    </Text>
+			  </TouchableOpacity>
 			</BlurView>
+
 		</View>
 	);
 }
