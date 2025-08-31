@@ -1,4 +1,4 @@
-// src/context/ScheduleProvider.js
+// src/context/ScheduleProvider.jsx
 import React, {
   createContext,
   useContext,
@@ -7,52 +7,96 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "../../firebase";
 import {
   getSchedule as fetchSchedule,
   saveSchedule as persistSchedule,
 } from "../../firestore";
+import createDefaultData from "../config/createDefaultData";
 
 const ScheduleContext = createContext(null);
 
-export const ScheduleProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [data, setData] = useState(null); // ВСІ дані з Firestore (але не віддаємо назовні)
+// ------------------ ЛОКАЛЬНІ ХЕЛПЕРИ ------------------
+
+const LOCAL_KEY = "guest_schedule";
+
+async function getLocalSchedule() {
+  try {
+    const raw = await AsyncStorage.getItem(LOCAL_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    console.warn("Помилка читання локального розкладу", e);
+    return null;
+  }
+}
+
+async function saveLocalSchedule(data) {
+  try {
+    await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn("Помилка збереження локального розкладу", e);
+  }
+}
+
+// ------------------ ПРОВАЙДЕР ------------------
+
+export const ScheduleProvider = ({ children, guest = false, user: externalUser = null }) => {
+  const [user, setUser] = useState(externalUser);
+  const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  // завантаження
+  // слухаємо Firebase тільки якщо не гість
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (u) => {
+    if (guest) {
+      setUser(null);
+      return;
+    }
+
+    const unsubscribe = auth.onAuthStateChanged((u) => {
       setUser(u);
-      if (!u) {
-        setData(null);
-        setIsDirty(false);
-        setIsLoading(false);
-        return;
-      }
+    });
+    return unsubscribe;
+  }, [guest]);
+
+  // завантаження даних
+  useEffect(() => {
+    const load = async () => {
       setIsLoading(true);
       try {
-        const fetchedData = await fetchSchedule(u.uid);
-        setData(fetchedData);
-        setIsDirty(false);
+        if (guest) {
+          const local = await getLocalSchedule();
+          if (local) {
+            setData(local);
+          } else {
+            const def = createDefaultData();
+            setData(def);
+            await saveLocalSchedule(def);
+          }
+        } else if (user) {
+          const fetched = await fetchSchedule(user.uid);
+          setData(fetched);
+        } else {
+          setData(null);
+        }
         setError(null);
       } catch (e) {
         setError(e?.message || "Помилка завантаження розкладу");
       } finally {
         setIsLoading(false);
       }
-    });
-    return unsubscribe;
-  }, []);
+    };
+    load();
+  }, [guest, user]);
 
+  // ------------------ SELECTORS ------------------
   const currentScheduleId = data?.global?.currentScheduleId || null;
 
-  // активний розклад
   const schedule = useMemo(() => {
     if (!data || !currentScheduleId || !Array.isArray(data.schedules)) return null;
     return data.schedules.find((s) => s.id === currentScheduleId) || null;
@@ -60,15 +104,13 @@ export const ScheduleProvider = ({ children }) => {
 
   const global = data?.global || null;
 
-  // оновлення тільки активного розкладу
+  // ------------------ ОНОВЛЕННЯ ------------------
   const setScheduleDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
       const nextSchedules = prev.schedules.map((s) =>
         s.id === prev.global.currentScheduleId
-          ? typeof updater === "function"
-            ? updater(s)
-            : updater
+          ? typeof updater === "function" ? updater(s) : updater
           : s
       );
       return { ...prev, schedules: nextSchedules };
@@ -76,7 +118,6 @@ export const ScheduleProvider = ({ children }) => {
     setIsDirty(true);
   }, []);
 
-  // оновлення global (напр. вибір іншого розкладу)
   const setGlobalDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
@@ -87,12 +128,25 @@ export const ScheduleProvider = ({ children }) => {
     setIsDirty(true);
   }, []);
 
-  // збереження
+  const addSchedule = useCallback((schedule) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const nextSchedules = [...(prev.schedules || []), schedule];
+      return { ...prev, schedules: nextSchedules };
+    });
+    setIsDirty(true);
+  }, []);
+
+  // ------------------ ЗБЕРЕЖЕННЯ ------------------
   const saveNow = useCallback(async () => {
-    if (!user || !data || isSaving || !isDirty) return;
+    if (!data || isSaving || !isDirty) return;
     setIsSaving(true);
     try {
-      await persistSchedule(user.uid, data);
+      if (guest) {
+        await saveLocalSchedule(data);
+      } else if (user) {
+        await persistSchedule(user.uid, data);
+      }
       setIsDirty(false);
     } catch (e) {
       setError(e?.message || "Помилка збереження розкладу");
@@ -100,22 +154,18 @@ export const ScheduleProvider = ({ children }) => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, data, isSaving, isDirty]);
+  }, [guest, user, data, isSaving, isDirty]);
 
-  // ScheduleProvider.js
-  const [isEditing, setIsEditing] = useState(false);
-  
-  const toggleEditing = useCallback(() => {
-    setIsEditing((prev) => !prev);
-  }, []);
-
-  // ScheduleProvider.js
   const reloadAllSchedules = useCallback(async () => {
-    if (!user) return;
-    setIsRefreshing(true);  // ⚡️ а не isLoading
+    setIsRefreshing(true);
     try {
-      const fetchedData = await fetchSchedule(user.uid);
-      setData(fetchedData);
+      if (guest) {
+        const local = await getLocalSchedule();
+        setData(local || createDefaultData());
+      } else if (user) {
+        const fetchedData = await fetchSchedule(user.uid);
+        setData(fetchedData);
+      }
       setIsDirty(false);
       setError(null);
     } catch (e) {
@@ -123,25 +173,25 @@ export const ScheduleProvider = ({ children }) => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [user]);
+  }, [guest, user]);
 
+  const toggleEditing = useCallback(() => {
+    setIsEditing((prev) => !prev);
+  }, []);
 
+  // автозбереження через 1 сек після змін
+  useEffect(() => {
+    if (!isDirty) return;
+    const timeout = setTimeout(() => {
+      saveNow();
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [isDirty, saveNow]);
 
-  const addSchedule = useCallback((schedule) => {
-  setData((prev) => {
-    if (!prev) return prev;
-    const nextSchedules = [...(prev.schedules || []), schedule];
-    return {
-      ...prev,
-      schedules: nextSchedules,
-    };
-  });
-  setIsDirty(true);
-}, []);
-
-
+  // ------------------ VALUE ------------------
   const value = {
     user,
+    guest,
     schedule,
     global,
     schedules: data?.schedules || [],
@@ -149,7 +199,7 @@ export const ScheduleProvider = ({ children }) => {
     setGlobalDraft,
     addSchedule,
     saveNow,
-    reloadAllSchedules, // ⚡️ додали сюди
+    reloadAllSchedules,
     isDirty,
     isSaving,
     isLoading,
@@ -159,8 +209,6 @@ export const ScheduleProvider = ({ children }) => {
     toggleEditing,
   };
 
-
-
   return (
     <ScheduleContext.Provider value={value}>
       {children}
@@ -168,6 +216,7 @@ export const ScheduleProvider = ({ children }) => {
   );
 };
 
+// ------------------ ХУК ------------------
 export const useSchedule = () => {
   const ctx = useContext(ScheduleContext);
   if (!ctx) throw new Error("useSchedule must be used within ScheduleProvider");

@@ -1,3 +1,4 @@
+// App.js
 import { NavigationContainer } from '@react-navigation/native'
 import { createStackNavigator } from '@react-navigation/stack'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -5,47 +6,67 @@ import React, { useEffect, useState } from 'react'
 import { auth } from './firebase'
 import SignIn from './src/auth/SignIn'
 import SignUp from './src/auth/SignUp'
+import WelcomeScreen from './src/auth/WelcomeScreen'
 import MainLayout from './src/pages/MainLayout'
 import { ScheduleProvider } from './src/context/ScheduleProvider'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const Stack = createStackNavigator()
 
 export default function App() {
-	const [user, setUser] = useState(null)
+  const [user, setUser] = useState(null)
+  const [guest, setGuest] = useState(false)
+  const [isChecking, setIsChecking] = useState(true) // поки перевіряємо
 
-	useEffect(() => {
-		const unsubscribe = onAuthStateChanged(auth, user => {
-			setUser(user)
-		})
-		return unsubscribe
-	}, [])
+  useEffect(() => {
+    const checkLocalSchedule = async () => {
+      try {
+        const local = await AsyncStorage.getItem('guest_schedule')
+        if (local) {
+          setGuest(true) // автоматично заходимо як гість
+        }
+      } finally {
+        setIsChecking(false)
+      }
+    }
+    checkLocalSchedule()
+  }, [])
 
-	return (
-		<ScheduleProvider>
-			<NavigationContainer>
-				<Stack.Navigator>
-					{user ? (
-						<Stack.Screen
-							name='MainLayout'
-							component={MainLayout}
-							options={{ headerShown: false }}
-						/>
-					) : (
-						<>
-							<Stack.Screen
-								name='SignIn'
-								component={SignIn}
-								options={{ title: 'Sign In' }}
-							/>
-							<Stack.Screen
-								name='SignUp'
-								component={SignUp}
-								options={{ title: 'Sign Up' }}
-							/>
-						</>
-					)}
-				</Stack.Navigator>
-			</NavigationContainer>
-		</ScheduleProvider>
-	)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUser(user)
+        setGuest(false)
+      } else {
+        setUser(null)
+      }
+    })
+    return unsubscribe
+  }, [])
+
+  if (isChecking) return null // поки перевіряємо, нічого не рендеримо
+
+  return (
+    <ScheduleProvider guest={guest} user={user}>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {user || guest ? (
+            <Stack.Screen
+              name="MainLayout"
+              component={MainLayout}
+              initialParams={{ guest }}
+            />
+          ) : (
+            <>
+              <Stack.Screen name="Welcome">
+                {props => <WelcomeScreen {...props} setGuest={setGuest} />}
+              </Stack.Screen>
+              <Stack.Screen name="SignIn" component={SignIn} />
+              <Stack.Screen name="SignUp" component={SignUp} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ScheduleProvider>
+  )
 }

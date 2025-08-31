@@ -6,25 +6,16 @@ import defaultSchedule from './src/config/defaultSchedule';
 import createDefaultData from './src/config/createDefaultData';
 
 
-// Отримання локального розкладу
-const getLocalSchedule = async () => {
-	try {
-		const localData = await AsyncStorage.getItem('user_schedule')
-		return localData ? JSON.parse(localData) : null
-	} catch (error) {
-		console.error('Помилка зчитування локального розкладу:', error)
-		return null
-	}
-}
 
-// Збереження локального розкладу
-const saveLocalSchedule = async schedule => {
-	try {
-		await AsyncStorage.setItem('user_schedule', JSON.stringify(schedule))
-	} catch (error) {
-		console.error('Помилка збереження локального розкладу:', error)
-	}
-}
+const getLocalSchedule = async () => {
+  const localData = await AsyncStorage.getItem('guest_schedule'); // було user_schedule
+  return localData ? JSON.parse(localData) : null;
+};
+
+const saveLocalSchedule = async (schedule) => {
+  await AsyncStorage.setItem('guest_schedule', JSON.stringify(schedule)); // було user_schedule
+};
+
 
 // Отримання розкладу
 export const getSchedule = async userId => {
