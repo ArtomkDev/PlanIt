@@ -4,6 +4,7 @@ import { Alert, Button, StyleSheet, View } from 'react-native'
 import { auth, db } from '../../../../firebase' // Firebase auth і Firestore
 import defaultSchedule from '../../../config/defaultSchedule'
 import SettingsScreenLayout from '../SettingsScreenLayout'
+import SignOutButton from './SignOutButton'
 
 export default function ResetDB() {
 	const resetFirestore = async () => {
@@ -32,6 +33,7 @@ export default function ResetDB() {
 					onPress={resetFirestore}
 					color='red'
 				/>
+				<SignOutButton/>
 			</View>
 		</SettingsScreenLayout>
 	)

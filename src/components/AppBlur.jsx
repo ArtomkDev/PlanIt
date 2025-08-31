@@ -10,17 +10,16 @@ export default function AppBlur({ style }) {
   if (!global) return null;
 
   const [mode, accent] = global.theme || ["light", "blue"];
-  const themeColors = themes.getColors(mode, accent); // ✅ беремо всі кольори теми
+  const themeColors = themes.getColors(mode, accent);
 
   const blurProps = {
     intensity: mode === "dark" ? 80 : 100,
     tint: mode === "dark" ? "dark" : "light",
   };
 
-  // ✅ фон на Android тепер залежить від themes.js
+  // фон на Android
   const androidFallback = {
     backgroundColor: themeColors.backgroundColor2, 
-    // наприклад, у themes.js можна додати blurBackground: "rgba(43,43,43,0.6)"
   };
 
   return Platform.OS === "android" ? (
