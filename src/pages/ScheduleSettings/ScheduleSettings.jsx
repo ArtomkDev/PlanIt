@@ -62,6 +62,13 @@ export default function ScheduleSettings() {
       ],
     },
     {
+      title: 'Акаунт',
+      data: [
+        { label: 'Увійти', screen: 'SignIn', icon: 'log-in-outline', desc: 'Увійти в існуючий акаунт' },
+        { label: 'Створити акаунт', screen: 'SignUp', icon: 'person-add-outline', desc: 'Перенести локальні дані в хмару' },
+      ],
+    },
+    {
       title: 'Небезпечна зона',
       danger: true,
       data: [

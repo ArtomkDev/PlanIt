@@ -19,6 +19,8 @@ import AutoSaveManager from '../pages/ScheduleSettings/components/AutoSaveInterv
 import ThemeSettings from '../pages/ScheduleSettings/components/ThemeSettings';
 import ResetDB from '../pages/ScheduleSettings/components/ResetDB';
 import ScheduleSwitcher from '../pages/ScheduleSettings/components/ScheduleSwitcher';
+import SignIn from '../auth/SignIn'
+import SignUp from '../auth/SignUp'
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -54,6 +56,8 @@ function ScheduleSettingsStack() {
       <Stack.Screen name="AutoSave" component={AutoSaveManager} />
       <Stack.Screen name="Theme" component={ThemeSettings} />
       <Stack.Screen name="ResetDB" component={ResetDB} />
+      <Stack.Screen name="SignIn" component={SignIn} />
+      <Stack.Screen name="SignUp" component={SignUp} />
     </Stack.Navigator>
   );
 }
