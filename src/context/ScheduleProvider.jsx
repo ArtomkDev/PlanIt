@@ -50,6 +50,7 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isCloudSaving, setIsCloudSaving] = useState(false);
 
   // слухаємо Firebase тільки якщо не гість
   useEffect(() => {
@@ -141,11 +142,13 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
   const saveNow = useCallback(async () => {
     if (!data || isSaving || !isDirty) return;
     setIsSaving(true);
+    if (user) setIsCloudSaving(true); // якщо користувач авторизований — показуємо хмарне збереження
+
     try {
       if (guest) {
-        await saveLocalSchedule(data);
+        await saveLocalSchedule(data); // локальне збереження
       } else if (user) {
-        await persistSchedule(user.uid, data);
+        await persistSchedule(user.uid, data); // хмарне збереження
       }
       setIsDirty(false);
     } catch (e) {
@@ -153,6 +156,7 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
       throw e;
     } finally {
       setIsSaving(false);
+      if (user) setIsCloudSaving(false);
     }
   }, [guest, user, data, isSaving, isDirty]);
 
@@ -179,14 +183,6 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
     setIsEditing((prev) => !prev);
   }, []);
 
-  // автозбереження через 1 сек після змін
-  useEffect(() => {
-    if (!isDirty) return;
-    const timeout = setTimeout(() => {
-      saveNow();
-    }, 1000);
-    return () => clearTimeout(timeout);
-  }, [isDirty, saveNow]);
 
   // ------------------ VALUE ------------------
   const value = {
@@ -202,12 +198,14 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
     reloadAllSchedules,
     isDirty,
     isSaving,
+    isCloudSaving,  // додали сюди
     isLoading,
     isRefreshing,
     error,
     isEditing,
     toggleEditing,
   };
+
 
   return (
     <ScheduleContext.Provider value={value}>

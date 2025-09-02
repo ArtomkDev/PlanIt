@@ -8,6 +8,7 @@ export default function createDefaultData() {
     global: {
       currentScheduleId: scheduleId,
       theme: ['dark', 'red'],
+      auto_save: 8,
     },
     schedules: [
       {

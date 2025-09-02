@@ -1,8 +1,8 @@
 import { doc, setDoc } from 'firebase/firestore'
 import React from 'react'
 import { Alert, Button, StyleSheet, View } from 'react-native'
-import { auth, db } from '../../../../firebase' // Firebase auth і Firestore
-import defaultSchedule from '../../../config/defaultSchedule'
+import { auth, db } from '../../../../firebase'
+import createDefaultData from '../../../config/createDefaultData'
 import SettingsScreenLayout from '../SettingsScreenLayout'
 import SignOutButton from './SignOutButton'
 
@@ -17,8 +17,13 @@ export default function ResetDB() {
 		try {
 			const scheduleRef = doc(db, 'schedules', user.uid)
 
-			await setDoc(scheduleRef, { schedule: defaultSchedule })
-			Alert.alert('Успіх', 'Дані успішно оновлено в Firestore!')
+			// Створюємо нові дані по новій структурі
+			const newData = createDefaultData()
+
+			// Записуємо у Firestore
+			await setDoc(scheduleRef, { schedule: newData })
+
+			Alert.alert('Успіх', 'Розклад скинуто на дефолтний!')
 		} catch (error) {
 			console.error('Помилка при оновленні Firestore:', error)
 			Alert.alert('Помилка', 'Сталася помилка. Спробуйте ще раз.')
@@ -29,11 +34,11 @@ export default function ResetDB() {
 		<SettingsScreenLayout>
 			<View style={styles.container}>
 				<Button
-					title='Оновити дані у Firestore'
+					title='Скинути розклад'
 					onPress={resetFirestore}
 					color='red'
 				/>
-				<SignOutButton/>
+				<SignOutButton />
 			</View>
 		</SettingsScreenLayout>
 	)
