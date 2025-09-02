@@ -66,7 +66,9 @@ export default function ScheduleSettings() {
       data: !user ? [
         { label: 'Увійти', screen: 'SignIn', icon: 'log-in-outline', desc: 'Увійти в існуючий акаунт' },
         { label: 'Створити акаунт', screen: 'SignUp', icon: 'person-add-outline', desc: 'Перенести локальні дані в хмару' },
-      ] : [],
+      ] : [
+        { label: 'Пристрої', screen: 'DeviceService', icon: 'layers-outline', desc: 'Налаштування авторизованих пристроїв' },
+      ],
     },
 
     {

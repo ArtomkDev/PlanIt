@@ -6,6 +6,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { useSchedule } from '../context/ScheduleProvider';
 import { migrateLocalToCloud } from './migrateLocalToCloud';
+import { registerDevice } from '../utils/deviceService';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -21,6 +22,13 @@ export default function SignIn() {
       setEmail('');
       setPassword('');
 
+      // 🟢 після успішного входу — завжди активуємо пристрій
+      try {
+        await registerDevice(cred.user.uid);
+      } catch (e) {
+        console.warn('Register device failed:', e);
+      }
+
       // спроба міграції локальних даних (якщо вони є)
       try {
         await migrateLocalToCloud(cred.user.uid);
@@ -28,10 +36,13 @@ export default function SignIn() {
         console.warn('Migration on sign-in failed', e);
       }
 
-      // даємо трохи часу для onAuthStateChanged -> ScheduleProvider оновить user,
-      // потім просимо провайдер перезавантажити дані.
+      // даємо трохи часу для onAuthStateChanged -> ScheduleProvider оновить user
       setTimeout(() => {
-        try { reloadAllSchedules(); } catch(e) { /* safe */ }
+        try {
+          reloadAllSchedules();
+        } catch (e) {
+          /* safe */
+        }
       }, 400);
     } catch (e) {
       console.error(e);
@@ -44,25 +55,25 @@ export default function SignIn() {
       <Text style={styles.header}>Log in</Text>
       <TextInput
         style={styles.input}
-        placeholder='Please enter your email'
+        placeholder="Please enter your email"
         value={email}
         onChangeText={setEmail}
-        keyboardType='email-address'
+        keyboardType="email-address"
         autoCapitalize="none"
       />
       <TextInput
         style={styles.input}
-        placeholder='Please enter your password'
+        placeholder="Please enter your password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      <Button title='Login' onPress={logIn} />
+      <Button title="Login" onPress={logIn} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.signupContainer}>
         <Button
-          title='Sign Up'
+          title="Sign Up"
           onPress={() => navigation.navigate('SignUp')}
         />
       </View>

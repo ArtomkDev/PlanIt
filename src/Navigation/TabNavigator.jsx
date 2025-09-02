@@ -21,6 +21,7 @@ import ResetDB from '../pages/ScheduleSettings/components/ResetDB';
 import ScheduleSwitcher from '../pages/ScheduleSettings/components/ScheduleSwitcher';
 import SignIn from '../auth/SignIn'
 import SignUp from '../auth/SignUp'
+import DeviceService from '../pages/ScheduleSettings/components/DeviceManager'
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -58,6 +59,7 @@ function ScheduleSettingsStack() {
       <Stack.Screen name="ResetDB" component={ResetDB} />
       <Stack.Screen name="SignIn" component={SignIn} />
       <Stack.Screen name="SignUp" component={SignUp} />
+      <Stack.Screen name="DeviceService" component={DeviceService} />
     </Stack.Navigator>
   );
 }
