@@ -1,4 +1,3 @@
-// App.js
 import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
@@ -12,7 +11,11 @@ import WelcomeScreen from "./src/auth/WelcomeScreen";
 import MainLayout from "./src/pages/MainLayout";
 import { ScheduleProvider } from "./src/context/ScheduleProvider";
 
-import { checkDeviceStatus, registerDevice } from "./src/utils/deviceService";
+import {
+  checkDeviceStatus,
+  registerDevice,
+  listenDeviceStatus,
+} from "./src/utils/deviceService";
 
 const Stack = createStackNavigator();
 
@@ -21,48 +24,54 @@ export default function App() {
   const [guest, setGuest] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Перевірка локального режиму (гість)
   useEffect(() => {
-    const checkLocalSchedule = async () => {
-      try {
-        const local = await AsyncStorage.getItem("guest_schedule");
-        if (local) {
-          setGuest(true);
-        }
-      } finally {
-        setLoading(false);
-      }
+    const checkLocal = async () => {
+      const local = await AsyncStorage.getItem("guest_schedule");
+      if (local) setGuest(true);
+      setLoading(false);
     };
-    checkLocalSchedule();
+    checkLocal();
   }, []);
 
-  // Авторизація + реєстрація пристрою
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          await registerDevice(firebaseUser.uid);
-          const active = await checkDeviceStatus(firebaseUser.uid);
+  let unsubscribeDevice = null;
 
-          if (!active) {
-            await signOut(auth);
-          } else {
-            setUser(firebaseUser);
-            setGuest(false);
-          }
-        } catch (e) {
-          console.log("Device check error:", e);
+  const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (firebaseUser) {
+      try {
+        await registerDevice(firebaseUser.uid);
+        const active = await checkDeviceStatus(firebaseUser.uid);
+
+        if (!active) {
+          await AsyncStorage.clear();
           await signOut(auth);
+        } else {
+          setUser(firebaseUser);
+          setGuest(false);
+          unsubscribeDevice = await listenDeviceStatus(firebaseUser.uid); // ← await
         }
-      } else {
-        setUser(null);
+      } catch (e) {
+        console.log("Device check error:", e);
+        await AsyncStorage.clear();
+        await signOut(auth);
       }
-    });
+    } else {
+      setUser(null);
+      if (unsubscribeDevice) {
+        unsubscribeDevice();
+        unsubscribeDevice = null;
+      }
+    }
+  });
 
-    return unsubscribe;
-  }, []);
+  return () => {
+    unsubscribeAuth();
+    if (unsubscribeDevice) unsubscribeDevice();
+  };
+}, []);
 
-  if (loading) return null; // можна вставити SplashScreen
+
+  if (loading) return null;
 
   return (
     <ScheduleProvider guest={guest} user={user}>
