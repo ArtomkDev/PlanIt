@@ -1,3 +1,4 @@
+// App.js
 import { NavigationContainer } from '@react-navigation/native'
 import { createStackNavigator } from '@react-navigation/stack'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -15,14 +16,14 @@ const Stack = createStackNavigator()
 export default function App() {
   const [user, setUser] = useState(null)
   const [guest, setGuest] = useState(false)
-  const [isChecking, setIsChecking] = useState(true)
+  const [isChecking, setIsChecking] = useState(true) // поки перевіряємо
 
   useEffect(() => {
     const checkLocalSchedule = async () => {
       try {
         const local = await AsyncStorage.getItem('guest_schedule')
         if (local) {
-          setGuest(true) // автоматичний вхід як гість
+          setGuest(true) // автоматично заходимо як гість
         }
       } finally {
         setIsChecking(false)
@@ -43,7 +44,7 @@ export default function App() {
     return unsubscribe
   }, [])
 
-  if (isChecking) return null
+  if (isChecking) return null // поки перевіряємо, нічого не рендеримо
 
   return (
     <ScheduleProvider guest={guest} user={user}>

@@ -9,7 +9,7 @@ import themes from '../../config/themes';
 
 export default function ScheduleSettings() {
   const navigation = useNavigation();
-  const { global, schedule } = useSchedule();
+  const { user, global, schedule } = useSchedule();
 
   // Тема з контексту
   const theme = global?.theme || ['light', 'blue'];
@@ -63,11 +63,12 @@ export default function ScheduleSettings() {
     },
     {
       title: 'Акаунт',
-      data: [
+      data: !user ? [
         { label: 'Увійти', screen: 'SignIn', icon: 'log-in-outline', desc: 'Увійти в існуючий акаунт' },
         { label: 'Створити акаунт', screen: 'SignUp', icon: 'person-add-outline', desc: 'Перенести локальні дані в хмару' },
-      ],
+      ] : [],
     },
+
     {
       title: 'Небезпечна зона',
       danger: true,
