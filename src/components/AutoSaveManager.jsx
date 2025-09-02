@@ -21,10 +21,9 @@ export default function AutoSaveManager() {
   const [hideTimeout, setHideTimeout] = useState(null);
   const lastColorValue = useRef(0);
 
-  if (!user) return null;
-
-  // Слухаємо інтернет
+  // Слухаємо інтернет тільки якщо є користувач
   useEffect(() => {
+    if (!user) return;
     const unsubscribe = NetInfo.addEventListener((state) => {
       const wasDisconnected = !isConnected && state.isConnected;
       setIsConnected(state.isConnected);
@@ -35,10 +34,11 @@ export default function AutoSaveManager() {
       }
     });
     return () => unsubscribe();
-  }, [isConnected]);
+  }, [isConnected, user]);
 
-  // Висота таблички з затримкою перед схованням
+  // Висота таблички
   useEffect(() => {
+    if (!user) return;
     const shouldBeVisible = isDirty || isCloudSaving || !isConnected || showReconnected;
     if (shouldBeVisible) {
       if (hideTimeout) {
@@ -65,10 +65,12 @@ export default function AutoSaveManager() {
       }, 5000);
       setHideTimeout(timeout);
     }
-  }, [isDirty, isCloudSaving, isConnected, showReconnected]);
+  }, [isDirty, isCloudSaving, isConnected, showReconnected, user]);
 
   // Текст + колір
   useEffect(() => {
+    if (!user) return;
+
     let newText = "";
     let colorValue = 0; // 0 = жовтий, 1 = червоний, 2 = зелений
 
@@ -115,7 +117,7 @@ export default function AutoSaveManager() {
     } else {
       setDisplayText(newText);
     }
-  }, [isConnected, isCloudSaving, isDirty, timeLeft, showReconnected]);
+  }, [isConnected, isCloudSaving, isDirty, timeLeft, showReconnected, user]);
 
   // Таймер автозбереження
   const startAutoSave = () => {
@@ -142,7 +144,8 @@ export default function AutoSaveManager() {
     outputRange: ["#ffcc00", "#ff4d4d", "#4dff88"],
   });
 
-  if (!shouldShow) return null;
+  // Тут вже можна умовно рендерити
+  if (!user || !shouldShow) return null;
 
   return (
     <Pressable onPress={saveNow}>
@@ -152,6 +155,7 @@ export default function AutoSaveManager() {
     </Pressable>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

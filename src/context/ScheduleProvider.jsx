@@ -1,4 +1,3 @@
-// src/context/ScheduleProvider.jsx
 import React, {
   createContext,
   useContext,
@@ -7,42 +6,16 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { auth } from "../../firebase";
 import {
   getSchedule as fetchSchedule,
   saveSchedule as persistSchedule,
 } from "../../firestore";
+import { getLocalSchedule, saveLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 
 const ScheduleContext = createContext(null);
 
-// ------------------ ЛОКАЛЬНІ ХЕЛПЕРИ ------------------
-
-const LOCAL_KEY = "guest_schedule";
-
-async function getLocalSchedule() {
-  try {
-    const raw = await AsyncStorage.getItem(LOCAL_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    console.warn("Помилка читання локального розкладу", e);
-    return null;
-  }
-}
-
-async function saveLocalSchedule(data) {
-  try {
-    await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.warn("Помилка збереження локального розкладу", e);
-  }
-}
-
-// ------------------ ПРОВАЙДЕР ------------------
-
-export const ScheduleProvider = ({ children, guest = false, user: externalUser = null }) => {
-  const [user, setUser] = useState(externalUser);
+export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,19 +24,6 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
-
-  // слухаємо Firebase тільки якщо не гість
-  useEffect(() => {
-    if (guest) {
-      setUser(null);
-      return;
-    }
-
-    const unsubscribe = auth.onAuthStateChanged((u) => {
-      setUser(u);
-    });
-    return unsubscribe;
-  }, [guest]);
 
   // завантаження даних
   useEffect(() => {
@@ -142,13 +102,13 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
   const saveNow = useCallback(async () => {
     if (!data || isSaving || !isDirty) return;
     setIsSaving(true);
-    if (user) setIsCloudSaving(true); // якщо користувач авторизований — показуємо хмарне збереження
+    if (user) setIsCloudSaving(true);
 
     try {
       if (guest) {
-        await saveLocalSchedule(data); // локальне збереження
+        await saveLocalSchedule(data);
       } else if (user) {
-        await persistSchedule(user.uid, data); // хмарне збереження
+        await persistSchedule(user.uid, data);
       }
       setIsDirty(false);
     } catch (e) {
@@ -183,7 +143,6 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
     setIsEditing((prev) => !prev);
   }, []);
 
-
   // ------------------ VALUE ------------------
   const value = {
     user,
@@ -198,14 +157,13 @@ export const ScheduleProvider = ({ children, guest = false, user: externalUser =
     reloadAllSchedules,
     isDirty,
     isSaving,
-    isCloudSaving,  // додали сюди
+    isCloudSaving,
     isLoading,
     isRefreshing,
     error,
     isEditing,
     toggleEditing,
   };
-
 
   return (
     <ScheduleContext.Provider value={value}>
