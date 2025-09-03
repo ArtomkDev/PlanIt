@@ -9,7 +9,7 @@ import React, {
 import {
   getSchedule as fetchSchedule,
   saveSchedule as persistSchedule,
-} from "../../firestore";
+} from "../../firestore"; // тепер працює з users/{userId}
 import { getLocalSchedule, saveLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 
@@ -25,7 +25,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
 
-  // завантаження даних
+  // ------------------ ЗАВАНТАЖЕННЯ ------------------
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -47,6 +47,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         }
         setError(null);
       } catch (e) {
+        console.error("❌ Помилка завантаження:", e);
         setError(e?.message || "Помилка завантаження розкладу");
       } finally {
         setIsLoading(false);
@@ -59,19 +60,47 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const currentScheduleId = data?.global?.currentScheduleId || null;
 
   const schedule = useMemo(() => {
-    if (!data || !currentScheduleId || !Array.isArray(data.schedules)) return null;
-    return data.schedules.find((s) => s.id === currentScheduleId) || null;
-  }, [data, currentScheduleId]);
+    if (!data || !Array.isArray(data.schedules) || data.schedules.length === 0) {
+      return null;
+    }
+
+    const currentId = data?.global?.currentScheduleId;
+    const found = currentId ? data.schedules.find((s) => s.id === currentId) : null;
+
+    return found || data.schedules[0];
+  }, [data]);
 
   const global = data?.global || null;
+
+  // ------------------ АВТОФІКС GLOBAL.currentScheduleId ------------------
+  useEffect(() => {
+    if (!data || !Array.isArray(data.schedules) || data.schedules.length === 0) return;
+
+    const currentId = data?.global?.currentScheduleId;
+    const exists = currentId && data.schedules.some((s) => s.id === currentId);
+
+    if (!exists) {
+      const firstId = data.schedules[0].id;
+      setData((prev) => ({
+        ...prev,
+        global: { ...(prev?.global || {}), currentScheduleId: firstId },
+      }));
+      setIsDirty(true);
+    }
+  }, [data]);
 
   // ------------------ ОНОВЛЕННЯ ------------------
   const setScheduleDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
+      const currentId = prev?.global?.currentScheduleId;
+      if (!currentId) return prev;
+
       const nextSchedules = prev.schedules.map((s) =>
-        s.id === prev.global.currentScheduleId
-          ? typeof updater === "function" ? updater(s) : updater
+        s.id === currentId
+          ? typeof updater === "function"
+            ? updater(s)
+            : updater
           : s
       );
       return { ...prev, schedules: nextSchedules };
@@ -112,6 +141,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       }
       setIsDirty(false);
     } catch (e) {
+      console.error("❌ Помилка збереження:", e);
       setError(e?.message || "Помилка збереження розкладу");
       throw e;
     } finally {
@@ -133,6 +163,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setIsDirty(false);
       setError(null);
     } catch (e) {
+      console.error("❌ Помилка оновлення:", e);
       setError(e?.message || "Помилка оновлення розкладу");
     } finally {
       setIsRefreshing(false);
