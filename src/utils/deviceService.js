@@ -10,32 +10,28 @@ import {
 import { db, auth } from "../../firebase";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Crypto from "expo-crypto";
 import { signOut } from "firebase/auth";
 
-// ключ для локального ID
-// ключ для локального ID
-const DEVICE_KEY = "local_device_id";
+// 🔑 Генерація стабільного deviceId
+export async function getDeviceId(userId) {
+  let rawDeviceId;
 
-// локальний генератор ID (fallback)
-function generateLocalId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
+  if (Platform.OS === "web") {
+    rawDeviceId = navigator.userAgent || "WebBrowser";
+  } else {
+    rawDeviceId = `${Device.brand || "Unknown"}-${Device.modelName || "Unknown"}-${Device.deviceName || "Unknown"}`;
   }
-  return `${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+
+  const input = `${userId}-${rawDeviceId}`;
+
+  return await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    input
+  );
 }
 
-// отримаємо/створимо deviceId (тільки для пристрою, без userId!)
-export async function getDeviceId() {
-  let localId = await AsyncStorage.getItem(DEVICE_KEY);
-  if (!localId) {
-    localId = generateLocalId();
-    await AsyncStorage.setItem(DEVICE_KEY, localId);
-  }
-  return localId;
-}
-
-// інфо про пристрій
+// ℹ️ Інфо про пристрій
 export function getDeviceInfo() {
   if (Platform.OS === "web") {
     return {
@@ -47,13 +43,13 @@ export function getDeviceInfo() {
   return {
     name: Device.deviceName ?? "Unknown Device",
     platform: Device.osName ?? "Unknown",
-    appVersion: Device.osVersion ?? "Unknown",
     brand: Device.brand ?? "Unknown",
     model: Device.modelName ?? "Unknown",
+    appVersion: "Unknown", // версію ОС не включаємо у deviceId, тільки як інфо
   };
 }
 
-// реєстрація/оновлення пристрою
+// 📝 Реєстрація/оновлення пристрою
 export async function registerDevice(userId) {
   if (!userId) return;
 
@@ -93,7 +89,7 @@ export async function registerDevice(userId) {
   }
 }
 
-// отримати всі пристрої юзера
+// 📥 Отримати всі пристрої юзера
 export async function getDevices(userId) {
   if (!userId) return [];
   const devicesRef = collection(db, "users", userId, "devices");
@@ -101,7 +97,7 @@ export async function getDevices(userId) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-// вимкнути пристрій
+// ❌ Вимкнути пристрій
 export async function deactivateDevice(userId, deviceId) {
   if (!userId || !deviceId) return;
   const ref = doc(db, "users", userId, "devices", deviceId);
@@ -109,11 +105,11 @@ export async function deactivateDevice(userId, deviceId) {
 
   const currentId = await getDeviceId(userId);
   if (deviceId === currentId) {
-    await AsyncStorage.clear();
+    await signOut(auth);
   }
 }
 
-// вимкнути всі, крім поточного
+// ❌ Вимкнути всі, крім поточного
 export async function deactivateAllExceptCurrent(userId) {
   if (!userId) return;
   const currentId = await getDeviceId(userId);
@@ -125,7 +121,7 @@ export async function deactivateAllExceptCurrent(userId) {
   }
 }
 
-// перевірка статусу пристрою
+// ✅ Перевірка статусу пристрою
 export async function checkDeviceStatus(userId) {
   if (!userId) return false;
   const deviceId = await getDeviceId(userId);
@@ -134,7 +130,7 @@ export async function checkDeviceStatus(userId) {
   return snap.exists() ? snap.data().isActive !== false : true;
 }
 
-// live-слухач для поточного пристрою
+// 👂 Live-слухач для поточного пристрою
 export function listenDeviceStatus(userId) {
   if (!userId) return () => {};
   return (async () => {
@@ -144,7 +140,6 @@ export function listenDeviceStatus(userId) {
     const unsubscribe = onSnapshot(ref, async (snap) => {
       if (snap.exists() && snap.data().isActive === false) {
         console.warn("⛔ Цей пристрій від’єднано → вихід з акаунта");
-        await AsyncStorage.clear();
         await signOut(auth);
       }
     });
