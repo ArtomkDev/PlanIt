@@ -105,13 +105,13 @@ export default function AutoSaveManager() {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 150,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start(() => {
         setDisplayText(newText);
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 150,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }).start();
       });
     } else {

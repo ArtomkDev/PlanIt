@@ -51,7 +51,8 @@ export default function DaySchedule() {
 
   const lessonTimes = useMemo(() => {
     return buildLessonTimes(start_time, duration, breaks, scheduleForDay.length);
-  }, [start_time, duration, breaks, scheduleForDay]);
+  }, [start_time, duration, breaks, scheduleForDay?.length]);
+
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -197,9 +198,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
+    backgroundColor: "#fff",
+
+    // iOS shadow
     shadowColor: "#000",
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
     shadowRadius: 6,
+
+    // Android shadow
     elevation: 3,
   },
   cardHeader: { alignItems: "flex-end" },
@@ -226,8 +233,10 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   addCardHidden: {
-    opacity: 0, // невидима, але місце займає
+    opacity: 0,
+    pointerEvents: "none", // 🔥 тепер не клікабельна
   },
+
   plus: { fontSize: 32, color: "#aaa", fontWeight: "300" },
   plusHidden: {
     color: "transparent",
