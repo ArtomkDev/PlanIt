@@ -131,19 +131,14 @@ export async function checkDeviceStatus(userId) {
 }
 
 // 👂 Live-слухач для поточного пристрою
-export function listenDeviceStatus(userId) {
+export async function listenDeviceStatus(userId) {
   if (!userId) return () => {};
-  return (async () => {
-    const deviceId = await getDeviceId(userId);
-    const ref = doc(db, "users", userId, "devices", deviceId);
+  const deviceId = await getDeviceId(userId);
+  const ref = doc(db, "users", userId, "devices", deviceId);
 
-    const unsubscribe = onSnapshot(ref, async (snap) => {
-      if (snap.exists() && snap.data().isActive === false) {
-        console.warn("⛔ Цей пристрій від’єднано → вихід з акаунта");
-        await signOut(auth);
-      }
-    });
-
-    return unsubscribe;
-  })();
+  return onSnapshot(ref, async (snap) => {
+    if (snap.exists() && snap.data().isActive === false) {
+      await signOut(auth);
+    }
+  });
 }
