@@ -45,7 +45,7 @@ export function getDeviceInfo() {
     platform: Device.osName ?? "Unknown",
     brand: Device.brand ?? "Unknown",
     model: Device.modelName ?? "Unknown",
-    appVersion: "Unknown", // версію ОС не включаємо у deviceId, тільки як інфо
+    appVersion: "Unknown",
   };
 }
 
@@ -53,28 +53,16 @@ export function getDeviceInfo() {
 export async function registerDevice(userId) {
   if (!userId) return;
 
-  try {
-    const deviceId = await getDeviceId(userId);
-    const ref = doc(db, "users", userId, "devices", deviceId);
-    const snap = await getDoc(ref);
-    const { name, platform, appVersion } = getDeviceInfo();
+  const deviceId = await getDeviceId(userId);
+  const ref = doc(db, "users", userId, "devices", deviceId);
+  const snap = await getDoc(ref);
+  const { name, platform, appVersion } = getDeviceInfo();
 
-    if (snap.exists()) {
-      if (snap.data().isActive === false) {
-        await updateDoc(ref, {
-          isActive: true,
-          lastLogin: new Date().toISOString(),
-          appVersion,
-        });
-        console.warn(`♻️ Пристрій [${name}] (${platform}) знову активований`);
-        return;
-      }
-      await updateDoc(ref, {
-        lastLogin: new Date().toISOString(),
-        appVersion,
-      });
-      console.log(`✅ Пристрій [${name}] (${platform}) оновлений`);
-    } else {
+  if (snap.exists()) {
+    const data = snap.data();
+
+    if (data.isActive === false) {
+      console.warn("⛔ Цей пристрій був від’єднаний → дозволяємо повторну авторизацію");
       await setDoc(ref, {
         name,
         platform,
@@ -82,12 +70,29 @@ export async function registerDevice(userId) {
         isActive: true,
         appVersion,
       });
-      console.log(`🆕 Пристрій [${name}] (${platform}) доданий`);
+      console.log(`🔓 Пристрій [${name}] (${platform}) повторно підключено`);
+      return;
     }
-  } catch (err) {
-    console.error("❌ Помилка при реєстрації пристрою:", err);
+
+
+
+    await updateDoc(ref, {
+      lastLogin: new Date().toISOString(),
+      appVersion,
+    });
+    console.log(`✅ Пристрій [${name}] (${platform}) оновлений`);
+  } else {
+    await setDoc(ref, {
+      name,
+      platform,
+      lastLogin: new Date().toISOString(),
+      isActive: true,
+      appVersion,
+    });
+    console.log(`🆕 Пристрій [${name}] (${platform}) доданий`);
   }
 }
+
 
 // 📥 Отримати всі пристрої юзера
 export async function getDevices(userId) {
@@ -105,7 +110,11 @@ export async function deactivateDevice(userId, deviceId) {
 
   const currentId = await getDeviceId(userId);
   if (deviceId === currentId) {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.warn("Помилка при виході:", err);
+    }
   }
 }
 
@@ -138,7 +147,12 @@ export async function listenDeviceStatus(userId) {
 
   return onSnapshot(ref, async (snap) => {
     if (snap.exists() && snap.data().isActive === false) {
-      await signOut(auth);
+      console.warn("⛔ Цей пристрій від’єднано → вихід з акаунта");
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.warn("Помилка при виході:", err);
+      }
     }
   });
 }

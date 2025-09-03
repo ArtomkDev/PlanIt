@@ -10,6 +10,8 @@ import SignUp from "./src/auth/SignUp";
 import WelcomeScreen from "./src/auth/WelcomeScreen";
 import MainLayout from "./src/pages/MainLayout";
 import { ScheduleProvider } from "./src/context/ScheduleProvider";
+import { manualLogin, setManualLogin } from "./src/utils/authFlags";
+
 
 import {
   checkDeviceStatus,
@@ -39,16 +41,24 @@ export default function App() {
   const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
       try {
-        await registerDevice(firebaseUser.uid);
-        const active = await checkDeviceStatus(firebaseUser.uid);
+        const manualFlag = await AsyncStorage.getItem("manualLogin");
 
-        if (!active) {
-          await AsyncStorage.clear();
-          await signOut(auth);
-        } else {
+        if (manualLogin) {
+          await registerDevice(firebaseUser.uid);
+          setManualLogin(false); // скидаємо прапорець
           setUser(firebaseUser);
           setGuest(false);
-          unsubscribeDevice = await listenDeviceStatus(firebaseUser.uid); // ← await
+          unsubscribeDevice = await listenDeviceStatus(firebaseUser.uid);
+        } else {
+          const active = await checkDeviceStatus(firebaseUser.uid);
+          if (!active) {
+            await AsyncStorage.clear();
+            await signOut(auth);
+          } else {
+            setUser(firebaseUser);
+            setGuest(false);
+            unsubscribeDevice = await listenDeviceStatus(firebaseUser.uid);
+          }
         }
       } catch (e) {
         console.log("Device check error:", e);
@@ -63,6 +73,7 @@ export default function App() {
       }
     }
   });
+
 
   return () => {
     unsubscribeAuth();

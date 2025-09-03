@@ -7,6 +7,8 @@ import { auth } from '../../firebase';
 import { useSchedule } from '../context/ScheduleProvider';
 import { migrateLocalToCloud } from './migrateLocalToCloud';
 import { registerDevice } from '../utils/deviceService';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setManualLogin } from "../utils/authFlags";
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -17,6 +19,7 @@ export default function SignIn() {
 
   const logIn = async () => {
     try {
+      setManualLogin(true); // 🔑 повідомляємо App.js що це ручний вхід
       const cred = await signInWithEmailAndPassword(auth, email, password);
       setError('');
       setEmail('');
@@ -24,9 +27,14 @@ export default function SignIn() {
 
       // 🟢 після успішного входу — завжди активуємо пристрій
       try {
+        await AsyncStorage.setItem("manualLogin", "true");
         await registerDevice(cred.user.uid);
       } catch (e) {
-        console.warn('Register device failed:', e);
+        if (e.message === "DEVICE_BLOCKED") {
+          setError("This device has been disconnected. Please log in again.");
+          return; // 🚫 зупиняємо весь процес входу
+        }
+        console.warn("Register device failed:", e);
       }
 
       // спроба міграції локальних даних (якщо вони є)
