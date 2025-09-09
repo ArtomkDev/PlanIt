@@ -10,8 +10,13 @@ const defaultSchedule = {
 		{
 			id: 1,
 			name: 'Mathematics',
+			fullName: "Вища математика. Диференціальні рівняння",
 			teacher: 2,
 			zoom_link: 'https://zoom.com/lesson1',
+			status: "offline",
+			type: "Лекція",
+			building: "Головний",
+			room: "201",
 			color: 'red',
 		},
 		{

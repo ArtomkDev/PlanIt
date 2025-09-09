@@ -18,26 +18,16 @@ export default function LessonEditor({ lesson, onClose }) {
   const teachers = schedule?.teachers ?? [];
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
-  const [selectedTeacherId, setSelectedTeacherId] = useState(null);
-
-  // для модальних вікон
+  const [subjectData, setSubjectData] = useState({});
   const [activePicker, setActivePicker] = useState(null);
 
   useEffect(() => {
     if (lesson?.subjectId) {
       setSelectedSubjectId(lesson.subjectId);
       const subj = subjects.find((s) => s.id === lesson.subjectId);
-      setSelectedTeacherId(lesson.teacherId || subj?.teacher || null);
+      setSubjectData(subj || {});
     }
   }, [lesson, subjects]);
-
-  useEffect(() => {
-    if (!selectedSubjectId) return;
-    const subj = subjects.find((s) => s.id === selectedSubjectId);
-    if (subj?.teacher) {
-      setSelectedTeacherId(subj.teacher);
-    }
-  }, [selectedSubjectId, subjects]);
 
   const handleSave = () => {
     if (!selectedSubjectId) return;
@@ -45,12 +35,12 @@ export default function LessonEditor({ lesson, onClose }) {
     setScheduleDraft((prev) => {
       const next = { ...prev };
 
-      if (selectedTeacherId) {
-        next.subjects = next.subjects.map((s) =>
-          s.id === selectedSubjectId ? { ...s, teacher: selectedTeacherId } : s
-        );
-      }
+      // оновлюємо сам предмет
+      next.subjects = next.subjects.map((s) =>
+        s.id === selectedSubjectId ? { ...s, ...subjectData } : s
+      );
 
+      // додаємо в розклад
       const dayIndex = getDayIndex(currentDate);
       const weekKey = `week${calculateCurrentWeek(currentDate)}`;
 
@@ -71,20 +61,40 @@ export default function LessonEditor({ lesson, onClose }) {
       }
 
       next.schedule[dayIndex][weekKey] = weekArr;
-
       return next;
     });
 
     onClose();
   };
 
-  // універсальний елемент списку
   const SettingRow = ({ label, value, onPress }) => (
     <TouchableOpacity style={styles.row} onPress={onPress}>
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.value}>{value || "Немає"} ›</Text>
     </TouchableOpacity>
   );
+
+  const options = {
+    subject: subjects.map((s) => ({ key: s.id, label: s.name })),
+    teacher: teachers.map((t) => ({ key: t.id, label: t.name })),
+    type: [
+      { key: "Лекція", label: "Лекція" },
+      { key: "Практика", label: "Практика" },
+      { key: "Лабораторна", label: "Лабораторна" },
+    ],
+    status: [
+      { key: "offline", label: "Офлайн" },
+      { key: "online", label: "Онлайн" },
+      { key: "hybrid", label: "Змішаний" },
+    ],
+  };
+
+  const getLabel = (picker, value) => {
+    if (picker === "subject") return subjects.find((s) => s.id === value)?.name;
+    if (picker === "teacher") return teachers.find((t) => t.id === value)?.name;
+    const opt = options[picker]?.find((o) => o.key === value);
+    return opt?.label;
+  };
 
   return (
     <View style={styles.container}>
@@ -95,25 +105,39 @@ export default function LessonEditor({ lesson, onClose }) {
       <ScrollView>
         <SettingRow
           label="Предмет"
-          value={subjects.find((s) => s.id === selectedSubjectId)?.name}
+          value={getLabel("subject", selectedSubjectId)}
           onPress={() => setActivePicker("subject")}
         />
         <SettingRow
           label="Викладач"
-          value={teachers.find((t) => t.id === selectedTeacherId)?.name}
+          value={getLabel("teacher", subjectData.teacher)}
           onPress={() => setActivePicker("teacher")}
         />
-        <SettingRow label="Тип заняття" value="Лекція" onPress={() => {}} />
-        <SettingRow label="Корпус" value="-" onPress={() => {}} />
-        <SettingRow label="Аудиторія" value="-" onPress={() => {}} />
-        <SettingRow label="Посилання" value="-" onPress={() => {}} />
-        <SettingRow label="Файли" value="-" onPress={() => {}} />
-        <SettingRow label="Повторювати" value="День тижня" onPress={() => {}} />
-        <SettingRow label="День" value="Субота" onPress={() => {}} />
-        <SettingRow label="Період" value="Вручну" onPress={() => {}} />
-        <SettingRow label="Початок" value="30 серп. 2025" onPress={() => {}} />
-        <SettingRow label="Кінець" value="31 січ. 2026" onPress={() => {}} />
-        <SettingRow label="Номер" value="-" onPress={() => {}} />
+        <SettingRow
+          label="Тип заняття"
+          value={getLabel("type", subjectData.type)}
+          onPress={() => setActivePicker("type")}
+        />
+        <SettingRow
+          label="Формат"
+          value={getLabel("status", subjectData.status)}
+          onPress={() => setActivePicker("status")}
+        />
+        <SettingRow
+          label="Корпус"
+          value={subjectData.building}
+          onPress={() => setActivePicker("building")}
+        />
+        <SettingRow
+          label="Аудиторія"
+          value={subjectData.room}
+          onPress={() => setActivePicker("room")}
+        />
+        <SettingRow
+          label="Посилання"
+          value={subjectData.zoom_link}
+          onPress={() => setActivePicker("zoom")}
+        />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -127,45 +151,30 @@ export default function LessonEditor({ lesson, onClose }) {
         </TouchableOpacity>
       </View>
 
-      {/* Модальне вікно вибору предмета */}
-      <Modal visible={activePicker === "subject"} animationType="slide">
+      {/* універсальне модальне вікно */}
+      <Modal visible={!!activePicker} animationType="slide">
         <View style={styles.modal}>
-          <Text style={styles.modalTitle}>Оберіть предмет</Text>
+          <Text style={styles.modalTitle}>Оберіть {activePicker}</Text>
           <ScrollView>
-            {subjects.map((s) => (
+            {options[activePicker]?.map((opt) => (
               <TouchableOpacity
-                key={s.id}
+                key={opt.key}
                 style={styles.modalItem}
                 onPress={() => {
-                  setSelectedSubjectId(s.id);
+                  if (activePicker === "subject") {
+                    setSelectedSubjectId(opt.key);
+                    const subj = subjects.find((s) => s.id === opt.key);
+                    setSubjectData(subj || {});
+                  } else {
+                    setSubjectData((prev) => ({
+                      ...prev,
+                      [activePicker]: opt.key,
+                    }));
+                  }
                   setActivePicker(null);
                 }}
               >
-                <Text style={styles.modalText}>{s.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <TouchableOpacity onPress={() => setActivePicker(null)}>
-            <Text style={styles.cancel}>Закрити</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-
-      {/* Модальне вікно вибору викладача */}
-      <Modal visible={activePicker === "teacher"} animationType="slide">
-        <View style={styles.modal}>
-          <Text style={styles.modalTitle}>Оберіть викладача</Text>
-          <ScrollView>
-            {teachers.map((t) => (
-              <TouchableOpacity
-                key={t.id}
-                style={styles.modalItem}
-                onPress={() => {
-                  setSelectedTeacherId(t.id);
-                  setActivePicker(null);
-                }}
-              >
-                <Text style={styles.modalText}>{t.name}</Text>
+                <Text style={styles.modalText}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>

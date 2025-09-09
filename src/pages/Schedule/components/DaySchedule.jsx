@@ -116,7 +116,7 @@ export default function DaySchedule() {
                 style={[styles.card, { backgroundColor: subjectColor + "CC" }]}
                 activeOpacity={0.8}
                 onPress={() =>
-                  handlePressLesson({ subject, teacher, timeInfo, index })
+                  handlePressLesson({ subjectId: subjectId, index, timeInfo })
                 }
               >
                 <View style={styles.cardHeader}>
@@ -138,7 +138,7 @@ export default function DaySchedule() {
         {/* Кнопка-заглушка завжди займає місце */}
         <TouchableOpacity
           style={[styles.addCard, !isEditing && styles.addCardHidden]}
-          onPress={() => isEditing && handlePressLesson(null)}
+          onPress={() => isEditing && handlePressLesson({ subjectId: null, index: null })}
           activeOpacity={isEditing ? 0.7 : 1}
           disabled={!isEditing}
         >
