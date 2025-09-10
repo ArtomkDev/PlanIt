@@ -12,6 +12,9 @@ import {
 } from "../../firestore"; // тепер працює з users/{userId}
 import { getLocalSchedule, saveLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
+import { createDefaultTeacher, createDefaultSubject, createDefaultLink } from "../config/createDefaults";
+import useUniqueId from "../hooks/useUniqueId";
+
 
 const ScheduleContext = createContext(null);
 
@@ -174,6 +177,28 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     setIsEditing((prev) => !prev);
   }, []);
 
+
+  const generateId = useUniqueId();
+
+  // ------------------ ДОДАВАННЯ ------------------
+  // універсальна фабрика додавання
+  const addItem = useCallback((key, factory) => {
+    const newItem = factory(generateId);
+    setScheduleDraft((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] || []), newItem],
+    }));
+    return newItem;
+  }, [generateId, setScheduleDraft]);
+  
+  // конкретні зручні функції
+  const addTeacher = useCallback(() => addItem("teachers", createDefaultTeacher), [addItem]);
+  const addSubject = useCallback(() => addItem("subjects", createDefaultSubject), [addItem]);
+  const addLink    = useCallback(() => addItem("links", createDefaultLink), [addItem]);
+  
+
+
+
   // ------------------ VALUE ------------------
   const value = {
     user,
@@ -194,6 +219,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     error,
     isEditing,
     toggleEditing,
+    addTeacher,
+    addSubject,
+    addLink,
   };
 
   return (

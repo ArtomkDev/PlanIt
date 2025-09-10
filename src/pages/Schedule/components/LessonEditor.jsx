@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Modal,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
+import SettingRow from "./LessonEditor/SettingRow";
+import OptionPickerModal from "./LessonEditor/OptionPickerModal";
 
 export default function LessonEditor({ lesson, onClose }) {
-  const { schedule, setScheduleDraft } = useSchedule();
+  const { schedule, setScheduleDraft, addTeacher, addSubject, addLink } = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
   const subjects = schedule?.subjects ?? [];
   const teachers = schedule?.teachers ?? [];
+  const links = schedule?.links ?? [];
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [subjectData, setSubjectData] = useState({});
@@ -35,7 +31,7 @@ export default function LessonEditor({ lesson, onClose }) {
     setScheduleDraft((prev) => {
       const next = { ...prev };
 
-      // оновлюємо сам предмет
+      // оновлюємо предмет
       next.subjects = next.subjects.map((s) =>
         s.id === selectedSubjectId ? { ...s, ...subjectData } : s
       );
@@ -67,16 +63,10 @@ export default function LessonEditor({ lesson, onClose }) {
     onClose();
   };
 
-  const SettingRow = ({ label, value, onPress }) => (
-    <TouchableOpacity style={styles.row} onPress={onPress}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value || "Немає"} ›</Text>
-    </TouchableOpacity>
-  );
-
   const options = {
     subject: subjects.map((s) => ({ key: s.id, label: s.name })),
     teacher: teachers.map((t) => ({ key: t.id, label: t.name })),
+    link: links.map((l) => ({ key: l.id, label: l.name })),
     type: [
       { key: "Лекція", label: "Лекція" },
       { key: "Практика", label: "Практика" },
@@ -92,8 +82,35 @@ export default function LessonEditor({ lesson, onClose }) {
   const getLabel = (picker, value) => {
     if (picker === "subject") return subjects.find((s) => s.id === value)?.name;
     if (picker === "teacher") return teachers.find((t) => t.id === value)?.name;
+    if (picker === "link") {
+      return (value || [])
+        .map((id) => links.find((l) => l.id === id)?.name)
+        .filter(Boolean)
+        .join(", ");
+    }
     const opt = options[picker]?.find((o) => o.key === value);
     return opt?.label;
+  };
+
+  const handleSelect = (picker, key) => {
+    if (picker === "subject") {
+      setSelectedSubjectId(key);
+      const subj = subjects.find((s) => s.id === key);
+      setSubjectData(subj || {});
+    } else if (picker === "link") {
+      setSubjectData((prev) => {
+        const current = prev.links || [];
+        return {
+          ...prev,
+          links: current.includes(key)
+            ? current.filter((id) => id !== key) // toggle
+            : [...current, key],
+        };
+      });
+    } else {
+      setSubjectData((prev) => ({ ...prev, [picker]: key }));
+    }
+    setActivePicker(null);
   };
 
   return (
@@ -135,8 +152,8 @@ export default function LessonEditor({ lesson, onClose }) {
         />
         <SettingRow
           label="Посилання"
-          value={subjectData.zoom_link}
-          onPress={() => setActivePicker("zoom")}
+          value={getLabel("link", subjectData.links)}
+          onPress={() => setActivePicker("link")}
         />
       </ScrollView>
 
@@ -151,38 +168,22 @@ export default function LessonEditor({ lesson, onClose }) {
         </TouchableOpacity>
       </View>
 
-      {/* універсальне модальне вікно */}
-      <Modal visible={!!activePicker} animationType="slide">
-        <View style={styles.modal}>
-          <Text style={styles.modalTitle}>Оберіть {activePicker}</Text>
-          <ScrollView>
-            {options[activePicker]?.map((opt) => (
-              <TouchableOpacity
-                key={opt.key}
-                style={styles.modalItem}
-                onPress={() => {
-                  if (activePicker === "subject") {
-                    setSelectedSubjectId(opt.key);
-                    const subj = subjects.find((s) => s.id === opt.key);
-                    setSubjectData(subj || {});
-                  } else {
-                    setSubjectData((prev) => ({
-                      ...prev,
-                      [activePicker]: opt.key,
-                    }));
-                  }
-                  setActivePicker(null);
-                }}
-              >
-                <Text style={styles.modalText}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <TouchableOpacity onPress={() => setActivePicker(null)}>
-            <Text style={styles.cancel}>Закрити</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
+      <OptionPickerModal
+        visible={!!activePicker && !!options[activePicker]}
+        title={`Оберіть ${activePicker}`}
+        options={options[activePicker] || []}
+        onSelect={(key) => handleSelect(activePicker, key)}
+        onClose={() => setActivePicker(null)}
+        onAddNew={
+          activePicker === "teacher"
+            ? addTeacher
+            : activePicker === "subject"
+            ? addSubject
+            : activePicker === "link"
+            ? addLink
+            : undefined
+        }
+      />
     </View>
   );
 }
@@ -196,16 +197,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     paddingHorizontal: 20,
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderColor: "#333",
-  },
-  label: { color: "#aaa", fontSize: 16 },
-  value: { color: "#fff", fontSize: 16 },
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -216,18 +207,4 @@ const styles = StyleSheet.create({
   cancel: { color: "orange", fontSize: 18 },
   save: { color: "orange", fontSize: 18, fontWeight: "600" },
   disabled: { opacity: 0.4 },
-  modal: { flex: 1, backgroundColor: "#111", paddingTop: 50 },
-  modalTitle: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  modalItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderColor: "#333",
-  },
-  modalText: { color: "#fff", fontSize: 16 },
 });
