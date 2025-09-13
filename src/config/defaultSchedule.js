@@ -78,6 +78,11 @@ const defaultSchedule = {
 		{ id: 4, name: 'Zoom Physics', url: 'https://zoom.com/lesson4' },
 		{ id: 5, name: 'Zoom Informatics', url: 'https://zoom.com/lesson5' },
 	],
+	statuses: [
+	    { id: 1, name: "offline", color: "red" },
+	    { id: 2, name: "online", color: "green" },
+	    { id: 3, name: "hybrid", color: "blue" },
+	],
 	schedule: Array.from({ length: 7 }, () => ({
 	  week1: [],
 	  week2: [],

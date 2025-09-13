@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from "react-native";
+import ColorPicker from "./ColorPicker";
 
 export default function OptionPickerModal({ 
   visible, 
@@ -7,26 +8,32 @@ export default function OptionPickerModal({
   options, 
   onSelect, 
   onClose,
-  onAddNew,   // 🔥 нове
+  onAddNew,
+  isColorPicker = false, // 🔥 прапорець
+  selectedColor,
 }) {
   return (
     <Modal visible={visible} animationType="slide">
       <View style={styles.modal}>
         <Text style={styles.modalTitle}>{title}</Text>
-        <ScrollView>
-          {options.map((opt) => (
-            <TouchableOpacity
-              key={opt.key}
-              style={styles.modalItem}
-              onPress={() => onSelect(opt.key)}
-            >
-              <Text style={styles.modalText}>{opt.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
 
-        {/* 🔥 кнопка додати */}
-        {onAddNew && (
+        {isColorPicker ? (
+          <ColorPicker selected={selectedColor} onSelect={onSelect} />
+        ) : (
+          <ScrollView>
+            {options.map((opt) => (
+              <TouchableOpacity
+                key={opt.key}
+                style={styles.modalItem}
+                onPress={() => onSelect(opt.key)}
+              >
+                <Text style={styles.modalText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {onAddNew && !isColorPicker && (
           <TouchableOpacity onPress={onAddNew} style={styles.addBtn}>
             <Text style={styles.addText}>＋ Додати</Text>
           </TouchableOpacity>

@@ -20,3 +20,11 @@ export function createDefaultLink(generateId) {
     url: "",
   };
 }
+
+export function createDefaultStatus(generateId) {
+  return {
+    id: generateId(),
+    name: "Новий статус",
+    color: "blue",
+  };
+}

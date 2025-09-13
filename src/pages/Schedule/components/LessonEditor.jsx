@@ -4,14 +4,20 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import SettingRow from "./LessonEditor/SettingRow";
 import OptionPickerModal from "./LessonEditor/OptionPickerModal";
+import LessonTeacherGroup from "./LessonEditor/LessonTeacherGroup";
+import Group from "./LessonEditor/Group";
+import LessonStatusGroup from "./LessonEditor/LessonStatusGroup";
 
 export default function LessonEditor({ lesson, onClose }) {
-  const { schedule, setScheduleDraft, addTeacher, addSubject, addLink } = useSchedule();
+  const { schedule, setScheduleDraft, addTeacher, addSubject, addLink, addStatus } = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
   const subjects = schedule?.subjects ?? [];
   const teachers = schedule?.teachers ?? [];
   const links = schedule?.links ?? [];
+  const statuses = schedule?.statuses ?? [];
+  const [editingStatusId, setEditingStatusId] = useState(null);
+
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [subjectData, setSubjectData] = useState({});
@@ -72,16 +78,14 @@ export default function LessonEditor({ lesson, onClose }) {
       { key: "Практика", label: "Практика" },
       { key: "Лабораторна", label: "Лабораторна" },
     ],
-    status: [
-      { key: "offline", label: "Офлайн" },
-      { key: "online", label: "Онлайн" },
-      { key: "hybrid", label: "Змішаний" },
-    ],
+    status: statuses.map((st) => ({ key: st.id, label: st.name })),
   };
+
 
   const getLabel = (picker, value) => {
     if (picker === "subject") return subjects.find((s) => s.id === value)?.name;
     if (picker === "teacher") return teachers.find((t) => t.id === value)?.name;
+    if (picker === "status") return statuses.find((s) => s.id === value)?.name;
     if (picker === "link") {
       return (value || [])
         .map((id) => links.find((l) => l.id === id)?.name)
@@ -119,43 +123,62 @@ export default function LessonEditor({ lesson, onClose }) {
         {Number.isInteger(lesson?.index) ? "Заняття" : "Нове заняття"}
       </Text>
 
-      <ScrollView>
-        <SettingRow
-          label="Предмет"
-          value={getLabel("subject", selectedSubjectId)}
-          onPress={() => setActivePicker("subject")}
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Group title="Пара">
+          <SettingRow
+            label="Предмет"
+            value={getLabel("subject", selectedSubjectId)}
+            onPress={() => setActivePicker("subject")}
+          />
+        </Group>
+
+        <LessonTeacherGroup
+          teacher={getLabel("teacher", subjectData.teacher)}
+          phone={teachers.find((t) => t.id === subjectData.teacher)?.phone || ""}
+          onSelect={setActivePicker}
         />
-        <SettingRow
-          label="Викладач"
-          value={getLabel("teacher", subjectData.teacher)}
-          onPress={() => setActivePicker("teacher")}
+
+        <Group title="Налаштування">
+          <SettingRow
+            label="Тип заняття"
+            value={getLabel("type", subjectData.type)}
+            onPress={() => setActivePicker("type")}
+          />
+          <SettingRow
+            label="Корпус"
+            value={subjectData.building}
+            onPress={() => setActivePicker("building")}
+          />
+          <SettingRow
+            label="Аудиторія"
+            value={subjectData.room}
+            onPress={() => setActivePicker("room")}
+          />
+        </Group>
+
+        <LessonStatusGroup
+          status={getLabel("status", subjectData.status)}
+          color={statuses.find((s) => s.id === subjectData.status)?.color}
+          onSelect={(picker) => {
+            if (picker === "statusColor") {
+              setEditingStatusId(subjectData.status);
+            }
+            setActivePicker(picker);
+          }}
         />
-        <SettingRow
-          label="Тип заняття"
-          value={getLabel("type", subjectData.type)}
-          onPress={() => setActivePicker("type")}
-        />
-        <SettingRow
-          label="Формат"
-          value={getLabel("status", subjectData.status)}
-          onPress={() => setActivePicker("status")}
-        />
-        <SettingRow
-          label="Корпус"
-          value={subjectData.building}
-          onPress={() => setActivePicker("building")}
-        />
-        <SettingRow
-          label="Аудиторія"
-          value={subjectData.room}
-          onPress={() => setActivePicker("room")}
-        />
-        <SettingRow
-          label="Посилання"
-          value={getLabel("link", subjectData.links)}
-          onPress={() => setActivePicker("link")}
-        />
+
+
+
+        <Group title="Додатково">
+          <SettingRow
+            label="Посилання"
+            value={getLabel("link", subjectData.links)}
+            onPress={() => setActivePicker("link")}
+          />
+        </Group>
       </ScrollView>
+
+
 
       <View style={styles.footer}>
         <TouchableOpacity onPress={onClose}>
@@ -163,7 +186,7 @@ export default function LessonEditor({ lesson, onClose }) {
         </TouchableOpacity>
         <TouchableOpacity disabled={!selectedSubjectId} onPress={handleSave}>
           <Text style={[styles.save, !selectedSubjectId && styles.disabled]}>
-            Додати
+            Готово
           </Text>
         </TouchableOpacity>
       </View>
@@ -181,9 +204,29 @@ export default function LessonEditor({ lesson, onClose }) {
             ? addSubject
             : activePicker === "link"
             ? addLink
+            : activePicker === "status"
+            ? addStatus
             : undefined
         }
       />
+      <OptionPickerModal
+        visible={activePicker === "statusColor"}
+        title="Оберіть колір статусу"
+        isColorPicker={true}
+        selectedColor={statuses.find((s) => s.id === editingStatusId)?.color}
+        onSelect={(colorKey) => {
+          setScheduleDraft((prev) => ({
+            ...prev,
+            statuses: prev.statuses.map((s) =>
+              s.id === editingStatusId ? { ...s, color: colorKey } : s
+            ),
+          }));
+          setActivePicker(null);
+        }}
+        onClose={() => setActivePicker(null)}
+      />
+      
+
     </View>
   );
 }
@@ -207,4 +250,17 @@ const styles = StyleSheet.create({
   cancel: { color: "orange", fontSize: 18 },
   save: { color: "orange", fontSize: 18, fontWeight: "600" },
   disabled: { opacity: 0.4 },
+  scroll: {
+    paddingBottom: 20,
+  },
+  groupTitle: {
+    color: "#aaa",
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 20,
+    marginBottom: 5,
+    paddingHorizontal: 20,
+    textTransform: "uppercase",
+  },
+
 });
