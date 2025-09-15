@@ -18,6 +18,7 @@ const defaultSchedule = {
 			building: "Головний",
 			room: "201",
 			color: 'red',
+			gradient: { type: "linear", angle: 90, colors: ["red"] }
 		},
 		{
 			id: 2,

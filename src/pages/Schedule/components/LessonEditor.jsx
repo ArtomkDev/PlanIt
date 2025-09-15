@@ -16,12 +16,14 @@ export default function LessonEditor({ lesson, onClose }) {
   const teachers = schedule?.teachers ?? [];
   const links = schedule?.links ?? [];
   const statuses = schedule?.statuses ?? [];
-  const [editingStatusId, setEditingStatusId] = useState(null);
-
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [subjectData, setSubjectData] = useState({});
   const [activePicker, setActivePicker] = useState(null);
+
+  // 🔥 універсальний редактор кольорів
+  const [editingColor, setEditingColor] = useState(null); 
+  // { type: "status" | "subject", id: number }
 
   useEffect(() => {
     if (lesson?.subjectId) {
@@ -80,7 +82,6 @@ export default function LessonEditor({ lesson, onClose }) {
     ],
     status: statuses.map((st) => ({ key: st.id, label: st.name })),
   };
-
 
   const getLabel = (picker, value) => {
     if (picker === "subject") return subjects.find((s) => s.id === value)?.name;
@@ -161,13 +162,24 @@ export default function LessonEditor({ lesson, onClose }) {
           color={statuses.find((s) => s.id === subjectData.status)?.color}
           onSelect={(picker) => {
             if (picker === "statusColor") {
-              setEditingStatusId(subjectData.status);
+              setEditingColor({ type: "status", id: subjectData.status });
+              setActivePicker("color");
+            } else {
+              setActivePicker(picker);
             }
-            setActivePicker(picker);
           }}
         />
 
-
+        <Group title="Персоналізація">
+          <SettingRow
+            label="Колір пари"
+            value={subjectData.color}
+            onPress={() => {
+              setEditingColor({ type: "subject", id: selectedSubjectId });
+              setActivePicker("color");
+            }}
+          />
+        </Group>
 
         <Group title="Додатково">
           <SettingRow
@@ -177,8 +189,6 @@ export default function LessonEditor({ lesson, onClose }) {
           />
         </Group>
       </ScrollView>
-
-
 
       <View style={styles.footer}>
         <TouchableOpacity onPress={onClose}>
@@ -191,6 +201,7 @@ export default function LessonEditor({ lesson, onClose }) {
         </TouchableOpacity>
       </View>
 
+      {/* універсальний модал */}
       <OptionPickerModal
         visible={!!activePicker && !!options[activePicker]}
         title={`Оберіть ${activePicker}`}
@@ -208,25 +219,74 @@ export default function LessonEditor({ lesson, onClose }) {
             ? addStatus
             : undefined
         }
-      />
-      <OptionPickerModal
-        visible={activePicker === "statusColor"}
-        title="Оберіть колір статусу"
-        isColorPicker={true}
-        selectedColor={statuses.find((s) => s.id === editingStatusId)?.color}
-        onSelect={(colorKey) => {
-          setScheduleDraft((prev) => ({
-            ...prev,
-            statuses: prev.statuses.map((s) =>
-              s.id === editingStatusId ? { ...s, color: colorKey } : s
-            ),
-          }));
-          setActivePicker(null);
+        onUpdate={(id, newName) => {
+          setScheduleDraft((prev) => {
+            const next = { ...prev };
+            if (activePicker === "teacher") {
+              next.teachers = next.teachers.map((t) =>
+                t.id === id ? { ...t, name: newName } : t
+              );
+            } else if (activePicker === "subject") {
+              next.subjects = next.subjects.map((s) =>
+                s.id === id ? { ...s, name: newName } : s
+              );
+            } else if (activePicker === "link") {
+              next.links = next.links.map((l) =>
+                l.id === id ? { ...l, name: newName } : l
+              );
+            } else if (activePicker === "status") {
+              next.statuses = next.statuses.map((st) =>
+                st.id === id ? { ...st, name: newName } : st
+              );
+            }
+            return next;
+          });
         }}
-        onClose={() => setActivePicker(null)}
       />
-      
 
+      <OptionPickerModal
+        visible={activePicker === "color"}
+        title={
+          editingColor?.type === "status"
+            ? "Оберіть колір статусу"
+            : "Оберіть колір пари"
+        }
+        isColorPicker={true}
+        selectedColor={
+          editingColor
+            ? editingColor.type === "status"
+              ? statuses.find((s) => s.id === editingColor.id)?.color
+              : subjects.find((s) => s.id === editingColor.id)?.color
+            : undefined
+        }
+        onSelect={(colorKey) => {
+          if (!editingColor) return; // 🔥 додав захист
+          if (editingColor.type === "status") {
+            setScheduleDraft((prev) => ({
+              ...prev,
+              statuses: prev.statuses.map((s) =>
+                s.id === editingColor.id ? { ...s, color: colorKey } : s
+              ),
+            }));
+          } else if (editingColor.type === "subject") {
+            setScheduleDraft((prev) => ({
+              ...prev,
+              subjects: prev.subjects.map((s) =>
+                s.id === editingColor.id ? { ...s, color: colorKey } : s
+              ),
+            }));
+            if (selectedSubjectId === editingColor.id) {
+              setSubjectData((prev) => ({ ...prev, color: colorKey }));
+            }
+          }
+          setActivePicker(null);
+          setEditingColor(null);
+        }}
+        onClose={() => {
+          setActivePicker(null);
+          setEditingColor(null);
+        }}
+      />
     </View>
   );
 }
@@ -250,9 +310,7 @@ const styles = StyleSheet.create({
   cancel: { color: "orange", fontSize: 18 },
   save: { color: "orange", fontSize: 18, fontWeight: "600" },
   disabled: { opacity: 0.4 },
-  scroll: {
-    paddingBottom: 20,
-  },
+  scroll: { paddingBottom: 20 },
   groupTitle: {
     color: "#aaa",
     fontSize: 14,
@@ -262,5 +320,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     textTransform: "uppercase",
   },
-
 });

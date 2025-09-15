@@ -1,17 +1,42 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Modal,
+  TextInput,
+} from "react-native";
 import ColorPicker from "./ColorPicker";
 
-export default function OptionPickerModal({ 
-  visible, 
-  title, 
-  options, 
-  onSelect, 
+export default function OptionPickerModal({
+  visible,
+  title,
+  options,
+  onSelect,
   onClose,
   onAddNew,
-  isColorPicker = false, // 🔥 прапорець
+  onUpdate, // 🔥 нове: функція для оновлення назви
+  isColorPicker = false,
   selectedColor,
 }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editingValue, setEditingValue] = useState("");
+
+  const startEditing = (opt) => {
+    setEditingId(opt.key);
+    setEditingValue(opt.label);
+  };
+
+  const saveEditing = () => {
+    if (onUpdate && editingId) {
+      onUpdate(editingId, editingValue);
+    }
+    setEditingId(null);
+    setEditingValue("");
+  };
+
   return (
     <Modal visible={visible} animationType="slide">
       <View style={styles.modal}>
@@ -26,8 +51,20 @@ export default function OptionPickerModal({
                 key={opt.key}
                 style={styles.modalItem}
                 onPress={() => onSelect(opt.key)}
+                onLongPress={() => startEditing(opt)} // 🔥 довгий тап
               >
-                <Text style={styles.modalText}>{opt.label}</Text>
+                {editingId === opt.key ? (
+                  <TextInput
+                    style={styles.input}
+                    value={editingValue}
+                    onChangeText={setEditingValue}
+                    onSubmitEditing={saveEditing}
+                    onBlur={saveEditing}
+                    autoFocus
+                  />
+                ) : (
+                  <Text style={styles.modalText}>{opt.label}</Text>
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -62,7 +99,12 @@ const styles = StyleSheet.create({
     borderColor: "#333",
   },
   modalText: { color: "#fff", fontSize: 16 },
-  cancel: { color: "orange", fontSize: 18, textAlign: "center", marginVertical: 20 },
+  cancel: {
+    color: "orange",
+    fontSize: 18,
+    textAlign: "center",
+    marginVertical: 20,
+  },
   addBtn: {
     padding: 16,
     alignItems: "center",
@@ -70,4 +112,11 @@ const styles = StyleSheet.create({
     borderColor: "#333",
   },
   addText: { color: "orange", fontSize: 18, fontWeight: "600" },
+  input: {
+    backgroundColor: "#222",
+    color: "#fff",
+    padding: 8,
+    borderRadius: 6,
+    fontSize: 16,
+  },
 });
