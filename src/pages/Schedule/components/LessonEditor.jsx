@@ -1,5 +1,12 @@
+// LessonEditor.js
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import SettingRow from "./LessonEditor/SettingRow";
@@ -9,7 +16,14 @@ import Group from "./LessonEditor/Group";
 import LessonStatusGroup from "./LessonEditor/LessonStatusGroup";
 
 export default function LessonEditor({ lesson, onClose }) {
-  const { schedule, setScheduleDraft, addTeacher, addSubject, addLink, addStatus } = useSchedule();
+  const {
+    schedule,
+    setScheduleDraft,
+    addTeacher,
+    addSubject,
+    addLink,
+    addStatus,
+  } = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
   const subjects = schedule?.subjects ?? [];
@@ -22,14 +36,17 @@ export default function LessonEditor({ lesson, onClose }) {
   const [activePicker, setActivePicker] = useState(null);
 
   // 🔥 універсальний редактор кольорів
-  const [editingColor, setEditingColor] = useState(null); 
-  // { type: "status" | "subject", id: number }
+  const [editingColor, setEditingColor] = useState(null);
+  // формат: { type: "status" | "subject", id: number }
 
   useEffect(() => {
     if (lesson?.subjectId) {
       setSelectedSubjectId(lesson.subjectId);
       const subj = subjects.find((s) => s.id === lesson.subjectId);
       setSubjectData(subj || {});
+    } else {
+      setSelectedSubjectId(null);
+      setSubjectData({});
     }
   }, [lesson, subjects]);
 
@@ -39,8 +56,9 @@ export default function LessonEditor({ lesson, onClose }) {
     setScheduleDraft((prev) => {
       const next = { ...prev };
 
-      // оновлюємо предмет
-      next.subjects = next.subjects.map((s) =>
+      // захищені перевірки
+      const prevSubjects = Array.isArray(next.subjects) ? next.subjects : [];
+      next.subjects = prevSubjects.map((s) =>
         s.id === selectedSubjectId ? { ...s, ...subjectData } : s
       );
 
@@ -59,6 +77,8 @@ export default function LessonEditor({ lesson, onClose }) {
       const weekArr = [...next.schedule[dayIndex][weekKey]];
 
       if (Number.isInteger(lesson?.index)) {
+        // ensure length
+        while (weekArr.length <= lesson.index) weekArr.push(null);
         weekArr[lesson.index] = selectedSubjectId;
       } else {
         weekArr.push(selectedSubjectId);
@@ -108,7 +128,7 @@ export default function LessonEditor({ lesson, onClose }) {
         return {
           ...prev,
           links: current.includes(key)
-            ? current.filter((id) => id !== key) // toggle
+            ? current.filter((id) => id !== key)
             : [...current, key],
         };
       });
@@ -116,6 +136,55 @@ export default function LessonEditor({ lesson, onClose }) {
       setSubjectData((prev) => ({ ...prev, [picker]: key }));
     }
     setActivePicker(null);
+  };
+
+  // ---- Обробка вибору кольору / градієнта ----
+  const handleColorSelect = (value, meta) => {
+    if (!editingColor) return;
+    // meta: { kind: "color" | "gradient" } або undefined
+    setScheduleDraft((prev) => {
+      const next = { ...prev };
+      const prevSubjects = Array.isArray(next.subjects) ? next.subjects : [];
+      next.subjects = prevSubjects.map((s) => {
+        if (s.id !== editingColor.id) return s;
+        if (meta?.kind === "gradient") {
+          return { ...s, colorLinear: value }; // не чіпаємо color/typeColor
+        } else {
+          return { ...s, color: value }; // meta undefined => treat as color
+        }
+      });
+      return next;
+    });
+
+    // оновлюємо локальний preview якщо цей предмет поточний
+    if (selectedSubjectId === editingColor.id) {
+      setSubjectData((prev) => ({
+        ...prev,
+        ...(meta?.kind === "gradient" ? { colorLinear: value } : { color: value }),
+      }));
+    }
+
+    setActivePicker(null);
+    setEditingColor(null);
+  };
+
+  // ---- Обробка зміни типу фарбування (тумблер) ----
+  const handleColorTypeChange = (type) => {
+    // type = "linear" | "color"
+    if (!editingColor) return;
+    setScheduleDraft((prev) => {
+      const next = { ...prev };
+      const prevSubjects = Array.isArray(next.subjects) ? next.subjects : [];
+      next.subjects = prevSubjects.map((s) =>
+        s.id === editingColor.id ? { ...s, typeColor: type } : s
+      );
+      return next;
+    });
+
+    if (selectedSubjectId === editingColor.id) {
+      setSubjectData((prev) => ({ ...prev, typeColor: type }));
+    }
+    // залишаємо модал відкритим — користувач вирішує чи змінювати значення
   };
 
   return (
@@ -173,8 +242,13 @@ export default function LessonEditor({ lesson, onClose }) {
         <Group title="Персоналізація">
           <SettingRow
             label="Колір пари"
-            value={subjectData.color}
+            value={
+              subjectData?.typeColor === "linear"
+                ? `Градієнт #${subjectData?.colorLinear}`
+                : subjectData?.color
+            }
             onPress={() => {
+              if (!selectedSubjectId) return;
               setEditingColor({ type: "subject", id: selectedSubjectId });
               setActivePicker("color");
             }}
@@ -223,19 +297,19 @@ export default function LessonEditor({ lesson, onClose }) {
           setScheduleDraft((prev) => {
             const next = { ...prev };
             if (activePicker === "teacher") {
-              next.teachers = next.teachers.map((t) =>
+              next.teachers = (next.teachers || []).map((t) =>
                 t.id === id ? { ...t, name: newName } : t
               );
             } else if (activePicker === "subject") {
-              next.subjects = next.subjects.map((s) =>
+              next.subjects = (next.subjects || []).map((s) =>
                 s.id === id ? { ...s, name: newName } : s
               );
             } else if (activePicker === "link") {
-              next.links = next.links.map((l) =>
+              next.links = (next.links || []).map((l) =>
                 l.id === id ? { ...l, name: newName } : l
               );
             } else if (activePicker === "status") {
-              next.statuses = next.statuses.map((st) =>
+              next.statuses = (next.statuses || []).map((st) =>
                 st.id === id ? { ...st, name: newName } : st
               );
             }
@@ -244,6 +318,7 @@ export default function LessonEditor({ lesson, onClose }) {
         }}
       />
 
+      {/* редактор кольорів */}
       <OptionPickerModal
         visible={activePicker === "color"}
         title={
@@ -251,7 +326,8 @@ export default function LessonEditor({ lesson, onClose }) {
             ? "Оберіть колір статусу"
             : "Оберіть колір пари"
         }
-        isColorPicker={true}
+        isColorPicker={editingColor?.type === "status"} // статус -> простий пікер
+        enableGradient={editingColor?.type === "subject"} // предмет -> має тумблер
         selectedColor={
           editingColor
             ? editingColor.type === "status"
@@ -259,29 +335,20 @@ export default function LessonEditor({ lesson, onClose }) {
               : subjects.find((s) => s.id === editingColor.id)?.color
             : undefined
         }
-        onSelect={(colorKey) => {
-          if (!editingColor) return; // 🔥 додав захист
-          if (editingColor.type === "status") {
-            setScheduleDraft((prev) => ({
-              ...prev,
-              statuses: prev.statuses.map((s) =>
-                s.id === editingColor.id ? { ...s, color: colorKey } : s
-              ),
-            }));
-          } else if (editingColor.type === "subject") {
-            setScheduleDraft((prev) => ({
-              ...prev,
-              subjects: prev.subjects.map((s) =>
-                s.id === editingColor.id ? { ...s, color: colorKey } : s
-              ),
-            }));
-            if (selectedSubjectId === editingColor.id) {
-              setSubjectData((prev) => ({ ...prev, color: colorKey }));
-            }
-          }
-          setActivePicker(null);
-          setEditingColor(null);
-        }}
+        selectedGradient={
+          editingColor
+            ? subjects.find((s) => s.id === editingColor.id)?.colorLinear
+            : undefined
+        }
+        selectedType={
+          editingColor
+            ? editingColor.type === "status"
+              ? "color"
+              : subjects.find((s) => s.id === editingColor.id)?.typeColor || "color"
+            : "color"
+        }
+        onSelect={handleColorSelect}
+        onTypeChange={handleColorTypeChange}
         onClose={() => {
           setActivePicker(null);
           setEditingColor(null);

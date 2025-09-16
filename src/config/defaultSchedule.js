@@ -18,7 +18,8 @@ const defaultSchedule = {
 			building: "Головний",
 			room: "201",
 			color: 'red',
-			gradient: { type: "linear", angle: 90, colors: ["red"] }
+			colorLinear: 8426346,
+			typeColor: 'linear',
 		},
 		{
 			id: 2,
@@ -83,6 +84,11 @@ const defaultSchedule = {
 	    { id: 1, name: "offline", color: "red" },
 	    { id: 2, name: "online", color: "green" },
 	    { id: 3, name: "hybrid", color: "blue" },
+	],
+	gradient: [
+		{ id: 1, type: 'linear', colors: ['4f5ff5', '11d33f'] },
+		{ id: 2, type: 'radius', colors: ['dd5df5', '11d33f'] },
+		{ id: 3, type: 'radius', colors: ['4f5ff5', '45d23f'] },
 	],
 	schedule: Array.from({ length: 7 }, () => ({
 	  week1: [],

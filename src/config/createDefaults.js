@@ -28,3 +28,12 @@ export function createDefaultStatus(generateId) {
     color: "blue",
   };
 }
+
+export function createDefaultGradient(generateId) {
+  return {
+    id: generateId(),
+    type: "linear",         // одразу є тип
+    angle: 90,              // базовий кут
+    colors: ["#ff0000", "#0000ff"], // дефолтні кольори
+  };
+}

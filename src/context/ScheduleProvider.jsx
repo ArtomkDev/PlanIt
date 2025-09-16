@@ -12,7 +12,7 @@ import {
 } from "../../firestore"; // тепер працює з users/{userId}
 import { getLocalSchedule, saveLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
-import { createDefaultTeacher, createDefaultSubject, createDefaultLink, createDefaultStatus } from "../config/createDefaults";
+import { createDefaultTeacher, createDefaultSubject, createDefaultLink, createDefaultStatus, createDefaultGradient } from "../config/createDefaults";
 import useUniqueId from "../hooks/useUniqueId";
 
 
@@ -180,23 +180,22 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const generateId = useUniqueId();
 
-  // ------------------ ДОДАВАННЯ ------------------
-  // універсальна фабрика додавання
-  const addItem = useCallback((key, factory) => {
-    const newItem = factory(generateId);
-    setScheduleDraft((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] || []), newItem],
-    }));
-    return newItem;
-  }, [generateId, setScheduleDraft]);
-  
-  // конкретні зручні функції
-  const addTeacher = useCallback(() => addItem("teachers", createDefaultTeacher), [addItem]);
-  const addSubject = useCallback(() => addItem("subjects", createDefaultSubject), [addItem]);
-  const addLink    = useCallback(() => addItem("links", createDefaultLink), [addItem]);
-  const addStatus  = useCallback(() => addItem("statuses", createDefaultStatus), [addItem]);
+// ------------------ ДОДАВАННЯ ------------------
+const addItem = useCallback((key, factory) => {
+  const newItem = factory(generateId);
+  setScheduleDraft((prev) => ({
+    ...prev,
+    [key]: [...(prev[key] || []), newItem],
+  }));
+  return newItem;
+}, [generateId, setScheduleDraft]);
 
+// конкретні зручні функції
+const addTeacher  = useCallback(() => addItem("teachers", createDefaultTeacher), [addItem]);
+const addSubject  = useCallback(() => addItem("subjects", createDefaultSubject), [addItem]);
+const addLink     = useCallback(() => addItem("links", createDefaultLink), [addItem]);
+const addStatus   = useCallback(() => addItem("statuses", createDefaultStatus), [addItem]);
+const addGradient = useCallback(() => addItem("gradients", createDefaultGradient), [addItem]);
 
 
   // ------------------ VALUE ------------------
@@ -223,6 +222,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     addSubject,
     addLink,
     addStatus,
+    addGradient,
   };
 
   return (
