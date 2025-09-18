@@ -9,7 +9,6 @@ export function createDefaultSubject(generateId) {
   return {
     id: generateId(),
     name: "Нова пара",
-    gradient: { type: "linear", angle: 90, colors: ["red"] }
   };
 }
 

@@ -106,7 +106,7 @@ export default function LessonEditor({ lesson, onClose }) {
   const getLabel = (picker, value) => {
     if (picker === "subject") return subjects.find((s) => s.id === value)?.name;
     if (picker === "teacher") return teachers.find((t) => t.id === value)?.name;
-    if (picker === "status") return statuses.find((s) => s.id === value)?.name;
+    if (picker === "statuses") return statuses.find((s) => s.id === value)?.name;
     if (picker === "link") {
       return (value || [])
         .map((id) => links.find((l) => l.id === id)?.name)
@@ -141,26 +141,39 @@ export default function LessonEditor({ lesson, onClose }) {
   // ---- Обробка вибору кольору / градієнта ----
   const handleColorSelect = (value, meta) => {
     if (!editingColor) return;
-    // meta: { kind: "color" | "gradient" } або undefined
+
     setScheduleDraft((prev) => {
       const next = { ...prev };
-      const prevSubjects = Array.isArray(next.subjects) ? next.subjects : [];
-      next.subjects = prevSubjects.map((s) => {
-        if (s.id !== editingColor.id) return s;
-        if (meta?.kind === "gradient") {
-          return { ...s, colorLinear: value }; // не чіпаємо color/typeColor
-        } else {
-          return { ...s, color: value }; // meta undefined => treat as color
-        }
-      });
+
+      if (editingColor.type === "subject") {
+        const prevSubjects = Array.isArray(next.subjects) ? next.subjects : [];
+        next.subjects = prevSubjects.map((s) => {
+          if (s.id !== editingColor.id) return s;
+          if (meta?.kind === "gradient") {
+            return { ...s, colorGradient: value, typeColor: "gradient" };
+          } else {
+            return { ...s, color: value, typeColor: "color" };
+          }
+        });
+      }
+
+      if (editingColor.type === "status") {
+        const prevStatuses = Array.isArray(next.statuses) ? next.statuses : [];
+        next.statuses = prevStatuses.map((st) =>
+          st.id === editingColor.id ? { ...st, color: value } : st
+        );
+      }
+
       return next;
     });
 
-    // оновлюємо локальний preview якщо цей предмет поточний
-    if (selectedSubjectId === editingColor.id) {
+    // оновлюємо локальний preview
+    if (editingColor.type === "subject" && selectedSubjectId === editingColor.id) {
       setSubjectData((prev) => ({
         ...prev,
-        ...(meta?.kind === "gradient" ? { colorLinear: value } : { color: value }),
+        ...(meta?.kind === "gradient"
+          ? { colorGradient: value, typeColor: "gradient" }
+          : { color: value, typeColor: "color" }),
       }));
     }
 
@@ -168,12 +181,13 @@ export default function LessonEditor({ lesson, onClose }) {
     setEditingColor(null);
   };
 
+
   // ---- Обробка зміни типу фарбування (тумблер) ----
   const handleColorTypeChange = (type) => {
     // type = "linear" | "color"
     if (!editingColor) return;
     setScheduleDraft((prev) => {
-      const next = { ...prev };
+      const next = { ...prev }; 
       const prevSubjects = Array.isArray(next.subjects) ? next.subjects : [];
       next.subjects = prevSubjects.map((s) =>
         s.id === editingColor.id ? { ...s, typeColor: type } : s
@@ -243,8 +257,8 @@ export default function LessonEditor({ lesson, onClose }) {
           <SettingRow
             label="Колір пари"
             value={
-              subjectData?.typeColor === "linear"
-                ? `Градієнт #${subjectData?.colorLinear}`
+              subjectData?.typeColor === "gradient"
+                ? `Градієнт #${subjectData?.colorGradient}`
                 : subjectData?.color
             }
             onPress={() => {
@@ -337,7 +351,7 @@ export default function LessonEditor({ lesson, onClose }) {
         }
         selectedGradient={
           editingColor
-            ? subjects.find((s) => s.id === editingColor.id)?.colorLinear
+            ? subjects.find((s) => s.id === editingColor.id)?.colorGradient
             : undefined
         }
         selectedType={

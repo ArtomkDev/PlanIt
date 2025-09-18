@@ -12,7 +12,7 @@ import {
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import LessonEditor from "./LessonEditor";
-import themes from "../../../config/themes";
+import LessonCard from "./LessonCard";
 
 function addMinutes(timeStr, minsToAdd) {
   if (!timeStr) return null;
@@ -30,7 +30,7 @@ function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
   for (let i = 0; i < lessonsCount; i++) {
     const end = addMinutes(currentStart, duration);
     times.push({ start: currentStart, end });
-    currentStart = addMinutes(end, breaks?.[i] || 0);
+    currentStart = addMinutes(end, breaks?.[i] ?? 0);
   }
   return times;
 }
@@ -43,8 +43,6 @@ export default function DaySchedule() {
     start_time = "08:30",
     duration = 45,
     breaks = [],
-    subjects = [],
-    teachers = [],
   } = schedule || {};
 
   const scheduleForDay = getDaySchedule ? getDaySchedule(currentDate) : [];
@@ -52,7 +50,6 @@ export default function DaySchedule() {
   const lessonTimes = useMemo(() => {
     return buildLessonTimes(start_time, duration, breaks, scheduleForDay.length);
   }, [start_time, duration, breaks, scheduleForDay?.length]);
-
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -102,43 +99,28 @@ export default function DaySchedule() {
         overScrollMode="always"
         bounces={true}
       >
-        {scheduleForDay.length > 0 ? (
-          scheduleForDay.map((subjectId, index) => {
-            const subject = subjects.find((s) => s.id === subjectId);
-            const teacher = teachers.find((t) => t.id === subject?.teacher);
-            const timeInfo = lessonTimes?.[index] || {};
-            const subjectColor =
-              themes.accentColors[subject?.color] || themes.accentColors.grey;
+      {scheduleForDay.length > 0 ? (
+        scheduleForDay.map((subjectId, index) => {
+          const timeInfo = lessonTimes?.[index] || {};
+          return (
+            <LessonCard
+              key={index}
+              lesson={{ subjectId, index, timeInfo }}
+              onPress={handlePressLesson}
+            />
+          );
+        })
+      ) : (
+        <Text style={styles.noData}>Немає пар на цей день</Text>
+      )}
 
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[styles.card, { backgroundColor: subjectColor + "CC" }]}
-                activeOpacity={0.8}
-                onPress={() =>
-                  handlePressLesson({ subjectId: subjectId, index, timeInfo })
-                }
-              >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTime}>
-                    {timeInfo.start || "—"} - {timeInfo.end || "—"}
-                  </Text>
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle}>{subject?.name || "—"}</Text>
-                  <Text style={styles.cardTeacher}>{teacher?.name || "—"}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        ) : (
-          <Text style={styles.noData}>Немає пар на цей день</Text>
-        )}
 
-        {/* Кнопка-заглушка завжди займає місце */}
+        {/* Кнопка-заглушка */}
         <TouchableOpacity
           style={[styles.addCard, !isEditing && styles.addCardHidden]}
-          onPress={() => isEditing && handlePressLesson({ subjectId: null, index: null })}
+          onPress={() =>
+            isEditing && handlePressLesson({ subjectId: null, index: null })
+          }
           activeOpacity={isEditing ? 0.7 : 1}
           disabled={!isEditing}
         >
@@ -186,34 +168,8 @@ export default function DaySchedule() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 90,
-  },
-  scrollContent: {
-    padding: 10,
-    paddingBottom: 160,
-  },
-  card: {
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    backgroundColor: "#fff",
-
-    // iOS shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-
-    // Android shadow
-    elevation: 3,
-  },
-  cardHeader: { alignItems: "flex-end" },
-  cardTime: { fontSize: 13, fontWeight: "500", color: "#fff" },
-  cardBody: { marginTop: 5 },
-  cardTitle: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  cardTeacher: { fontSize: 14, color: "#f0f0f0", marginTop: 2 },
+  container: { flex: 1, paddingTop: 90 },
+  scrollContent: { padding: 10, paddingBottom: 160 },
   noData: {
     textAlign: "center",
     marginTop: 20,
@@ -232,16 +188,9 @@ const styles = StyleSheet.create({
     height: 80,
     backgroundColor: "transparent",
   },
-  addCardHidden: {
-    opacity: 0,
-    pointerEvents: "none", // 🔥 тепер не клікабельна
-  },
-
+  addCardHidden: { opacity: 0, pointerEvents: "none" },
   plus: { fontSize: 32, color: "#aaa", fontWeight: "300" },
-  plusHidden: {
-    color: "transparent",
-  },
-  // Viewer styles
+  plusHidden: { color: "transparent" },
   viewerOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -254,11 +203,7 @@ const styles = StyleSheet.create({
     padding: 20,
     width: "80%",
   },
-  viewerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
+  viewerTitle: { fontSize: 20, fontWeight: "700", marginBottom: 10 },
   viewerCloseBtn: {
     marginTop: 15,
     backgroundColor: "#333",

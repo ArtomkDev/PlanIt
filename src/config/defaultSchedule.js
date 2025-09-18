@@ -13,13 +13,13 @@ const defaultSchedule = {
 			fullName: "Вища математика. Диференціальні рівняння",
 			teacher: 2,
 			links: [1, 2],
-			status: "offline",
+			status: 1,
 			type: "Лекція",
 			building: "Головний",
 			room: "201",
 			color: 'red',
-			colorLinear: 8426346,
-			typeColor: 'linear',
+			colorGradient: 1,
+			typeColor: 'gradient',
 		},
 		{
 			id: 2,
@@ -85,7 +85,7 @@ const defaultSchedule = {
 	    { id: 2, name: "online", color: "green" },
 	    { id: 3, name: "hybrid", color: "blue" },
 	],
-	gradient: [
+	gradients: [
 		{ id: 1, type: 'linear', colors: ['4f5ff5', '11d33f'] },
 		{ id: 2, type: 'radius', colors: ['dd5df5', '11d33f'] },
 		{ id: 3, type: 'radius', colors: ['4f5ff5', '45d23f'] },

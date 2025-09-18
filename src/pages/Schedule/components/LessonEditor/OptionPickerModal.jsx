@@ -1,4 +1,3 @@
-// OptionPickerModal.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -8,7 +7,6 @@ import {
   StyleSheet,
   Modal,
   TextInput,
-  Switch,
 } from "react-native";
 import ColorPicker from "./ColorPicker";
 import GradientPicker from "./GradientPicker";
@@ -25,23 +23,23 @@ export default function OptionPickerModal({
   enableGradient = false,  // для пари (включає тумблер)
   selectedColor,
   selectedGradient,
-  selectedType = "color",  // "color" | "linear"
-  onTypeChange,            // (type) => {}  <-- ВАЖЛИВО: викликається при перемиканні тумблера
+  selectedType = "color",  // "color" | "gradient" | "image"
+  onTypeChange,            // (type) => {}  <-- викликається при зміні типу
 }) {
   const [editingId, setEditingId] = useState(null);
   const [editingValue, setEditingValue] = useState("");
-  const [useGradient, setUseGradient] = useState(selectedType === "linear");
+  const [useType, setUseType] = useState(selectedType || "color");
 
   // sync initial state when modal opens / selectedType changes
   useEffect(() => {
-    setUseGradient(selectedType === "linear");
+    setUseType(selectedType || "color");
   }, [selectedType, visible]);
 
   useEffect(() => {
     if (!visible) {
       setEditingId(null);
       setEditingValue("");
-      // залишимо useGradient як є — але при повторному відкритті ми синхронізуємо з selectedType
+      // залишимо useType як є, при повторному відкритті синхронізуємо з selectedType
     }
   }, [visible]);
 
@@ -58,47 +56,64 @@ export default function OptionPickerModal({
     setEditingValue("");
   };
 
-  const handleToggle = (val) => {
-    setUseGradient(val);
-    onTypeChange?.(val ? "linear" : "color"); // важлива частина — повідомляємо батьку
+  const handleTypeChange = (type) => {
+    setUseType(type);
+    let typeToSend = type === "gradient" ? "gradient" : type; // заміна linear на gradient тут
+    onTypeChange?.(typeToSend);
   };
 
   return (
-    <Modal visible={visible} animationType="slide">
+    <Modal visible={visible} animationType="slide" transparent={false}>
       <View style={styles.modal}>
         <Text style={styles.modalTitle}>{title}</Text>
 
-        {/* тумблер тільки для пари */}
+        {/* Замість Switch — тривибірковий контрол */}
         {enableGradient && (
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>
-              {useGradient ? "Градієнт" : "Колір"}
-            </Text>
-            <Switch
-              value={useGradient}
-              onValueChange={handleToggle}
-              thumbColor="orange"
-            />
+          <View style={styles.segmentedControl}>
+            {["color", "gradient", "image"].map((type) => {
+              const labelMap = {
+                color: "Колір",
+                gradient: "Градієнт",
+                image: "Картинка",
+              };
+              const isActive = useType === type;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={[styles.segment, isActive && styles.activeSegment]}
+                  onPress={() => handleTypeChange(type)}
+                >
+                  <Text style={[styles.segmentText, isActive && styles.activeText]}>
+                    {labelMap[type]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
-        {/* режим простого кольору (статус) */}
+        {/* Режими */}
         {isColorPicker && !enableGradient ? (
           <ColorPicker
             selected={selectedColor}
             onSelect={(key) => onSelect?.(key, { kind: "color" })}
           />
         ) : enableGradient ? (
-          useGradient ? (
+          useType === "color" ? (
+            <ColorPicker
+              selected={selectedColor}
+              onSelect={(key) => onSelect?.(key, { kind: "color" })}
+            />
+          ) : useType === "gradient" ? (
             <GradientPicker
               selected={selectedGradient}
               onSelect={(key) => onSelect?.(key, { kind: "gradient" })}
             />
           ) : (
-            <ColorPicker
-              selected={selectedColor}
-              onSelect={(key) => onSelect?.(key, { kind: "color" })}
-            />
+            <View style={{ padding: 20 }}>
+              <Text style={{ color: "#aaa" }}>Тут має бути вибір або завантаження картинки</Text>
+              {/* TODO: додайте тут компонент для вибору картинки */}
+            </View>
           )
         ) : (
           <ScrollView>
@@ -138,7 +153,6 @@ export default function OptionPickerModal({
           </TouchableOpacity>
         )}
 
-
         <TouchableOpacity onPress={onClose}>
           <Text style={styles.cancel}>Закрити</Text>
         </TouchableOpacity>
@@ -156,14 +170,32 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingHorizontal: 20,
   },
-  switchRow: {
+  segmentedControl: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 10,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#555",
   },
-  switchLabel: { color: "#fff", fontSize: 16 },
+  segment: {
+    flex: 1,
+    paddingVertical: 8,
+    backgroundColor: "#222",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  activeSegment: {
+    backgroundColor: "orange",
+  },
+  segmentText: {
+    color: "#ccc",
+    fontSize: 16,
+  },
+  activeText: {
+    color: "#000",
+    fontWeight: "700",
+  },
   modalItem: {
     padding: 16,
     borderBottomWidth: 1,
