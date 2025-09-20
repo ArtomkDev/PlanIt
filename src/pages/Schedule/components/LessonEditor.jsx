@@ -10,10 +10,14 @@ import {
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import SettingRow from "./LessonEditor/SettingRow";
-import OptionPickerModal from "./LessonEditor/OptionPickerModal";
 import LessonTeacherGroup from "./LessonEditor/LessonTeacherGroup";
 import Group from "./LessonEditor/Group";
 import LessonStatusGroup from "./LessonEditor/LessonStatusGroup";
+
+// ✅ нові модальні вікна
+import OptionListModal from "./LessonEditor/OptionListModal";
+import ColorPickerModal from "./LessonEditor/ColorPickerModal";
+import ColorGradientModal from "./LessonEditor/ColorGradientModal";
 
 export default function LessonEditor({ lesson, onClose }) {
   const { schedule, setScheduleDraft, addTeacher, addSubject, addLink, addStatus } =
@@ -27,7 +31,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [subjectData, setSubjectData] = useState({});
-  const [statusEdits, setStatusEdits] = useState({}); // локальні зміни для статусів
+  const [statusEdits, setStatusEdits] = useState({});
   const [activePicker, setActivePicker] = useState(null);
 
   // 🔥 універсальний редактор кольорів
@@ -56,7 +60,7 @@ export default function LessonEditor({ lesson, onClose }) {
         s.id === selectedSubjectId ? { ...s, ...subjectData } : s
       );
 
-      // оновлюємо статуси (якщо були локальні зміни)
+      // оновлюємо статуси
       if (Object.keys(statusEdits).length > 0) {
         const prevStatuses = Array.isArray(next.statuses) ? next.statuses : [];
         next.statuses = prevStatuses.map((st) =>
@@ -273,8 +277,8 @@ export default function LessonEditor({ lesson, onClose }) {
         </TouchableOpacity>
       </View>
 
-      {/* універсальний модал */}
-      <OptionPickerModal
+      {/* ✅ списковий модал */}
+      <OptionListModal
         visible={!!activePicker && !!options[activePicker]}
         title={`Оберіть ${activePicker}`}
         options={options[activePicker] || []}
@@ -317,39 +321,39 @@ export default function LessonEditor({ lesson, onClose }) {
         }}
       />
 
-      {/* редактор кольорів */}
-      <OptionPickerModal
-        visible={activePicker === "color"}
-        title={
-          editingColor?.type === "status"
-            ? "Оберіть колір статусу"
-            : "Оберіть колір пари"
-        }
-        isColorPicker={editingColor?.type === "status"}
-        enableGradient={editingColor?.type === "subject"}
-        selectedColor={
-          editingColor
-            ? editingColor.type === "status"
-              ? statusEdits[editingColor.id]?.color ||
-                statuses.find((s) => s.id === editingColor.id)?.color
-              : subjectData.color
-            : undefined
-        }
-        selectedGradient={
-          editingColor?.type === "subject" ? subjectData.colorGradient : undefined
-        }
-        selectedType={
-          editingColor?.type === "status"
-            ? statusEdits[editingColor.id]?.typeColor || "color"
-            : subjectData.typeColor || "color"
-        }
-        onSelect={handleColorSelect}
-        onTypeChange={handleColorTypeChange}
-        onClose={() => {
-          setActivePicker(null);
-          setEditingColor(null);
-        }}
-      />
+      {/* ✅ модал для кольору */}
+      {editingColor?.type === "status" && (
+        <ColorPickerModal
+          visible={activePicker === "color"}
+          title="Оберіть колір статусу"
+          selectedColor={
+            statusEdits[editingColor.id]?.color ||
+            statuses.find((s) => s.id === editingColor.id)?.color
+          }
+          onSelect={handleColorSelect}
+          onClose={() => {
+            setActivePicker(null);
+            setEditingColor(null);
+          }}
+        />
+      )}
+
+      {/* ✅ модал для кольору/градієнта */}
+      {editingColor?.type === "subject" && (
+        <ColorGradientModal
+          visible={activePicker === "color"}
+          title="Оберіть колір пари"
+          selectedColor={subjectData.color}
+          selectedGradient={subjectData.colorGradient}
+          selectedType={subjectData.typeColor || "color"}
+          onSelect={handleColorSelect}
+          onTypeChange={handleColorTypeChange}
+          onClose={() => {
+            setActivePicker(null);
+            setEditingColor(null);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -374,13 +378,4 @@ const styles = StyleSheet.create({
   save: { color: "orange", fontSize: 18, fontWeight: "600" },
   disabled: { opacity: 0.4 },
   scroll: { paddingBottom: 20 },
-  groupTitle: {
-    color: "#aaa",
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 20,
-    marginBottom: 5,
-    paddingHorizontal: 20,
-    textTransform: "uppercase",
-  },
 });
