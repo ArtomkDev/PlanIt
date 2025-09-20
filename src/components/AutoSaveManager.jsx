@@ -21,6 +21,9 @@ export default function AutoSaveManager() {
   const [hideTimeout, setHideTimeout] = useState(null);
   const lastColorValue = useRef(0);
 
+  // прапорець для виклику saveNow
+  const [shouldSave, setShouldSave] = useState(false);
+
   // Слухаємо інтернет тільки якщо є користувач
   useEffect(() => {
     if (!user) return;
@@ -36,7 +39,7 @@ export default function AutoSaveManager() {
     return () => unsubscribe();
   }, [isConnected, user]);
 
-  // Висота таблички
+  // Анімація таблички
   useEffect(() => {
     if (!user) return;
     const shouldBeVisible = isDirty || isCloudSaving || !isConnected || showReconnected;
@@ -126,7 +129,11 @@ export default function AutoSaveManager() {
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev > 1) return prev - 1;
-        if (isConnected && isDirty) saveNow();
+
+        // ⚡️ Збереження лише якщо немає активного Cloud Saving
+        if (isConnected && isDirty && !isCloudSaving) {
+          setShouldSave(true);
+        }
         return autoSaveInterval;
       });
     }, 1000);
@@ -139,12 +146,19 @@ export default function AutoSaveManager() {
     }
   };
 
+  // Викликаємо saveNow тільки після рендера
+  useEffect(() => {
+    if (shouldSave) {
+      saveNow();
+      setShouldSave(false);
+    }
+  }, [shouldSave, saveNow]);
+
   const backgroundColor = bgColorAnim.interpolate({
     inputRange: [0, 1, 2],
     outputRange: ["#ffcc00", "#ff4d4d", "#4dff88"],
   });
 
-  // Тут вже можна умовно рендерити
   if (!user || !shouldShow) return null;
 
   return (
@@ -155,7 +169,6 @@ export default function AutoSaveManager() {
     </Pressable>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
