@@ -1,16 +1,17 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
+import { useEditor } from "../../../context/EditorProvider"; // 🔥 новий хук
 import themes from "../../../config/themes";
 
 export default function NavigationButtons({ changeDate, currentDate }) {
-  const { global, schedule, isEditing, toggleEditing } = useSchedule();
+  const { global, schedule } = useSchedule();
+  const { isEditing, toggleEditing } = useEditor();
 
   if (!schedule) return null;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-
 
   const daysOfWeek = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
 
@@ -33,7 +34,6 @@ export default function NavigationButtons({ changeDate, currentDate }) {
 
   return (
     <View style={styles.navigationContainer}>
-
       {weekDays.map((day, index) => {
         const isActive = day.date.toDateString() === currentDate.toDateString();
         return (
@@ -64,7 +64,6 @@ export default function NavigationButtons({ changeDate, currentDate }) {
       >
         <Text style={styles.editText}>✎</Text>
       </TouchableOpacity>
-
     </View>
   );
 }

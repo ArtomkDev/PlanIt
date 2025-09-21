@@ -14,15 +14,18 @@ import LessonTeacherGroup from "./LessonEditor/LessonTeacherGroup";
 import Group from "./LessonEditor/Group";
 import LessonStatusGroup from "./LessonEditor/LessonStatusGroup";
 
+import useEntityManager from "../../../hooks/useEntityManager";
+
 // ✅ нові модальні вікна
 import OptionListModal from "./LessonEditor/OptionListModal";
 import ColorPickerModal from "./LessonEditor/ColorPickerModal";
 import ColorGradientModal from "./LessonEditor/ColorGradientModal";
 
 export default function LessonEditor({ lesson, onClose }) {
-  const { schedule, setScheduleDraft, addTeacher, addSubject, addLink, addStatus } =
-    useSchedule();
+  const { schedule, setScheduleDraft } = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
+
+  const { addTeacher, addSubject, addLink, addStatus } = useEntityManager();
 
   const subjects = schedule?.subjects ?? [];
   const teachers = schedule?.teachers ?? [];

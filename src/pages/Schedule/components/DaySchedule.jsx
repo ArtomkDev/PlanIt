@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
+import { useEditor } from "../../../context/EditorProvider"; // імпорт нового хука
 import LessonEditor from "./LessonEditor";
 import LessonCard from "./LessonCard";
 
@@ -37,7 +38,8 @@ function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
 
 export default function DaySchedule() {
   const { currentDate, getDaySchedule, reloadDaySchedule } = useDaySchedule();
-  const { schedule, isEditing } = useSchedule();
+  const { schedule } = useSchedule();
+  const { isEditing } = useEditor(); // беремо з EditorProvider
 
   const {
     start_time = "08:30",
@@ -99,23 +101,22 @@ export default function DaySchedule() {
         overScrollMode="always"
         bounces={true}
       >
-      {scheduleForDay.length > 0 ? (
-        scheduleForDay.map((subjectId, index) => {
-          const timeInfo = lessonTimes?.[index] || {};
-          return (
-            <LessonCard
-              key={index}
-              lesson={{ subjectId, index, timeInfo }}
-              onPress={handlePressLesson}
-            />
-          );
-        })
-      ) : (
-        <Text style={styles.noData}>Немає пар на цей день</Text>
-      )}
+        {scheduleForDay.length > 0 ? (
+          scheduleForDay.map((subjectId, index) => {
+            const timeInfo = lessonTimes?.[index] || {};
+            return (
+              <LessonCard
+                key={index}
+                lesson={{ subjectId, index, timeInfo }}
+                onPress={handlePressLesson}
+              />
+            );
+          })
+        ) : (
+          <Text style={styles.noData}>Немає пар на цей день</Text>
+        )}
 
-
-        {/* Кнопка-заглушка */}
+        {/* Кнопка додати пару */}
         <TouchableOpacity
           style={[styles.addCard, !isEditing && styles.addCardHidden]}
           onPress={() =>

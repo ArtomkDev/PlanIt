@@ -10,6 +10,7 @@ import SignUp from "./src/auth/SignUp";
 import WelcomeScreen from "./src/auth/WelcomeScreen";
 import MainLayout from "./src/pages/MainLayout";
 import { ScheduleProvider } from "./src/context/ScheduleProvider";
+import { EditorProvider } from "./src/context/EditorProvider";
 import { manualLogin, setManualLogin } from "./src/utils/authFlags";
 
 
@@ -89,11 +90,13 @@ export default function App() {
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {user || guest ? (
-            <Stack.Screen
-              name="MainLayout"
-              component={MainLayout}
-              initialParams={{ guest }}
-            />
+              <Stack.Screen name="MainLayout">
+                {(props) => (
+                  <EditorProvider>
+                    <MainLayout {...props} guest={guest} />
+                  </EditorProvider>
+                )}
+              </Stack.Screen>
           ) : (
             <>
               <Stack.Screen name="Welcome">
