@@ -25,7 +25,7 @@ export default function LessonEditor({ lesson, onClose }) {
   const { schedule, setScheduleDraft } = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
-  const { addTeacher, addSubject, addLink, addStatus } = useEntityManager();
+  const { addTeacher, addSubject, addLink, addStatus, addGradient } = useEntityManager();
 
   const subjects = schedule?.subjects ?? [];
   const teachers = schedule?.teachers ?? [];
@@ -351,6 +351,7 @@ export default function LessonEditor({ lesson, onClose }) {
           selectedType={subjectData.typeColor || "color"}
           onSelect={handleColorSelect}
           onTypeChange={handleColorTypeChange}
+          onAddNew={addGradient} // ← додаємо сюди
           onClose={() => {
             setActivePicker(null);
             setEditingColor(null);
