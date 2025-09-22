@@ -86,9 +86,60 @@ const defaultSchedule = {
 	    { id: 3, name: "hybrid", color: "blue" },
 	],
 	gradients: [
-		{ id: 1, type: 'linear', colors: ['4f5ff5', '11d33f'] },
-		{ id: 2, type: 'radius', colors: ['dd5df5', '11d33f'] },
-		{ id: 3, type: 'radius', colors: ['4f5ff5', '45d23f'] },
+	  {
+	    id: 1,
+	    type: "linear",
+	    angle: 45,
+	    colors: [
+	      { color: "#4facfe", position: 0 },
+	      { color: "#00f2fe", position: 1 }
+	    ]
+	  },
+	  {
+	    id: 2,
+	    type: "linear",
+	    angle: 120,
+	    colors: [
+	      { color: "#f093fb", position: 0 },
+	      { color: "#f5576c", position: 1 }
+	    ]
+	  },
+	  {
+	    id: 3,
+	    type: "linear",
+	    angle: 270,
+	    colors: [
+	      { color: "#a18cd1", position: 0 },
+	      { color: "#fbc2eb", position: 1 }
+	    ]
+	  },
+	  {
+	    id: 4,
+	    type: "linear",
+	    angle: 60,
+	    colors: [
+	      { color: "#43e97b", position: 0 },
+	      { color: "#38f9d7", position: 1 }
+	    ]
+	  },
+	  {
+	    id: 5,
+	    type: "linear",
+	    angle: 200,
+	    colors: [
+	      { color: "#fa709a", position: 0 },
+	      { color: "#fee140", position: 1 }
+	    ]
+	  },
+	  {
+	    id: 6,
+	    type: "linear",
+	    angle: 330,
+	    colors: [
+	      { color: "#30cfd0", position: 0 },
+	      { color: "#330867", position: 1 }
+	    ]
+	  },
 	],
 	schedule: Array.from({ length: 7 }, () => ({
 	  week1: [],

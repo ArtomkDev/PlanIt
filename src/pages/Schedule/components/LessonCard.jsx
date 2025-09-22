@@ -1,33 +1,25 @@
-// src/pages/Schedule/components/LessonCard.jsx
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
+import GradientBackground from "../../../components/GradientBackground";
 
 export default function LessonCard({ lesson, onPress }) {
   const { schedule } = useSchedule();
   const { subjects = [], teachers = [], statuses = [], gradients = [] } =
     schedule || {};
 
-  // 🔹 дані про предмет / викладача / статус
+  // 🔹 дані
   const subject = subjects.find((s) => s.id === lesson.subjectId) || {};
   const teacher = teachers.find((t) => t.id === subject.teacher) || {};
   const status = statuses.find((st) => st.id === subject.status) || {};
 
-  // 🔹 фон (градієнт чи колір)
+  // 🔹 фон
   let backgroundContent;
   if (subject?.typeColor === "gradient" && subject?.colorGradient) {
     const grad = gradients.find((g) => g.id === subject.colorGradient);
     if (grad) {
-      backgroundContent = (
-        <LinearGradient
-          colors={grad.colors.map((c) => (c.startsWith("#") ? c : `#${c}`))}
-          style={styles.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-      );
+      backgroundContent = <GradientBackground gradient={grad} style={styles.gradient} />;
     }
   } else {
     const subjectColor =
@@ -36,13 +28,10 @@ export default function LessonCard({ lesson, onPress }) {
       themes.accentColors.grey;
 
     backgroundContent = (
-      <View
-        style={[styles.gradient, { backgroundColor: subjectColor + "CC" }]}
-      />
+      <View style={[styles.gradient, { backgroundColor: subjectColor + "CC" }]} />
     );
   }
 
-  // 🔹 колір статусу
   const statusColor =
     themes.accentColors[status?.color] || status?.color || "#FF0000";
 
@@ -59,12 +48,10 @@ export default function LessonCard({ lesson, onPress }) {
         })
       }
     >
-      {/* фон */}
       {backgroundContent}
 
-      {/* контент */}
       <View style={styles.cardContent}>
-        {/* Верхній рядок: кружечок + час */}
+        {/* верхній ряд */}
         <View style={styles.topRow}>
           {status?.color && (
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
@@ -74,10 +61,10 @@ export default function LessonCard({ lesson, onPress }) {
           </Text>
         </View>
 
-        {/* Назва предмета */}
+        {/* назва предмета */}
         <Text style={styles.cardTitle}>{subject?.name || "—"}</Text>
 
-        {/* Викладач */}
+        {/* викладач */}
         <Text style={styles.cardTeacher}>{teacher?.name || "—"}</Text>
       </View>
     </TouchableOpacity>
@@ -104,7 +91,7 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between", // кружечок зліва, час справа
+    justifyContent: "space-between",
   },
   cardTime: {
     fontSize: 13,

@@ -1,7 +1,8 @@
+// src/pages/Schedule/components/LessonEditor/GradientPicker.jsx
 import React from "react";
 import { View, TouchableOpacity, StyleSheet, FlatList } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSchedule } from "../../../../context/ScheduleProvider";
+import GradientBackground from "../../../../components/GradientBackground";
 
 export default function GradientPicker({ selected, onSelect }) {
   const { schedule } = useSchedule();
@@ -21,12 +22,8 @@ export default function GradientPicker({ selected, onSelect }) {
             onPress={() => onSelect(item.id)}
             activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={item.colors.map((c) => (c.startsWith("#") ? c : `#${c}`))}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
+            {/* Використовуємо вже готовий універсальний компонент */}
+            <GradientBackground gradient={item} style={StyleSheet.absoluteFillObject} />
 
             {isSelected && <View style={styles.selectedMark} />}
           </TouchableOpacity>

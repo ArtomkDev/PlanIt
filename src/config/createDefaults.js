@@ -32,7 +32,10 @@ export function createDefaultGradient(generateId) {
   return {
     id: generateId(),
     type: "linear",         // одразу є тип
-    angle: 90,              // базовий кут
-    colors: ["#ff0000", "#0000ff"], // дефолтні кольори
+    angle: 125,              // базовий кут
+    colors: [
+	      { color: "#4800bdff", position: 0 },
+	      { color: "#11d3a9ff", position: 1 }
+	  ]
   };
 }
