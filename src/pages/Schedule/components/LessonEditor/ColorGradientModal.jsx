@@ -8,6 +8,8 @@ import {
 } from "react-native";
 import ColorPicker from "./ColorPicker";
 import GradientPicker from "./GradientPicker";
+import GradientEditorModal from "./GradientEditorModal";
+import { useSchedule } from "../../../../context/ScheduleProvider";
 
 export default function ColorGradientModal({
   visible,
@@ -20,7 +22,10 @@ export default function ColorGradientModal({
   onAddNew,
   onClose,
 }) {
+  const { setScheduleDraft } = useSchedule();
   const [useType, setUseType] = useState(selectedType || "color");
+  const [editingGradient, setEditingGradient] = useState(null);
+
 
   useEffect(() => {
     setUseType(selectedType || "color");
@@ -30,6 +35,28 @@ export default function ColorGradientModal({
     setUseType(type);
     onTypeChange?.(type);
   };
+
+  const handleEditSave = (updatedGradient) => {
+    setScheduleDraft((prev) => {
+      if (!prev) return prev;
+      const gradients = Array.isArray(prev.gradients) ? prev.gradients : [];
+    
+      const exists = gradients.some((g) => g.id === updatedGradient.id);
+      const newGradients = exists
+        ? gradients.map((g) => (g.id === updatedGradient.id ? updatedGradient : g))
+        : [...gradients, updatedGradient]; // додаємо, якщо такого ще нема
+    
+      return { ...prev, gradients: newGradients };
+    });
+  
+    setEditingGradient(null); // закриваємо лише редактор
+  };
+
+
+
+
+
+
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
@@ -70,6 +97,7 @@ export default function ColorGradientModal({
           <GradientPicker
             selected={selectedGradient}
             onSelect={(key) => onSelect?.(key, { kind: "gradient" })}
+            onEdit={(grad) => setEditingGradient(grad)}
           />
         ) : (
           <View style={{ padding: 20 }}>
@@ -89,6 +117,15 @@ export default function ColorGradientModal({
           <Text style={styles.cancel}>Закрити</Text>
         </TouchableOpacity>
       </View>
+
+      {/* 🔹 Редактор градієнта */}
+        {editingGradient && (
+          <GradientEditorModal
+            gradient={editingGradient}
+            onClose={() => setEditingGradient(null)}
+            onSave={handleEditSave} // тут вже оновлюєш через ScheduleProvider
+          />
+        )}
     </Modal>
   );
 }

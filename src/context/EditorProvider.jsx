@@ -5,6 +5,12 @@ const EditorContext = createContext(null);
 export const EditorProvider = ({ children }) => {
   const [isEditing, setIsEditing] = useState(false);
 
+  // 🔹 ТУТ зберігаємо всі кольори, градієнти і т.п.
+  const [scheduleDraft, setScheduleDraft] = useState({
+    gradients: [], // тут масив градієнтів
+    colors: [],    // можеш додати, якщо треба
+  });
+
   const toggleEditing = useCallback(() => {
     setIsEditing((prev) => !prev);
   }, []);
@@ -12,6 +18,10 @@ export const EditorProvider = ({ children }) => {
   const value = {
     isEditing,
     toggleEditing,
+
+    // 👇 тепер ці значення реально доступні
+    scheduleDraft,
+    setScheduleDraft,
   };
 
   return (
@@ -26,3 +36,4 @@ export const useEditor = () => {
   if (!ctx) throw new Error("useEditor must be used within EditorProvider");
   return ctx;
 };
+ 
