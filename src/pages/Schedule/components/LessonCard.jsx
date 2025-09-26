@@ -61,10 +61,8 @@ export default function LessonCard({ lesson, onPress }) {
           </Text>
         </View>
 
-        {/* назва предмета */}
         <Text style={styles.cardTitle}>{subject?.name || "—"}</Text>
 
-        {/* викладач */}
         <Text style={styles.cardTeacher}>{teacher?.name || "—"}</Text>
       </View>
     </TouchableOpacity>

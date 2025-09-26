@@ -207,8 +207,10 @@ export default function LessonEditor({ lesson, onClose }) {
         <LessonTeacherGroup
           teacher={getLabel("teacher", subjectData.teacher)}
           phone={teachers.find((t) => t.id === subjectData.teacher)?.phone || ""}
+          teacherId={subjectData.teacher} // ⚡️ додаємо айді
           onSelect={setActivePicker}
         />
+
 
         <Group title="Налаштування">
           <SettingRow

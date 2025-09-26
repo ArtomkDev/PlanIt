@@ -9,6 +9,9 @@ import {
   TextInput,
 } from "react-native";
 
+import TeacherEditor from "./TeacherEditor";
+import LinkEditor from "./LinkEditor"; // ⚡️ додаємо редактор посилань
+
 export default function OptionListModal({
   visible,
   title,
@@ -20,17 +23,27 @@ export default function OptionListModal({
 }) {
   const [editingId, setEditingId] = useState(null);
   const [editingValue, setEditingValue] = useState("");
+  const [editingTeacherId, setEditingTeacherId] = useState(null);
+  const [editingLinkId, setEditingLinkId] = useState(null);
 
   useEffect(() => {
     if (!visible) {
       setEditingId(null);
       setEditingValue("");
+      setEditingTeacherId(null);
+      setEditingLinkId(null);
     }
   }, [visible]);
 
   const startEditing = (opt) => {
-    setEditingId(opt.key);
-    setEditingValue(opt.label);
+    if (title.includes("teacher") || title.includes("Викладач")) {
+      setEditingTeacherId(opt.key);
+    } else if (title.includes("link") || title.includes("Посилання")) {
+      setEditingLinkId(opt.key); // ⚡️ відкриваємо LinkEditor
+    } else {
+      setEditingId(opt.key);
+      setEditingValue(opt.label);
+    }
   };
 
   const saveEditing = () => {
@@ -80,6 +93,22 @@ export default function OptionListModal({
           <Text style={styles.cancel}>Закрити</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ⚡️ TeacherEditor */}
+      <Modal visible={!!editingTeacherId} animationType="slide">
+        <TeacherEditor
+          teacherId={editingTeacherId}
+          onClose={() => setEditingTeacherId(null)}
+        />
+      </Modal>
+
+      {/* ⚡️ LinkEditor */}
+      <Modal visible={!!editingLinkId} animationType="slide">
+        <LinkEditor
+          linkId={editingLinkId}
+          onClose={() => setEditingLinkId(null)}
+        />
+      </Modal>
     </Modal>
   );
 }
