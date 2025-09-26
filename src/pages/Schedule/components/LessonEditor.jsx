@@ -36,6 +36,8 @@ export default function LessonEditor({ lesson, onClose }) {
   const [subjectData, setSubjectData] = useState({});
   const [statusEdits, setStatusEdits] = useState({});
   const [activePicker, setActivePicker] = useState(null);
+  const [teacherIndex, setTeacherIndex] = useState(null);
+
 
   // 🔥 універсальний редактор кольорів
   const [editingColor, setEditingColor] = useState(null);
@@ -44,59 +46,73 @@ export default function LessonEditor({ lesson, onClose }) {
     if (lesson?.subjectId) {
       setSelectedSubjectId(lesson.subjectId);
       const subj = subjects.find((s) => s.id === lesson.subjectId);
-      setSubjectData(subj || {});
+
+      // якщо ще старий формат → перетворюємо teacher → teachers
+      if (subj) {
+        setSubjectData({
+          ...subj,
+          teachers: Array.isArray(subj.teachers)
+            ? subj.teachers
+            : subj.teacher
+            ? [subj.teacher]
+            : [], // якщо teacher пустий
+        });
+      } else {
+        setSubjectData({});
+      }
     } else {
       setSelectedSubjectId(null);
       setSubjectData({});
     }
   }, [lesson, subjects]);
 
-  const handleSave = () => {
-    if (!selectedSubjectId) return;
 
-    setScheduleDraft((prev) => {
-      const next = { ...prev };
+const handleSave = () => {
+  if (!selectedSubjectId) return;
 
-      // оновлюємо предмет
-      const prevSubjects = Array.isArray(next.subjects) ? next.subjects : [];
-      next.subjects = prevSubjects.map((s) =>
-        s.id === selectedSubjectId ? { ...s, ...subjectData } : s
+  setScheduleDraft((prev) => {
+    const next = { ...prev };
+
+    // оновлюємо предмети
+    const prevSubjects = Array.isArray(next.subjects) ? next.subjects : [];
+    next.subjects = prevSubjects.map((s) =>
+      s.id === selectedSubjectId ? { ...s, ...subjectData } : s
+    );
+
+    // оновлюємо статуси
+    if (Object.keys(statusEdits).length > 0) {
+      const prevStatuses = Array.isArray(next.statuses) ? next.statuses : [];
+      next.statuses = prevStatuses.map((st) =>
+        statusEdits[st.id] ? { ...st, ...statusEdits[st.id] } : st
       );
+    }
 
-      // оновлюємо статуси
-      if (Object.keys(statusEdits).length > 0) {
-        const prevStatuses = Array.isArray(next.statuses) ? next.statuses : [];
-        next.statuses = prevStatuses.map((st) =>
-          statusEdits[st.id] ? { ...st, ...statusEdits[st.id] } : st
-        );
-      }
+    // додаємо в розклад
+    const dayIndex = getDayIndex(currentDate);
+    const weekKey = `week${calculateCurrentWeek(currentDate)}`;
 
-      // додаємо в розклад
-      const dayIndex = getDayIndex(currentDate);
-      const weekKey = `week${calculateCurrentWeek(currentDate)}`;
+    if (!Array.isArray(next.schedule)) {
+      next.schedule = new Array(7).fill(null).map(() => ({}));
+    }
+    if (!next.schedule[dayIndex]) next.schedule[dayIndex] = {};
+    if (!Array.isArray(next.schedule[dayIndex][weekKey])) {
+      next.schedule[dayIndex][weekKey] = [];
+    }
 
-      if (!Array.isArray(next.schedule)) {
-        next.schedule = new Array(7).fill(null).map(() => ({}));
-      }
-      if (!next.schedule[dayIndex]) next.schedule[dayIndex] = {};
-      if (!Array.isArray(next.schedule[dayIndex][weekKey])) {
-        next.schedule[dayIndex][weekKey] = [];
-      }
+    const weekArr = [...next.schedule[dayIndex][weekKey]];
+    if (Number.isInteger(lesson?.index)) {
+      while (weekArr.length <= lesson.index) weekArr.push(null);
+      weekArr[lesson.index] = selectedSubjectId;
+    } else {
+      weekArr.push(selectedSubjectId);
+    }
+    next.schedule[dayIndex][weekKey] = weekArr;
 
-      const weekArr = [...next.schedule[dayIndex][weekKey]];
-      if (Number.isInteger(lesson?.index)) {
-        while (weekArr.length <= lesson.index) weekArr.push(null);
-        weekArr[lesson.index] = selectedSubjectId;
-      } else {
-        weekArr.push(selectedSubjectId);
-      }
-      next.schedule[dayIndex][weekKey] = weekArr;
+    return next;
+  });
 
-      return next;
-    });
-
-    onClose();
-  };
+  onClose();
+};
 
   const options = {
     subject: subjects.map((s) => ({ key: s.id, label: s.name })),
@@ -139,11 +155,22 @@ export default function LessonEditor({ lesson, onClose }) {
             : [...current, key],
         };
       });
+    } else if (picker === "teacher") {
+      // ⚡ оновлюємо конкретний індекс
+      setSubjectData((prev) => {
+        const newTeachers = [...(prev.teachers || [])];
+        if (teacherIndex !== null) {
+          newTeachers[teacherIndex] = key;
+        }
+        return { ...prev, teachers: newTeachers };
+      });
+      setTeacherIndex(null); // після вибору скидаємо
     } else {
       setSubjectData((prev) => ({ ...prev, [picker]: key }));
     }
     setActivePicker(null);
   };
+
 
   const handleColorSelect = (value, meta) => {
     if (!editingColor) return;
@@ -205,11 +232,20 @@ export default function LessonEditor({ lesson, onClose }) {
         </Group>
 
         <LessonTeacherGroup
-          teacher={getLabel("teacher", subjectData.teacher)}
-          phone={teachers.find((t) => t.id === subjectData.teacher)?.phone || ""}
-          teacherId={subjectData.teacher} // ⚡️ додаємо айді
-          onSelect={setActivePicker}
+          teachers={subjectData.teachers || []}
+          onSelect={(picker, index) => {
+            if (picker === "teacher") {
+              setTeacherIndex(index); // зберігаємо індекс
+              setActivePicker("teacher"); // сам picker рядком
+            }
+          }}
+          onChange={(newTeachers) =>
+            setSubjectData((prev) => ({ ...prev, teachers: newTeachers }))
+          }
         />
+
+
+
 
 
         <Group title="Налаштування">
