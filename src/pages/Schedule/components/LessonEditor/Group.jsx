@@ -1,11 +1,19 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Plus } from "lucide-react-native"; // або свій ікон-пакет
 
-export default function Group({ title, children }) {
+export default function Group({ title, children, onAdd }) {
   return (
     <View style={styles.group}>
-      <Text style={styles.groupTitle}>{title}</Text>
-      {children}
+      <View style={styles.header}>
+        <Text style={styles.groupTitle}>{title}</Text>
+        {onAdd && (
+          <TouchableOpacity style={styles.addButton} onPress={onAdd}>
+            <Plus color="#fff" size={18} />
+          </TouchableOpacity>
+        )}
+      </View>
+      <View style={styles.content}>{children}</View>
     </View>
   );
 }
@@ -15,12 +23,25 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
   },
-  groupTitle: {
-    color: "#aaa",
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 5,
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
-    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  groupTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  addButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: "#222",
+  },
+  content: {
+    gap: 10,
+    paddingHorizontal: 20,
   },
 });

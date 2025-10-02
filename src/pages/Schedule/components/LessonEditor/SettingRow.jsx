@@ -1,11 +1,14 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet } from "react-native";
+import { TouchableOpacity, Text, StyleSheet, View } from "react-native";
+import { ChevronRight } from "lucide-react-native"; // або своя іконка
 
-export default function SettingRow({ label, value, onPress }) {
+export default function SettingRow({ label, onPress, onLongPress }) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress}>
+    <TouchableOpacity style={styles.row} onPress={onPress} onLongPress={onLongPress}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value || "Немає"} ›</Text>
+      <View style={styles.iconWrapper}>
+        <ChevronRight color="#fff" size={18} />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -13,12 +16,15 @@ export default function SettingRow({ label, value, onPress }) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderColor: "#333",
+    backgroundColor: "#222",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
   },
-  label: { color: "#aaa", fontSize: 16 },
-  value: { color: "#fff", fontSize: 16 },
+  label: { color: "#fff", fontSize: 16 },
+  iconWrapper: {
+    marginLeft: 10,
+  },
 });
