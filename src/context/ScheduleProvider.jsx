@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
+import { AppState } from 'react-native';
 import { getSchedule, saveSchedule } from "../../firestore";
 import { getLocalSchedule, saveLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
-import { createDefaultTeacher, createDefaultSubject, createDefaultLink, createDefaultStatus, createDefaultGradient } from "../config/createDefaults";
-import useUniqueId from "../hooks/useUniqueId";
 
 const ScheduleContext = createContext(null);
 
@@ -11,12 +10,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDirty, setIsDirty] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false); // Тільки для хмари
+  const [isSaving, setIsSaving] = useState(false); // Тільки для хмари
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
-
-  const generateId = useUniqueId();
 
   // ------------------ LOAD ------------------
   useEffect(() => {
@@ -43,6 +40,18 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     load();
   }, [guest, user]);
 
+  // ------------------ GUEST MODE: миттєве збереження ------------------
+  useEffect(() => {
+    if (!guest || !data || isLoading) return;
+
+    const saveGuestData = async () => {
+      await saveLocalSchedule(data);
+    };
+
+    saveGuestData();
+  }, [data, guest, isLoading]);
+
+
   // ------------------ SELECTORS ------------------
   const currentScheduleId = data?.global?.currentScheduleId || null;
 
@@ -66,9 +75,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         ...prev,
         global: { ...(prev?.global || {}), currentScheduleId: firstId },
       }));
-      setIsDirty(true);
+      if (!guest) setIsDirty(true);
     }
-  }, [data, currentScheduleId]);
+  }, [data, currentScheduleId, guest]);
 
   // ------------------ UPDATE ------------------
   const setScheduleDraft = useCallback((updater) => {
@@ -86,8 +95,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       );
       return { ...prev, schedules: nextSchedules };
     });
-    setIsDirty(true);
-  }, []);
+    if (!guest) setIsDirty(true);
+  }, [guest]);
 
   const setGlobalDraft = useCallback((updater) => {
     setData((prev) => {
@@ -95,8 +104,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const nextGlobal = typeof updater === "function" ? updater(prev.global) : updater;
       return { ...prev, global: nextGlobal };
     });
-    setIsDirty(true);
-  }, []);
+    if (!guest) setIsDirty(true);
+  }, [guest]);
 
   const addSchedule = useCallback((schedule) => {
     setData((prev) => {
@@ -104,21 +113,16 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const nextSchedules = [...(prev.schedules || []), schedule];
       return { ...prev, schedules: nextSchedules };
     });
-    setIsDirty(true);
-  }, []);
+    if (!guest) setIsDirty(true);
+  }, [guest]);
 
-  // ------------------ SAVE ------------------
+  // ------------------ SAVE (тільки для хмари) ------------------
   const saveNow = useCallback(async () => {
-    if (!data || isSaving || !isDirty) return;
+    if (guest || !data || isSaving || !isDirty) return;
     setIsSaving(true);
-    if (user) setIsCloudSaving(true);
-
+    setIsCloudSaving(true);
     try {
-      if (guest) {
-        await saveLocalSchedule(data);
-      } else if (user) {
-        await saveSchedule(user.uid, data);
-      }
+      await saveSchedule(user.uid, data);
       setIsDirty(false);
     } catch (e) {
       console.error("❌ Save error:", e);
@@ -126,9 +130,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       throw e;
     } finally {
       setIsSaving(false);
-      if (user) setIsCloudSaving(false);
+      setIsCloudSaving(false);
     }
-  }, [guest, user, data, isSaving, isDirty]);
+  }, [user, data, isSaving, isDirty, guest]);
 
   // ------------------ RELOAD ------------------
   const reloadAllSchedules = useCallback(async () => {

@@ -12,8 +12,9 @@ import {
   FontAwesome5,
 } from "@expo/vector-icons";
 import {
-  deactivateDevice,
-  deactivateAllExceptCurrent,
+  removeDevice,
+  removeAllOtherDevices,
+  getDeviceId,
 } from "../../../utils/deviceService";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../SettingsScreenLayout";
@@ -25,14 +26,22 @@ export default function DeviceManager() {
   const { user, global } = useSchedule();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentDeviceId, setCurrentDeviceId] = useState(null);
 
   const [mode, accent] = global.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   useEffect(() => {
     if (!user) return;
-    const devicesRef = collection(db, "users", user.uid, "devices");
 
+    const fetchCurrentDeviceId = async () => {
+      const id = await getDeviceId(user.uid);
+      setCurrentDeviceId(id);
+    };
+
+    fetchCurrentDeviceId();
+
+    const devicesRef = collection(db, "users", user.uid, "devices");
     const unsubscribe = onSnapshot(devicesRef, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setDevices(list);
@@ -44,89 +53,50 @@ export default function DeviceManager() {
 
   function getPlatformIcon(platform) {
     if (platform === "iOS")
-      return (
-        <Ionicons
-          name="logo-apple"
-          size={24}
-          color={themeColors.textColor}
-        />
-      );
+      return <Ionicons name="logo-apple" size={24} color={themeColors.textColor} />;
     if (platform === "Android")
       return <Ionicons name="logo-android" size={24} color="green" />;
     if (platform === "Web")
-      return (
-        <MaterialCommunityIcons
-          name="web"
-          size={24}
-          color={themeColors.textColor2}
-        />
-      );
-    if (platform.includes("Windows"))
-      return <FontAwesome5 name="windows" size={22} color="blue" />;
-    if (platform.includes("Mac"))
-      return (
-        <FontAwesome5
-          name="laptop"
-          size={22}
-          color={themeColors.textColor}
-        />
-      );
-    return (
-      <MaterialCommunityIcons
-        name="devices"
-        size={24}
-        color={themeColors.textColor2}
-      />
-    );
+      return <MaterialCommunityIcons name="web" size={24} color={themeColors.textColor2} />;
+    // Add more specific icons as needed
+    return <MaterialCommunityIcons name="devices" size={24} color={themeColors.textColor2} />;
   }
 
-  async function handleDeactivate(deviceId) {
-    await deactivateDevice(user.uid, deviceId);
+  async function handleRemoveDevice(deviceId) {
+    await removeDevice(user.uid, deviceId);
   }
 
-  async function handleDeactivateAll() {
-    await deactivateAllExceptCurrent(user.uid);
+  async function handleRemoveAllOthers() {
+    await removeAllOtherDevices(user.uid);
   }
 
   if (loading)
-    return (
-      <Text style={{ color: themeColors.textColor }}>Завантаження...</Text>
-    );
+    return <Text style={{ color: themeColors.textColor }}>Loading devices...</Text>;
 
-  const activeDevices = devices.filter((d) => d.isActive);
-  const inactiveDevices = devices.filter((d) => !d.isActive);
-
-  function renderDevice(item) {
+  function renderDevice({ item }) {
+    const isCurrent = item.id === currentDeviceId;
     return (
       <View
         style={[
           styles.item,
-          {
-            backgroundColor: themeColors.backgroundColor2,
-            borderColor: themeColors.backgroundColor3,
-          },
-          !item.isActive && { opacity: 0.5 },
+          { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.backgroundColor3 },
+          isCurrent && styles.currentDeviceHighlight,
         ]}
       >
         <View style={styles.row}>
           {getPlatformIcon(item.platform)}
           <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text
-              style={[styles.deviceName, { color: themeColors.textColor }]}
-            >
-              {item.name}
+            <Text style={[styles.deviceName, { color: themeColors.textColor }]}>
+              {item.name} {isCurrent && "(This Device)"}
             </Text>
             <Text style={[styles.subText, { color: themeColors.textColor2 }]}>
-              {item.platform} | версія {item.appVersion}
-            </Text>
-            <Text style={[styles.subText, { color: themeColors.textColor2 }]}>
-              Останній вхід: {new Date(item.lastLogin).toLocaleString()}
+              Last login: {new Date(item.lastLogin).toLocaleString()}
             </Text>
           </View>
-          {item.isActive && (
-            <TouchableOpacity onPress={() => handleDeactivate(item.id)}>
+          {!isCurrent && (
+            <TouchableOpacity onPress={() => handleRemoveDevice(item.id)}>
               <Ionicons
-                name="close-circle"
+                name="log-out-outline"
                 size={28}
                 color={themes.accentColors.red}
               />
@@ -139,45 +109,21 @@ export default function DeviceManager() {
 
   return (
     <SettingsScreenLayout>
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: themeColors.backgroundColor },
-        ]}
-      >
+      <View style={styles.container}>
         <Text style={[styles.title, { color: themeColors.textColor }]}>
-          Активні пристрої
+          Logged-in Devices
         </Text>
         <FlatList
-          data={activeDevices}
+          data={devices}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => renderDevice(item)}
+          renderItem={renderDevice}
         />
-
-        {inactiveDevices.length > 0 && (
-          <>
-            <Text style={[styles.title, { color: themeColors.textColor }]}>
-              Від’єднані пристрої
-            </Text>
-            <FlatList
-              data={inactiveDevices}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => renderDevice(item)}
-            />
-          </>
-        )}
-
-        {activeDevices.length > 1 && (
+        {devices.length > 1 && (
           <TouchableOpacity
-            style={[
-              styles.deactivateAll,
-              { backgroundColor: themes.accentColors.red },
-            ]}
-            onPress={handleDeactivateAll}
+            style={[styles.deactivateAll, { backgroundColor: themes.accentColors.red }]}
+            onPress={handleRemoveAllOthers}
           >
-            <Text style={styles.deactivateAllText}>
-              Від’єднати всі, крім цього
-            </Text>
+            <Text style={styles.deactivateAllText}>Log Out on All Other Devices</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -197,6 +143,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   deviceName: { fontSize: 16, fontWeight: "600" },
   subText: { fontSize: 12 },
+  currentDeviceHighlight: {
+    borderColor: themes.accentColors.blue, // Or any color to highlight the current device
+    borderWidth: 2,
+  },
   deactivateAll: {
     marginTop: 20,
     padding: 12,

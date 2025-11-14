@@ -6,8 +6,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { useSchedule } from '../context/ScheduleProvider';
 import { migrateLocalToCloud } from './migrateLocalToCloud';
-import { registerDevice } from '../utils/deviceService';
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setManualLogin } from "../utils/authFlags";
 
 export default function SignIn() {
@@ -19,32 +17,22 @@ export default function SignIn() {
 
   const logIn = async () => {
     try {
-      setManualLogin(true); // 🔑 повідомляємо App.js що це ручний вхід
+      setManualLogin(true); // 🔑 This signals App.js that the user has logged in manually
       const cred = await signInWithEmailAndPassword(auth, email, password);
       setError('');
       setEmail('');
       setPassword('');
 
-      // 🟢 після успішного входу — завжди активуємо пристрій
-      try {
-        await AsyncStorage.setItem("manualLogin", "true");
-        await registerDevice(cred.user.uid);
-      } catch (e) {
-        if (e.message === "DEVICE_BLOCKED") {
-          setError("This device has been disconnected. Please log in again.");
-          return; // 🚫 зупиняємо весь процес входу
-        }
-        console.warn("Register device failed:", e);
-      }
+      // The onAuthStateChanged listener in App.js will now handle device registration.
 
-      // спроба міграції локальних даних (якщо вони є)
+      // Attempt to migrate local data (if any)
       try {
         await migrateLocalToCloud(cred.user.uid);
       } catch (e) {
         console.warn('Migration on sign-in failed', e);
       }
 
-      // даємо трохи часу для onAuthStateChanged -> ScheduleProvider оновить user
+      // Allow some time for onAuthStateChanged -> ScheduleProvider to update the user
       setTimeout(() => {
         try {
           reloadAllSchedules();

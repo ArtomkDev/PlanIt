@@ -3,8 +3,7 @@ import {
   setDoc,
   getDocs,
   collection,
-  getDoc,
-  updateDoc,
+  deleteDoc,
   onSnapshot,
 } from "firebase/firestore";
 import { db, auth } from "../../firebase";
@@ -13,88 +12,59 @@ import { Platform } from "react-native";
 import * as Crypto from "expo-crypto";
 import { signOut } from "firebase/auth";
 
-// 🔑 Генерація стабільного deviceId
+// Generates a stable, unique ID for the device.
 export async function getDeviceId(userId) {
   let rawDeviceId;
-
   if (Platform.OS === "web") {
     rawDeviceId = navigator.userAgent || "WebBrowser";
   } else {
     rawDeviceId = `${Device.brand || "Unknown"}-${Device.modelName || "Unknown"}-${Device.deviceName || "Unknown"}`;
   }
-
   const input = `${userId}-${rawDeviceId}`;
-
-  return await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    input
-  );
+  return await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, input);
 }
 
-// ℹ️ Інфо про пристрій
+// Gathers information about the current device.
 export function getDeviceInfo() {
   if (Platform.OS === "web") {
-    return {
-      name: navigator.userAgent || "Web Browser",
-      platform: "Web",
-      appVersion: navigator.appVersion || "Unknown",
-    };
+    return { name: navigator.userAgent || "Web Browser", platform: "Web" };
   }
   return {
     name: Device.deviceName ?? "Unknown Device",
     platform: Device.osName ?? "Unknown",
     brand: Device.brand ?? "Unknown",
     model: Device.modelName ?? "Unknown",
-    appVersion: "Unknown",
   };
 }
 
-// 📝 Реєстрація/оновлення пристрою
+// Registers the device in Firestore on login.
 export async function registerDevice(userId) {
   if (!userId) return;
-
   const deviceId = await getDeviceId(userId);
   const ref = doc(db, "users", userId, "devices", deviceId);
-  const snap = await getDoc(ref);
-  const { name, platform, appVersion } = getDeviceInfo();
-
-  if (snap.exists()) {
-    const data = snap.data();
-
-    if (data.isActive === false) {
-      console.warn("⛔ Цей пристрій був від’єднаний → дозволяємо повторну авторизацію");
-      await setDoc(ref, {
-        name,
-        platform,
-        lastLogin: new Date().toISOString(),
-        isActive: true,
-        appVersion,
-      });
-      console.log(`🔓 Пристрій [${name}] (${platform}) повторно підключено`);
-      return;
-    }
-
-
-
-    await updateDoc(ref, {
-      lastLogin: new Date().toISOString(),
-      appVersion,
-    });
-    console.log(`✅ Пристрій [${name}] (${platform}) оновлений`);
-  } else {
-    await setDoc(ref, {
-      name,
-      platform,
-      lastLogin: new Date().toISOString(),
-      isActive: true,
-      appVersion,
-    });
-    console.log(`🆕 Пристрій [${name}] (${platform}) доданий`);
-  }
+  const deviceInfo = { ...getDeviceInfo(), lastLogin: new Date().toISOString() };
+  await setDoc(ref, deviceInfo, { merge: true });
+  console.log(`✅ Device [${deviceInfo.name}] registered/updated.`);
 }
 
+// Listens for changes to the current device's document in Firestore.
+export async function listenForDeviceRemoval(userId, onRemoved) {
+  if (!userId) return () => {};
+  const deviceId = await getDeviceId(userId);
+  const ref = doc(db, "users", userId, "devices", deviceId);
 
-// 📥 Отримати всі пристрої юзера
+  const unsubscribe = onSnapshot(ref, (docSnap) => {
+    // If the document does not exist, it means the device was removed.
+    if (!docSnap.exists()) {
+      console.log("Device was removed from another location. Forcing logout.");
+      onRemoved();
+    }
+  });
+
+  return unsubscribe;
+}
+
+// Fetches the list of all devices for a user.
 export async function getDevices(userId) {
   if (!userId) return [];
   const devicesRef = collection(db, "users", userId, "devices");
@@ -102,57 +72,22 @@ export async function getDevices(userId) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-// ❌ Вимкнути пристрій
-export async function deactivateDevice(userId, deviceId) {
+// Removes a specific device.
+export async function removeDevice(userId, deviceId) {
   if (!userId || !deviceId) return;
   const ref = doc(db, "users", userId, "devices", deviceId);
-  await updateDoc(ref, { isActive: false });
-
-  const currentId = await getDeviceId(userId);
-  if (deviceId === currentId) {
-    try {
-      await signOut(auth);
-    } catch (err) {
-      console.warn("Помилка при виході:", err);
-    }
-  }
+  await deleteDoc(ref);
+  console.log(`🗑️ Device with ID: ${deviceId} has been removed.`);
 }
 
-// ❌ Вимкнути всі, крім поточного
-export async function deactivateAllExceptCurrent(userId) {
+// Removes all devices except the current one.
+export async function removeAllOtherDevices(userId) {
   if (!userId) return;
   const currentId = await getDeviceId(userId);
   const devices = await getDevices(userId);
   for (const d of devices) {
     if (d.id !== currentId) {
-      await deactivateDevice(userId, d.id);
+      await removeDevice(userId, d.id);
     }
   }
-}
-
-// ✅ Перевірка статусу пристрою
-export async function checkDeviceStatus(userId) {
-  if (!userId) return false;
-  const deviceId = await getDeviceId(userId);
-  const ref = doc(db, "users", userId, "devices", deviceId);
-  const snap = await getDoc(ref);
-  return snap.exists() ? snap.data().isActive !== false : true;
-}
-
-// 👂 Live-слухач для поточного пристрою
-export async function listenDeviceStatus(userId) {
-  if (!userId) return () => {};
-  const deviceId = await getDeviceId(userId);
-  const ref = doc(db, "users", userId, "devices", deviceId);
-
-  return onSnapshot(ref, async (snap) => {
-    if (snap.exists() && snap.data().isActive === false) {
-      console.warn("⛔ Цей пристрій від’єднано → вихід з акаунта");
-      try {
-        await signOut(auth);
-      } catch (err) {
-        console.warn("Помилка при виході:", err);
-      }
-    }
-  });
 }

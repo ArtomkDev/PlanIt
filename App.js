@@ -11,14 +11,8 @@ import WelcomeScreen from "./src/auth/WelcomeScreen";
 import MainLayout from "./src/pages/MainLayout";
 import { ScheduleProvider } from "./src/context/ScheduleProvider";
 import { EditorProvider } from "./src/context/EditorProvider";
-import { manualLogin, setManualLogin } from "./src/utils/authFlags";
-
-
-import {
-  checkDeviceStatus,
-  registerDevice,
-  listenDeviceStatus,
-} from "./src/utils/deviceService";
+import { registerDevice, listenForDeviceRemoval } from "./src/utils/deviceService";
+import { setManualLogin } from "./src/utils/authFlags";
 
 const Stack = createStackNavigator();
 
@@ -28,75 +22,61 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkLocal = async () => {
-      const local = await AsyncStorage.getItem("guest_schedule");
-      if (local) setGuest(true);
+    const checkGuestMode = async () => {
+      const localSchedule = await AsyncStorage.getItem("guest_schedule");
+      if (localSchedule) setGuest(true);
       setLoading(false);
     };
-    checkLocal();
+    checkGuestMode();
   }, []);
 
   useEffect(() => {
-  let unsubscribeDevice = null;
+    let deviceListenerUnsubscribe = () => {};
 
-  const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-    if (firebaseUser) {
-      try {
-        const manualFlag = await AsyncStorage.getItem("manualLogin");
+    const handleSignOut = () => {
+      signOut(auth).catch((error) => console.error("Sign out error", error));
+    };
 
-        if (manualLogin) {
-          await registerDevice(firebaseUser.uid);
-          setManualLogin(false); // скидаємо прапорець
-          setUser(firebaseUser);
-          setGuest(false);
-          unsubscribeDevice = await listenDeviceStatus(firebaseUser.uid);
-        } else {
-          const active = await checkDeviceStatus(firebaseUser.uid);
-          if (!active) {
-            await AsyncStorage.clear();
-            await signOut(auth);
-          } else {
-            setUser(firebaseUser);
-            setGuest(false);
-            unsubscribeDevice = await listenDeviceStatus(firebaseUser.uid);
-          }
-        }
-      } catch (e) {
-        console.log("Device check error:", e);
-        await AsyncStorage.clear();
-        await signOut(auth);
+    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      deviceListenerUnsubscribe();
+
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        setGuest(false);
+        setManualLogin(false);
+        await registerDevice(firebaseUser.uid);
+        deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+      } else {
+        setUser(null);
       }
-    } else {
-      setUser(null);
-      if (unsubscribeDevice) {
-        unsubscribeDevice();
-        unsubscribeDevice = null;
-      }
-    }
-  });
+    });
 
+    return () => {
+      authUnsubscribe();
+      deviceListenerUnsubscribe();
+    };
+  }, []);
 
-  return () => {
-    unsubscribeAuth();
-    if (unsubscribeDevice) unsubscribeDevice();
+  if (loading) {
+    return null; 
+  }
+
+  const handleExitGuest = () => {
+    setGuest(false);
   };
-}, []);
-
-
-  if (loading) return null;
 
   return (
     <ScheduleProvider guest={guest} user={user}>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {user || guest ? (
-              <Stack.Screen name="MainLayout">
-                {(props) => (
-                  <EditorProvider>
-                    <MainLayout {...props} guest={guest} />
-                  </EditorProvider>
-                )}
-              </Stack.Screen>
+            <Stack.Screen name="MainLayout">
+              {(props) => (
+                <EditorProvider>
+                  <MainLayout {...props} guest={guest} onExitGuest={handleExitGuest} />
+                </EditorProvider>
+              )}
+            </Stack.Screen>
           ) : (
             <>
               <Stack.Screen name="Welcome">

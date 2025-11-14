@@ -7,16 +7,14 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 
-export default function ScheduleSettings() {
+export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
   const { user, global, schedule } = useSchedule();
 
-  // Тема з контексту
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
 
-  // Дані для коротких “статусів” праворуч
   const autoSaveEnabled = !!schedule?.autoSave?.enabled;
   const autoSaveInterval = schedule?.autoSave?.interval ?? null;
 
@@ -28,7 +26,12 @@ export default function ScheduleSettings() {
   const subjectsCount = Array.isArray(schedule?.subjects) ? schedule.subjects.length : undefined;
   const teachersCount = Array.isArray(schedule?.teachers) ? schedule.teachers.length : undefined;
 
-  // Секції меню
+  const handleAuthAction = () => {
+    if (guest && onExitGuest) {
+      onExitGuest();
+    }
+  };
+
   const sections = useMemo(() => ([
     {
       title: 'Структура розкладу',
@@ -64,8 +67,7 @@ export default function ScheduleSettings() {
     {
       title: 'Акаунт',
       data: !user ? [
-        { label: 'Увійти', screen: 'SignIn', icon: 'log-in-outline', desc: 'Увійти в існуючий акаунт' },
-        { label: 'Створити акаунт', screen: 'SignUp', icon: 'person-add-outline', desc: 'Перенести локальні дані в хмару' },
+        { label: 'Увійти або Створити акаунт', action: handleAuthAction, icon: 'log-in-outline', desc: 'Синхронізуйте дані в хмарі' },
       ] : [
         { label: 'Пристрої', screen: 'DeviceService', icon: 'layers-outline', desc: 'Налаштування авторизованих пристроїв' },
       ],
@@ -78,11 +80,11 @@ export default function ScheduleSettings() {
         { label: 'Скинути БД', screen: 'ResetDB', icon: 'trash-outline', desc: 'Повне очищення даних' },
       ],
     },
-  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveInterval]);
+  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveInterval, guest]);
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      onPress={() => navigation.navigate(item.screen, { scheduleId: schedule?.id })}
+      onPress={() => item.action ? item.action() : navigation.navigate(item.screen, { scheduleId: schedule?.id })}
       style={[
         styles.row,
         { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor },
@@ -121,7 +123,7 @@ export default function ScheduleSettings() {
   return (
     <SectionList
       sections={sections}
-      keyExtractor={(item, index) => `${item.screen}-${index}`}
+      keyExtractor={(item, index) => `${item.screen || item.label}-${index}`}
       renderItem={renderItem}
       renderSectionHeader={renderSectionHeader}
       stickySectionHeadersEnabled
@@ -136,7 +138,7 @@ export default function ScheduleSettings() {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    paddingTop: 100,   // під прозорий header
+    paddingTop: 100,   
     paddingBottom: 80,
   },
   sectionHeader: {

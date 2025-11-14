@@ -19,15 +19,13 @@ import AutoSaveManager from '../pages/ScheduleSettings/components/AutoSaveInterv
 import ThemeSettings from '../pages/ScheduleSettings/components/ThemeSettings';
 import ResetDB from '../pages/ScheduleSettings/components/ResetDB';
 import ScheduleSwitcher from '../pages/ScheduleSettings/components/ScheduleSwitcher';
-import SignIn from '../auth/SignIn'
-import SignUp from '../auth/SignUp'
-import DeviceService from '../pages/ScheduleSettings/components/DeviceManager'
+import DeviceManager from '../pages/ScheduleSettings/components/DeviceManager';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function ScheduleSettingsStack() {
-  const { global, schedule } = useSchedule();
+function ScheduleSettingsStack({ screenProps }) {
+  const { global } = useSchedule();
   const [themeMode] = global?.theme || ['light', 'blue'];
 
   return (
@@ -44,9 +42,10 @@ function ScheduleSettingsStack() {
     >
       <Stack.Screen
         name="ScheduleSettingsMain"
-        component={ScheduleSettings}
         options={{ title: 'Налаштування розкладу' }}
-      />
+      >
+        {props => <ScheduleSettings {...props} {...screenProps} />}
+      </Stack.Screen>
       <Stack.Screen name="Breaks" component={BreaksManager} />
       <Stack.Screen name="Weeks" component={WeekManager} />
       <Stack.Screen name="StartWeek" component={StartWeekManager} />
@@ -57,15 +56,13 @@ function ScheduleSettingsStack() {
       <Stack.Screen name="AutoSave" component={AutoSaveManager} />
       <Stack.Screen name="Theme" component={ThemeSettings} />
       <Stack.Screen name="ResetDB" component={ResetDB} />
-      <Stack.Screen name="SignIn" component={SignIn} />
-      <Stack.Screen name="SignUp" component={SignUp} />
-      <Stack.Screen name="DeviceService" component={DeviceService} />
+      <Stack.Screen name="DeviceService" component={DeviceManager} />
     </Stack.Navigator>
   );
 }
 
-export default function TabNavigator() {
-  const { global ,schedule } = useSchedule();
+export default function TabNavigator({ screenProps }) {
+  const { global } = useSchedule();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -78,10 +75,10 @@ export default function TabNavigator() {
           height: 70,
           paddingBottom: 10,
           paddingTop: 0,
-          backgroundColor: 'transparent', // ✅ blur робить фон
-          elevation: 0, // ✅ без тіней на Android
-          shadowOpacity: 0, // ✅ без тіней на iOS
-          borderTopWidth: 0,  // ✅ прибирає верхню лінію
+          backgroundColor: 'transparent',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderTopWidth: 0,
         },
         tabBarBackground: () => <AppBlur style={{ flex: 1, overflow: 'hidden' }} />,
         tabBarLabelStyle: {
@@ -106,14 +103,15 @@ export default function TabNavigator() {
 
       <Tab.Screen
         name="Home3_2"
-        component={ScheduleSettingsStack}
         options={{
           tabBarLabel: 'Налаштування',
           tabBarIcon: ({ color, size }) => (
             <Icon name="settings" size={size} color={color} />
           ),
         }}
-      />
+      >
+        {() => <ScheduleSettingsStack screenProps={screenProps} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }
