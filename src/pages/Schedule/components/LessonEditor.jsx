@@ -26,17 +26,21 @@ import themes from "../../../config/themes";
 import GradientBackground from "../../../components/GradientBackground";
 
 export default function LessonEditor({ lesson, onClose }) {
-  const { schedule, setScheduleDraft } = useSchedule();
+  const { schedule, scheduleDraft, setScheduleDraft } = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
   const { addTeacher, addSubject, addLink, addStatus, addGradient } =
     useEntityManager();
 
-  const subjects = schedule?.subjects ?? [];
-  const teachers = schedule?.teachers ?? [];
-  const links = schedule?.links ?? [];
-  const statuses = schedule?.statuses ?? [];
-  const gradients = schedule?.gradients ?? [];
+  // Use the draft schedule if it exists, otherwise fall back to the main schedule.
+  // This makes the component reactive to changes made in the editor.
+  const dataSource = scheduleDraft || schedule;
+
+  const subjects = dataSource?.subjects ?? [];
+  const teachers = dataSource?.teachers ?? [];
+  const links = dataSource?.links ?? [];
+  const statuses = dataSource?.statuses ?? [];
+  const gradients = dataSource?.gradients ?? [];
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(
     lesson?.subjectId || null
@@ -172,8 +176,9 @@ export default function LessonEditor({ lesson, onClose }) {
       const next = { ...prev };
 
       if (editingColor.type === "subject") {
-        const subj = next.subjects.find((s) => s.id === editingColor.id);
-        if (subj) {
+        const subjIndex = next.subjects.findIndex((s) => s.id === editingColor.id);
+        if (subjIndex !== -1) {
+          const subj = { ...next.subjects[subjIndex] };
           if (meta?.kind === "gradient") {
             subj.colorGradient = value;
             subj.typeColor = "gradient";
@@ -181,12 +186,17 @@ export default function LessonEditor({ lesson, onClose }) {
             subj.color = value;
             subj.typeColor = "color";
           }
+          next.subjects[subjIndex] = subj;
         }
       }
 
       if (editingColor.type === "status") {
-        const st = next.statuses.find((s) => s.id === editingColor.id);
-        if (st) st.color = value;
+        const stIndex = next.statuses.findIndex((s) => s.id === editingColor.id);
+        if (stIndex !== -1) {
+          const st = { ...next.statuses[stIndex] };
+          st.color = value;
+          next.statuses[stIndex] = st;
+        }
       }
 
       return next;

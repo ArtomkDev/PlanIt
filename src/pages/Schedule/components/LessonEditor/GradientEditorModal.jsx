@@ -3,19 +3,20 @@ import {
   Modal,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
 import Slider from "@react-native-assets/slider";
 import GradientBackground from "../../../../components/GradientBackground";
+import AdvancedColorPicker from "./AdvancedColorPicker";
 
 export default function GradientEditorModal({ visible, gradient, onClose, onSave }) {
   const [color1, setColor1] = useState("#ffffff");
   const [color2, setColor2] = useState("#000000");
   const [angle, setAngle] = useState(0);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [colorToEdit, setColorToEdit] = useState(null);
 
-  // 🔹 Оновлюємо state коли міняється градієнт
   useEffect(() => {
     if (gradient) {
       setColor1(gradient.colors?.[0]?.color || "#ffffff");
@@ -26,21 +27,24 @@ export default function GradientEditorModal({ visible, gradient, onClose, onSave
 
   const handleSave = () => {
     const newGradient = {
-      ...gradient, // лишаємо той самий id
+      ...gradient,
       angle,
       colors: [
-        { color: normalizeColor(color1), position: 0 },
-        { color: normalizeColor(color2), position: 1 },
+        { color: color1, position: 0 },
+        { color: color2, position: 1 },
       ],
     };
     onSave?.(newGradient);
   };
 
-  // 🔹 Перевірка кольору (додає # якщо забули)
-  const normalizeColor = (c) => {
-    if (!c) return "#000000";
-    if (!c.startsWith("#")) return "#" + c;
-    return c;
+  const openColorPicker = (color, setter) => {
+    setColorToEdit({ color, setter });
+    setPickerVisible(true);
+  };
+
+  const handleColorSave = (newColor) => {
+    colorToEdit.setter(newColor);
+    setPickerVisible(false);
   };
 
   return (
@@ -48,41 +52,31 @@ export default function GradientEditorModal({ visible, gradient, onClose, onSave
       <View style={styles.modal}>
         <Text style={styles.title}>Редагування градієнта</Text>
 
-        {/* Превʼю */}
         <View style={styles.preview}>
           <GradientBackground
             gradient={{
               type: "linear",
               angle,
               colors: [
-                { color: normalizeColor(color1), position: 0 },
-                { color: normalizeColor(color2), position: 1 },
+                { color: color1, position: 0 },
+                { color: color2, position: 1 },
               ],
             }}
             style={StyleSheet.absoluteFillObject}
           />
         </View>
 
-        {/* Поля вводу кольорів */}
-        <Text style={styles.label}>Колір 1</Text>
-        <TextInput
-          style={styles.input}
-          value={color1}
-          onChangeText={setColor1}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <View style={styles.colorButtonsContainer}>
+          <TouchableOpacity
+            style={[styles.colorButton, { backgroundColor: color1 }]}
+            onPress={() => openColorPicker(color1, setColor1)}
+          />
+          <TouchableOpacity
+            style={[styles.colorButton, { backgroundColor: color2 }]}
+            onPress={() => openColorPicker(color2, setColor2)}
+          />
+        </View>
 
-        <Text style={styles.label}>Колір 2</Text>
-        <TextInput
-          style={styles.input}
-          value={color2}
-          onChangeText={setColor2}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-
-        {/* Слайдер */}
         <Text style={styles.label}>Кут: {Math.round(angle)}°</Text>
         <Slider
           style={{ width: "100%", height: 40 }}
@@ -93,7 +87,6 @@ export default function GradientEditorModal({ visible, gradient, onClose, onSave
           step={1}
         />
 
-        {/* Кнопки */}
         <TouchableOpacity onPress={handleSave} style={styles.saveBtn}>
           <Text style={styles.saveText}>Зберегти</Text>
         </TouchableOpacity>
@@ -101,6 +94,15 @@ export default function GradientEditorModal({ visible, gradient, onClose, onSave
         <TouchableOpacity onPress={onClose}>
           <Text style={styles.cancel}>Закрити</Text>
         </TouchableOpacity>
+
+        {pickerVisible && (
+          <AdvancedColorPicker
+            visible={pickerVisible}
+            initialColor={colorToEdit.color}
+            onSave={handleColorSave}
+            onClose={() => setPickerVisible(false)}
+          />
+        )}
       </View>
     </Modal>
   );
@@ -116,13 +118,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   label: { color: "#fff", marginTop: 10 },
-  input: {
-    backgroundColor: "#222",
-    color: "#fff",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
   saveBtn: {
     backgroundColor: "orange",
     padding: 12,
@@ -136,5 +131,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: "center",
     marginVertical: 20,
+  },
+  colorButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  colorButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
 });
