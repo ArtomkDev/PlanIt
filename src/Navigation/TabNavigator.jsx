@@ -27,14 +27,17 @@ const Stack = createNativeStackNavigator();
 function ScheduleSettingsStack({ screenProps }) {
   const { global } = useSchedule();
   const [themeMode] = global?.theme || ['light', 'blue'];
+  
+  const headerTextColor = themeMode === 'light' ? '#000' : '#fff';
 
   return (
     <Stack.Navigator
       screenOptions={{
         headerTransparent: true,
-        headerBackground: () => <AppBlur style={{ flex: 1 }} />,
+        // 🔥 ПРИБРАЛИ headerBackground - тепер ми керуємо ним в SettingsScreenLayout
+        headerTintColor: headerTextColor,
         headerTitleStyle: {
-          color: themeMode === 'dark' ? '#fff' : '#000',
+          color: headerTextColor,
           fontSize: 18,
           fontWeight: 'bold',
         },

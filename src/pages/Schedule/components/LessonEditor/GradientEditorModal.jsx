@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import Slider from "@react-native-assets/slider";
 import GradientBackground from "../../../../components/GradientBackground";
-import AdvancedColorPicker from "./AdvancedColorPicker";
+import AdvancedColorPicker from "../../../../components/AdvancedColorPicker";
 
 export default function GradientEditorModal({ visible, gradient, onClose, onSave }) {
   const [color1, setColor1] = useState("#ffffff");

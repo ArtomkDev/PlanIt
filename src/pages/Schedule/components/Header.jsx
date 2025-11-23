@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, Modal, FlatList } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Modal, FlatList, Animated } from "react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
 import AppBlur from "../../../components/AppBlur";
 
-export default function Header({ currentDate }) {
+// Приймаємо scrollY
+export default function Header({ currentDate, scrollY }) {
   const { global, schedule, schedules, setGlobalDraft } = useSchedule();
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -12,18 +13,35 @@ export default function Header({ currentDate }) {
 
   const [mode, accent] = global.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const isLightMode = mode === "light";
 
   const handleSelectSchedule = (id) => {
     setGlobalDraft((prev) => ({ ...prev, currentScheduleId: id }));
     setModalVisible(false);
   };
 
+  // Інтерполяція прозорості фону
+  const opacity = scrollY ? scrollY.interpolate({
+    inputRange: [0, 10],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  }) : 1; // Фолбек якщо скролу немає
+
   return (
     <View style={styles.headerWrapper}>
-
-    <AppBlur />
+      {/* Анімований фон з блюром */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity }]}>
+        <AppBlur style={StyleSheet.absoluteFill} />
+        {/* Тонка лінія внизу хедера для відділення */}
+        <View style={{ 
+            position: 'absolute', 
+            bottom: 0, left: 0, right: 0, 
+            height: 1, 
+            backgroundColor: themeColors.borderColor,
+            opacity: 0.1 
+        }} />
+      </Animated.View>
       
-
       <View style={styles.headerContent}>
         <TouchableOpacity 
           onPress={() => setModalVisible(true)} 
@@ -38,7 +56,6 @@ export default function Header({ currentDate }) {
           </Text>
         </TouchableOpacity>
 
-        {/* Дата */}
         <Text 
           style={[styles.dateText, { color: themeColors.textColor }]} 
           numberOfLines={1}
@@ -47,10 +64,13 @@ export default function Header({ currentDate }) {
         </Text>
       </View>
 
-      {/* Модальне вікно вибору розкладу */}
+      {/* Модальне вікно... (код без змін) */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: mode === "dark" ? "#222" : "#fff" }]}>
+          <View style={[
+            styles.modalContent, 
+            { backgroundColor: isLightMode ? "#fff" : (mode === 'oled' ? '#111' : '#222') }
+          ]}>
             <FlatList
               data={schedules}
               keyExtractor={(item) => item.id}
@@ -59,7 +79,7 @@ export default function Header({ currentDate }) {
                   style={styles.scheduleItem}
                   onPress={() => handleSelectSchedule(item.id)}
                 >
-                  <Text style={{ color: mode === "dark" ? "#fff" : "#000", fontSize: 16 }}>
+                  <Text style={{ color: isLightMode ? "#000" : "#fff", fontSize: 16 }}>
                     {item.name}
                   </Text>
                 </TouchableOpacity>
@@ -82,9 +102,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 90,
-    overflow: "hidden",
     zIndex: 1000,
     elevation: 5,
+    // overflow: "hidden", // Можливо доведеться прибрати, якщо тіні обрізаються
   },
   headerContent: {
     flex: 1,
@@ -108,20 +128,20 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
     width: "80%",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 15,
     maxHeight: "60%",
   },
   scheduleItem: {
-    padding: 10,
+    padding: 12,
     borderBottomWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "rgba(128,128,128,0.2)",
   },
   closeButton: {
     padding: 10,

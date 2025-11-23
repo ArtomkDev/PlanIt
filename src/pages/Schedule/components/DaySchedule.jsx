@@ -8,13 +8,15 @@ import {
   Modal,
   RefreshControl,
   Platform,
+  Animated, // Додаємо
 } from "react-native";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
-import { useEditor } from "../../../context/EditorProvider"; // імпорт нового хука
+import { useEditor } from "../../../context/EditorProvider"; 
 import LessonEditor from "./LessonEditor";
 import LessonCard from "./LessonCard";
 
+// ... helper functions (addMinutes, buildLessonTimes) ...
 function addMinutes(timeStr, minsToAdd) {
   if (!timeStr) return null;
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -36,10 +38,11 @@ function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
   return times;
 }
 
-export default function DaySchedule() {
+// Приймаємо scrollY
+export default function DaySchedule({ scrollY }) {
   const { currentDate, getDaySchedule, reloadDaySchedule } = useDaySchedule();
   const { schedule } = useSchedule();
-  const { isEditing } = useEditor(); // беремо з EditorProvider
+  const { isEditing } = useEditor();
 
   const {
     start_time = "08:30",
@@ -90,7 +93,8 @@ export default function DaySchedule() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
+      {/* Використовуємо Animated.ScrollView */}
+      <Animated.ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -100,6 +104,12 @@ export default function DaySchedule() {
         }
         overScrollMode="always"
         bounces={true}
+        // 🔥 Прив'язуємо івент скролу
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true } 
+        )}
+        scrollEventThrottle={16}
       >
         {scheduleForDay.length > 0 ? (
           scheduleForDay.map((subjectId, index) => {
@@ -127,9 +137,9 @@ export default function DaySchedule() {
         >
           <Text style={[styles.plus, !isEditing && styles.plusHidden]}>＋</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </Animated.ScrollView>
 
-      {/* Модалка редагування */}
+      {/* ... Модалки ... */}
       <Modal
         visible={editorVisible}
         animationType="slide"
@@ -138,7 +148,6 @@ export default function DaySchedule() {
         <LessonEditor lesson={selectedLesson} onClose={closeEditor} />
       </Modal>
 
-      {/* Модалка перегляду */}
       <Modal
         visible={viewerVisible}
         transparent
@@ -169,8 +178,12 @@ export default function DaySchedule() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 90 },
-  scrollContent: { padding: 10, paddingBottom: 160 },
+  container: { flex: 1 },
+  scrollContent: { 
+    padding: 10, 
+    paddingTop: 100, // 🔥 Відступ, щоб контент не залізав під прозорий хедер спочатку
+    paddingBottom: 160 
+  },
   noData: {
     textAlign: "center",
     marginTop: 20,

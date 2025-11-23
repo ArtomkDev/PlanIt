@@ -1,8 +1,7 @@
 import { StatusBar } from 'expo-status-bar'
 import React from 'react'
-import { Button, StyleSheet, View, Text } from 'react-native'
-import { BlurView } from 'expo-blur'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { StyleSheet, View, Text } from 'react-native'
+// import { useSafeAreaInsets } from 'react-native-safe-area-context' // Більше не потрібно, бо ми не малюємо окремий фон
 
 import AutoSaveManager from '../components/AutoSaveManager'
 import TabNavigator from '../Navigation/TabNavigator'
@@ -17,32 +16,25 @@ export default function MainLayout({ guest, onExitGuest }) {
     error
   } = useSchedule()
 
-  const insets = useSafeAreaInsets()
-
   if (isLoading && !schedule) return <Text>Завантаження...</Text>
   if (error && !schedule) return <Text>Помилка: {error}</Text>
   if (!schedule) return <Text>Немає даних розкладу</Text>
 
   const [currentTheme] = global.theme || ['light', 'blue']
-  const themeColors = themes[currentTheme] || themes.light
+  const themeColors = themes.getColors(currentTheme, global.theme?.[1]);
+
+  const isLightMode = currentTheme === 'light';
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
-      <BlurView
-        intensity={90}
-        tint={currentTheme === 'dark' ? 'dark' : 'light'}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: insets.top,
-        }}
-      />
+      {/* Ми прибрали <AppBlur ... />, який був тут раніше.
+          Тепер фон статус-бару контролюється виключно Хедерами сторінок (Schedule або Settings),
+          що усуває проблему "подвійного шару".
+      */}
 
       <StatusBar
         translucent
-        style={currentTheme === 'dark' ? 'light' : 'dark'}
+        style={isLightMode ? 'dark' : 'light'}
       />
 
       <View style={styles.container}>

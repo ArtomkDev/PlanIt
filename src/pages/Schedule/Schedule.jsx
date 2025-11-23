@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useState, useRef } from "react";
+import { StyleSheet, View, Animated } from "react-native"; // Додаємо Animated
 import DaySchedule from "./components/DaySchedule";
 import Header from "./components/Header";
 import NavigationButtons from "./components/NavigationButtons";
@@ -10,6 +10,9 @@ import themes from "../../config/themes";
 export default function Schedule() {
   const { global, schedule } = useSchedule();
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // 🔥 Створюємо спільне значення скролу
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   if (!schedule) {
     return (
@@ -26,21 +29,20 @@ export default function Schedule() {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
-      {/* Хедер */}
+      {/* Хедер отримує scrollY для анімації прозорості */}
       <View style={styles.headerWrapper}>
-        <Header currentDate={currentDate} />
+        <Header currentDate={currentDate} scrollY={scrollY} />
       </View>
 
       <View style={styles.contentRow}>
-        {/* Навігація по днях */}
         <View style={[styles.navPanel, { backgroundColor: themeColors.backgroundColor4 }]}>
           <NavigationButtons changeDate={changeDate} currentDate={currentDate} />
         </View>
 
-        {/* Контент з розкладом */}
         <View style={styles.mainContent}>
           <DayScheduleProvider date={currentDate}>
-            <DaySchedule />
+            {/* DaySchedule отримує обробник скролу */}
+            <DaySchedule scrollY={scrollY} />
           </DayScheduleProvider>
         </View>
       </View>

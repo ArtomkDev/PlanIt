@@ -1,19 +1,36 @@
 // src/pages/ScheduleSettings/ScheduleSettings.jsx
-import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SectionList } from 'react-native';
+import React, { useMemo, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SectionList, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
+import AppBlur from '../../components/AppBlur';
+
+// Створюємо анімовану версію SectionList
+const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
   const { user, global, schedule } = useSchedule();
 
+  // Отримуємо висоту хедера для правильного відступу
+  const headerHeight = useHeaderHeight();
+  // Створюємо значення анімації
+  const scrollY = useRef(new Animated.Value(0)).current;
+
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
+
+  // Інтерполяція прозорості (0 -> 1 при скролі)
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 10],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   const autoSaveEnabled = !!schedule?.autoSave?.enabled;
   const autoSaveInterval = schedule?.autoSave?.interval ?? null;
@@ -80,7 +97,7 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
         { label: 'Скинути БД', screen: 'ResetDB', icon: 'trash-outline', desc: 'Повне очищення даних' },
       ],
     },
-  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveInterval, guest]);
+  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveInterval, guest, user]);
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
@@ -121,25 +138,69 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   );
 
   return (
-    <SectionList
-      sections={sections}
-      keyExtractor={(item, index) => `${item.screen || item.label}-${index}`}
-      renderItem={renderItem}
-      renderSectionHeader={renderSectionHeader}
-      stickySectionHeadersEnabled
-      style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}
-      contentContainerStyle={[styles.container]}
-      SectionSeparatorComponent={() => <View style={{ height: 12 }} />}
-      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-    />
+    <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
+      
+      {/* 🔥 Динамічний Блюр Хедера */}
+      <Animated.View
+        style={[
+          styles.headerBlurContainer,
+          {
+            height: headerHeight,
+            opacity: headerOpacity,
+          },
+        ]}
+      >
+        <AppBlur style={StyleSheet.absoluteFill} />
+        <View style={[styles.borderBottom, { backgroundColor: themeColors.borderColor }]} />
+      </Animated.View>
+
+      {/* 🔥 Анімований SectionList */}
+      <AnimatedSectionList
+        sections={sections}
+        keyExtractor={(item, index) => `${item.screen || item.label}-${index}`}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
+        stickySectionHeadersEnabled
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.scrollContent, 
+          { paddingTop: headerHeight + 20 } // Динамічний відступ зверху
+        ]}
+        SectionSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        
+        // Подія скролу для анімації
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    paddingTop: 100,   
+  // Прибрали padding з контейнера, бо тепер відступи в contentContainerStyle
+  scrollContent: {
+    paddingHorizontal: 16,
     paddingBottom: 80,
+  },
+  headerBlurContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    overflow: 'hidden',
+  },
+  borderBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    opacity: 0.3,
   },
   sectionHeader: {
     fontSize: 13,

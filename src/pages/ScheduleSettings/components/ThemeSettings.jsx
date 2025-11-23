@@ -1,39 +1,61 @@
-// ThemeSettings.jsx
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState, useMemo } from "react";
+import { StyleSheet, Text, TouchableOpacity, View, Switch } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import themes from "../../../config/themes";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../SettingsScreenLayout";
+import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
 
 const ThemeSettings = () => {
   const { global, setGlobalDraft } = useSchedule();
-  const currentTheme = global?.theme || ["light", "blue"];  // 👈 тепер беремо з global
-  const [selectedMode, setSelectedMode] = useState(currentTheme[0]);
-  const [selectedColor, setSelectedColor] = useState(currentTheme[1]);
-  const themeColors = themes.getColors(selectedMode, selectedColor);
+  
+  const [currentMode, currentAccent] = global?.theme || ["light", "blue"];
+  const currentBlur = global?.blur ?? true;
+  
+  const [selectedMode, setSelectedMode] = useState(currentMode);
+  const [selectedColor, setSelectedColor] = useState(currentAccent);
+  const [isBlurEnabled, setIsBlurEnabled] = useState(currentBlur);
+  
+  const [isPickerVisible, setPickerVisible] = useState(false);
 
+  const themeColors = useMemo(() => themes.getColors(selectedMode, selectedColor), [selectedMode, selectedColor]);
+
+  // Синхронізація з глобальним станом
   useEffect(() => {
-    if (currentTheme[0] !== selectedMode || currentTheme[1] !== selectedColor) {
+    if (
+      currentMode !== selectedMode || 
+      currentAccent !== selectedColor || 
+      currentBlur !== isBlurEnabled
+    ) {
       setGlobalDraft((prev) => ({
         ...prev,
-        theme: [selectedMode, selectedColor],  // 👈 тепер зберігаємо глобально
+        theme: [selectedMode, selectedColor],
+        blur: isBlurEnabled, // Зберігаємо налаштування блюру
       }));
     }
-  }, [selectedMode, selectedColor]);
+  }, [selectedMode, selectedColor, isBlurEnabled]);
 
-  const renderColorOption = (colorName) => {
-    const colorValue = themes.accentColors[colorName];
-    const isSelected = selectedColor === colorName;
+  const predefinedKeys = Object.keys(themes.accentColors);
+  const isCustomColor = !predefinedKeys.includes(selectedColor);
+
+  const handleCustomColorSave = (hex) => {
+    setSelectedColor(hex);
+  };
+
+  const renderColorOption = (colorKey) => {
+    const colorValue = themes.accentColors[colorKey];
+    const isSelected = selectedColor === colorKey;
 
     return (
       <TouchableOpacity
-        key={colorName}
+        key={colorKey}
         style={[
           styles.colorTile,
           { backgroundColor: colorValue },
           isSelected && styles.colorTileSelected,
         ]}
-        onPress={() => setSelectedColor(colorName)}
+        onPress={() => setSelectedColor(colorKey)}
+        activeOpacity={0.7}
       >
         {isSelected && <Text style={styles.checkmark}>✓</Text>}
       </TouchableOpacity>
@@ -43,15 +65,16 @@ const ThemeSettings = () => {
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
+        
+        {/* Секція 1: Режим теми */}
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          🎨 Вибір теми
+          🎨 Режим
         </Text>
-
-        {/* Темний/світлий */}
         <View style={styles.themeContainer}>
           {[
-            { key: "dark", label: "🌙 Темна" },
             { key: "light", label: "☀️ Світла" },
+            { key: "dark", label: "🌙 Темна" },
+            { key: "oled", label: "🖤 OLED" },
           ].map((item) => (
             <TouchableOpacity
               key={item.key}
@@ -62,6 +85,7 @@ const ThemeSettings = () => {
                   borderColor: themeColors.accentColor,
                   borderWidth: 2,
                   shadowColor: themeColors.accentColor,
+                  elevation: 2,
                 },
               ]}
               onPress={() => setSelectedMode(item.key)}
@@ -73,86 +97,176 @@ const ThemeSettings = () => {
           ))}
         </View>
 
-        {/* Акцентні кольори */}
+        {/* Секція 2: Блюр (Нове налаштування) */}
+        <View style={[styles.switchRow, { backgroundColor: themeColors.backgroundColor2 }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.switchLabel, { color: themeColors.textColor }]}>Ефект розмиття (Blur)</Text>
+            <Text style={[styles.switchSubLabel, { color: themeColors.textColor2 }]}>
+              {selectedMode === 'oled' ? 'У режимі OLED блюр буде темним' : 'Прозорість елементів інтерфейсу'}
+            </Text>
+          </View>
+          <Switch
+            value={isBlurEnabled}
+            onValueChange={setIsBlurEnabled}
+            trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
+            thumbColor={"#fff"}
+          />
+        </View>
+
+        {/* Секція 3: Акцентний колір */}
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           🌈 Акцентний колір
         </Text>
+        
         <View style={styles.colorsContainer}>
-          {Object.keys(themes.accentColors).map((colorName) =>
-            renderColorOption(colorName)
-          )}
+          {predefinedKeys.map((colorName) => renderColorOption(colorName))}
+
+          <TouchableOpacity
+            style={[
+              styles.colorTile,
+              styles.customTile,
+              { backgroundColor: themeColors.backgroundColor2 },
+              isCustomColor && {
+                 backgroundColor: selectedColor,
+                 borderWidth: 2,
+                 borderColor: themeColors.textColor 
+              }
+            ]}
+            onPress={() => setPickerVisible(true)}
+          >
+            <Ionicons 
+              name="pencil" 
+              size={20} 
+              color={isCustomColor ? '#fff' : themeColors.textColor} 
+            />
+          </TouchableOpacity>
         </View>
 
-        {/* Превʼю */}
+        {/* Секція 4: Превʼю */}
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          👀 Попередній перегляд
+          👀 Результат
         </Text>
         <View
           style={[
             styles.previewCard,
-            { backgroundColor: themeColors.backgroundColor2 },
+            { backgroundColor: themeColors.backgroundColor2, borderLeftColor: themeColors.accentColor },
           ]}
         >
-          <Text style={[styles.previewText, { color: themeColors.textColor }]}>
-            Це приклад тексту у {selectedMode === "dark" ? "темній" : "світлій"} темі з акцентом {selectedColor}.
+          <Text style={[styles.previewHeader, { color: themeColors.accentColor }]}>
+            Заголовок акцентним кольором
           </Text>
+          <Text style={[styles.previewText, { color: themeColors.textColor }]}>
+            Блюр: {isBlurEnabled ? "Увімкнено" : "Вимкнено"}.
+            Режим: {selectedMode.toUpperCase()}.
+          </Text>
+          
+          <View style={[styles.dummyButton, { backgroundColor: themeColors.accentColor }]}>
+             <Text style={{ color: '#fff', fontWeight: 'bold' }}>Кнопка</Text>
+          </View>
         </View>
+
       </View>
+
+      <AdvancedColorPicker
+        visible={isPickerVisible}
+        initialColor={isCustomColor ? selectedColor : themes.accentColors.blue}
+        onClose={() => setPickerVisible(false)}
+        onSave={handleCustomColorSave}
+      />
     </SettingsScreenLayout>
   );
 };
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", marginBottom: 15, marginTop: 10 },
+  
   themeContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
+    gap: 10,
   },
   themeCard: {
     flex: 1,
-    padding: 15,
-    marginHorizontal: 5,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    justifyContent: 'center',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
-  themeCardText: { fontSize: 16, fontWeight: "bold" },
+  themeCardText: { fontSize: 14, fontWeight: "600" },
+
+  // Switch Styles
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 25,
+  },
+  switchLabel: { fontSize: 16, fontWeight: "600" },
+  switchSubLabel: { fontSize: 12, marginTop: 4 },
+
   colorsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-start",
-    marginBottom: 20,
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 30,
   },
   colorTile: {
     width: 70,
     height: 50,
-    borderRadius: 10,
-    margin: 6,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
     shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowRadius: 3,
     shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   colorTileSelected: {
     borderWidth: 3,
     borderColor: "#fff",
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    transform: [{ scale: 1.05 }],
   },
-  checkmark: { color: "#fff", fontWeight: "bold", fontSize: 18 },
+  customTile: {
+    borderWidth: 1,
+    borderColor: 'rgba(150,150,150,0.3)',
+    borderStyle: 'dashed',
+  },
+  checkmark: { 
+    color: "#fff", 
+    fontWeight: "bold", 
+    fontSize: 18,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 2
+  },
+
   previewCard: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    borderLeftWidth: 6,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 1,
   },
-  previewText: { fontSize: 14 },
+  previewHeader: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
+  previewText: { fontSize: 14, lineHeight: 20, marginBottom: 15, opacity: 0.8 },
+  dummyButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  }
 });
 
 export default ThemeSettings;
