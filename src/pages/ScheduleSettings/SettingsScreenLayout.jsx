@@ -1,58 +1,58 @@
 import React, { useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { useRoute } from '@react-navigation/native'; // Щоб отримати назву екрану
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
-import AppBlur from '../../components/AppBlur';
+import SettingsHeader from '../../components/SettingsHeader';
 
 export default function SettingsScreenLayout({ children, contentContainerStyle }) {
   const { global } = useSchedule();
-  const theme = global?.theme || ['light', 'blue'];
-  const [mode, accent] = theme;
+  const route = useRoute();
+  const insets = useSafeAreaInsets();
+  
+  const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
 
-  // Отримуємо висоту хедера, щоб знати, якого розміру робити підкладку
-  const headerHeight = useHeaderHeight();
+  // Визначаємо заголовок
+  // Спочатку шукаємо в options, якщо нема - беремо назву роута
+  // (В React Navigation 6 options доступні трохи інакше, тому тут проста евристика)
+  // Найкраще передавати title пропом, але щоб не міняти всі файли, візьмемо назву з мапи
+  const routeTitles = {
+    'Breaks': 'Перерви',
+    'Weeks': 'Тижні',
+    'StartWeek': 'Початок семестру',
+    'Subjects': 'Предмети',
+    'Teachers': 'Викладачі',
+    'Schedule': 'Редактор розкладу',
+    'ScheduleSwitcher': 'Мої розклади',
+    'AutoSave': 'Автозбереження',
+    'Theme': 'Тема',
+    'ResetDB': 'Скидання',
+    'DeviceService': 'Пристрої',
+  };
   
-  // Анімоване значення скролу
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const title = routeTitles[route.name] || route.name;
 
-  // Інтерполяція: від 0 (прозорий) до 1 (повний блюр) при скролі на 50 пікселів
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerHeight = 50 + insets.top;
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
       
-      {/* 🔥 Динамічний Блюр Хедера */}
-      <Animated.View
-        style={[
-          styles.headerBlurContainer,
-          {
-            height: headerHeight,
-            opacity: headerOpacity, // Керуємо прозорістю
-          },
-        ]}
-      >
-        <AppBlur style={StyleSheet.absoluteFill} />
-        {/* Тонка лінія знизу для розділення, коли хедер активний */}
-        <View style={[styles.borderBottom, { backgroundColor: themeColors.borderColor }]} />
-      </Animated.View>
+      {/* Наш кастомний хедер */}
+      <SettingsHeader title={title} scrollY={scrollY} />
 
       <Animated.ScrollView
         contentContainerStyle={[
           styles.content,
           contentContainerStyle,
-          { paddingTop: headerHeight + 20 } // Відступ контенту від верху
+          { paddingTop: headerHeight + 20 } // Відступ для контенту
         ]}
         keyboardShouldPersistTaps="handled"
-        // Прив'язуємо подію скролу до нашої анімації
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true } // false для web, true для native (але opacity працює з true)
+          { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
       >
@@ -66,21 +66,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
     paddingBottom: 80,
-  },
-  headerBlurContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100, // Поверх скролу
-    overflow: 'hidden', // Важливо для AppBlur
-  },
-  borderBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: StyleSheet.hairlineWidth,
-    opacity: 0.3,
   },
 });

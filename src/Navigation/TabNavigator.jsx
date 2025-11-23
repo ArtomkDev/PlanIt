@@ -25,48 +25,37 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function ScheduleSettingsStack({ screenProps }) {
-  const { global } = useSchedule();
-  const [themeMode] = global?.theme || ['light', 'blue'];
-  
-  const headerTextColor = themeMode === 'light' ? '#000' : '#fff';
-
   return (
     <Stack.Navigator
       screenOptions={{
-        headerTransparent: true,
-        // 🔥 ПРИБРАЛИ headerBackground - тепер ми керуємо ним в SettingsScreenLayout
-        headerTintColor: headerTextColor,
-        headerTitleStyle: {
-          color: headerTextColor,
-          fontSize: 18,
-          fontWeight: 'bold',
-        },
+        headerShown: false, // 🔥 Вимикаємо нативний хедер повністю
+        animation: 'slide_from_right', // Плавна анімація слайду
+        gestureEnabled: true, // Жест "назад" працює
       }}
     >
-      <Stack.Screen
-        name="ScheduleSettingsMain"
-        options={{ title: 'Налаштування розкладу' }}
-      >
+      <Stack.Screen name="ScheduleSettingsMain">
         {props => <ScheduleSettings {...props} {...screenProps} />}
       </Stack.Screen>
-      <Stack.Screen name="Breaks" component={BreaksManager} />
-      <Stack.Screen name="Weeks" component={WeekManager} />
-      <Stack.Screen name="StartWeek" component={StartWeekManager} />
-      <Stack.Screen name="Subjects" component={SubjectsManager} />
-      <Stack.Screen name="Teachers" component={TeachersManager} />
-      <Stack.Screen name="Schedule" component={ScheduleManager} />
-      <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
-      <Stack.Screen name="AutoSave" component={AutoSaveManager} />
-      <Stack.Screen name="Theme" component={ThemeSettings} />
-      <Stack.Screen name="ResetDB" component={ResetDB} />
-      <Stack.Screen name="DeviceService" component={DeviceManager} />
+      
+      {/* Передаємо title як initialParams або просто хардкодимо в компонентах, 
+          але для зручності можна передати title в options, хоча Nav його не покаже, ми використаємо його в компоненті */}
+      <Stack.Screen name="Breaks" component={BreaksManager} options={{ title: 'Перерви' }} />
+      <Stack.Screen name="Weeks" component={WeekManager} options={{ title: 'Тижні' }} />
+      <Stack.Screen name="StartWeek" component={StartWeekManager} options={{ title: 'Початок семестру' }} />
+      <Stack.Screen name="Subjects" component={SubjectsManager} options={{ title: 'Предмети' }} />
+      <Stack.Screen name="Teachers" component={TeachersManager} options={{ title: 'Викладачі' }} />
+      <Stack.Screen name="Schedule" component={ScheduleManager} options={{ title: 'Редактор розкладу' }} />
+      <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} options={{ title: 'Мої розклади' }} />
+      <Stack.Screen name="AutoSave" component={AutoSaveManager} options={{ title: 'Автозбереження' }} />
+      <Stack.Screen name="Theme" component={ThemeSettings} options={{ title: 'Тема' }} />
+      <Stack.Screen name="ResetDB" component={ResetDB} options={{ title: 'Скидання' }} />
+      <Stack.Screen name="DeviceService" component={DeviceManager} options={{ title: 'Пристрої' }} />
     </Stack.Navigator>
   );
 }
 
 export default function TabNavigator({ screenProps }) {
   const { global } = useSchedule();
-
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -84,10 +73,7 @@ export default function TabNavigator({ screenProps }) {
           borderTopWidth: 0,
         },
         tabBarBackground: () => <AppBlur style={{ flex: 1, overflow: 'hidden' }} />,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: 'bold',
-        },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: 'bold' },
         tabBarActiveTintColor: themeColors.accentColor,
         tabBarInactiveTintColor: themeColors.textColor2,
         headerShown: false,
@@ -98,19 +84,14 @@ export default function TabNavigator({ screenProps }) {
         component={Schedule}
         options={{
           tabBarLabel: 'Розклад',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="calendar" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Icon name="calendar" size={size} color={color} />,
         }}
       />
-
       <Tab.Screen
         name="Home3_2"
         options={{
           tabBarLabel: 'Налаштування',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="settings" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Icon name="settings" size={size} color={color} />,
         }}
       >
         {() => <ScheduleSettingsStack screenProps={screenProps} />}

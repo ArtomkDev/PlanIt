@@ -1,44 +1,30 @@
-// src/pages/ScheduleSettings/ScheduleSettings.jsx
-import React, { useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SectionList, Animated } from 'react-native';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
-import AppBlur from '../../components/AppBlur';
-
-// Створюємо анімовану версію SectionList
-const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
+import SettingsHeader from '../../components/SettingsHeader';
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
   const { user, global, schedule } = useSchedule();
+  const insets = useSafeAreaInsets();
 
-  // Отримуємо висоту хедера для правильного відступу
-  const headerHeight = useHeaderHeight();
-  // Створюємо значення анімації
+  const headerHeight = 50 + insets.top;
   const scrollY = useRef(new Animated.Value(0)).current;
-
+  
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
 
-  // Інтерполяція прозорості (0 -> 1 при скролі)
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 10],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
+  // --- ДАНІ ---
   const autoSaveEnabled = !!schedule?.autoSave?.enabled;
   const autoSaveInterval = schedule?.autoSave?.interval ?? null;
-
-  const weeksCount =
-    Array.isArray(schedule?.weeks) ? schedule.weeks.length :
-    (typeof schedule?.weeksCount === 'number' ? schedule.weeksCount : undefined);
-
+  const weeksCount = Array.isArray(schedule?.weeks) ? schedule.weeks.length : (typeof schedule?.weeksCount === 'number' ? schedule.weeksCount : undefined);
   const breaksCount = Array.isArray(schedule?.breaks) ? schedule.breaks.length : undefined;
   const subjectsCount = Array.isArray(schedule?.subjects) ? schedule.subjects.length : undefined;
   const teachersCount = Array.isArray(schedule?.teachers) ? schedule.teachers.length : undefined;
@@ -89,7 +75,6 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
         { label: 'Пристрої', screen: 'DeviceService', icon: 'layers-outline', desc: 'Налаштування авторизованих пристроїв' },
       ],
     },
-
     {
       title: 'Небезпечна зона',
       danger: true,
@@ -98,6 +83,36 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
       ],
     },
   ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveInterval, guest, user]);
+
+  // --- ЛОГІКА ВІДСТЕЖЕННЯ СЕКЦІЙ (БЕЗ ЗАХИСТУ ВІД ПРУЖИНИ) ---
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
+  const sectionPositions = useRef([]);
+
+  useEffect(() => {
+    const listenerId = scrollY.addListener(({ value }) => {
+      // Використовуємо 'value' як є (навіть якщо воно від'ємне або > maxScroll)
+      // Це забезпечує "чесну" реакцію на скрол
+      const checkPoint = value + headerHeight + 20; 
+
+      let newActiveIndex = 0;
+
+      for (let i = 0; i < sections.length; i++) {
+        const sectionY = sectionPositions.current[i];
+        if (typeof sectionY === 'number' && checkPoint >= sectionY) {
+          newActiveIndex = i;
+        } else {
+          break; 
+        }
+      }
+
+      setActiveSectionIndex(prev => (prev !== newActiveIndex ? newActiveIndex : prev));
+    });
+
+    return () => {
+      scrollY.removeListener(listenerId);
+    };
+  }, [headerHeight, sections]);
+
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
@@ -118,7 +133,6 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
           )}
         </View>
       </View>
-
       <View style={styles.right}>
         {!!item.meta && <Text style={[styles.meta, { color: themeColors.textColor2 }]}>{item.meta}</Text>}
         <Icon name="chevron-forward" size={18} color={themeColors.textColor2} />
@@ -126,81 +140,66 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
     </TouchableOpacity>
   );
 
-  const renderSectionHeader = ({ section }) => (
-    <Text
-      style={[
-        styles.sectionHeader,
-        { color: section.danger ? '#ff453a' : themeColors.textColor2, backgroundColor: themeColors.backgroundColor },
-      ]}
-    >
-      {section.title}
-    </Text>
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       
-      {/* 🔥 Динамічний Блюр Хедера */}
-      <Animated.View
-        style={[
-          styles.headerBlurContainer,
-          {
-            height: headerHeight,
-            opacity: headerOpacity,
-          },
-        ]}
-      >
-        <AppBlur style={StyleSheet.absoluteFill} />
-        <View style={[styles.borderBottom, { backgroundColor: themeColors.borderColor }]} />
-      </Animated.View>
+      {/* 🔥 Хедер без кнопки назад */}
+      <SettingsHeader 
+        title="Налаштування" 
+        subTitle={sections[activeSectionIndex]?.title || ""} 
+        subTitleIndex={activeSectionIndex}
+        scrollY={scrollY} 
+        showBackButton={false} 
+      />
 
-      {/* 🔥 Анімований SectionList */}
-      <AnimatedSectionList
-        sections={sections}
-        keyExtractor={(item, index) => `${item.screen || item.label}-${index}`}
-        renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
-        stickySectionHeadersEnabled
+      <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[
           styles.scrollContent, 
-          { paddingTop: headerHeight + 20 } // Динамічний відступ зверху
+          { paddingTop: headerHeight + 20 } 
         ]}
-        SectionSeparatorComponent={() => <View style={{ height: 12 }} />}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        
-        // Подія скролу для анімації
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
-      />
+      >
+        {sections.map((section, sectionIndex) => (
+          <View 
+            key={`section-${sectionIndex}`}
+            onLayout={(event) => {
+              const layout = event.nativeEvent.layout;
+              sectionPositions.current[sectionIndex] = layout.y;
+            }}
+          >
+            <Text
+              style={[
+                styles.sectionHeader,
+                { color: section.danger ? '#ff453a' : themeColors.textColor2, backgroundColor: themeColors.backgroundColor },
+              ]}
+            >
+              {section.title}
+            </Text>
+
+            {section.data.map((item, itemIndex) => (
+              <View key={`item-${sectionIndex}-${itemIndex}`}>
+                {renderItem({ item })}
+                {itemIndex < section.data.length - 1 && <View style={{ height: 10 }} />}
+              </View>
+            ))}
+
+            <View style={{ height: 12 }} />
+          </View>
+        ))}
+      </Animated.ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Прибрали padding з контейнера, бо тепер відступи в contentContainerStyle
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 80,
-  },
-  headerBlurContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    overflow: 'hidden',
-  },
-  borderBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: StyleSheet.hairlineWidth,
-    opacity: 0.3,
   },
   sectionHeader: {
     fontSize: 13,
