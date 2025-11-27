@@ -20,15 +20,15 @@ import useEntityManager from "../../../hooks/useEntityManager";
 import themes from "../../../config/themes";
 
 // ЕКРАНИ
-import LessonEditorMainScreen from "./LessonEditor/LessonEditorMainScreen";
-import LessonEditorSubjectColorScreen from "./LessonEditor/LessonEditorSubjectColorScreen";
-import LessonEditorGradientEditScreen from "./LessonEditor/LessonEditorGradientEditScreen";
-import LessonEditorPickerScreen from "./LessonEditor/LessonEditorPickerScreen"; 
-import LessonEditorInputScreen from "./LessonEditor/LessonEditorInputScreen"; // 🔥 Новий екран
+import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
+import LessonEditorSubjectColorScreen from "./LessonEditor/screens/ColorScreen";
+import LessonEditorGradientEditScreen from "./LessonEditor/screens/GradientScreen";
+import LessonEditorPickerScreen from "./LessonEditor/screens/PickerScreen"; 
+import LessonEditorInputScreen from "./LessonEditor/screens/InputScreen"; // 🔥 Новий екран
 
 // РЕДАКТОРИ КОНТЕНТУ
-import TeacherEditor from "./LessonEditor/TeacherEditor";
-import LinkEditor from "./LessonEditor/LinkEditor";
+import TeacherEditor from "./LessonEditor/forms/TeacherForm";
+import LinkEditor from "./LessonEditor/forms/LinkForm";
 
 // МОДАЛКИ (лише ColorPicker)
 import AdvancedColorPicker from "../../../components/AdvancedColorPicker";

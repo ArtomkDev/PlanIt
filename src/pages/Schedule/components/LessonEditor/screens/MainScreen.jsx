@@ -1,9 +1,9 @@
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import SettingRow from "./SettingRow"; // Переконайтеся, що імпорт правильний
-import Group from "./Group";
-import GradientBackground from "../../../../components/GradientBackground";
-import themes from "../../../../config/themes";
+import SettingRow from "../ui/SettingRow"; // Переконайтеся, що імпорт правильний
+import Group from "../ui/Group";
+import GradientBackground from "../../../../../components/GradientBackground";
+import themes from "../../../../../config/themes";
 
 export default function LessonEditorMainScreen({
   themeColors,

@@ -1,51 +1,53 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { useSchedule } from "../../../../context/ScheduleProvider";
+import { useSchedule } from "../../../../../context/ScheduleProvider";
 
-export default function LinkEditor({ linkId, onBack, themeColors }) {
+export default function TeacherEditor({ teacherId, onBack, themeColors }) {
   const { schedule, setScheduleDraft } = useSchedule();
-  const link = schedule?.links.find((l) => l.id === linkId);
+  const teacher = schedule?.teachers?.find((t) => t.id === teacherId);
 
-  const [name, setName] = useState(link?.name || "");
-  const [url, setUrl] = useState(link?.url || "");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
-    if (link) {
-      setName(link.name);
-      setUrl(link.url);
+    if (teacher) {
+      setName(teacher.name || "");
+      setPhone(teacher.phone || "");
     }
-  }, [linkId]);
+  }, [teacher]);
 
   const handleSave = () => {
     setScheduleDraft((prev) => {
       const next = { ...prev };
-      next.links = prev.links.map((l) =>
-        l.id === linkId ? { ...l, name, url } : l
+      next.teachers = next.teachers.map((t) =>
+        t.id === teacherId ? { ...t, name, phone } : t
       );
       return next;
     });
-    onBack();
+    onBack(); // Повертаємось назад після збереження
   };
+
+  if (!teacher) return null;
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: themeColors.textColor2 }]}>Назва посилання</Text>
+      <Text style={[styles.label, { color: themeColors.textColor2 }]}>Ім'я викладача</Text>
       <TextInput
         style={[styles.input, { backgroundColor: themeColors.backgroundColor3, color: themeColors.textColor }]}
-        placeholder="Напр. Zoom лекція"
+        placeholder="Введіть ім'я"
         placeholderTextColor={themeColors.textColor2}
         value={name}
         onChangeText={setName}
       />
 
-      <Text style={[styles.label, { color: themeColors.textColor2 }]}>URL адреса</Text>
+      <Text style={[styles.label, { color: themeColors.textColor2 }]}>Телефон / Контакт</Text>
       <TextInput
         style={[styles.input, { backgroundColor: themeColors.backgroundColor3, color: themeColors.textColor }]}
-        placeholder="https://..."
+        placeholder="Введіть номер"
         placeholderTextColor={themeColors.textColor2}
-        value={url}
-        onChangeText={setUrl}
-        autoCapitalize="none"
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
       />
 
       <View style={styles.buttonRow}>

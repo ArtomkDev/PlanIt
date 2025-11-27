@@ -1,6 +1,6 @@
 import React from "react";
 import { View, TouchableOpacity, StyleSheet, FlatList } from "react-native";
-import themes from "../../../../config/themes";
+import themes from "../../../../../config/themes";
 
 export default function ColorPicker({ selected, onSelect }) {
   const colors = Object.entries(themes.accentColors);

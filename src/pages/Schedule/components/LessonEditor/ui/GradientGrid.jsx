@@ -1,7 +1,7 @@
 import React from "react";
 import { View, TouchableOpacity, StyleSheet, FlatList } from "react-native";
-import { useSchedule } from "../../../../context/ScheduleProvider";
-import GradientBackground from "../../../../components/GradientBackground";
+import { useSchedule } from "../../../../../context/ScheduleProvider";
+import GradientBackground from "../../../../../components/GradientBackground";
 // Видалили імпорт GradientEditorModal
 
 export default function GradientPicker({ selected, onSelect, onEdit }) {

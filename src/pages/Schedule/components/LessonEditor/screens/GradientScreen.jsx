@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import Slider from "@react-native-assets/slider";
-import GradientBackground from "../../../../components/GradientBackground";
+import GradientBackground from "../../../../../components/GradientBackground";
 
 export default function LessonEditorGradientEditScreen({
   themeColors,

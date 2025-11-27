@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import ColorPicker from "./ColorPicker";
-import GradientPicker from "./GradientPicker";
+import ColorGrid from "../ui/ColorGrid";
+import GradientPicker from "../ui/GradientGrid";
 
 export default function LessonEditorSubjectColorScreen({
   themeColors,
@@ -48,7 +48,7 @@ export default function LessonEditorSubjectColorScreen({
 
       <View style={{ flex: 1 }}>
         {colorTab === "color" ? (
-          <ColorPicker
+          <ColorGrid
             selected={currentSubject.color}
             onSelect={(key) => handleUpdateSubject({ color: key, typeColor: "color" })}
           />
