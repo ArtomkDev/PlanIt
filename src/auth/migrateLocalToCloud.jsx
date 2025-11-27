@@ -3,9 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import createDefaultData from '../config/createDefaultData';
+import { generateId } from '../utils/idGenerator'; // ⚡️ Імпортуємо спільну утиліту
 
 const LOCAL_KEY = 'guest_schedule';
-const makeId = () => `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
 export async function migrateLocalToCloud(userId) {
   try {
@@ -19,14 +19,15 @@ export async function migrateLocalToCloud(userId) {
       const cloudSchedules = Array.isArray(cloud.schedules) ? cloud.schedules : [];
 
       if (cloudSchedules.length > 0 && localData) {
-        // Якщо акаунт вже має розклади — додаємо локальні, не торкаючись global
         const existingIds = new Set(cloudSchedules.map(s => s.id));
         const mergedSchedules = cloudSchedules.slice();
 
         for (const ls of (localData.schedules || [])) {
           const copy = JSON.parse(JSON.stringify(ls));
+          
           if (existingIds.has(copy.id)) {
-            copy.id = makeId(); // уникнути конфлікту id
+            // ⚡️ Використовуємо надійний генератор ID
+            copy.id = generateId(); 
           }
           mergedSchedules.push(copy);
         }
@@ -35,16 +36,15 @@ export async function migrateLocalToCloud(userId) {
         await setDoc(userDocRef, { schedule: merged }, { merge: true });
 
       } else if (localData) {
-        // Док є, але розкладів нема — записуємо локальні + global
+        // ... (решта коду без змін)
         const merged = {
           global: localData.global || createDefaultData().global,
           schedules: localData.schedules || [],
         };
         await setDoc(userDocRef, { schedule: merged }, { merge: true });
       }
-      // Якщо snap.exists() і локальних даних нема — нічого не міняємо
     } else {
-      // Док відсутній — створюємо новий пакет
+        // ... (решта коду без змін)
       const newData = localData || createDefaultData();
       const merged = {
         global: newData.global || createDefaultData().global,
@@ -53,7 +53,6 @@ export async function migrateLocalToCloud(userId) {
       await setDoc(userDocRef, { schedule: merged });
     }
 
-    // Видаляємо локальний кеш після успіху
     if (localData) {
       await AsyncStorage.removeItem(LOCAL_KEY);
     }
