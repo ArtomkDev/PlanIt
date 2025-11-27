@@ -1,8 +1,7 @@
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import SettingRow from "./SettingRow";
+import SettingRow from "./SettingRow"; // Переконайтеся, що імпорт правильний
 import Group from "./Group";
-import LessonTeacherGroup from "./LessonTeacherGroup";
 import GradientBackground from "../../../../components/GradientBackground";
 import themes from "../../../../config/themes";
 
@@ -13,13 +12,14 @@ export default function LessonEditorMainScreen({
   gradients,
   // Actions
   setActivePicker,
-  setTeacherIndex,
   handleUpdateSubject,
-  onEditStatusColor, // <--- Ми використовуємо це
-  onEditSubjectColor, // <--- І це (замість goToScreen)
-  getLabel,
+  onEditSubjectColor,
+  getLabel, // Ця функція приходить з батьківського компонента
 }) {
   
+  // Захист від крашу, якщо getLabel не передано
+  const safeGetLabel = getLabel || ((type, val) => "Не визначено");
+
   const renderColorPreview = () => {
     if (currentSubject?.typeColor === "gradient" && currentSubject?.colorGradient) {
       const grad = gradients.find((g) => g.id === currentSubject.colorGradient);
@@ -35,7 +35,7 @@ export default function LessonEditorMainScreen({
         <Group themeColors={themeColors} title="Предмет">
           <SettingRow
             label="Назва предмету"
-            value={getLabel("subject", selectedSubjectId) || "Не обрано"}
+            value={safeGetLabel("subject", selectedSubjectId) || "Не обрано"}
             onPress={() => setActivePicker("subject")}
             themeColors={themeColors}
             icon="book-outline"
@@ -50,27 +50,28 @@ export default function LessonEditorMainScreen({
       <Group themeColors={themeColors} title="Предмет">
         <SettingRow
           label="Назва предмету"
-          value={getLabel("subject", selectedSubjectId) || "Не обрано"}
+          value={safeGetLabel("subject", selectedSubjectId) || "Не обрано"}
           onPress={() => setActivePicker("subject")}
           themeColors={themeColors}
           icon="book-outline"
         />
       </Group>
 
-      <LessonTeacherGroup
-        teachers={currentSubject.teachers || []}
-        themeColors={themeColors}
-        onSelect={(idx) => {
-          setTeacherIndex(idx);
-          setActivePicker("teacher");
-        }}
-        onChange={(newTeachers) => handleUpdateSubject({ teachers: newTeachers })}
-      />
+      {/* Секція людей (Вчителі) - Множинний вибір */}
+      <Group themeColors={themeColors} title="Люди">
+        <SettingRow
+            label="Викладачі"
+            value={safeGetLabel("teacher", currentSubject.teachers)} 
+            onPress={() => setActivePicker("teacher")}
+            themeColors={themeColors}
+            icon="people-outline"
+        />
+      </Group>
 
       <Group themeColors={themeColors} title="Деталі">
         <SettingRow
           label="Тип заняття"
-          value={getLabel("type", currentSubject.type) || "Не вказано"}
+          value={safeGetLabel("type", currentSubject.type) || "Не вказано"}
           onPress={() => setActivePicker("type")}
           themeColors={themeColors}
           icon="pricetag-outline"
@@ -95,17 +96,17 @@ export default function LessonEditorMainScreen({
         <SettingRow
           label="Колір картки"
           rightContent={renderColorPreview()}
-          // Виправлено: викликаємо проп, а не goToScreen
           onPress={onEditSubjectColor} 
           themeColors={themeColors}
           icon="color-palette-outline"
         />
       </Group>
 
-      <Group themeColors={themeColors} title="Посилання">
+      {/* Секція посилань - Множинний вибір */}
+      <Group themeColors={themeColors} title="Матеріали">
         <SettingRow
-          label="Прикріплені посилання"
-          value={getLabel("link", currentSubject.links) || "Немає"}
+          label="Посилання"
+          value={safeGetLabel("link", currentSubject.links)}
           onPress={() => setActivePicker("link")}
           themeColors={themeColors}
           icon="link-outline"

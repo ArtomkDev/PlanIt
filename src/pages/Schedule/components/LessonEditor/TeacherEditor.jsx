@@ -1,9 +1,8 @@
-// src/pages/Schedule/components/TeacherEditor.jsx
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { useSchedule } from "../../../../context/ScheduleProvider";
 
-export default function TeacherEditor({ teacherId, onClose }) {
+export default function TeacherEditor({ teacherId, onBack, themeColors }) {
   const { schedule, setScheduleDraft } = useSchedule();
   const teacher = schedule?.teachers?.find((t) => t.id === teacherId);
 
@@ -25,47 +24,45 @@ export default function TeacherEditor({ teacherId, onClose }) {
       );
       return next;
     });
-    onClose?.();
+    onBack(); // Повертаємось назад після збереження
   };
 
-  if (!teacher) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.header}>Викладач не знайдений</Text>
-        <TouchableOpacity onPress={onClose}>
-          <Text style={styles.cancel}>Закрити</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  if (!teacher) return null;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Редагування викладача</Text>
-
+      <Text style={[styles.label, { color: themeColors.textColor2 }]}>Ім'я викладача</Text>
       <TextInput
-        style={styles.input}
-        placeholder="Ім’я"
-        placeholderTextColor="#666"
+        style={[styles.input, { backgroundColor: themeColors.backgroundColor3, color: themeColors.textColor }]}
+        placeholder="Введіть ім'я"
+        placeholderTextColor={themeColors.textColor2}
         value={name}
         onChangeText={setName}
       />
 
+      <Text style={[styles.label, { color: themeColors.textColor2 }]}>Телефон / Контакт</Text>
       <TextInput
-        style={styles.input}
-        placeholder="Телефон"
-        placeholderTextColor="#666"
+        style={[styles.input, { backgroundColor: themeColors.backgroundColor3, color: themeColors.textColor }]}
+        placeholder="Введіть номер"
+        placeholderTextColor={themeColors.textColor2}
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
       />
 
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={onClose}>
-          <Text style={styles.cancel}>Скасувати</Text>
+      <View style={styles.buttonRow}>
+        <TouchableOpacity 
+            style={[styles.button, { backgroundColor: themeColors.backgroundColor3 }]} 
+            onPress={onBack}
+        >
+          <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={styles.save}>Зберегти</Text>
+
+        <TouchableOpacity 
+            style={[styles.button, { backgroundColor: themeColors.accentColor }]} 
+            onPress={handleSave}
+        >
+          <Text style={[styles.buttonText, { color: "#fff" }]}>Зберегти</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -73,21 +70,25 @@ export default function TeacherEditor({ teacherId, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#111", padding: 20 },
-  header: { color: "#fff", fontSize: 20, fontWeight: "600", marginBottom: 20 },
+  container: { flex: 1, paddingTop: 10 },
+  label: { fontSize: 14, marginBottom: 6, marginLeft: 4 },
   input: {
-    backgroundColor: "#222",
-    color: "#fff",
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 15,
+    borderRadius: 12,
+    marginBottom: 20,
     fontSize: 16,
   },
-  footer: {
+  buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 20,
+    marginTop: 10,
+    gap: 15,
   },
-  cancel: { color: "orange", fontSize: 18 },
-  save: { color: "orange", fontSize: 18, fontWeight: "600" },
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  buttonText: { fontSize: 16, fontWeight: "600" },
 });

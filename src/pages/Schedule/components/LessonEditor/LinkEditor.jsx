@@ -1,9 +1,8 @@
-// LessonEditor/LinkEditor.jsx
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { useSchedule } from "../../../../context/ScheduleProvider";
 
-export default function LinkEditor({ linkId, onClose }) {
+export default function LinkEditor({ linkId, onBack, themeColors }) {
   const { schedule, setScheduleDraft } = useSchedule();
   const link = schedule?.links.find((l) => l.id === linkId);
 
@@ -25,34 +24,43 @@ export default function LinkEditor({ linkId, onClose }) {
       );
       return next;
     });
-    onClose?.();
+    onBack();
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Редагування посилання</Text>
-
+      <Text style={[styles.label, { color: themeColors.textColor2 }]}>Назва посилання</Text>
       <TextInput
-        style={styles.input}
-        placeholder="Назва"
+        style={[styles.input, { backgroundColor: themeColors.backgroundColor3, color: themeColors.textColor }]}
+        placeholder="Напр. Zoom лекція"
+        placeholderTextColor={themeColors.textColor2}
         value={name}
         onChangeText={setName}
-        placeholderTextColor="#666"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="URL"
-        value={url}
-        onChangeText={setUrl}
-        placeholderTextColor="#666"
       />
 
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={onClose}>
-          <Text style={styles.cancel}>Скасувати</Text>
+      <Text style={[styles.label, { color: themeColors.textColor2 }]}>URL адреса</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: themeColors.backgroundColor3, color: themeColors.textColor }]}
+        placeholder="https://..."
+        placeholderTextColor={themeColors.textColor2}
+        value={url}
+        onChangeText={setUrl}
+        autoCapitalize="none"
+      />
+
+      <View style={styles.buttonRow}>
+        <TouchableOpacity 
+            style={[styles.button, { backgroundColor: themeColors.backgroundColor3 }]} 
+            onPress={onBack}
+        >
+          <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={styles.save}>Зберегти</Text>
+
+        <TouchableOpacity 
+            style={[styles.button, { backgroundColor: themeColors.accentColor }]} 
+            onPress={handleSave}
+        >
+          <Text style={[styles.buttonText, { color: "#fff" }]}>Зберегти</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -60,20 +68,25 @@ export default function LinkEditor({ linkId, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#111", padding: 20 },
-  title: { color: "#fff", fontSize: 20, marginBottom: 20 },
+  container: { flex: 1, paddingTop: 10 },
+  label: { fontSize: 14, marginBottom: 6, marginLeft: 4 },
   input: {
-    backgroundColor: "#222",
-    color: "#fff",
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    fontSize: 16,
   },
-  footer: {
+  buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 20,
+    marginTop: 10,
+    gap: 15,
   },
-  cancel: { color: "orange", fontSize: 18 },
-  save: { color: "orange", fontSize: 18, fontWeight: "600" },
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  buttonText: { fontSize: 16, fontWeight: "600" },
 });
