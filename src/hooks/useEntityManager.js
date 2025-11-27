@@ -20,7 +20,6 @@ export default function useEntityManager() {
     addTeacher: () => addItem("teachers", createDefaultTeacher),
     addSubject: () => addItem("subjects", createDefaultSubject),
     addLink: () => addItem("links", createDefaultLink),
-    addStatus: () => addItem("statuses", createDefaultStatus),
     addGradient: () => addItem("gradients", createDefaultGradient),
   };
 }

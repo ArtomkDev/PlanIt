@@ -20,14 +20,6 @@ export function createDefaultLink(generateId) {
   };
 }
 
-export function createDefaultStatus(generateId) {
-  return {
-    id: generateId(),
-    name: "Новий статус",
-    color: "blue",
-  };
-}
-
 export function createDefaultGradient(generateId) {
   return {
     id: generateId(),

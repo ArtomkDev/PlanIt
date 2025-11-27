@@ -12,7 +12,6 @@ import {
   PanResponder,
   Dimensions,
   LayoutAnimation,
-  Modal // Імпортуємо Modal для Advanced Picker
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSchedule } from "../../../context/ScheduleProvider";
@@ -20,21 +19,23 @@ import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import useEntityManager from "../../../hooks/useEntityManager";
 import themes from "../../../config/themes";
 
-// ЕКРАНИ (Внутрішня навігація шторки)
+// ЕКРАНИ
 import LessonEditorMainScreen from "./LessonEditor/LessonEditorMainScreen";
 import LessonEditorSubjectColorScreen from "./LessonEditor/LessonEditorSubjectColorScreen";
 import LessonEditorGradientEditScreen from "./LessonEditor/LessonEditorGradientEditScreen";
 
 // МОДАЛКИ
 import OptionListModal from "./LessonEditor/OptionListModal";
-import AdvancedColorPicker from "../../../components/AdvancedColorPicker"; // Це та сама окрема модалка
+import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export default function LessonEditor({ lesson, onClose }) {
   const { global, schedule, scheduleDraft, setScheduleDraft } = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
-  const { addTeacher, addSubject, addLink, addStatus, addGradient } = useEntityManager();
+  
+  // ❌ Прибрано addStatus
+  const { addTeacher, addSubject, addLink, addGradient } = useEntityManager();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -43,27 +44,22 @@ export default function LessonEditor({ lesson, onClose }) {
   const subjects = dataSource?.subjects ?? [];
   const teachers = dataSource?.teachers ?? [];
   const links = dataSource?.links ?? [];
-  const statuses = dataSource?.statuses ?? [];
   const gradients = dataSource?.gradients ?? [];
+  // ❌ statuses видалено повністю
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(lesson?.subjectId || null);
   const [activePicker, setActivePicker] = useState(null);
   const [teacherIndex, setTeacherIndex] = useState(null);
   
-  // --- НАВІГАЦІЯ ---
-  // main -> subjectColor -> gradientEdit -> (AdvancedPicker Modal)
   const [currentScreen, setCurrentScreen] = useState("main");
-  
-  // Дані для редагування
   const [editingGradient, setEditingGradient] = useState(null);
   
-  // --- ОКРЕМА МОДАЛКА ДЛЯ ADVANCED PICKER ---
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
-  const [advancedPickerTarget, setAdvancedPickerTarget] = useState(null); // { color, setter }
+  const [advancedPickerTarget, setAdvancedPickerTarget] = useState(null);
 
   const currentSubject = subjects.find((s) => s.id === selectedSubjectId) || {};
 
-  // --- АНІМАЦІЯ ШТОРКИ ---
+  // --- АНІМАЦІЯ ---
   const panY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   useEffect(() => {
@@ -103,7 +99,7 @@ export default function LessonEditor({ lesson, onClose }) {
     })
   ).current;
 
-  // --- ЛОГІКА ДАНИХ ---
+  // --- SAVE ---
   const handleSave = () => {
     if (!selectedSubjectId) return;
     setScheduleDraft((prev) => {
@@ -138,17 +134,7 @@ export default function LessonEditor({ lesson, onClose }) {
     });
   };
 
-  const handleUpdateStatus = (colorValue) => {
-    if (!currentSubject.status) return;
-    setScheduleDraft((prev) => {
-      const next = { ...prev };
-      const statusIndex = next.statuses.findIndex((s) => s.id === currentSubject.status);
-      if (statusIndex !== -1) {
-        next.statuses[statusIndex] = { ...next.statuses[statusIndex], color: colorValue };
-      }
-      return next;
-    });
-  };
+  // ❌ handleUpdateStatus видалено
 
   const handleSaveGradient = (newGradient) => {
     setScheduleDraft((prev) => {
@@ -160,11 +146,9 @@ export default function LessonEditor({ lesson, onClose }) {
       next.gradients = grads;
       return next;
     });
-    // Повертаємося на вибір кольору
     goToScreen("subjectColor");
   };
 
-  // --- НАВІГАЦІЯ В ШТОРЦІ ---
   const goToScreen = (screenName) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setCurrentScreen(screenName);
@@ -178,7 +162,6 @@ export default function LessonEditor({ lesson, onClose }) {
     }
   };
 
-  // --- UI HELPERS ---
   const getLabel = (type, value) => {
     if (!value) return null;
     if (type === "subject") return subjects.find((s) => s.id === value)?.name;
@@ -197,9 +180,9 @@ export default function LessonEditor({ lesson, onClose }) {
       return;
     }
     if (!selectedSubjectId) return;
-    if (picker === "type" || picker === "building" || picker === "room") handleUpdateSubject({ [picker]: key });
-    else if (picker === "status") handleUpdateSubject({ status: key });
-    else if (picker === "teacher") {
+    if (picker === "type" || picker === "building" || picker === "room") {
+        handleUpdateSubject({ [picker]: key });
+    } else if (picker === "teacher") {
       const newTeachers = [...(currentSubject.teachers || [])];
       if (teacherIndex !== null) {
         newTeachers[teacherIndex] = key;
@@ -218,10 +201,9 @@ export default function LessonEditor({ lesson, onClose }) {
     teacher: teachers.map((t) => ({ key: t.id, label: t.name })),
     link: links.map((l) => ({ key: l.id, label: l.name })),
     type: [{ key: "Лекція", label: "Лекція" }, { key: "Практика", label: "Практика" }, { key: "Лабораторна", label: "Лабораторна" }, { key: "Семінар", label: "Семінар" }],
-    status: statuses.map((st) => ({ key: st.id, label: st.name })),
+    // ❌ status видалено
   };
 
-  // --- ЛОГІКА ГРАДІЄНТА ---
   const startEditingGradient = (grad) => {
     setEditingGradient(grad);
     goToScreen("gradientEdit");
@@ -233,7 +215,6 @@ export default function LessonEditor({ lesson, onClose }) {
     goToScreen("gradientEdit");
   };
 
-  // Це відкриває ОКРЕМУ МОДАЛКУ
   const openAdvancedColorPicker = (colorValue, setter) => {
     setAdvancedPickerTarget({ colorValue, setter });
     setShowAdvancedPicker(true);
@@ -243,7 +224,6 @@ export default function LessonEditor({ lesson, onClose }) {
     switch (currentScreen) {
         case "main": return Number.isInteger(lesson?.index) ? "Редагування" : "Нове заняття";
         case "subjectColor": return "Колір картки";
-        case "statusColor": return "Колір статусу";
         case "gradientEdit": return "Налаштування градієнта";
         default: return "";
     }
@@ -272,7 +252,6 @@ export default function LessonEditor({ lesson, onClose }) {
             <View style={[styles.handle, { backgroundColor: themeColors.borderColor || "#ccc" }]} />
           </View>
 
-          {/* ХЕДЕР */}
           <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
             {currentScreen === "main" ? (
               <TouchableOpacity onPress={closeWithAnimation} hitSlop={15}>
@@ -301,23 +280,20 @@ export default function LessonEditor({ lesson, onClose }) {
           </View>
         </View>
 
-        {/* ОСНОВНИЙ КОНТЕНТ (Всі ці екрани всередині шторки) */}
         <View style={{ flex: 1 }}>
           {currentScreen === "main" && (
             <LessonEditorMainScreen
               themeColors={themeColors}
               selectedSubjectId={selectedSubjectId}
               currentSubject={currentSubject}
-              statuses={statuses}
+              // ❌ statuses не передаємо
               gradients={gradients}
               setActivePicker={setActivePicker}
               setTeacherIndex={setTeacherIndex}
               handleUpdateSubject={handleUpdateSubject}
               goToScreen={goToScreen}
               getLabel={getLabel}
-              onEditStatusColor={() => {
-                 if(currentSubject.status) goToScreen("statusColor");
-              }}
+              // ❌ onEditStatusColor не передаємо
               onEditSubjectColor={() => {
                  goToScreen("subjectColor");
               }}
@@ -334,27 +310,17 @@ export default function LessonEditor({ lesson, onClose }) {
             />
           )}
 
-          {currentScreen === "statusColor" && (
-            <LessonEditorStatusColorScreen
-              statuses={statuses}
-              currentSubject={currentSubject}
-              handleUpdateStatus={handleUpdateStatus}
-            />
-          )}
-
           {currentScreen === "gradientEdit" && editingGradient && (
             <LessonEditorGradientEditScreen
                 themeColors={themeColors}
                 gradientToEdit={editingGradient}
                 onSave={handleSaveGradient}
-                openColorPicker={openAdvancedColorPicker} // Це викличе окрему модалку
+                openColorPicker={openAdvancedColorPicker}
             />
           )}
         </View>
       </Animated.View>
 
-      {/* МОДАЛКА 1: Списки
-      */}
       <OptionListModal
         visible={!!activePicker && !!options[activePicker]}
         title={`Оберіть ${activePicker}`}
@@ -364,14 +330,10 @@ export default function LessonEditor({ lesson, onClose }) {
         onAddNew={
           activePicker === "teacher" ? addTeacher :
           activePicker === "subject" ? addSubject :
-          activePicker === "link" ? addLink :
-          activePicker === "status" ? addStatus : undefined
+          activePicker === "link" ? addLink : undefined
         }
       />
 
-      {/* МОДАЛКА 2: Advanced Picker (ОКРЕМА, ПОВЕРХ УСЬОГО)
-          Це саме те меню з фото, яке ти просив зробити окремо
-      */}
       {advancedPickerTarget && (
         <AdvancedColorPicker
             visible={showAdvancedPicker}

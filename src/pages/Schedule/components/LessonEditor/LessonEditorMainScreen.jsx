@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import SettingRow from "./SettingRow";
 import Group from "./Group";
 import LessonTeacherGroup from "./LessonTeacherGroup";
-import LessonStatusGroup from "./LessonStatusGroup";
 import GradientBackground from "../../../../components/GradientBackground";
 import themes from "../../../../config/themes";
 
@@ -11,7 +10,6 @@ export default function LessonEditorMainScreen({
   themeColors,
   selectedSubjectId,
   currentSubject,
-  statuses,
   gradients,
   // Actions
   setActivePicker,
@@ -92,15 +90,6 @@ export default function LessonEditorMainScreen({
           icon="location-outline"
         />
       </Group>
-
-      <LessonStatusGroup
-        statusId={currentSubject.status}
-        statuses={statuses}
-        themeColors={themeColors}
-        onSelectStatus={() => setActivePicker("status")}
-        // Виправлено: викликаємо проп, а не goToScreen
-        onSelectColor={onEditStatusColor} 
-      />
 
       <Group themeColors={themeColors} title="Оформлення">
         <SettingRow

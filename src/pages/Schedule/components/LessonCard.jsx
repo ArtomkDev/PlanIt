@@ -6,13 +6,11 @@ import GradientBackground from "../../../components/GradientBackground";
 
 export default function LessonCard({ lesson, onPress }) {
   const { schedule } = useSchedule();
-  const { subjects = [], teachers = [], statuses = [], gradients = [] } =
-    schedule || {};
+  const { subjects = [], teachers = [], gradients = [] } = schedule || {};
 
   // 🔹 дані
   const subject = subjects.find((s) => s.id === lesson.subjectId) || {};
   const teacher = teachers.find((t) => t.id === subject.teacher) || {};
-  const status = statuses.find((st) => st.id === subject.status) || {};
 
   // 🔹 фон
   let backgroundContent;
@@ -32,9 +30,6 @@ export default function LessonCard({ lesson, onPress }) {
     );
   }
 
-  const statusColor =
-    themes.accentColors[status?.color] || status?.color || "#FF0000";
-
   return (
     <TouchableOpacity
       style={styles.card}
@@ -44,25 +39,20 @@ export default function LessonCard({ lesson, onPress }) {
           ...lesson,
           subject,
           teacher,
-          status,
         })
       }
     >
       {backgroundContent}
 
       <View style={styles.cardContent}>
-        {/* верхній ряд */}
+        {/* верхній ряд: тепер тут тільки час */}
         <View style={styles.topRow}>
-          {status?.color && (
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          )}
           <Text style={styles.cardTime}>
             {lesson?.timeInfo?.start || "—"} - {lesson?.timeInfo?.end || "—"}
           </Text>
         </View>
 
         <Text style={styles.cardTitle}>{subject?.name || "—"}</Text>
-
         <Text style={styles.cardTeacher}>{teacher?.name || "—"}</Text>
       </View>
     </TouchableOpacity>
@@ -89,27 +79,24 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
   },
   cardTime: {
     fontSize: 13,
     fontWeight: "500",
     color: "#fff",
+    opacity: 0.9,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#fff",
-    marginTop: 8,
+    marginTop: 4,
   },
   cardTeacher: {
     fontSize: 14,
     color: "#f0f0f0",
     marginTop: 4,
-  },
-  statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    opacity: 0.9,
   },
 });

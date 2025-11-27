@@ -13,7 +13,6 @@ const defaultSchedule = {
 			fullName: "Вища математика. Диференціальні рівняння",
 			teacher: [1, 2],
 			links: [1, 2],
-			status: 1,
 			type: "Лекція",
 			building: "Головний",
 			room: "201",
@@ -79,11 +78,6 @@ const defaultSchedule = {
 		{ id: 3, name: 'Zoom Biology', url: 'https://zoom.com/lesson3' },
 		{ id: 4, name: 'Zoom Physics', url: 'https://zoom.com/lesson4' },
 		{ id: 5, name: 'Zoom Informatics', url: 'https://zoom.com/lesson5' },
-	],
-	statuses: [
-	    { id: 1, name: "offline", color: "red" },
-	    { id: 2, name: "online", color: "green" },
-	    { id: 3, name: "hybrid", color: "blue" },
 	],
 	gradients: [
 	  {
