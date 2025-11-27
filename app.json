@@ -2,7 +2,7 @@
   "expo": {
     "name": "PlanIt",
     "slug": "PlanIt",
-    "version": "1.0.0",
+    "version": "0.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,9 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.artomk.planit"
     },
     "android": {
+      "package": "com.artomk.planit",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -24,6 +26,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c405e09d-0c69-44bd-859a-d6123086964f"
+      }
+    },
+    "owner": "artomk",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c405e09d-0c69-44bd-859a-d6123086964f"
     }
   }
 }

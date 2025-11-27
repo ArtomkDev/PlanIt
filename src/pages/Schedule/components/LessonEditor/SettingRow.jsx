@@ -1,13 +1,44 @@
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet, View } from "react-native";
-import { ChevronRight } from "lucide-react-native"; // або своя іконка
+import { Ionicons } from "@expo/vector-icons";
 
-export default function SettingRow({ label, onPress, onLongPress }) {
+export default function SettingRow({ 
+  label, 
+  value, 
+  onPress, 
+  onLongPress, 
+  themeColors, 
+  icon,
+  rightContent 
+}) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} onLongPress={onLongPress}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.iconWrapper}>
-        <ChevronRight color="#fff" size={18} />
+    <TouchableOpacity 
+      style={styles.row} 
+      onPress={onPress} 
+      onLongPress={onLongPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.left}>
+        {icon && (
+          <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '20' }]}>
+            <Ionicons name={icon} size={20} color={themeColors.accentColor} />
+          </View>
+        )}
+        <Text style={[styles.label, { color: themeColors.textColor }]}>{label}</Text>
+      </View>
+
+      <View style={styles.right}>
+        {rightContent ? (
+          rightContent
+        ) : (
+          <Text 
+            style={[styles.value, { color: themeColors.textColor2 }]} 
+            numberOfLines={1}
+          >
+            {value}
+          </Text>
+        )}
+        <Ionicons name="chevron-forward" size={18} color={themeColors.textColor3 || "#aaa"} style={{marginLeft: 6}}/>
       </View>
     </TouchableOpacity>
   );
@@ -18,13 +49,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#222",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    minHeight: 50,
   },
-  label: { color: "#fff", fontSize: 16 },
-  iconWrapper: {
-    marginLeft: 10,
+  left: { flexDirection: "row", alignItems: "center", flex: 1 },
+  right: { flexDirection: "row", alignItems: "center", justifyContent: 'flex-end', flex: 0.8 },
+  iconContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
+  label: { fontSize: 16, fontWeight: "500" },
+  value: { fontSize: 16, textAlign: 'right' },
 });

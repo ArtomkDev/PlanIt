@@ -101,7 +101,7 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
         if (typeof sectionY === 'number' && checkPoint >= sectionY) {
           newActiveIndex = i;
         } else {
-          break; 
+          break;
         }
       }
 

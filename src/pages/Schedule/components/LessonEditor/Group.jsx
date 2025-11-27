@@ -1,47 +1,58 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Plus } from "lucide-react-native"; // або свій ікон-пакет
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function Group({ title, children, onAdd }) {
+export default function Group({ title, children, onAdd, themeColors }) {
   return (
-    <View style={styles.group}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.groupTitle}>{title}</Text>
+        <Text style={[styles.title, { color: themeColors.textColor }]}>
+          {title.toUpperCase()}
+        </Text>
         {onAdd && (
-          <TouchableOpacity style={styles.addButton} onPress={onAdd}>
-            <Plus color="#fff" size={18} />
+          <TouchableOpacity onPress={onAdd} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="add-circle" size={24} color={themeColors.accentColor} />
           </TouchableOpacity>
         )}
       </View>
-      <View style={styles.content}>{children}</View>
+      
+      <View style={[styles.contentContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
+        {React.Children.map(children, (child, index) => {
+          if (!child) return null;
+          // Додаємо лінію розділення, якщо це не останній елемент
+          const isLast = index === React.Children.count(children) - 1;
+          return (
+            <View>
+              {child}
+              {!isLast && <View style={[styles.separator, { backgroundColor: themeColors.borderColor || '#ccc' }]} />}
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  group: {
-    marginTop: 20,
-    marginBottom: 10,
-  },
+  container: { marginBottom: 24 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
     marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  groupTitle: {
-    color: "#fff",
-    fontSize: 16,
+  title: {
+    fontSize: 13,
     fontWeight: "600",
+    letterSpacing: 0.5,
   },
-  addButton: {
-    padding: 6,
-    borderRadius: 6,
-    backgroundColor: "#222",
+  contentContainer: {
+    borderRadius: 12,
+    overflow: "hidden",
   },
-  content: {
-    gap: 10,
-    paddingHorizontal: 20,
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 50, // Відступ під іконку
   },
 });

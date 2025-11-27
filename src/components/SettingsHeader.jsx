@@ -20,7 +20,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
 
   // === Анімації Скролу (Прозорість фону та підзаголовка) ===
   const bgOpacity = scrollY ? scrollY.interpolate({
-    inputRange: [0, 40],
+    inputRange: [0, 25],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   }) : 0;

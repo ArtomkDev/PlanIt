@@ -139,13 +139,17 @@ export default function DaySchedule({ scrollY }) {
         </TouchableOpacity>
       </Animated.ScrollView>
 
-      {/* ... Модалки ... */}
+      {/* Модалка редагування */}
       <Modal
         visible={editorVisible}
-        animationType="slide"
+        animationType="fade"  // <--- ЗМІНЕНО: Було "slide", стало "fade"
+        transparent={true}
         onRequestClose={closeEditor}
       >
-        <LessonEditor lesson={selectedLesson} onClose={closeEditor} />
+        {/* Додаємо затемнений фон вручну, щоб він плавно з'являвся (fade) */}
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+           <LessonEditor lesson={selectedLesson} onClose={closeEditor} />
+        </View>
       </Modal>
 
       <Modal
