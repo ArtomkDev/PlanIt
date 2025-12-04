@@ -18,7 +18,7 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import useEntityManager from "../../../hooks/useEntityManager";
 import themes from "../../../config/themes";
-import { SUBJECT_ICONS } from "../../../config/subjectIcons"; // 🔥 Імпорт іконок
+import { SUBJECT_ICONS } from "../../../config/subjectIcons"; 
 
 // ЕКРАНИ
 import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
@@ -27,14 +27,12 @@ import LessonEditorGradientEditScreen from "./LessonEditor/screens/GradientScree
 import LessonEditorPickerScreen from "./LessonEditor/screens/PickerScreen"; 
 import LessonEditorInputScreen from "./LessonEditor/screens/InputScreen";
 
-// РЕДАКТОРИ КОНТЕНТУ
 import TeacherEditor from "./LessonEditor/forms/TeacherForm";
 import LinkEditor from "./LessonEditor/forms/LinkForm";
-
-// МОДАЛКИ (лише ColorPicker)
 import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
+const IS_IOS = Platform.OS === "ios"; 
 
 export default function LessonEditor({ lesson, onClose }) {
   const { global, schedule, scheduleDraft, setScheduleDraft } = useSchedule();
@@ -55,7 +53,6 @@ export default function LessonEditor({ lesson, onClose }) {
   const [currentScreen, setCurrentScreen] = useState("main"); 
   const [pickerType, setPickerType] = useState(null); 
   const [inputType, setInputType] = useState(null);   
-
   const [editingItemData, setEditingItemData] = useState(null); 
   
   const [editingGradient, setEditingGradient] = useState(null);
@@ -64,41 +61,81 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const currentSubject = subjects.find((s) => s.id === selectedSubjectId) || {};
 
-  // --- АНІМАЦІЯ ---
-  const panY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  // --- АНІМАЦІЯ (Тільки для Android/Web) ---
+  const panY = useRef(new Animated.Value(IS_IOS ? 0 : SCREEN_HEIGHT)).current;
 
   useEffect(() => {
-    Animated.spring(panY, {
-      toValue: 0,
-      useNativeDriver: true,
-      damping: 15,
-      stiffness: 100,
-      mass: 0.8,
-    }).start();
+    if (!IS_IOS) {
+      Animated.spring(panY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        mass: 1,
+      }).start();
+    }
   }, []);
 
   const closeWithAnimation = () => {
     Keyboard.dismiss();
-    Animated.timing(panY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => onClose());
+    if (IS_IOS) {
+        onClose(); 
+    } else {
+        Animated.timing(panY, {
+          toValue: SCREEN_HEIGHT,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => onClose());
+    }
   };
 
+  // 🔥 "ЖИВИЙ" PAN RESPONDER
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) panY.setValue(gestureState.dy);
+      // Даємо кнопкам шанс отримати клік. Перехоплюємо тільки якщо є рух.
+      onStartShouldSetPanResponder: () => false,
+      
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (IS_IOS) return false;
+        // Поріг зменшено до 5 пікселів для чутливості
+        return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
+
+      onPanResponderGrant: () => {
+        // Зупиняємо попередню анімацію, щоб "спіймати" шторку під пальцем
+        panY.stopAnimation();
+      },
+
+      onPanResponderMove: (_, gestureState) => {
+        if (IS_IOS) return;
+        
+        let newY = gestureState.dy;
+
+        // ЕФЕКТ ГУМКИ (Rubber Banding) при русі вгору
+        if (newY < 0) {
+            // Чим вище тягнемо, тим важче йде (логарифмічний опір)
+            newY = -Math.pow(Math.abs(newY), 0.8); 
+        }
+        
+        panY.setValue(newY);
+      },
+
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 150 || gestureState.vy > 0.8) {
+        if (IS_IOS) return;
+
+        // Логіка закриття:
+        // 1. Швидкий свайп вниз (vy > 0.5)
+        // 2. Або просто потягнули достатньо далеко вниз (> 120px)
+        if (gestureState.dy > 120 || (gestureState.vy > 0.5 && gestureState.dy > 40)) {
           closeWithAnimation();
         } else {
-          Animated.spring(panY, { toValue: 0, useNativeDriver: true, bounciness: 8 }).start();
+          // Повертаємо назад "пружинкою" - м'яко і приємно
+          Animated.spring(panY, { 
+              toValue: 0, 
+              useNativeDriver: true, 
+              bounciness: 6,
+              speed: 14 
+          }).start();
         }
       },
     })
@@ -115,7 +152,6 @@ export default function LessonEditor({ lesson, onClose }) {
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
     if (currentScreen === "teacherEditor") return goToScreen("picker"); 
     if (currentScreen === "linkEditor") return goToScreen("picker");    
-    
     if (["picker", "input", "subjectColor"].includes(currentScreen)) {
         return goToScreen("main");
     }
@@ -145,7 +181,6 @@ export default function LessonEditor({ lesson, onClose }) {
     }
   };
 
-  // --- ЛОГІКА ДАНИХ ---
   const handleSave = () => {
     if (!selectedSubjectId) return;
     setScheduleDraft((prev) => {
@@ -207,7 +242,6 @@ export default function LessonEditor({ lesson, onClose }) {
     goToScreen("subjectColor");
   };
 
-  // --- ВІДКРИТТЯ ЕКРАНІВ ---
   const handleOpenPicker = (type) => {
     if (["building", "room"].includes(type)) {
         setInputType(type);
@@ -223,9 +257,7 @@ export default function LessonEditor({ lesson, onClose }) {
     setShowAdvancedPicker(true);
   };
 
-  // --- ДАНІ ДЛЯ ПІКЕРА ---
   const getPickerData = () => {
-    // 1. Вчителі
     if (pickerType === "teacher") {
         return {
             options: teachers.map((t) => ({ key: t.id, label: t.name })),
@@ -236,7 +268,6 @@ export default function LessonEditor({ lesson, onClose }) {
             onSelect: (ids) => handleUpdateSubject({ teachers: ids })
         };
     }
-    // 2. Посилання
     if (pickerType === "link") {
         return {
             options: links.map((l) => ({ key: l.id, label: l.name })),
@@ -247,7 +278,6 @@ export default function LessonEditor({ lesson, onClose }) {
             onSelect: (ids) => handleUpdateSubject({ links: ids })
         };
     }
-    // 3. Предмети
     if (pickerType === "subject") {
         return {
             options: subjects.map((s) => ({ key: s.id, label: s.name })),
@@ -262,7 +292,6 @@ export default function LessonEditor({ lesson, onClose }) {
             onSelect: (key) => { setSelectedSubjectId(key); goToScreen("main"); }
         };
     }
-    // 4. Тип заняття
     if (pickerType === "type") {
         const types = ["Лекція", "Практика", "Лабораторна", "Семінар"];
         return {
@@ -272,36 +301,29 @@ export default function LessonEditor({ lesson, onClose }) {
             onSelect: (key) => { handleUpdateSubject({ type: key }); goToScreen("main"); }
         };
     }
-    // 5. Іконки (ВИПРАВЛЕНО)
     if (pickerType === "icon") {
         const iconOptions = Object.keys(SUBJECT_ICONS).map((key) => ({
             key: key,
             iconComponent: SUBJECT_ICONS[key] 
         }));
-        
-        // 🔥 ВИПРАВЛЕННЯ: Використовуємо 'none' як ключ замість null
         iconOptions.unshift({ key: 'none', iconComponent: null });
 
         return {
             options: iconOptions,
-            // Якщо іконки немає, ставимо 'none'
             selected: currentSubject.icon ? [currentSubject.icon] : ['none'],
             multi: false,
             onSelect: (key) => { 
-                // Якщо вибрано 'none', зберігаємо null
                 const valueToSave = key === 'none' ? null : key;
                 handleUpdateSubject({ icon: valueToSave }); 
                 goToScreen("main"); 
             }
         };
     }
-
     return { options: [], selected: [], multi: false, onSelect: () => {} };
   };
 
   const pickerData = getPickerData();
 
-  // --- ДАНІ ДЛЯ INPUT ---
   const getInputData = () => {
       if (inputType === "building") return { 
           val: currentSubject.building, 
@@ -341,9 +363,20 @@ export default function LessonEditor({ lesson, onClose }) {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.overlay}>
-      <TouchableWithoutFeedback onPress={closeWithAnimation}><View style={styles.backdrop} /></TouchableWithoutFeedback>
       
-      <Animated.View style={[styles.sheetContainer, { backgroundColor: themeColors.backgroundColor, transform: [{ translateY: panY }] }]}>
+      {!IS_IOS && (
+        <TouchableWithoutFeedback onPress={closeWithAnimation}>
+            <View style={styles.backdrop} /> 
+        </TouchableWithoutFeedback>
+      )}
+      
+      <Animated.View 
+        style={[
+            styles.sheetContainer, 
+            { backgroundColor: themeColors.backgroundColor },
+            !IS_IOS && { transform: [{ translateY: panY }] } 
+        ]}
+      >
         <View {...panResponder.panHandlers} style={styles.dragZone}>
           <View style={styles.handleContainer}>
             <View style={[styles.handle, { backgroundColor: themeColors.borderColor || "#ccc" }]} />
@@ -369,7 +402,6 @@ export default function LessonEditor({ lesson, onClose }) {
         </View>
 
         <View style={{ flex: 1 }}>
-          {/* 1. MAIN */}
           {currentScreen === "main" && (
             <LessonEditorMainScreen
               themeColors={themeColors}
@@ -383,7 +415,6 @@ export default function LessonEditor({ lesson, onClose }) {
             />
           )}
 
-          {/* 2. COLORS */}
           {currentScreen === "subjectColor" && (
             <LessonEditorSubjectColorScreen
               themeColors={themeColors}
@@ -402,7 +433,6 @@ export default function LessonEditor({ lesson, onClose }) {
             />
           )}
 
-          {/* 3. UNIVERSAL PICKER (Subjects, Teachers, Links, Types, Icons) */}
           {currentScreen === "picker" && (
             <LessonEditorPickerScreen
               title={getHeaderTitle()}
@@ -413,11 +443,10 @@ export default function LessonEditor({ lesson, onClose }) {
               onEdit={pickerData.onEdit}
               onAdd={pickerData.onAdd}
               themeColors={themeColors}
-              layout={pickerType === 'icon' ? 'grid' : 'list'} // 🔥 ПЕРЕДАЄМО ЛЕЙАУТ ДЛЯ ІКОНОК
+              layout={pickerType === 'icon' ? 'grid' : 'list'} 
             />
           )}
 
-          {/* 4. UNIVERSAL INPUT */}
           {currentScreen === "input" && (
             <LessonEditorInputScreen
                 title={getHeaderTitle()}
@@ -428,7 +457,6 @@ export default function LessonEditor({ lesson, onClose }) {
             />
           )}
 
-          {/* 5. SPECIFIC EDITORS */}
           {currentScreen === "teacherEditor" && (
             <TeacherEditor 
                 teacherId={editingItemData} 
@@ -460,12 +488,24 @@ export default function LessonEditor({ lesson, onClose }) {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: "flex-end" },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "transparent" },
-  sheetContainer: { height: "92%", borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: -5 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 10 },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" }, 
+  sheetContainer: { 
+      flex: 1, 
+      marginTop: IS_IOS ? 0 : '10%',
+      // 🔥 На iOS радіус нульовий, щоб уникнути білих кутиків системи
+      borderTopLeftRadius: IS_IOS ? 0 : 20, 
+      borderTopRightRadius: IS_IOS ? 0 : 20, 
+      overflow: "hidden", 
+      shadowColor: "#000", 
+      shadowOffset: { width: 0, height: -5 }, 
+      shadowOpacity: 0.3, 
+      shadowRadius: 10, 
+      elevation: 10 
+  },
   dragZone: { backgroundColor: "transparent", paddingTop: 10 },
   handleContainer: { alignItems: "center", paddingBottom: 10 },
   handle: { width: 40, height: 5, borderRadius: 3, opacity: 0.5 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingBottom: 15, borderBottomWidth: StyleSheet.hairlineWidth },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: 'center', paddingHorizontal: 16, paddingBottom: 15, borderBottomWidth: StyleSheet.hairlineWidth },
   headerTitle: { fontSize: 17, fontWeight: "600", flex: 1, textAlign: "center" },
   backButton: { flexDirection: "row", alignItems: "center", marginLeft: -8 },
 });

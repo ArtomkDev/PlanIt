@@ -1,22 +1,13 @@
-import React, { useMemo, useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  RefreshControl,
-  Platform,
-  Animated, // Додаємо
-} from "react-native";
+import React, { useMemo } from "react";
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated } from "react-native"; // Animated замість ScrollView
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
-import { useEditor } from "../../../context/EditorProvider"; 
-import LessonEditor from "./LessonEditor";
 import LessonCard from "./LessonCard";
+import themes from "../../../config/themes";
 
-// ... helper functions (addMinutes, buildLessonTimes) ...
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const HEADER_HEIGHT = 140; // Приблизна висота шапки (Header + WeekStrip)
+
 function addMinutes(timeStr, minsToAdd) {
   if (!timeStr) return null;
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -38,195 +29,91 @@ function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
   return times;
 }
 
-// Приймаємо scrollY
-export default function DaySchedule({ scrollY }) {
-  const { currentDate, getDaySchedule, reloadDaySchedule } = useDaySchedule();
-  const { schedule } = useSchedule();
-  const { isEditing } = useEditor();
+export default function DaySchedule({ 
+  onLessonPress, 
+  onLessonLongPress, 
+  onEmptyPress,
+  scrollY // 🔥 Отримуємо анімоване значення
+}) {
+  const { currentDate, getDaySchedule } = useDaySchedule();
+  const { schedule, global } = useSchedule();
+  
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
 
-  const {
-    start_time = "08:30",
-    duration = 45,
-    breaks = [],
-  } = schedule || {};
-
+  const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
   const scheduleForDay = getDaySchedule ? getDaySchedule(currentDate) : [];
 
   const lessonTimes = useMemo(() => {
     return buildLessonTimes(start_time, duration, breaks, scheduleForDay.length);
   }, [start_time, duration, breaks, scheduleForDay?.length]);
 
-  const [editorVisible, setEditorVisible] = useState(false);
-  const [viewerVisible, setViewerVisible] = useState(false);
-  const [selectedLesson, setSelectedLesson] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      if (reloadDaySchedule) {
-        await reloadDaySchedule(currentDate);
-      }
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const handlePressLesson = (lesson) => {
-    setSelectedLesson(lesson);
-    if (isEditing) {
-      setEditorVisible(true);
-    } else {
-      setViewerVisible(true);
-    }
-  };
-
-  const closeEditor = () => {
-    setEditorVisible(false);
-    setSelectedLesson(null);
-  };
-
-  const closeViewer = () => {
-    setViewerVisible(false);
-    setSelectedLesson(null);
-  };
-
   return (
-    <View style={{ flex: 1 }}>
-      {/* Використовуємо Animated.ScrollView */}
-      <Animated.ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          Platform.OS !== "web" ? (
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          ) : undefined
-        }
-        overScrollMode="always"
-        bounces={true}
-        // 🔥 Прив'язуємо івент скролу
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true } 
-        )}
-        scrollEventThrottle={16}
+    <Animated.ScrollView 
+      contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_HEIGHT + 50 }]} // 🔥 Відступ під шапку
+      showsVerticalScrollIndicator={false}
+      overScrollMode="always"
+      // 🔥 Прив'язуємо подію скролу до scrollY
+      onScroll={Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        { useNativeDriver: false } // useNativeDriver: false для Web, true для Native (якщо не Web)
+      )}
+      scrollEventThrottle={16}
+    >
+      <TouchableOpacity 
+        activeOpacity={1} 
+        style={{ minHeight: SCREEN_HEIGHT * 0.6 }} 
+        onLongPress={onEmptyPress}
+        delayLongPress={500}
       >
         {scheduleForDay.length > 0 ? (
           scheduleForDay.map((subjectId, index) => {
             const timeInfo = lessonTimes?.[index] || {};
+            if (!subjectId) return null; 
+
             return (
               <LessonCard
                 key={index}
                 lesson={{ subjectId, index, timeInfo }}
-                onPress={handlePressLesson}
+                onPress={onLessonPress}
+                onLongPress={onLessonLongPress}
               />
             );
           })
         ) : (
-          <Text style={styles.noData}>Немає пар на цей день</Text>
-        )}
-
-        {/* Кнопка додати пару */}
-        <TouchableOpacity
-          style={[styles.addCard, !isEditing && styles.addCardHidden]}
-          onPress={() =>
-            isEditing && handlePressLesson({ subjectId: null, index: null })
-          }
-          activeOpacity={isEditing ? 0.7 : 1}
-          disabled={!isEditing}
-        >
-          <Text style={[styles.plus, !isEditing && styles.plusHidden]}>＋</Text>
-        </TouchableOpacity>
-      </Animated.ScrollView>
-
-      {/* Модалка редагування */}
-      <Modal
-        visible={editorVisible}
-        animationType="fade"  // <--- ЗМІНЕНО: Було "slide", стало "fade"
-        transparent={true}
-        onRequestClose={closeEditor}
-      >
-        {/* Додаємо затемнений фон вручну, щоб він плавно з'являвся (fade) */}
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-           <LessonEditor lesson={selectedLesson} onClose={closeEditor} />
-        </View>
-      </Modal>
-
-      <Modal
-        visible={viewerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeViewer}
-      >
-        <View style={styles.viewerOverlay}>
-          <View style={styles.viewerBox}>
-            <Text style={styles.viewerTitle}>
-              {selectedLesson?.subject?.name || "—"}
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.noData, {color: themeColors.textColor2}]}>
+                Пар немає 🎉
             </Text>
-            <Text>Викладач: {selectedLesson?.teacher?.name || "—"}</Text>
-            <Text>
-              Час: {selectedLesson?.timeInfo?.start || "—"} -{" "}
-              {selectedLesson?.timeInfo?.end || "—"}
+            <Text style={[styles.hint, {color: themeColors.textColor3}]}>
+                Затисніть екран, щоб додати
             </Text>
-            <TouchableOpacity
-              onPress={closeViewer}
-              style={styles.viewerCloseBtn}
-            >
-              <Text style={{ color: "#fff" }}>Закрити</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-    </View>
+        )}
+        
+        <View style={{height: 120}} />
+      </TouchableOpacity>
+    </Animated.ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   scrollContent: { 
-    padding: 10, 
-    paddingTop: 100, // 🔥 Відступ, щоб контент не залізав під прозорий хедер спочатку
-    paddingBottom: 160 
+    padding: 16,
+    // paddingTop задається динамічно
+  },
+  emptyContainer: {
+    marginTop: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.8,
   },
   noData: {
-    textAlign: "center",
-    marginTop: 20,
-    fontSize: 16,
-    color: "#666",
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 8,
   },
-  addCard: {
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#aaa",
-    justifyContent: "center",
-    alignItems: "center",
-    height: 80,
-    backgroundColor: "transparent",
-  },
-  addCardHidden: { opacity: 0, pointerEvents: "none" },
-  plus: { fontSize: 32, color: "#aaa", fontWeight: "300" },
-  plusHidden: { color: "transparent" },
-  viewerOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  viewerBox: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
-    width: "80%",
-  },
-  viewerTitle: { fontSize: 20, fontWeight: "700", marginBottom: 10 },
-  viewerCloseBtn: {
-    marginTop: 15,
-    backgroundColor: "#333",
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
-  },
+  hint: {
+    fontSize: 14,
+  }
 });
