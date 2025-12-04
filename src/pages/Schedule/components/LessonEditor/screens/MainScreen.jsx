@@ -1,9 +1,10 @@
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import SettingRow from "../ui/SettingRow"; // Переконайтеся, що імпорт правильний
+import SettingRow from "../ui/SettingRow"; 
 import Group from "../ui/Group";
 import GradientBackground from "../../../../../components/GradientBackground";
 import themes from "../../../../../config/themes";
+import { getIconComponent } from "../../../../../config/subjectIcons"; // Імпорт
 
 export default function LessonEditorMainScreen({
   themeColors,
@@ -14,11 +15,18 @@ export default function LessonEditorMainScreen({
   setActivePicker,
   handleUpdateSubject,
   onEditSubjectColor,
-  getLabel, // Ця функція приходить з батьківського компонента
+  getLabel, 
 }) {
   
-  // Захист від крашу, якщо getLabel не передано
   const safeGetLabel = getLabel || ((type, val) => "Не визначено");
+
+  // Отримуємо назву або компоненту іконки для відображення справа
+  const renderIconValue = () => {
+    if (!currentSubject.icon) return "Немає";
+    const IconCmp = getIconComponent(currentSubject.icon);
+    // Повертаємо саму іконку, якщо вона є
+    return IconCmp ? <IconCmp size={20} color={themeColors.textColor2} /> : "Немає";
+  };
 
   const renderColorPreview = () => {
     if (currentSubject?.typeColor === "gradient" && currentSubject?.colorGradient) {
@@ -57,7 +65,6 @@ export default function LessonEditorMainScreen({
         />
       </Group>
 
-      {/* Секція людей (Вчителі) - Множинний вибір */}
       <Group themeColors={themeColors} title="Люди">
         <SettingRow
             label="Викладачі"
@@ -100,9 +107,16 @@ export default function LessonEditorMainScreen({
           themeColors={themeColors}
           icon="color-palette-outline"
         />
+        {/* 🔥 Нове поле для іконки */}
+        <SettingRow
+          label="Іконка предмету"
+          rightContent={renderIconValue()}
+          onPress={() => setActivePicker("icon")}
+          themeColors={themeColors}
+          icon="image-outline"
+        />
       </Group>
 
-      {/* Секція посилань - Множинний вибір */}
       <Group themeColors={themeColors} title="Матеріали">
         <SettingRow
           label="Посилання"

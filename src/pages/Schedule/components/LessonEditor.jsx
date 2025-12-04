@@ -18,13 +18,14 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import useEntityManager from "../../../hooks/useEntityManager";
 import themes from "../../../config/themes";
+import { SUBJECT_ICONS } from "../../../config/subjectIcons"; // 🔥 Імпорт іконок
 
 // ЕКРАНИ
 import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
 import LessonEditorSubjectColorScreen from "./LessonEditor/screens/ColorScreen";
 import LessonEditorGradientEditScreen from "./LessonEditor/screens/GradientScreen";
 import LessonEditorPickerScreen from "./LessonEditor/screens/PickerScreen"; 
-import LessonEditorInputScreen from "./LessonEditor/screens/InputScreen"; // 🔥 Новий екран
+import LessonEditorInputScreen from "./LessonEditor/screens/InputScreen";
 
 // РЕДАКТОРИ КОНТЕНТУ
 import TeacherEditor from "./LessonEditor/forms/TeacherForm";
@@ -51,13 +52,11 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(lesson?.subjectId || null);
   
-  // Можливі екрани: 
-  // 'main', 'subjectColor', 'gradientEdit', 'picker', 'input', 'teacherEditor', 'linkEditor'
   const [currentScreen, setCurrentScreen] = useState("main"); 
-  const [pickerType, setPickerType] = useState(null); // 'subject', 'teacher', 'link', 'type'
-  const [inputType, setInputType] = useState(null);   // 'building', 'room', 'subject_rename'
+  const [pickerType, setPickerType] = useState(null); 
+  const [inputType, setInputType] = useState(null);   
 
-  const [editingItemData, setEditingItemData] = useState(null); // ID для редагування
+  const [editingItemData, setEditingItemData] = useState(null); 
   
   const [editingGradient, setEditingGradient] = useState(null);
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
@@ -114,14 +113,12 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const handleBack = () => {
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
-    if (currentScreen === "teacherEditor") return goToScreen("picker"); // Назад до списку вчителів
-    if (currentScreen === "linkEditor") return goToScreen("picker");    // Назад до списку посилань
+    if (currentScreen === "teacherEditor") return goToScreen("picker"); 
+    if (currentScreen === "linkEditor") return goToScreen("picker");    
     
-    // Якщо ми в пікері, інпуті або кольорі -> повертаємось на головну
     if (["picker", "input", "subjectColor"].includes(currentScreen)) {
         return goToScreen("main");
     }
-    // Фолбек
     goToScreen("main");
   };
 
@@ -135,6 +132,7 @@ export default function LessonEditor({ lesson, onClose }) {
             if (pickerType === 'link') return "Посилання";
             if (pickerType === 'subject') return "Предмети";
             if (pickerType === 'type') return "Тип заняття";
+            if (pickerType === 'icon') return "Оберіть іконку";
             return "Вибір";
         case "input":
             if (inputType === 'building') return "Корпус";
@@ -183,8 +181,7 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const handleRenameSubject = (newName) => {
-    // Це для перейменування самого предмету (з екрану Input)
-    if (editingItemData) { // editingItemData тут ID предмету
+    if (editingItemData) { 
        setScheduleDraft((prev) => {
         const next = { ...prev };
         const idx = next.subjects.findIndex((s) => s.id === editingItemData);
@@ -193,7 +190,7 @@ export default function LessonEditor({ lesson, onClose }) {
         }
         return next;
       });
-      goToScreen("picker"); // Повертаємось до списку предметів
+      goToScreen("picker"); 
     }
   };
 
@@ -250,7 +247,7 @@ export default function LessonEditor({ lesson, onClose }) {
             onSelect: (ids) => handleUpdateSubject({ links: ids })
         };
     }
-    // 3. Предмети (з можливістю перейменування)
+    // 3. Предмети
     if (pickerType === "subject") {
         return {
             options: subjects.map((s) => ({ key: s.id, label: s.name })),
@@ -258,7 +255,7 @@ export default function LessonEditor({ lesson, onClose }) {
             multi: false,
             onAdd: () => { const newS = addSubject(); setSelectedSubjectId(newS.id); goToScreen("main"); },
             onEdit: (id) => { 
-                setPickerType("subject"); // Щоб знати куди повертатись
+                setPickerType("subject"); 
                 setInputType("subject_rename");
                 goToScreen("input", id); 
             },
@@ -275,12 +272,36 @@ export default function LessonEditor({ lesson, onClose }) {
             onSelect: (key) => { handleUpdateSubject({ type: key }); goToScreen("main"); }
         };
     }
+    // 5. Іконки (ВИПРАВЛЕНО)
+    if (pickerType === "icon") {
+        const iconOptions = Object.keys(SUBJECT_ICONS).map((key) => ({
+            key: key,
+            iconComponent: SUBJECT_ICONS[key] 
+        }));
+        
+        // 🔥 ВИПРАВЛЕННЯ: Використовуємо 'none' як ключ замість null
+        iconOptions.unshift({ key: 'none', iconComponent: null });
+
+        return {
+            options: iconOptions,
+            // Якщо іконки немає, ставимо 'none'
+            selected: currentSubject.icon ? [currentSubject.icon] : ['none'],
+            multi: false,
+            onSelect: (key) => { 
+                // Якщо вибрано 'none', зберігаємо null
+                const valueToSave = key === 'none' ? null : key;
+                handleUpdateSubject({ icon: valueToSave }); 
+                goToScreen("main"); 
+            }
+        };
+    }
+
     return { options: [], selected: [], multi: false, onSelect: () => {} };
   };
 
   const pickerData = getPickerData();
 
-  // --- ДАНІ ДЛЯ INPUT (Корпус, Аудиторія, Перейменування) ---
+  // --- ДАНІ ДЛЯ INPUT ---
   const getInputData = () => {
       if (inputType === "building") return { 
           val: currentSubject.building, 
@@ -304,7 +325,6 @@ export default function LessonEditor({ lesson, onClose }) {
   };
   const inputData = getInputData();
 
-  // --- GET LABEL (для головного екрану) ---
   const getLabel = (type, value) => {
     if (!value) return null;
     if (type === "subject") return subjects.find((s) => s.id === value)?.name;
@@ -382,7 +402,7 @@ export default function LessonEditor({ lesson, onClose }) {
             />
           )}
 
-          {/* 3. UNIVERSAL PICKER (Subjects, Teachers, Links, Types) */}
+          {/* 3. UNIVERSAL PICKER (Subjects, Teachers, Links, Types, Icons) */}
           {currentScreen === "picker" && (
             <LessonEditorPickerScreen
               title={getHeaderTitle()}
@@ -393,10 +413,11 @@ export default function LessonEditor({ lesson, onClose }) {
               onEdit={pickerData.onEdit}
               onAdd={pickerData.onAdd}
               themeColors={themeColors}
+              layout={pickerType === 'icon' ? 'grid' : 'list'} // 🔥 ПЕРЕДАЄМО ЛЕЙАУТ ДЛЯ ІКОНОК
             />
           )}
 
-          {/* 4. UNIVERSAL INPUT (Building, Room, Renaming) */}
+          {/* 4. UNIVERSAL INPUT */}
           {currentScreen === "input" && (
             <LessonEditorInputScreen
                 title={getHeaderTitle()}
