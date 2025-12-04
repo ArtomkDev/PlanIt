@@ -28,6 +28,7 @@
     "expo-crypto": "~15.0.6",
     "expo-device": "~8.0.6",
     "expo-linear-gradient": "~15.0.7",
+    "expo-splash-screen": "~31.0.11",
     "expo-status-bar": "~3.0.7",
     "expo-updates": "~29.0.13",
     "firebase": "^11.3.1",
