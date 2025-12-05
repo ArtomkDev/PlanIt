@@ -28,17 +28,14 @@ function ScheduleSettingsStack({ screenProps }) {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: false, // 🔥 Вимикаємо нативний хедер повністю
-        animation: 'slide_from_right', // Плавна анімація слайду
-        gestureEnabled: true, // Жест "назад" працює
+        headerShown: false,
+        animation: 'slide_from_right',
+        gestureEnabled: true,
       }}
     >
       <Stack.Screen name="ScheduleSettingsMain">
         {props => <ScheduleSettings {...props} {...screenProps} />}
       </Stack.Screen>
-      
-      {/* Передаємо title як initialParams або просто хардкодимо в компонентах, 
-          але для зручності можна передати title в options, хоча Nav його не покаже, ми використаємо його в компоненті */}
       <Stack.Screen name="Breaks" component={BreaksManager} options={{ title: 'Перерви' }} />
       <Stack.Screen name="Weeks" component={WeekManager} options={{ title: 'Тижні' }} />
       <Stack.Screen name="StartWeek" component={StartWeekManager} options={{ title: 'Початок семестру' }} />
@@ -72,6 +69,7 @@ export default function TabNavigator({ screenProps }) {
           shadowOpacity: 0,
           borderTopWidth: 0,
         },
+        // 🔥 AppBlur тепер сам знає, який він має бути, просто рендеримо його
         tabBarBackground: () => <AppBlur style={{ flex: 1, overflow: 'hidden' }} />,
         tabBarLabelStyle: { fontSize: 12, fontWeight: 'bold' },
         tabBarActiveTintColor: themeColors.accentColor,
@@ -79,6 +77,7 @@ export default function TabNavigator({ screenProps }) {
         headerShown: false,
       }}
     >
+      {/* ... (Tab.Screen Home3_1 та Home3_2 без змін) ... */}
       <Tab.Screen
         name="Home3_1"
         component={Schedule}
