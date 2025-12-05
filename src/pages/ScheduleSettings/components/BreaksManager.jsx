@@ -7,14 +7,14 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import AppBlur from '../../../components/AppBlur';
+// ВИДАЛЯЄМО: import { BlurView } from 'expo-blur';
+import AppBlur from '../../../components/AppBlur'; // ДОДАЄМО
 
-import { useSchedule } from '../../../context/ScheduleProvider'; // ⚡ беремо розклад з провайдера
+import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 
 export default function BreaksManager() {
-	const { global, schedule, setScheduleDraft } = useSchedule(); // ⚡ отримаємо дані та функцію для змін
+	const { global, schedule, setScheduleDraft } = useSchedule();
 	const [tempBreaks, setTempBreaks] = useState([...schedule.breaks]);
 	const [isChanged, setIsChanged] = useState(false);
 
@@ -25,6 +25,7 @@ export default function BreaksManager() {
 		setIsChanged(JSON.stringify(tempBreaks) !== JSON.stringify(schedule.breaks));
 	}, [tempBreaks, schedule.breaks]);
 
+    // ... (функції handleBreakChange, handleAddBreak і т.д. залишаються без змін) ...
 	const handleBreakChange = (value, index) => {
 		const updatedBreaks = [...tempBreaks];
 		updatedBreaks[index] = Number(value);
@@ -42,7 +43,6 @@ export default function BreaksManager() {
 
 	const handleConfirm = () => {
 		if (isChanged) {
-			// ⚡ оновлюємо розклад через ScheduleProvider
 			setScheduleDraft(prev => ({ ...prev, breaks: tempBreaks }));
 		}
 	};
@@ -88,9 +88,8 @@ export default function BreaksManager() {
 				keyExtractor={(item, index) => index.toString()}
 			/>
 
-			{/* Панель з блюром */}
-			<BlurView
-			  	tint={	mode === 'dark' ? 'dark' : 'light'}
+			{/* ЗАМІНЕНО BlurView на AppBlur */}
+			<AppBlur
 			  	intensity={100}
 			  	style={styles.buttonsContainer}
 			>
@@ -121,7 +120,7 @@ export default function BreaksManager() {
 			      Підтвердити
 			    </Text>
 			  </TouchableOpacity>
-			</BlurView>
+			</AppBlur>
 
 		</View>
 	);
@@ -158,6 +157,7 @@ const styles = StyleSheet.create({
 		borderRadius: 15,
 		overflow: 'hidden',
 	},
+    // ... решта стилів ...
 	breakLabel: { fontSize: 16, fontWeight: 'bold', marginRight: 10 },
 	input: {
 		borderRadius: 5,

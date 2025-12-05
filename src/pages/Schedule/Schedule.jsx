@@ -23,7 +23,7 @@ export default function Schedule() {
   const [anchorDate] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Анімація скролу для прозорості хедера
+  // Анімація скролу (залишаємо для borderOpacity, але не для фону)
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const [editorVisible, setEditorVisible] = useState(false);
@@ -37,14 +37,9 @@ export default function Schedule() {
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
-  // Анімація прозорості фону (0 -> 1)
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 10],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
+  // ВИДАЛЕНО: const headerOpacity = ... (більше не потрібна)
 
-  // Анімація прозорості розділювача (з'являється трохи пізніше)
+  // Анімація прозорості розділювача (залишаємо)
   const borderOpacity = scrollY.interpolate({
     inputRange: [0, 20],
     outputRange: [0, 1],
@@ -57,6 +52,7 @@ export default function Schedule() {
     return d;
   }, [anchorDate]);
 
+  // ... (методи goToDate, handleDateChange, handleToday, onScroll, renderItem, getItemLayout без змін) ...
   const goToDate = (targetDate, animated = true) => {
     const diffTime = targetDate.getTime() - anchorDate.getTime();
     const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
@@ -90,7 +86,7 @@ export default function Schedule() {
               onLessonPress={openViewer}
               onLessonLongPress={openEditor}
               onEmptyPress={handleAddLesson}
-              scrollY={scrollY} // Передаємо scrollY для керування хедером
+              scrollY={scrollY}
            />
         </DayScheduleProvider>
       </View>
@@ -110,12 +106,10 @@ export default function Schedule() {
       
       {/* 🔥 ПЛАВАЮЧА ШАПКА */}
       <View style={styles.headerContainer}>
-        {/* Фон з блюром (анімований) */}
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: headerOpacity }]}>
+        {/* Фон з блюром (СТАТИЧНИЙ, без анімації появи) */}
+        <View style={StyleSheet.absoluteFill}>
              <AppBlur style={StyleSheet.absoluteFill} intensity={50} />
-             {/* Напівпрозорий фон, щоб текст читався краще */}
-             <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: themeColors.backgroundColor, opacity: 0.7 }} />
-        </Animated.View>
+        </View>
 
         <Header 
             currentDate={currentDate} 
@@ -127,12 +121,12 @@ export default function Schedule() {
             onSelectDate={handleDateChange} 
         />
         
-        {/* Розділювач (Border) */}
+        {/* Розділювач (Border) - залишаємо анімацію лише для смужки */}
         <Animated.View 
             style={{ 
                 height: 1, 
                 backgroundColor: themeColors.borderColor, 
-                opacity: borderOpacity, // З'являється при скролі
+                opacity: borderOpacity, 
                 width: '100%' 
             }} 
         />

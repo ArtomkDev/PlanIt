@@ -4,48 +4,40 @@ import { BlurView } from "expo-blur";
 import { useSchedule } from "../context/ScheduleProvider";
 import themes from "../config/themes";
 
-export default function AppBlur({ style, intensity = 80 }) {
+export default function AppBlur({ style, intensity = 80, children }) {
   const { global } = useSchedule();
-  if (!global) return null;
-
-  const [mode, accent] = global.theme || ["light", "blue"];
-  const blurEnabled = global.blur ?? true; // За замовчуванням увімкнено
+  
+  const themeSetting = global?.theme || ["light", "blue"];
+  const [mode, accent] = Array.isArray(themeSetting) ? themeSetting : ["light", "blue"];
+  
+  const blurEnabled = global?.blur ?? true; 
   const themeColors = themes.getColors(mode, accent);
 
-  // Якщо блюр вимкнено глобально, повертаємо суцільний фон
-  if (!blurEnabled) {
+  // Фолбек для Android або якщо блюр вимкнено
+  if (!blurEnabled || Platform.OS === "android") {
+    const fallbackColor = !blurEnabled 
+      ? (themeColors.backgroundColorTabNavigator || themeColors.backgroundColor2)
+      : (mode === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(20,20,20,0.95)');
+
     return (
-      <View 
-        style={[
-          StyleSheet.absoluteFill, 
-          { backgroundColor: themeColors.backgroundColorTabNavigator || themeColors.backgroundColor2 }, 
-          style
-        ]} 
-      />
+      <View style={[{ backgroundColor: fallbackColor }, style]}>
+        {children}
+      </View>
     );
   }
 
-  // Логіка тінту: для OLED та Dark завжди 'dark', для Light - 'light'
   const blurTint = (mode === "oled" || mode === "dark") ? "dark" : "light";
-
-  // Для Android іноді краще зменшити інтенсивність або використати View
-  if (Platform.OS === "android") {
-    return (
-      <View 
-        style={[
-          StyleSheet.absoluteFill, 
-          { backgroundColor: mode === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(20,20,20,0.9)' }, 
-          style
-        ]} 
-      />
-    );
-  }
 
   return (
     <BlurView 
       intensity={intensity} 
       tint={blurTint} 
-      style={[StyleSheet.absoluteFill, style]} 
-    />
+      style={style} 
+    >
+      {/* 🔥 Цей шар вирівнює відтінок блюру всюди (Хедер vs Навігація) */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: themeColors.backgroundColor, opacity: 0.4 }]} />
+      
+      {children}
+    </BlurView>
   );
 }
