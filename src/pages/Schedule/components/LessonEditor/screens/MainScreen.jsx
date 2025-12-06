@@ -4,27 +4,24 @@ import SettingRow from "../ui/SettingRow";
 import Group from "../ui/Group";
 import GradientBackground from "../../../../../components/GradientBackground";
 import themes from "../../../../../config/themes";
-import { getIconComponent } from "../../../../../config/subjectIcons"; // Імпорт
+import { getIconComponent } from "../../../../../config/subjectIcons"; 
 
 export default function LessonEditorMainScreen({
   themeColors,
   selectedSubjectId,
   currentSubject,
+  instanceData = {}, // 🔥 Новий проп
   gradients,
-  // Actions
   setActivePicker,
-  handleUpdateSubject,
   onEditSubjectColor,
   getLabel, 
 }) {
   
   const safeGetLabel = getLabel || ((type, val) => "Не визначено");
 
-  // Отримуємо назву або компоненту іконки для відображення справа
   const renderIconValue = () => {
     if (!currentSubject.icon) return "Немає";
     const IconCmp = getIconComponent(currentSubject.icon);
-    // Повертаємо саму іконку, якщо вона є
     return IconCmp ? <IconCmp size={20} color={themeColors.textColor2} /> : "Немає";
   };
 
@@ -53,6 +50,10 @@ export default function LessonEditorMainScreen({
     );
   }
 
+  // 🔥 Використовуємо instanceData для відображення значень, що можуть бути змінені для конкретної пари
+  // Для вчителів і лінків: якщо в instanceData пусто, можна було б показувати "За замовчуванням" або брати з Subject
+  // Але для чистоти редагування показуємо те, що реально записано в урок.
+
   return (
     <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
       <Group themeColors={themeColors} title="Предмет">
@@ -68,7 +69,8 @@ export default function LessonEditorMainScreen({
       <Group themeColors={themeColors} title="Люди">
         <SettingRow
             label="Викладачі"
-            value={safeGetLabel("teacher", currentSubject.teachers)} 
+            // 🔥 Беремо з instanceData
+            value={safeGetLabel("teacher", instanceData.teachers || [])} 
             onPress={() => setActivePicker("teacher")}
             themeColors={themeColors}
             icon="people-outline"
@@ -78,28 +80,32 @@ export default function LessonEditorMainScreen({
       <Group themeColors={themeColors} title="Деталі">
         <SettingRow
           label="Тип заняття"
-          value={safeGetLabel("type", currentSubject.type) || "Не вказано"}
+          // 🔥 Беремо з instanceData
+          value={safeGetLabel("type", instanceData.type) || "Не вказано"}
           onPress={() => setActivePicker("type")}
           themeColors={themeColors}
           icon="pricetag-outline"
         />
         <SettingRow
           label="Корпус"
-          value={currentSubject.building || "—"}
+          // 🔥 Беремо з instanceData
+          value={instanceData.building || "—"}
           onPress={() => setActivePicker("building")}
           themeColors={themeColors}
           icon="business-outline"
         />
         <SettingRow
           label="Аудиторія"
-          value={currentSubject.room || "—"}
+          // 🔥 Беремо з instanceData
+          value={instanceData.room || "—"}
           onPress={() => setActivePicker("room")}
           themeColors={themeColors}
           icon="location-outline"
         />
       </Group>
 
-      <Group themeColors={themeColors} title="Оформлення">
+      {/* Оформлення залишається глобальним для предмета */}
+      <Group themeColors={themeColors} title="Оформлення (для всіх пар)">
         <SettingRow
           label="Колір картки"
           rightContent={renderColorPreview()}
@@ -107,7 +113,6 @@ export default function LessonEditorMainScreen({
           themeColors={themeColors}
           icon="color-palette-outline"
         />
-        {/* 🔥 Нове поле для іконки */}
         <SettingRow
           label="Іконка предмету"
           rightContent={renderIconValue()}
@@ -120,7 +125,8 @@ export default function LessonEditorMainScreen({
       <Group themeColors={themeColors} title="Матеріали">
         <SettingRow
           label="Посилання"
-          value={safeGetLabel("link", currentSubject.links)}
+          // 🔥 Беремо з instanceData
+          value={safeGetLabel("link", instanceData.links || [])}
           onPress={() => setActivePicker("link")}
           themeColors={themeColors}
           icon="link-outline"

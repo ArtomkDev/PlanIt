@@ -14,7 +14,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/GradientBackground";
-import AppBlur from "../../../components/AppBlur"; // Використовуємо ваш компонент блюру
 import { getIconComponent } from "../../../config/subjectIcons";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -27,22 +26,45 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
-  // Отримуємо повні дані про предмет
-  const subjectId = lesson.subject?.id || lesson.subjectId;
-  const fullSubject = schedule.subjects.find(s => s.id === subjectId) || lesson.subject || {};
+  // 1. Отримуємо глобальний предмет
+  const subjectId = lesson.subjectId;
+  const fullSubject = schedule.subjects.find(s => s.id === subjectId) || {};
 
-  // --- Викладачі (обробка масиву ID) ---
-  const teacherIds = Array.isArray(fullSubject.teachers) 
-    ? fullSubject.teachers 
-    : (fullSubject.teacher ? [fullSubject.teacher] : []); // Фолбек для старої структури
-    
-  const associatedTeachers = schedule.teachers.filter(t => teacherIds.includes(t.id));
+  // 2. Отримуємо локальні дані (якщо є)
+  const instanceData = lesson.data || {};
 
-  // --- Посилання (обробка масиву ID) ---
-  const linkIds = Array.isArray(fullSubject.links) ? fullSubject.links : [];
-  const associatedLinks = schedule.links.filter(l => linkIds.includes(l.id));
+  // --- ЛОГІКА "НАСЛІДУВАННЯ" (Fallback Logic) ---
 
-  // --- Градієнт/Колір ---
+  // ТИП
+  const displayType = instanceData.type || fullSubject.type;
+
+  // МІСЦЕ (Аудиторія / Корпус)
+  const displayRoom = instanceData.room || fullSubject.room;
+  const displayBuilding = instanceData.building || fullSubject.building;
+
+  // ВЧИТЕЛІ
+  // Якщо в instanceData є масив teachers (навіть пустий, якщо ми видалили всіх), беремо його.
+  // Інакше беремо глобальних.
+  const hasLocalTeachers = instanceData.teachers !== undefined;
+  const rawTeacherIds = hasLocalTeachers 
+      ? instanceData.teachers 
+      : (fullSubject.teachers || (fullSubject.teacher ? [fullSubject.teacher] : []));
+  
+  // Фільтруємо ID (прибираємо 0/null) і знаходимо об'єкти
+  const validTeacherIds = Array.isArray(rawTeacherIds) 
+      ? rawTeacherIds.filter(id => id && id !== 0 && id !== "0") 
+      : [];
+  const displayTeachers = schedule.teachers.filter(t => validTeacherIds.includes(t.id));
+
+  // ПОСИЛАННЯ
+  const hasLocalLinks = instanceData.links !== undefined;
+  const rawLinkIds = hasLocalLinks ? instanceData.links : (fullSubject.links || []);
+  
+  const validLinkIds = Array.isArray(rawLinkIds) ? rawLinkIds : [];
+  const displayLinks = schedule.links.filter(l => validLinkIds.includes(l.id));
+
+
+  // --- ВІЗУАЛ ---
   const getHeaderBackground = () => {
     if (fullSubject.typeColor === "gradient" && fullSubject.colorGradient) {
       const grad = schedule.gradients.find(g => g.id === fullSubject.colorGradient);
@@ -54,7 +76,6 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
   const MainIcon = getIconComponent(fullSubject.icon);
 
-  // --- Дії ---
   const handleLinkPress = async (url) => {
     if (!url) return;
     const supported = await Linking.canOpenURL(url);
@@ -71,12 +92,11 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        {/* Задній фон натискається для закриття */}
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
         <View style={[styles.modalContainer, { backgroundColor: themeColors.backgroundColor }]}>
           
-          {/* Хедер з кольором/градієнтом */}
+          {/* Хедер */}
           <View style={styles.headerContainer}>
             {getHeaderBackground()}
             
@@ -92,12 +112,12 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
           <ScrollView style={styles.contentScroll} contentContainerStyle={{paddingBottom: 40}}>
             
-            {/* Заголовок та Тип */}
+            {/* Назва та Тип */}
             <View style={styles.titleSection}>
-              {fullSubject.type && (
+              {displayType && (
                 <View style={[styles.typeBadge, { borderColor: themeColors.accentColor }]}>
                   <Text style={[styles.typeText, { color: themeColors.accentColor }]}>
-                    {fullSubject.type.toUpperCase()}
+                    {displayType.toUpperCase()}
                   </Text>
                 </View>
               )}
@@ -130,17 +150,17 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                 <View style={styles.gridTextContainer}>
                   <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>Аудиторія</Text>
                   <Text style={[styles.gridValue, { color: themeColors.textColor }]} numberOfLines={1}>
-                    {fullSubject.building ? `${fullSubject.building}, ` : ""}{fullSubject.room || "—"}
+                    {displayBuilding ? `${displayBuilding}, ` : ""}{displayRoom || "—"}
                   </Text>
                 </View>
               </View>
             </View>
 
             {/* Викладачі */}
-            {associatedTeachers.length > 0 && (
+            {displayTeachers.length > 0 && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>ВИКЛАДАЧІ</Text>
-                {associatedTeachers.map((teacher, index) => (
+                {displayTeachers.map((teacher, index) => (
                   <View key={index} style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}>
                     <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
                       <Ionicons name="person" size={18} color={themeColors.textColor} />
@@ -149,9 +169,8 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                       <Text style={[styles.rowTitle, { color: themeColors.textColor }]}>{teacher.name}</Text>
                       {teacher.phone ? <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]}>{teacher.phone}</Text> : null}
                     </View>
-                    {/* Кнопка подзвонити, якщо є телефон */}
                     {teacher.phone && (
-                        <TouchableOpacity onPress={() => Linking.openURL(`tel:${teacher.phone}`)}>
+                        <TouchableOpacity onPress={() => Linking.openURL(`tel:${teacher.phone}`)} hitSlop={10}>
                             <Ionicons name="call-outline" size={22} color={themeColors.accentColor} style={{marginRight: 8}}/>
                         </TouchableOpacity>
                     )}
@@ -161,10 +180,10 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
             )}
 
             {/* Посилання */}
-            {associatedLinks.length > 0 && (
+            {displayLinks.length > 0 && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>МАТЕРІАЛИ</Text>
-                {associatedLinks.map((link, index) => (
+                {displayLinks.map((link, index) => (
                   <TouchableOpacity 
                     key={index} 
                     style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
@@ -195,8 +214,8 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                 style={[styles.editButton, { backgroundColor: themeColors.accentColor }]}
                 onPress={() => {
                     onClose();
-                    // Передаємо індекс уроку, щоб редактор знав, яку клітинку ми правимо
-                    onEdit({ ...lesson, subject: fullSubject, index: lesson.index });
+                    // Передаємо всі дані, щоб редактор знав про локальні зміни
+                    onEdit({ ...lesson, subject: fullSubject, data: instanceData });
                 }}
             >
                 <Ionicons name="create-outline" size={20} color="#fff" style={{marginRight: 8}} />
@@ -222,7 +241,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: SCREEN_HEIGHT * 0.75, // Займає 75% екрану
+    height: SCREEN_HEIGHT * 0.75,
     overflow: 'hidden',
     ...Platform.select({
       web: { boxShadow: '0px -5px 20px rgba(0,0,0,0.2)' },
@@ -244,7 +263,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     position: 'absolute',
-    bottom: -25, // Іконка виступає вниз
+    bottom: -25,
     left: 20,
     right: 20,
     zIndex: 2,
@@ -266,11 +285,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.2)',
     padding: 8,
     borderRadius: 20,
-    marginBottom: 35, // Піднімаємо хрестик вище
+    marginBottom: 35,
   },
   contentScroll: {
     flex: 1,
-    paddingTop: 40, // Відступ під іконку
+    paddingTop: 40,
     paddingHorizontal: 20,
   },
   titleSection: {

@@ -1,12 +1,12 @@
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated } from "react-native"; // Animated замість ScrollView
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated } from "react-native";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import LessonCard from "./LessonCard";
 import themes from "../../../config/themes";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const HEADER_HEIGHT = 140; // Приблизна висота шапки (Header + WeekStrip)
+const HEADER_HEIGHT = 140;
 
 function addMinutes(timeStr, minsToAdd) {
   if (!timeStr) return null;
@@ -33,7 +33,7 @@ export default function DaySchedule({
   onLessonPress, 
   onLessonLongPress, 
   onEmptyPress,
-  scrollY // 🔥 Отримуємо анімоване значення
+  scrollY
 }) {
   const { currentDate, getDaySchedule } = useDaySchedule();
   const { schedule, global } = useSchedule();
@@ -50,13 +50,12 @@ export default function DaySchedule({
 
   return (
     <Animated.ScrollView 
-      contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_HEIGHT + 50 }]} // 🔥 Відступ під шапку
+      contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_HEIGHT + 50 }]}
       showsVerticalScrollIndicator={false}
       overScrollMode="always"
-      // 🔥 Прив'язуємо подію скролу до scrollY
       onScroll={Animated.event(
         [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false } // useNativeDriver: false для Web, true для Native (якщо не Web)
+        { useNativeDriver: false }
       )}
       scrollEventThrottle={16}
     >
@@ -67,14 +66,25 @@ export default function DaySchedule({
         delayLongPress={500}
       >
         {scheduleForDay.length > 0 ? (
-          scheduleForDay.map((subjectId, index) => {
+          scheduleForDay.map((item, index) => {
+            if (!item) return null; 
+
+            // 🔥 ЛОГІКА СУМІСНОСТІ:
+            // Якщо item - об'єкт, беремо subjectId з нього.
+            // Якщо item - рядок/число (старий формат), то це і є subjectId.
+            const isInstance = typeof item === 'object' && item !== null;
+            const subjectId = isInstance ? item.subjectId : item;
+            
+            // Формуємо об'єкт даних уроку
+            // Якщо це інстанс, передаємо його весь, інакше - пустий об'єкт
+            const lessonData = isInstance ? item : {};
+
             const timeInfo = lessonTimes?.[index] || {};
-            if (!subjectId) return null; 
 
             return (
               <LessonCard
                 key={index}
-                lesson={{ subjectId, index, timeInfo }}
+                lesson={{ subjectId, index, timeInfo, data: lessonData }}
                 onPress={onLessonPress}
                 onLongPress={onLessonLongPress}
               />
@@ -100,7 +110,6 @@ export default function DaySchedule({
 const styles = StyleSheet.create({
   scrollContent: { 
     padding: 16,
-    // paddingTop задається динамічно
   },
   emptyContainer: {
     marginTop: 80,

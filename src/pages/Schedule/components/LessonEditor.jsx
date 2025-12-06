@@ -48,7 +48,12 @@ export default function LessonEditor({ lesson, onClose }) {
   const links = dataSource?.links ?? [];
   const gradients = dataSource?.gradients ?? [];
 
+  // --- STATE ---
   const [selectedSubjectId, setSelectedSubjectId] = useState(lesson?.subjectId || null);
+  
+  const [instanceData, setInstanceData] = useState(
+    lesson?.data && typeof lesson.data === 'object' ? lesson.data : {}
+  );
   
   const [currentScreen, setCurrentScreen] = useState("main"); 
   const [pickerType, setPickerType] = useState(null); 
@@ -61,7 +66,15 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const currentSubject = subjects.find((s) => s.id === selectedSubjectId) || {};
 
-  // --- АНІМАЦІЯ (Тільки для Android/Web) ---
+  // 🔥 HELPER: Санітайзер масивів (Виправляє Nested arrays error)
+  const sanitizeArray = (arr) => {
+      if (!Array.isArray(arr)) return [];
+      // .flat(Infinity) розгортає будь-яку вкладеність (наприклад [['id']] стає ['id'])
+      // .filter прибирає пусті значення, нулі та рядки "0"
+      return arr.flat(Infinity).filter(id => id && id !== 0 && id !== "0");
+  };
+
+  // --- АНІМАЦІЯ ---
   const panY = useRef(new Animated.Value(IS_IOS ? 0 : SCREEN_HEIGHT)).current;
 
   useEffect(() => {
@@ -123,6 +136,7 @@ export default function LessonEditor({ lesson, onClose }) {
     })
   ).current;
 
+  // --- НАВІГАЦІЯ ---
   const goToScreen = (screenName, data = null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     if (data !== null) setEditingItemData(data);
@@ -162,6 +176,7 @@ export default function LessonEditor({ lesson, onClose }) {
     }
   };
 
+  // --- ЗБЕРЕЖЕННЯ ---
   const handleSave = () => {
     if (!selectedSubjectId) return;
     setScheduleDraft((prev) => {
@@ -172,11 +187,26 @@ export default function LessonEditor({ lesson, onClose }) {
       if (!next.schedule[dayIndex]) next.schedule[dayIndex] = {};
       if (!next.schedule[dayIndex][weekKey]) next.schedule[dayIndex][weekKey] = [];
       const weekArr = [...next.schedule[dayIndex][weekKey]];
+      
+      const lessonObject = {
+        subjectId: selectedSubjectId,
+        ...instanceData
+      };
+
+      Object.keys(lessonObject).forEach(key => {
+          if (lessonObject[key] === undefined || lessonObject[key] === null || lessonObject[key] === "") {
+              delete lessonObject[key];
+          }
+          if (Array.isArray(lessonObject[key]) && lessonObject[key].length === 0) {
+              delete lessonObject[key];
+          }
+      });
+
       if (Number.isInteger(lesson?.index)) {
         while (weekArr.length <= lesson.index) weekArr.push(null);
-        weekArr[lesson.index] = selectedSubjectId;
+        weekArr[lesson.index] = lessonObject;
       } else {
-        weekArr.push(selectedSubjectId);
+        weekArr.push(lessonObject);
       }
       next.schedule[dayIndex][weekKey] = weekArr;
       return next;
@@ -194,6 +224,36 @@ export default function LessonEditor({ lesson, onClose }) {
       }
       return next;
     });
+  };
+
+  const handleUpdateInstance = (updates) => {
+      setInstanceData(prev => ({ ...prev, ...updates }));
+  };
+
+  // 🔥 Оновлена логіка збереження (з використанням sanitizeArray)
+  const handleGenericSave = (field, value, scope) => {
+      // Якщо це масив (вчителі, лінки), санітизуємо його перед записом
+      const cleanValue = Array.isArray(value) ? sanitizeArray(value) : value;
+
+      if (scope === 'global') {
+          handleUpdateSubject({ [field]: cleanValue });
+          setInstanceData(prev => {
+              const next = { ...prev };
+              delete next[field];
+              return next;
+          });
+      } else {
+          handleUpdateInstance({ [field]: cleanValue });
+      }
+      goToScreen("main");
+  };
+
+  const handleResetLocal = (field) => {
+      setInstanceData(prev => {
+          const next = { ...prev };
+          delete next[field];
+          return next;
+      });
   };
 
   const handleRenameSubject = (newName) => {
@@ -238,12 +298,18 @@ export default function LessonEditor({ lesson, onClose }) {
     setShowAdvancedPicker(true);
   };
 
+  // --- GET DATA ---
   const getPickerData = () => {
-    // 🔥 ВИПРАВЛЕННЯ: Фільтрація нулів у викладачів
+    
+    // 🔥 ВЧИТЕЛІ
     if (pickerType === "teacher") {
-        const rawTeachers = currentSubject.teachers || [];
-        // Фільтруємо нулі та сміття при читанні, щоб пікер показував правильні галочки
-        const cleanSelected = rawTeachers.filter(id => id && id !== 0 && id !== "0");
+        const hasLocal = instanceData.teachers !== undefined;
+        const rawTeachers = hasLocal 
+            ? instanceData.teachers 
+            : (currentSubject.teachers || (currentSubject.teacher ? [currentSubject.teacher] : []));
+            
+        // Санітизація при читанні (на випадок старих поламаних даних)
+        const cleanSelected = sanitizeArray(rawTeachers);
 
         return {
             options: teachers.map((t) => ({ key: t.id, label: t.name })),
@@ -251,46 +317,65 @@ export default function LessonEditor({ lesson, onClose }) {
             multi: true,
             onAdd: () => { const newT = addTeacher(); goToScreen("teacherEditor", newT.id); },
             onEdit: (id) => goToScreen("teacherEditor", id),
-            onSelect: (ids) => {
-                // 🔥 Фільтруємо перед збереженням! Прибираємо 0, "0", null
-                const validIds = ids.filter(id => id && id !== 0 && id !== "0");
-                handleUpdateSubject({ teachers: validIds });
-            }
+            
+            // Санітизація при збереженні (головне виправлення)
+            onSaveLocal: (ids) => handleGenericSave("teachers", ids, 'local'),
+            onSaveGlobal: (ids) => handleGenericSave("teachers", ids, 'global'),
+            
+            onReset: hasLocal ? () => handleResetLocal("teachers") : null
         };
     }
+
+    // 🔥 ПОСИЛАННЯ
     if (pickerType === "link") {
+        const hasLocal = instanceData.links !== undefined;
+        const rawLinks = hasLocal ? instanceData.links : currentSubject.links;
+        const cleanSelected = sanitizeArray(rawLinks);
+        
         return {
             options: links.map((l) => ({ key: l.id, label: l.name })),
-            selected: currentSubject.links || [],
+            selected: cleanSelected,
             multi: true,
             onAdd: () => { const newL = addLink(); goToScreen("linkEditor", newL.id); },
             onEdit: (id) => goToScreen("linkEditor", id),
-            onSelect: (ids) => handleUpdateSubject({ links: ids })
+            
+            // Санітизація при збереженні
+            onSaveLocal: (ids) => handleGenericSave("links", ids, 'local'),
+            onSaveGlobal: (ids) => handleGenericSave("links", ids, 'global'),
+            
+            onReset: hasLocal ? () => handleResetLocal("links") : null
         };
     }
+
+    // 🔥 ТИП
+    if (pickerType === "type") {
+        const types = ["Лекція", "Практика", "Лабораторна", "Семінар"];
+        const hasLocal = instanceData.type !== undefined;
+        const currentType = hasLocal ? instanceData.type : currentSubject.type;
+
+        return {
+            options: types.map(t => ({ key: t, label: t })),
+            selected: currentType ? [currentType] : [],
+            multi: false,
+            onSaveLocal: (key) => handleGenericSave("type", key, 'local'),
+            onSaveGlobal: (key) => handleGenericSave("type", key, 'global'),
+            onReset: hasLocal ? () => handleResetLocal("type") : null
+        };
+    }
+
+    // Предмет
     if (pickerType === "subject") {
         return {
             options: subjects.map((s) => ({ key: s.id, label: s.name })),
             selected: selectedSubjectId ? [selectedSubjectId] : [],
             multi: false,
             onAdd: () => { const newS = addSubject(); setSelectedSubjectId(newS.id); goToScreen("main"); },
-            onEdit: (id) => { 
-                setPickerType("subject"); 
-                setInputType("subject_rename");
-                goToScreen("input", id); 
-            },
+            onEdit: (id) => { setPickerType("subject"); setInputType("subject_rename"); goToScreen("input", id); },
             onSelect: (key) => { setSelectedSubjectId(key); goToScreen("main"); }
         };
     }
-    if (pickerType === "type") {
-        const types = ["Лекція", "Практика", "Лабораторна", "Семінар"];
-        return {
-            options: types.map(t => ({ key: t, label: t })),
-            selected: currentSubject.type ? [currentSubject.type] : [],
-            multi: false,
-            onSelect: (key) => { handleUpdateSubject({ type: key }); goToScreen("main"); }
-        };
-    }
+
+    // Іконка
     if (pickerType === "icon") {
         const iconOptions = Object.keys(SUBJECT_ICONS).map((key) => ({
             key: key,
@@ -309,31 +394,42 @@ export default function LessonEditor({ lesson, onClose }) {
             }
         };
     }
-    return { options: [], selected: [], multi: false, onSelect: () => {} };
+    return { options: [], selected: [], multi: false };
   };
 
   const pickerData = getPickerData();
 
+  // --- ДАНІ ДЛЯ INPUT ---
   const getInputData = () => {
-      if (inputType === "building") return { 
-          val: currentSubject.building, 
-          ph: "Наприклад: Головний",
-          save: (val) => { handleUpdateSubject({ building: val }); goToScreen("main"); }
-      };
-      if (inputType === "room") return { 
-          val: currentSubject.room, 
-          ph: "Наприклад: 204",
-          save: (val) => { handleUpdateSubject({ room: val }); goToScreen("main"); }
-      };
+      if (inputType === "building") {
+          const hasLocal = instanceData.building !== undefined;
+          return { 
+            val: hasLocal ? instanceData.building : (currentSubject.building || ""), 
+            ph: "Наприклад: Головний",
+            onSaveLocal: (val) => handleGenericSave("building", val, 'local'),
+            onSaveGlobal: (val) => handleGenericSave("building", val, 'global'),
+            onReset: hasLocal ? () => handleResetLocal("building") : null
+          };
+      }
+      if (inputType === "room") {
+          const hasLocal = instanceData.room !== undefined;
+          return { 
+            val: hasLocal ? instanceData.room : (currentSubject.room || ""),
+            ph: "Наприклад: 204",
+            onSaveLocal: (val) => handleGenericSave("room", val, 'local'),
+            onSaveGlobal: (val) => handleGenericSave("room", val, 'global'),
+            onReset: hasLocal ? () => handleResetLocal("room") : null
+          };
+      }
       if (inputType === "subject_rename") {
           const subj = subjects.find(s => s.id === editingItemData);
           return {
               val: subj?.name,
               ph: "Назва предмету",
-              save: handleRenameSubject
+              onSave: handleRenameSubject
           };
       }
-      return { val: "", ph: "", save: () => {} };
+      return { val: "", ph: "", onSave: () => {} };
   };
   const inputData = getInputData();
 
@@ -341,10 +437,9 @@ export default function LessonEditor({ lesson, onClose }) {
     if (!value) return null;
     if (type === "subject") return subjects.find((s) => s.id === value)?.name;
     if (type === "link" || type === "teacher") {
-        // 🔥 Також додаємо фільтрацію тут для відображення на головному екрані редактора
-        let list = Array.isArray(value) ? value : [value];
-        list = list.filter(id => id && id !== 0 && id !== "0"); // чистимо список для відображення
-
+        // Санітизація при відображенні label
+        const list = sanitizeArray(Array.isArray(value) ? value : [value]);
+        
         if (list.length === 0) return "Не обрано";
         const source = type === "link" ? links : teachers;
         const names = list.map(id => source.find(item => item.id === id)?.name).filter(Boolean);
@@ -354,33 +449,31 @@ export default function LessonEditor({ lesson, onClose }) {
     return value;
   };
 
+  // Helper для MainScreen
+  const getDisplayData = () => {
+      return {
+          teachers: instanceData.teachers !== undefined ? instanceData.teachers : (currentSubject.teachers || []),
+          links: instanceData.links !== undefined ? instanceData.links : (currentSubject.links || []),
+          type: instanceData.type !== undefined ? instanceData.type : currentSubject.type,
+          building: instanceData.building !== undefined ? instanceData.building : currentSubject.building,
+          room: instanceData.room !== undefined ? instanceData.room : currentSubject.room,
+      };
+  };
+  const displayData = getDisplayData();
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.overlay}>
+      {!IS_IOS && (<TouchableWithoutFeedback onPress={closeWithAnimation}><View style={styles.backdrop} /></TouchableWithoutFeedback>)}
       
-      {!IS_IOS && (
-        <TouchableWithoutFeedback onPress={closeWithAnimation}>
-            <View style={styles.backdrop} /> 
-        </TouchableWithoutFeedback>
-      )}
-      
-      <Animated.View 
-        style={[
-            styles.sheetContainer, 
-            { backgroundColor: themeColors.backgroundColor },
-            !IS_IOS && { transform: [{ translateY: panY }] } 
-        ]}
-      >
+      <Animated.View style={[styles.sheetContainer, { backgroundColor: themeColors.backgroundColor }, !IS_IOS && { transform: [{ translateY: panY }] }]}>
         <View {...panResponder.panHandlers} style={styles.dragZone}>
-          <View style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: themeColors.borderColor || "#ccc" }]} />
-          </View>
+          <View style={styles.handleContainer}><View style={[styles.handle, { backgroundColor: themeColors.borderColor || "#ccc" }]} /></View>
           <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
             {currentScreen === "main" ? (
               <TouchableOpacity onPress={closeWithAnimation} hitSlop={15}><Text style={{ color: themeColors.accentColor, fontSize: 17 }}>Скасувати</Text></TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={15}>
-                <Ionicons name="chevron-back" size={24} color={themeColors.accentColor} />
-                <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>Назад</Text>
+                <Ionicons name="chevron-back" size={24} color={themeColors.accentColor} /><Text style={{ color: themeColors.accentColor, fontSize: 17 }}>Назад</Text>
               </TouchableOpacity>
             )}
             <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>{getHeaderTitle()}</Text>
@@ -400,30 +493,19 @@ export default function LessonEditor({ lesson, onClose }) {
               themeColors={themeColors}
               selectedSubjectId={selectedSubjectId}
               currentSubject={currentSubject}
+              instanceData={displayData}
               gradients={gradients}
               setActivePicker={handleOpenPicker}
-              handleUpdateSubject={handleUpdateSubject}
               onEditSubjectColor={() => goToScreen("subjectColor")}
               getLabel={getLabel}
             />
           )}
 
           {currentScreen === "subjectColor" && (
-            <LessonEditorSubjectColorScreen
-              themeColors={themeColors}
-              currentSubject={currentSubject}
-              handleUpdateSubject={handleUpdateSubject}
-              onEditGradient={(grad) => { setEditingGradient(grad); goToScreen("gradientEdit"); }}
-              onAddGradient={() => { setEditingGradient(addGradient()); goToScreen("gradientEdit"); }}
-            />
+            <LessonEditorSubjectColorScreen themeColors={themeColors} currentSubject={currentSubject} handleUpdateSubject={handleUpdateSubject} onEditGradient={(grad) => { setEditingGradient(grad); goToScreen("gradientEdit"); }} onAddGradient={() => { setEditingGradient(addGradient()); goToScreen("gradientEdit"); }} />
           )}
           {currentScreen === "gradientEdit" && editingGradient && (
-            <LessonEditorGradientEditScreen
-                themeColors={themeColors}
-                gradientToEdit={editingGradient}
-                onSave={handleSaveGradient}
-                openColorPicker={openAdvancedColorPicker}
-            />
+            <LessonEditorGradientEditScreen themeColors={themeColors} gradientToEdit={editingGradient} onSave={handleSaveGradient} openColorPicker={openAdvancedColorPicker} />
           )}
 
           {currentScreen === "picker" && (
@@ -432,7 +514,12 @@ export default function LessonEditor({ lesson, onClose }) {
               options={pickerData.options}
               selectedValues={pickerData.selected}
               multiSelect={pickerData.multi}
-              onSelect={pickerData.onSelect}
+              
+              onSelect={pickerData.onSelect} 
+              onSaveLocal={pickerData.onSaveLocal} 
+              onSaveGlobal={pickerData.onSaveGlobal} 
+              onReset={pickerData.onReset}
+              
               onEdit={pickerData.onEdit}
               onAdd={pickerData.onAdd}
               themeColors={themeColors}
@@ -445,36 +532,21 @@ export default function LessonEditor({ lesson, onClose }) {
                 title={getHeaderTitle()}
                 initialValue={inputData.val}
                 placeholder={inputData.ph}
-                onSave={inputData.save}
+                
+                onSave={inputData.onSave} 
+                onSaveLocal={inputData.onSaveLocal} 
+                onSaveGlobal={inputData.onSaveGlobal} 
+                onReset={inputData.onReset}
+                
                 themeColors={themeColors}
             />
           )}
 
-          {currentScreen === "teacherEditor" && (
-            <TeacherEditor 
-                teacherId={editingItemData} 
-                onBack={() => goToScreen("picker")}
-                themeColors={themeColors}
-            />
-          )}
-          {currentScreen === "linkEditor" && (
-            <LinkEditor 
-                linkId={editingItemData} 
-                onBack={() => goToScreen("picker")}
-                themeColors={themeColors}
-            />
-          )}
+          {currentScreen === "teacherEditor" && (<TeacherEditor teacherId={editingItemData} onBack={() => goToScreen("picker")} themeColors={themeColors}/>)}
+          {currentScreen === "linkEditor" && (<LinkEditor linkId={editingItemData} onBack={() => goToScreen("picker")} themeColors={themeColors}/>)}
         </View>
       </Animated.View>
-
-      {advancedPickerTarget && (
-        <AdvancedColorPicker
-            visible={showAdvancedPicker}
-            initialColor={advancedPickerTarget.colorValue}
-            onSave={(color) => { advancedPickerTarget.setter(color); setShowAdvancedPicker(false); }}
-            onClose={() => setShowAdvancedPicker(false)}
-        />
-      )}
+      {advancedPickerTarget && (<AdvancedColorPicker visible={showAdvancedPicker} initialColor={advancedPickerTarget.colorValue} onSave={(color) => { advancedPickerTarget.setter(color); setShowAdvancedPicker(false); }} onClose={() => setShowAdvancedPicker(false)}/>)}
     </KeyboardAvoidingView>
   );
 }
@@ -482,18 +554,7 @@ export default function LessonEditor({ lesson, onClose }) {
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" }, 
-  sheetContainer: { 
-      flex: 1, 
-      marginTop: IS_IOS ? 0 : '10%',
-      borderTopLeftRadius: IS_IOS ? 0 : 20, 
-      borderTopRightRadius: IS_IOS ? 0 : 20, 
-      overflow: "hidden", 
-      shadowColor: "#000", 
-      shadowOffset: { width: 0, height: -5 }, 
-      shadowOpacity: 0.3, 
-      shadowRadius: 10, 
-      elevation: 10 
-  },
+  sheetContainer: { flex: 1, marginTop: IS_IOS ? 0 : '10%', borderTopLeftRadius: IS_IOS ? 0 : 20, borderTopRightRadius: IS_IOS ? 0 : 20, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: -5 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 10 },
   dragZone: { backgroundColor: "transparent", paddingTop: 10 },
   handleContainer: { alignItems: "center", paddingBottom: 10 },
   handle: { width: 40, height: 5, borderRadius: 3, opacity: 0.5 },
