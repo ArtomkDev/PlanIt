@@ -89,47 +89,29 @@ export default function LessonEditor({ lesson, onClose }) {
     }
   };
 
-  // 🔥 "ЖИВИЙ" PAN RESPONDER
   const panResponder = useRef(
     PanResponder.create({
-      // Даємо кнопкам шанс отримати клік. Перехоплюємо тільки якщо є рух.
       onStartShouldSetPanResponder: () => false,
-      
       onMoveShouldSetPanResponder: (_, gestureState) => {
         if (IS_IOS) return false;
-        // Поріг зменшено до 5 пікселів для чутливості
         return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
-
       onPanResponderGrant: () => {
-        // Зупиняємо попередню анімацію, щоб "спіймати" шторку під пальцем
         panY.stopAnimation();
       },
-
       onPanResponderMove: (_, gestureState) => {
         if (IS_IOS) return;
-        
         let newY = gestureState.dy;
-
-        // ЕФЕКТ ГУМКИ (Rubber Banding) при русі вгору
         if (newY < 0) {
-            // Чим вище тягнемо, тим важче йде (логарифмічний опір)
             newY = -Math.pow(Math.abs(newY), 0.8); 
         }
-        
         panY.setValue(newY);
       },
-
       onPanResponderRelease: (_, gestureState) => {
         if (IS_IOS) return;
-
-        // Логіка закриття:
-        // 1. Швидкий свайп вниз (vy > 0.5)
-        // 2. Або просто потягнули достатньо далеко вниз (> 120px)
         if (gestureState.dy > 120 || (gestureState.vy > 0.5 && gestureState.dy > 40)) {
           closeWithAnimation();
         } else {
-          // Повертаємо назад "пружинкою" - м'яко і приємно
           Animated.spring(panY, { 
               toValue: 0, 
               useNativeDriver: true, 
@@ -141,7 +123,6 @@ export default function LessonEditor({ lesson, onClose }) {
     })
   ).current;
 
-  // --- НАВІГАЦІЯ ---
   const goToScreen = (screenName, data = null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     if (data !== null) setEditingItemData(data);
@@ -258,14 +239,23 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const getPickerData = () => {
+    // 🔥 ВИПРАВЛЕННЯ: Фільтрація нулів у викладачів
     if (pickerType === "teacher") {
+        const rawTeachers = currentSubject.teachers || [];
+        // Фільтруємо нулі та сміття при читанні, щоб пікер показував правильні галочки
+        const cleanSelected = rawTeachers.filter(id => id && id !== 0 && id !== "0");
+
         return {
             options: teachers.map((t) => ({ key: t.id, label: t.name })),
-            selected: currentSubject.teachers || [],
+            selected: cleanSelected,
             multi: true,
             onAdd: () => { const newT = addTeacher(); goToScreen("teacherEditor", newT.id); },
             onEdit: (id) => goToScreen("teacherEditor", id),
-            onSelect: (ids) => handleUpdateSubject({ teachers: ids })
+            onSelect: (ids) => {
+                // 🔥 Фільтруємо перед збереженням! Прибираємо 0, "0", null
+                const validIds = ids.filter(id => id && id !== 0 && id !== "0");
+                handleUpdateSubject({ teachers: validIds });
+            }
         };
     }
     if (pickerType === "link") {
@@ -351,7 +341,10 @@ export default function LessonEditor({ lesson, onClose }) {
     if (!value) return null;
     if (type === "subject") return subjects.find((s) => s.id === value)?.name;
     if (type === "link" || type === "teacher") {
-        const list = Array.isArray(value) ? value : [value];
+        // 🔥 Також додаємо фільтрацію тут для відображення на головному екрані редактора
+        let list = Array.isArray(value) ? value : [value];
+        list = list.filter(id => id && id !== 0 && id !== "0"); // чистимо список для відображення
+
         if (list.length === 0) return "Не обрано";
         const source = type === "link" ? links : teachers;
         const names = list.map(id => source.find(item => item.id === id)?.name).filter(Boolean);
@@ -492,7 +485,6 @@ const styles = StyleSheet.create({
   sheetContainer: { 
       flex: 1, 
       marginTop: IS_IOS ? 0 : '10%',
-      // 🔥 На iOS радіус нульовий, щоб уникнути білих кутиків системи
       borderTopLeftRadius: IS_IOS ? 0 : 20, 
       borderTopRightRadius: IS_IOS ? 0 : 20, 
       overflow: "hidden", 
