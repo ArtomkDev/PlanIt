@@ -1,19 +1,21 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { StyleSheet, View, Modal, TouchableOpacity, Text, FlatList, Dimensions, Platform, useWindowDimensions, Animated } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { StyleSheet, View, Modal, TouchableOpacity, Text, FlatList, Platform, useWindowDimensions, Animated } from "react-native";
+// 👇 ДОДАНО ЦЕЙ РЯДОК
+import { Ionicons } from "@expo/vector-icons"; 
 
 import Header from "./components/Header";
 import WeekStrip from "./components/WeekStrip";
 import DaySchedule from "./components/DaySchedule";
 import LessonEditor from "./components/LessonEditor";
-import LessonViewer from "./components/LessonViewer"; // 🔥 Імпортуємо новий компонент
+import LessonViewer from "./components/LessonViewer";
+import CalendarSheet from "./components/CalendarSheet/CalendarSheet";
 import AppBlur from "../../components/AppBlur";
 
 import { DayScheduleProvider } from "../../context/DayScheduleProvider";
 import { useSchedule } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
 
-const HALF_SIZE = 1000;
+const HALF_SIZE = 300; 
 const TOTAL_SIZE = HALF_SIZE * 2 + 1;
 const DAYS_INDICES = Array.from({ length: TOTAL_SIZE }, (_, i) => i - HALF_SIZE);
 
@@ -21,13 +23,14 @@ export default function Schedule() {
   const { global, schedule } = useSchedule();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   
-  const [anchorDate] = useState(new Date());
+  const [anchorDate, setAnchorDate] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
+  const [calendarVisible, setCalendarVisible] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState(null);
 
   const flatListRef = useRef(null);
@@ -52,10 +55,20 @@ export default function Schedule() {
   const goToDate = (targetDate, animated = true) => {
     const diffTime = targetDate.getTime() - anchorDate.getTime();
     const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
-    const index = diffDays + HALF_SIZE;
-    if (index >= 0 && index < TOTAL_SIZE) {
-      flatListRef.current?.scrollToIndex({ index, animated });
+    
+    const targetIndex = diffDays + HALF_SIZE;
+
+    const isSafeRange = targetIndex >= 5 && targetIndex <= TOTAL_SIZE - 5;
+
+    if (isSafeRange) {
+      flatListRef.current?.scrollToIndex({ index: targetIndex, animated });
       setCurrentDate(targetDate);
+    } else {
+      setAnchorDate(targetDate);
+      setCurrentDate(targetDate);
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ index: HALF_SIZE, animated: false });
+      }, 0);
     }
   };
 
@@ -66,6 +79,7 @@ export default function Schedule() {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / SCREEN_WIDTH);
     const offset = index - HALF_SIZE;
+    
     const newDate = getDateByOffset(offset);
 
     if (newDate.toDateString() !== currentDate.toDateString()) {
@@ -95,11 +109,8 @@ export default function Schedule() {
 
   const openViewer = (lesson) => { setSelectedLesson(lesson); setViewerVisible(true); };
   
-  // 🔥 Оновлена функція редагування
   const openEditor = (lesson) => { 
-      // Закриваємо переглядач, якщо він відкритий
       setViewerVisible(false);
-      // Коротка затримка, щоб модалки не накладалися
       setTimeout(() => {
           setSelectedLesson(lesson); 
           setEditorVisible(true); 
@@ -120,6 +131,7 @@ export default function Schedule() {
             currentDate={currentDate} 
             onDateChange={handleDateChange} 
             onTodayPress={handleToday}
+            onTitlePress={() => setCalendarVisible(true)} 
         />
         <WeekStrip 
             currentDate={currentDate} 
@@ -169,19 +181,26 @@ export default function Schedule() {
           </TouchableOpacity>
       </View>
 
-      {/* MODAL EDIT */}
       <Modal visible={editorVisible} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'} transparent={Platform.OS !== 'ios'} onRequestClose={() => setEditorVisible(false)}>
          <DayScheduleProvider date={currentDate}>
              <LessonEditor lesson={selectedLesson} onClose={() => setEditorVisible(false)} />
          </DayScheduleProvider>
       </Modal>
 
-      {/* 🔥 NEW MODAL VIEWER */}
       <LessonViewer 
         visible={viewerVisible}
         lesson={selectedLesson}
         onClose={() => setViewerVisible(false)}
         onEdit={openEditor}
+      />
+
+      <CalendarSheet 
+        visible={calendarVisible}
+        currentDate={currentDate}
+        onClose={() => setCalendarVisible(false)}
+        onDateSelect={(date) => {
+            goToDate(date, true);
+        }}
       />
 
     </View>
@@ -202,6 +221,10 @@ const styles = StyleSheet.create({
 
   fab: { 
       position: 'absolute', bottom: 90, right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', zIndex: 50,
-      ...Platform.select({ web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.3)' }, default: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4.65, elevation: 8 } })
+      // 🔥 Виправлення shadow для Web
+      ...Platform.select({ 
+          web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.3)' }, 
+          default: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4.65, elevation: 8 } 
+      })
   }
 });
