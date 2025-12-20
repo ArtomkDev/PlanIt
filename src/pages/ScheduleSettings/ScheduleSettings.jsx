@@ -1,10 +1,12 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { signOut } from 'firebase/auth'; // 1. Імпорт функції виходу
 
+import { auth } from '../../../firebase';
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/SettingsHeader';
@@ -21,8 +23,6 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
 
-  // --- ДАНІ ---
-  // 🔥 ВИПРАВЛЕННЯ: Читаємо налаштування автозбереження з global
   const autoSaveVal = global?.auto_save; 
   const autoSaveEnabled = typeof autoSaveVal === 'number' && autoSaveVal > 0;
   
@@ -31,10 +31,35 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const subjectsCount = Array.isArray(schedule?.subjects) ? schedule.subjects.length : undefined;
   const teachersCount = Array.isArray(schedule?.teachers) ? schedule.teachers.length : undefined;
 
+  // Дія для Гостя (повернутись на екран входу)
   const handleAuthAction = () => {
     if (guest && onExitGuest) {
       onExitGuest();
     }
+  };
+
+  // 3. Функція виходу з акаунта
+  const handleSignOut = async () => {
+    Alert.alert(
+      "Вихід",
+      "Ви впевнені, що хочете вийти з акаунту?",
+      [
+        { text: "Скасувати", style: "cancel" },
+        { 
+          text: "Вийти", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await signOut(auth);
+              // App.js автоматично перекине на WelcomeScreen через onAuthStateChanged
+            } catch (error) {
+              console.error("Помилка виходу:", error);
+              Alert.alert("Помилка", "Не вдалося вийти з акаунту");
+            }
+          } 
+        }
+      ]
+    );
   };
 
   const sections = useMemo(() => ([
@@ -64,7 +89,6 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
     {
       title: 'Автоматизація',
       data: [
-        // 🔥 ВИПРАВЛЕННЯ: Відображаємо актуальні дані з global
         { 
           label: 'Авто збереження', 
           screen: 'AutoSave', 
@@ -76,10 +100,13 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
     },
     {
       title: 'Акаунт',
+      // 4. Логіка відображення кнопок
       data: !user ? [
         { label: 'Увійти або Створити акаунт', action: handleAuthAction, icon: 'log-in-outline', desc: 'Синхронізуйте дані в хмарі' },
       ] : [
         { label: 'Пристрої', screen: 'DeviceService', icon: 'layers-outline', desc: 'Налаштування авторизованих пристроїв' },
+        // 🔥 Додана кнопка виходу
+        { label: 'Вийти з акаунту', action: handleSignOut, icon: 'log-out-outline', desc: 'Завершити сесію', danger: true },
       ],
     },
     {
@@ -91,7 +118,6 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
     },
   ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveVal, guest, user]);
 
-  // --- ЛОГІКА ВІДСТЕЖЕННЯ СЕКЦІЙ ---
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const sectionPositions = useRef([]);
 
@@ -127,9 +153,20 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
       ]}
     >
       <View style={styles.left}>
-        <Icon name={item.icon} size={20} color={themeColors.textColor2} style={{ marginRight: 10 }} />
+        {/* Фарбуємо іконку в червоний, якщо це небезпечна дія (danger: true) */}
+        <Icon 
+          name={item.icon} 
+          size={20} 
+          color={item.danger ? '#ff453a' : themeColors.textColor2} 
+          style={{ marginRight: 10 }} 
+        />
         <View style={{ flexShrink: 1 }}>
-          <Text style={[styles.title, { color: themeColors.textColor }]}>{item.label}</Text>
+          <Text style={[
+            styles.title, 
+            { color: item.danger ? '#ff453a' : themeColors.textColor }
+          ]}>
+            {item.label}
+          </Text>
           {!!item.desc && (
             <Text style={[styles.desc, { color: themeColors.textColor2 }]} numberOfLines={1}>
               {item.desc}

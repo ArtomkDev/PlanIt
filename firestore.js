@@ -34,7 +34,7 @@ export const saveLocalSchedule = async (schedule) => {
 // ------------------- ОТРИМАННЯ (FIREBASE) -------------------
 export const getSchedule = async (userId) => {
   try {
-    // 1. Отримуємо Global Settings (users/{userId}/global/settings)
+    // 1. Отримуємо Global Settings
     const globalRef = doc(db, 'users', userId, 'global', 'settings');
     const globalSnap = await getDoc(globalRef);
     
@@ -42,7 +42,7 @@ export const getSchedule = async (userId) => {
     if (globalSnap.exists()) {
       globalData = globalSnap.data();
     } else {
-      // Якщо немає - перевіримо корінь документа юзера (стара версія)
+      // Фолбек для старої структури
       const userDocRef = doc(db, "users", userId);
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists() && userDocSnap.data().global) {
@@ -50,7 +50,7 @@ export const getSchedule = async (userId) => {
       }
     }
 
-    // 2. Отримуємо Schedules (users/{userId}/schedules/{scheduleId})
+    // 2. Отримуємо Schedules
     const schedulesRef = collection(db, 'users', userId, 'schedules');
     const schedulesSnap = await getDocs(schedulesRef);
 
@@ -59,14 +59,10 @@ export const getSchedule = async (userId) => {
       ...doc.data()
     }));
 
-    // Якщо нічого немає - створюємо дефолтні
     if (!globalData && schedulesList.length === 0) {
-      const defaultData = createDefaultData();
-      // Повертаємо структуру, ScheduleProvider сам збереже її при першому сейві
-      return defaultData; 
+      return createDefaultData(); 
     }
 
-    // Якщо глобальні дані пусті, але є розклади (рідкісний кейс)
     if (!globalData) {
       const def = createDefaultData();
       globalData = def.global;
@@ -79,7 +75,6 @@ export const getSchedule = async (userId) => {
 
   } catch (error) {
     console.error("Error getting schedule:", error);
-    // Фолбек на локальні дані
     const local = await getLocalSchedule();
     return local || createDefaultData();
   }
@@ -90,14 +85,11 @@ export const saveSchedule = async (userId, data) => {
   try {
     const batch = writeBatch(db);
 
-    // 1. Зберігаємо Global (в users/{userId}/global/settings)
-    // Використовуємо підколекцію 'global', щоб не засмічувати документ юзера
     if (data.global) {
       const globalRef = doc(db, 'users', userId, 'global', 'settings');
       batch.set(globalRef, data.global, { merge: true });
     }
 
-    // 2. Зберігаємо Schedules (в users/{userId}/schedules/{scheduleId})
     if (data.schedules && Array.isArray(data.schedules)) {
       data.schedules.forEach((schedule) => {
         if (schedule && schedule.id) {
@@ -107,15 +99,36 @@ export const saveSchedule = async (userId, data) => {
       });
     }
 
-    // 3. Атомарний запис
     await batch.commit();
-
-    // 4. Локальна копія
     await saveLocalSchedule(data);
-    console.log("✅ [Cloud] Saved successfully to subcollections");
-
+    console.log("✅ [Cloud] Saved successfully");
   } catch (error) {
     console.error("❌ [Cloud] Save error:", error);
+    throw error;
+  }
+};
+
+// 🔥 НОВА ФУНКЦІЯ: Очищаємо ТІЛЬКИ розклади
+export const resetUserSchedules = async (userId) => {
+  try {
+    const batch = writeBatch(db);
+    
+    // Беремо всі документи з підколекції schedules
+    const schedulesRef = collection(db, 'users', userId, 'schedules');
+    const snapshot = await getDocs(schedulesRef);
+
+    if (snapshot.empty) return;
+
+    // Видаляємо кожен документ розкладу
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // global і devices не чіпаємо!
+    await batch.commit();
+    console.log("✅ [Cloud] Schedules cleared (Global preserved)");
+  } catch (error) {
+    console.error("❌ [Cloud] Reset error:", error);
     throw error;
   }
 };

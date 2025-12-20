@@ -1,51 +1,105 @@
-import { doc, setDoc } from 'firebase/firestore'
-import React from 'react'
-import { Alert, Button, StyleSheet, View } from 'react-native'
-import { auth, db } from '../../../../firebase'
-import createDefaultData from '../../../config/createDefaultData'
-import SettingsScreenLayout from '../SettingsScreenLayout'
-import SignOutButton from './SignOutButton'
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { useSchedule } from '../../../context/ScheduleProvider';
+import SettingsScreenLayout from '../SettingsScreenLayout';
+import themes from '../../../config/themes';
 
 export default function ResetDB() {
-	const resetFirestore = async () => {
-		const user = auth.currentUser
-		if (!user) {
-			Alert.alert('Помилка', 'Будь ласка, увійдіть у свій акаунт.')
-			return
-		}
+  const { resetApplication, global, isLoading } = useSchedule();
+  const [isResetting, setIsResetting] = useState(false);
 
-		try {
-			const scheduleRef = doc(db, 'schedules', user.uid)
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
 
-			// Створюємо нові дані по новій структурі
-			const newData = createDefaultData()
+  const handleReset = () => {
+    Alert.alert(
+      "Скинути розклади?",
+      "Ваші налаштування теми та акаунту збережуться, але всі створені розклади будуть видалені і замінені на стандартний.",
+      [
+        { text: "Скасувати", style: "cancel" },
+        {
+          text: "Скинути",
+          style: "destructive",
+          onPress: async () => {
+            setIsResetting(true);
+            await resetApplication();
+            setIsResetting(false);
+            Alert.alert("Успішно", "Розклади оновлено.");
+          },
+        },
+      ]
+    );
+  };
 
-			// Записуємо у Firestore
-			await setDoc(scheduleRef, { schedule: newData })
+  return (
+    <SettingsScreenLayout>
+      <View style={styles.container}>
+        <View style={styles.warningBox}>
+          <Text style={styles.warningTitle}>Очищення розкладів</Text>
+          <Text style={styles.warningText}>
+            Ця дія видалить усі ваші поточні пари та розклади, але збереже налаштування додатку.
+          </Text>
+        </View>
 
-			Alert.alert('Успіх', 'Розклад скинуто на дефолтний!')
-		} catch (error) {
-			console.error('Помилка при оновленні Firestore:', error)
-			Alert.alert('Помилка', 'Сталася помилка. Спробуйте ще раз.')
-		}
-	}
-
-	return (
-		<SettingsScreenLayout>
-			<View style={styles.container}>
-				<Button
-					title='Скинути розклад'
-					onPress={resetFirestore}
-					color='red'
-				/>
-				<SignOutButton />
-			</View>
-		</SettingsScreenLayout>
-	)
+        <TouchableOpacity
+          style={[styles.resetButton, { opacity: isResetting || isLoading ? 0.6 : 1 }]}
+          onPress={handleReset}
+          disabled={isResetting || isLoading}
+        >
+          {isResetting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.resetButtonText}>Скинути розклади</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SettingsScreenLayout>
+  );
 }
 
 const styles = StyleSheet.create({
-	container: {
-		padding: 16,
-	},
-})
+  container: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  warningBox: {
+    backgroundColor: '#fff3cd', // Жовтий замість червоного, бо це не повний wipe
+    borderColor: '#ffecb5',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 30,
+    width: '100%',
+  },
+  warningTitle: {
+    color: '#856404',
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  warningText: {
+    color: '#856404',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  resetButton: {
+    backgroundColor: '#ff4d4d',
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: "#ff4d4d",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});

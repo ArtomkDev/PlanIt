@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
 import { AppState } from 'react-native';
-import { getSchedule, saveSchedule } from "../../firestore";
-import { getLocalSchedule, saveLocalSchedule } from "../utils/storage";
+// 🔥 ДОДАНО resetUserSchedules
+import { getSchedule, saveSchedule, resetUserSchedules, saveLocalSchedule, getLocalSchedule } from "../../firestore";
 import createDefaultData from "../config/createDefaultData";
 
 const ScheduleContext = createContext(null);
@@ -10,10 +10,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDirty, setIsDirty] = useState(false); // Тільки для хмари
-  const [isSaving, setIsSaving] = useState(false); // Тільки для хмари
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // ------------------ LOAD ------------------
   useEffect(() => {
@@ -40,17 +40,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     load();
   }, [guest, user]);
 
-  // ------------------ GUEST MODE: миттєве збереження ------------------
+  // ------------------ GUEST SAVE ------------------
   useEffect(() => {
     if (!guest || !data || isLoading) return;
-
     const saveGuestData = async () => {
       await saveLocalSchedule(data);
     };
-
     saveGuestData();
   }, [data, guest, isLoading]);
-
 
   // ------------------ SELECTORS ------------------
   const currentScheduleId = data?.global?.currentScheduleId || null;
@@ -65,7 +62,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const global = data?.global || null;
 
-  // ------------------ FIX INVALID currentScheduleId ------------------
+  // ------------------ FIX INVALID ID ------------------
   useEffect(() => {
     if (!data?.schedules?.length) return;
     const exists = data.schedules.some((s) => s.id === currentScheduleId);
@@ -79,19 +76,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [data, currentScheduleId, guest]);
 
-  // ------------------ UPDATE ------------------
+  // ------------------ UPDATERS ------------------
   const setScheduleDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
       const currentId = prev?.global?.currentScheduleId;
       if (!currentId) return prev;
-
       const nextSchedules = prev.schedules.map((s) =>
-        s.id === currentId
-          ? typeof updater === "function"
-            ? updater(s)
-            : updater
-          : s
+        s.id === currentId ? (typeof updater === "function" ? updater(s) : updater) : s
       );
       return { ...prev, schedules: nextSchedules };
     });
@@ -116,15 +108,12 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!guest) setIsDirty(true);
   }, [guest]);
 
-  // ------------------ SAVE (тільки для хмари) ------------------
+  // ------------------ SAVE (CLOUD) ------------------
   const saveNow = useCallback(async () => {
-    // Перевірка: Якщо гість, або немає даних, або вже зберігається, або немає змін -> вихід
     if (guest || !data || isSaving || !isDirty) return;
-    
     setIsSaving(true);
     setIsCloudSaving(true);
     try {
-      // 🔥 Переконуємось, що передаємо user.uid і об'єкт data
       await saveSchedule(user.uid, data);
       setIsDirty(false);
     } catch (e) {
@@ -157,7 +146,48 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [guest, user]);
 
-  // ------------------ VALUE ------------------
+  // 🔥 ОНОВЛЕНА ФУНКЦІЯ СКИДАННЯ
+  const resetApplication = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // 1. Зберігаємо поточні налаштування (Global), щоб не видалити їх
+      const currentGlobal = data?.global || createDefaultData().global;
+
+      // 2. Очищаємо лише розклади в хмарі
+      if (user) {
+        await resetUserSchedules(user.uid);
+      }
+
+      // 3. Генеруємо нові дефолтні дані (там є новий розклад)
+      const defaultData = createDefaultData();
+
+      // 4. Об'єднуємо: Старий Global + Нові Schedules
+      const newData = {
+          global: currentGlobal,
+          schedules: defaultData.schedules
+      };
+
+      // 5. Оновлюємо стан додатка
+      setData(newData);
+
+      // 6. Зберігаємо новий розклад в БД (Global просто перезапишеться тим самим, це безпечно)
+      if (user) {
+        await saveSchedule(user.uid, newData);
+      } else {
+        await saveLocalSchedule(newData);
+      }
+
+      setIsDirty(false);
+      console.log("✅ Schedules reset successful. Settings preserved.");
+
+    } catch (e) {
+      console.error("❌ Reset Error:", e);
+      setError("Не вдалося скинути розклади");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, data]);
+
   const value = {
     user,
     guest,
@@ -170,6 +200,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     addSchedule,
     saveNow,
     reloadAllSchedules,
+    resetApplication, // 🔥 Експортуємо нову функцію
     isDirty,
     isSaving,
     isCloudSaving,
