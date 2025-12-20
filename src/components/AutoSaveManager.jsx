@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, Text, Pressable } from "react-native";
+import { Animated, StyleSheet, Pressable } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { useSchedule } from "../context/ScheduleProvider";
 
@@ -7,164 +7,167 @@ export default function AutoSaveManager() {
   const { saveNow, isCloudSaving, isDirty, user, global } = useSchedule();
   const autoSaveInterval = global?.auto_save || 60;
 
-  const timerRef = useRef(null);
   const [timeLeft, setTimeLeft] = useState(autoSaveInterval);
   const [isConnected, setIsConnected] = useState(true);
-  const [showReconnected, setShowReconnected] = useState(false);
+  
+  // UI States
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusColor, setStatusColor] = useState("#4dff88"); 
+  const [showSavedState, setShowSavedState] = useState(false); // Для утримання "Збережено"
 
+  // Refs
+  const timerRef = useRef(null);
+  const hideTimeoutRef = useRef(null);
+  
+  // Animations
   const heightAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const bgColorAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
-  const [displayText, setDisplayText] = useState("");
-  const [shouldShow, setShouldShow] = useState(false);
-  const [hideTimeout, setHideTimeout] = useState(null);
-  const lastColorValue = useRef(0);
-
-  // прапорець для виклику saveNow
-  const [shouldSave, setShouldSave] = useState(false);
-
-  // Слухаємо інтернет тільки якщо є користувач
+  // 1. Monitor Connection
   useEffect(() => {
     if (!user) return;
     const unsubscribe = NetInfo.addEventListener((state) => {
-      const wasDisconnected = !isConnected && state.isConnected;
-      setIsConnected(state.isConnected);
-
-      if (wasDisconnected) {
-        setShowReconnected(true);
-        setTimeout(() => setShowReconnected(false), 1000);
-      }
+      setIsConnected(!!state.isConnected);
     });
     return () => unsubscribe();
-  }, [isConnected, user]);
+  }, [user]);
 
-  // Анімація таблички
-  useEffect(() => {
-    if (!user) return;
-    const shouldBeVisible = isDirty || isCloudSaving || !isConnected || showReconnected;
-    if (shouldBeVisible) {
-      if (hideTimeout) {
-        clearTimeout(hideTimeout);
-        setHideTimeout(null);
-      }
-      setShouldShow(true);
-      Animated.timing(heightAnim, {
-        toValue: 45,
-        duration: 400,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: false,
-      }).start();
-      if (isDirty && !timerRef.current) startAutoSave();
-    } else {
-      const timeout = setTimeout(() => {
-        Animated.timing(heightAnim, {
-          toValue: 0,
-          duration: 400,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: false,
-        }).start(() => setShouldShow(false));
-        stopAutoSave();
-      }, 5000);
-      setHideTimeout(timeout);
-    }
-  }, [isDirty, isCloudSaving, isConnected, showReconnected, user]);
-
-  // Текст + колір
+  // 2. LOGIC: Timer (Non-resetting)
   useEffect(() => {
     if (!user) return;
 
-    let newText = "";
-    let colorValue = 0; // 0 = жовтий, 1 = червоний, 2 = зелений
+    // Якщо є зміни, є інтернет, не йде збереження і таймер ЩЕ НЕ ЗАПУЩЕНИЙ
+    if (isDirty && isConnected && !isCloudSaving && !timerRef.current) {
+      
+      // Скидаємо час на початок циклу тільки якщо таймер не був активний
+      setTimeLeft(autoSaveInterval);
 
-    if (showReconnected) {
-      newText = "З'єднання відновлено";
-      colorValue = 2;
-    } else if (!isConnected) {
-      newText = "Немає інтернету";
-      colorValue = 1;
-    } else if (isCloudSaving) {
-      newText = "Збереження у хмару...";
-      colorValue = 0;
-    } else if (isDirty) {
-      newText = `Автозбереження через: ${timeLeft} сек.`;
-      colorValue = 0;
-    } else {
-      newText = "Усі зміни збережені у хмарі!";
-      colorValue = 2;
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Час вийшов -> Зберігаємо
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+            saveNow(); 
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
-
-    if (lastColorValue.current !== colorValue) {
-      Animated.timing(bgColorAnim, {
-        toValue: colorValue,
-        duration: 300,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }).start();
-      lastColorValue.current = colorValue;
-    }
-
-    if (displayText.split(":")[0] !== newText.split(":")[0]) {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: false,
-      }).start(() => {
-        setDisplayText(newText);
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: false,
-        }).start();
-      });
-    } else {
-      setDisplayText(newText);
-    }
-  }, [isConnected, isCloudSaving, isDirty, timeLeft, showReconnected, user]);
-
-  // Таймер автозбереження
-  const startAutoSave = () => {
-    stopAutoSave();
-    setTimeLeft(autoSaveInterval);
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev > 1) return prev - 1;
-
-        // ⚡️ Збереження лише якщо немає активного Cloud Saving
-        if (isConnected && isDirty && !isCloudSaving) {
-          setShouldSave(true);
-        }
-        return autoSaveInterval;
-      });
-    }, 1000);
-  };
-
-  const stopAutoSave = () => {
-    if (timerRef.current) {
+    
+    // Якщо раптом зник інтернет або почалося хмарне збереження - ставимо таймер на паузу/стоп
+    if ((!isConnected || isCloudSaving) && timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+
+    return () => {
+      // Чистимо таймер тільки при розмонтуванні компонента
+      // (ми навмисно не чистимо його при зміні isDirty, щоб він не скидався)
+    };
+  }, [isDirty, isConnected, isCloudSaving, autoSaveInterval, user, saveNow]);
+
+  // 3. LOGIC: Handle "Saved" state duration (5 seconds)
+  useEffect(() => {
+    // Якщо збереження завершилось (isCloudSaving: true -> false) і немає нових змін (!isDirty)
+    if (!isCloudSaving && !isDirty && isConnected) {
+      setShowSavedState(true);
+      
+      // Очищаємо попередній таймаут, якщо був
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+
+      // Ховаємо через 5 секунд
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowSavedState(false);
+      }, 5000);
+    } else if (isDirty || isCloudSaving || !isConnected) {
+      // Якщо почали щось міняти - одразу прибираємо стан "Збережено" (щоб показати таймер)
+      setShowSavedState(false);
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    }
+  }, [isCloudSaving, isDirty, isConnected]);
+
+
+  // 4. UI: Update Text & Visibility
+  useEffect(() => {
+    let shouldShow = false;
+
+    if (!isConnected) {
+      setStatusMessage("Немає інтернету");
+      setStatusColor("#ff4d4d"); // Red
+      shouldShow = true;
+    } else if (isCloudSaving) {
+      setStatusMessage("Збереження у хмару...");
+      setStatusColor("#ffcc00"); // Yellow
+      shouldShow = true;
+    } else if (isDirty) {
+      setStatusMessage(`Автозбереження через: ${timeLeft} сек`);
+      setStatusColor("#ffcc00"); // Yellow
+      shouldShow = true;
+    } else if (showSavedState) {
+      // Показуємо "Збережено" протягом 5 секунд
+      setStatusMessage("Всі зміни збережено");
+      setStatusColor("#4dff88"); // Green
+      shouldShow = true;
+    } else {
+      shouldShow = false;
+    }
+
+    if (shouldShow) {
+      showBar();
+    } else {
+      hideBar();
+    }
+  }, [isConnected, isCloudSaving, isDirty, timeLeft, showSavedState]);
+
+  const showBar = () => {
+    Animated.parallel([
+      Animated.timing(heightAnim, {
+        toValue: 40,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      })
+    ]).start();
   };
 
-  // Викликаємо saveNow тільки після рендера
-  useEffect(() => {
-    if (shouldSave) {
-      saveNow();
-      setShouldSave(false);
-    }
-  }, [shouldSave, saveNow]);
+  const hideBar = () => {
+    Animated.parallel([
+      Animated.timing(heightAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      })
+    ]).start();
+  };
 
-  const backgroundColor = bgColorAnim.interpolate({
-    inputRange: [0, 1, 2],
-    outputRange: ["#ffcc00", "#ff4d4d", "#4dff88"],
-  });
-
-  if (!user || !shouldShow) return null;
+  if (!user) return null;
 
   return (
-    <Pressable onPress={saveNow}>
-      <Animated.View style={[styles.container, { height: heightAnim, backgroundColor }]}>
-        <Animated.Text style={[styles.text, { opacity: fadeAnim }]}>{displayText}</Animated.Text>
+    <Pressable onPress={isDirty ? saveNow : null}>
+      <Animated.View 
+        style={[
+          styles.container, 
+          { 
+            height: heightAnim, 
+            backgroundColor: statusColor,
+            opacity: opacityAnim
+          }
+        ]}
+      >
+        <Animated.Text style={styles.text}>
+          {statusMessage}
+        </Animated.Text>
       </Animated.View>
     </Pressable>
   );
@@ -172,13 +175,14 @@ export default function AutoSaveManager() {
 
 const styles = StyleSheet.create({
   container: {
+    width: "100%",
     alignItems: "center",
-    overflow: "hidden",
     justifyContent: "center",
+    overflow: "hidden",
   },
   text: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1a1a1a",
   },
 });

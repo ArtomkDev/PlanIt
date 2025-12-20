@@ -118,16 +118,18 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   // ------------------ SAVE (тільки для хмари) ------------------
   const saveNow = useCallback(async () => {
+    // Перевірка: Якщо гість, або немає даних, або вже зберігається, або немає змін -> вихід
     if (guest || !data || isSaving || !isDirty) return;
+    
     setIsSaving(true);
     setIsCloudSaving(true);
     try {
+      // 🔥 Переконуємось, що передаємо user.uid і об'єкт data
       await saveSchedule(user.uid, data);
       setIsDirty(false);
     } catch (e) {
       console.error("❌ Save error:", e);
-      setError(e?.message || "Помилка збереження розкладу");
-      throw e;
+      setError(e?.message || "Помилка збереження");
     } finally {
       setIsSaving(false);
       setIsCloudSaving(false);
