@@ -4,17 +4,20 @@ import defaultSchedule from './defaultSchedule';
 export default function createDefaultData() {
   const scheduleId = uuidv4();
 
-  const globalData = {
+  const global = {
     currentScheduleId: scheduleId,
     theme: ['dark', 'red'],
     auto_save: 8,
   };
 
-  const scheduleData = {
+  const newSchedule = {
     ...defaultSchedule,
     id: scheduleId,
     name: 'Основний розклад',
   };
 
-  return { globalData, scheduleData };
+  return { 
+      global, 
+      schedules: [newSchedule] 
+  };
 }

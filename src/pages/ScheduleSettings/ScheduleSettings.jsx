@@ -22,8 +22,10 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const themeColors = themes.getColors(mode, accent);
 
   // --- ДАНІ ---
-  const autoSaveEnabled = !!schedule?.autoSave?.enabled;
-  const autoSaveInterval = schedule?.autoSave?.interval ?? null;
+  // 🔥 ВИПРАВЛЕННЯ: Читаємо налаштування автозбереження з global
+  const autoSaveVal = global?.auto_save; 
+  const autoSaveEnabled = typeof autoSaveVal === 'number' && autoSaveVal > 0;
+  
   const weeksCount = Array.isArray(schedule?.weeks) ? schedule.weeks.length : (typeof schedule?.weeksCount === 'number' ? schedule.weeksCount : undefined);
   const breaksCount = Array.isArray(schedule?.breaks) ? schedule.breaks.length : undefined;
   const subjectsCount = Array.isArray(schedule?.subjects) ? schedule.subjects.length : undefined;
@@ -62,9 +64,14 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
     {
       title: 'Автоматизація',
       data: [
-        { label: 'Авто збереження', screen: 'AutoSave', icon: 'save-outline',
-          meta: autoSaveEnabled ? (autoSaveInterval ? `кожні ${autoSaveInterval} хв` : 'увімкнено') : 'вимкнено',
-          desc: 'Фонове збереження змін' },
+        // 🔥 ВИПРАВЛЕННЯ: Відображаємо актуальні дані з global
+        { 
+          label: 'Авто збереження', 
+          screen: 'AutoSave', 
+          icon: 'save-outline',
+          meta: autoSaveEnabled ? `кожні ${autoSaveVal} сек` : 'вимкнено',
+          desc: 'Фонове збереження змін' 
+        },
       ],
     },
     {
@@ -82,18 +89,15 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
         { label: 'Скинути БД', screen: 'ResetDB', icon: 'trash-outline', desc: 'Повне очищення даних' },
       ],
     },
-  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveInterval, guest, user]);
+  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveVal, guest, user]);
 
-  // --- ЛОГІКА ВІДСТЕЖЕННЯ СЕКЦІЙ (БЕЗ ЗАХИСТУ ВІД ПРУЖИНИ) ---
+  // --- ЛОГІКА ВІДСТЕЖЕННЯ СЕКЦІЙ ---
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const sectionPositions = useRef([]);
 
   useEffect(() => {
     const listenerId = scrollY.addListener(({ value }) => {
-      // Використовуємо 'value' як є (навіть якщо воно від'ємне або > maxScroll)
-      // Це забезпечує "чесну" реакцію на скрол
       const checkPoint = value + headerHeight + 20; 
-
       let newActiveIndex = 0;
 
       for (let i = 0; i < sections.length; i++) {
@@ -143,7 +147,6 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       
-      {/* 🔥 Хедер без кнопки назад */}
       <SettingsHeader 
         title="Налаштування" 
         subTitle={sections[activeSectionIndex]?.title || ""} 

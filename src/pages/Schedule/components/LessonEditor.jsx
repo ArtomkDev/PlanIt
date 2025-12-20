@@ -48,11 +48,19 @@ export default function LessonEditor({ lesson, onClose }) {
   const links = dataSource?.links ?? [];
   const gradients = dataSource?.gradients ?? [];
 
+  // 🔥 HELPER: Очищення даних від subjectId, щоб він не перезаписував вибір
+  const getCleanInstanceData = (data) => {
+    if (!data || typeof data !== 'object') return {};
+    const { subjectId, ...rest } = data; // Викидаємо subjectId з об'єкта даних
+    return rest;
+  };
+
   // --- STATE ---
   const [selectedSubjectId, setSelectedSubjectId] = useState(lesson?.subjectId || null);
   
+  // Використовуємо функцію очистки при ініціалізації
   const [instanceData, setInstanceData] = useState(
-    lesson?.data && typeof lesson.data === 'object' ? lesson.data : {}
+    lesson?.data ? getCleanInstanceData(lesson.data) : {}
   );
   
   const [currentScreen, setCurrentScreen] = useState("main"); 
@@ -64,13 +72,24 @@ export default function LessonEditor({ lesson, onClose }) {
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
   const [advancedPickerTarget, setAdvancedPickerTarget] = useState(null);
 
+  // 🔥 ВАЖЛИВО: Оновлюємо стан, якщо змінився пропс lesson (щоб не редагувати стару пару)
+  useEffect(() => {
+    setSelectedSubjectId(lesson?.subjectId || null);
+    setInstanceData(lesson?.data ? getCleanInstanceData(lesson.data) : {});
+    
+    // Скидаємо навігацію на головний екран
+    if (currentScreen !== "main") {
+      setCurrentScreen("main");
+      setPickerType(null);
+      setInputType(null);
+    }
+  }, [lesson]);
+
   const currentSubject = subjects.find((s) => s.id === selectedSubjectId) || {};
 
-  // 🔥 HELPER: Санітайзер масивів (Виправляє Nested arrays error)
+  // 🔥 HELPER: Санітайзер масивів
   const sanitizeArray = (arr) => {
       if (!Array.isArray(arr)) return [];
-      // .flat(Infinity) розгортає будь-яку вкладеність (наприклад [['id']] стає ['id'])
-      // .filter прибирає пусті значення, нулі та рядки "0"
       return arr.flat(Infinity).filter(id => id && id !== 0 && id !== "0");
   };
 
@@ -188,11 +207,14 @@ export default function LessonEditor({ lesson, onClose }) {
       if (!next.schedule[dayIndex][weekKey]) next.schedule[dayIndex][weekKey] = [];
       const weekArr = [...next.schedule[dayIndex][weekKey]];
       
+      // 🔥 ВИПРАВЛЕНО: Змінено порядок злиття об'єктів
+      // Спочатку instanceData, а потім subjectId, щоб нове значення перекрило старе
       const lessonObject = {
-        subjectId: selectedSubjectId,
-        ...instanceData
+        ...instanceData,
+        subjectId: selectedSubjectId, 
       };
 
+      // Чистка пустих полів
       Object.keys(lessonObject).forEach(key => {
           if (lessonObject[key] === undefined || lessonObject[key] === null || lessonObject[key] === "") {
               delete lessonObject[key];
@@ -230,13 +252,12 @@ export default function LessonEditor({ lesson, onClose }) {
       setInstanceData(prev => ({ ...prev, ...updates }));
   };
 
-  // 🔥 Оновлена логіка збереження (з використанням sanitizeArray)
   const handleGenericSave = (field, value, scope) => {
-      // Якщо це масив (вчителі, лінки), санітизуємо його перед записом
       const cleanValue = Array.isArray(value) ? sanitizeArray(value) : value;
 
       if (scope === 'global') {
           handleUpdateSubject({ [field]: cleanValue });
+          // При глобальному збереженні видаляємо локальне перевизначення
           setInstanceData(prev => {
               const next = { ...prev };
               delete next[field];
@@ -301,14 +322,13 @@ export default function LessonEditor({ lesson, onClose }) {
   // --- GET DATA ---
   const getPickerData = () => {
     
-    // 🔥 ВЧИТЕЛІ
+    // Вчителі
     if (pickerType === "teacher") {
         const hasLocal = instanceData.teachers !== undefined;
         const rawTeachers = hasLocal 
             ? instanceData.teachers 
             : (currentSubject.teachers || (currentSubject.teacher ? [currentSubject.teacher] : []));
             
-        // Санітизація при читанні (на випадок старих поламаних даних)
         const cleanSelected = sanitizeArray(rawTeachers);
 
         return {
@@ -318,7 +338,6 @@ export default function LessonEditor({ lesson, onClose }) {
             onAdd: () => { const newT = addTeacher(); goToScreen("teacherEditor", newT.id); },
             onEdit: (id) => goToScreen("teacherEditor", id),
             
-            // Санітизація при збереженні (головне виправлення)
             onSaveLocal: (ids) => handleGenericSave("teachers", ids, 'local'),
             onSaveGlobal: (ids) => handleGenericSave("teachers", ids, 'global'),
             
@@ -326,7 +345,7 @@ export default function LessonEditor({ lesson, onClose }) {
         };
     }
 
-    // 🔥 ПОСИЛАННЯ
+    // Посилання
     if (pickerType === "link") {
         const hasLocal = instanceData.links !== undefined;
         const rawLinks = hasLocal ? instanceData.links : currentSubject.links;
@@ -339,7 +358,6 @@ export default function LessonEditor({ lesson, onClose }) {
             onAdd: () => { const newL = addLink(); goToScreen("linkEditor", newL.id); },
             onEdit: (id) => goToScreen("linkEditor", id),
             
-            // Санітизація при збереженні
             onSaveLocal: (ids) => handleGenericSave("links", ids, 'local'),
             onSaveGlobal: (ids) => handleGenericSave("links", ids, 'global'),
             
@@ -347,7 +365,7 @@ export default function LessonEditor({ lesson, onClose }) {
         };
     }
 
-    // 🔥 ТИП
+    // Тип
     if (pickerType === "type") {
         const types = ["Лекція", "Практика", "Лабораторна", "Семінар"];
         const hasLocal = instanceData.type !== undefined;
@@ -437,7 +455,6 @@ export default function LessonEditor({ lesson, onClose }) {
     if (!value) return null;
     if (type === "subject") return subjects.find((s) => s.id === value)?.name;
     if (type === "link" || type === "teacher") {
-        // Санітизація при відображенні label
         const list = sanitizeArray(Array.isArray(value) ? value : [value]);
         
         if (list.length === 0) return "Не обрано";
