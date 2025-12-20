@@ -1,92 +1,143 @@
-// src/auth/SignIn.jsx
 import React, { useState } from 'react';
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { useSchedule } from '../context/ScheduleProvider';
-import { migrateLocalToCloud } from './migrateLocalToCloud';
-import { setManualLogin } from "../utils/authFlags";
+import { auth } from '../../firebase'; 
+import AuthLayout from '../components/AuthLayout';
+import useSystemThemeColors from '../hooks/useSystemThemeColors';
 
-export default function SignIn() {
+// 🔥 ВАЖЛИВО: Цей компонент винесено назовні, щоб інпут не втрачав фокус
+const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, setIsPasswordVisible, isPasswordVisible, colors }) => (
+  <View style={[styles.inputContainer, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
+    <Ionicons name={icon} size={20} color={colors.textColor2} style={styles.inputIcon} />
+    <TextInput
+      style={[styles.input, { color: colors.textColor }]}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textColor2}
+      secureTextEntry={secureTextEntry}
+      value={value}
+      onChangeText={onChangeText}
+      autoCapitalize="none"
+      keyboardType={placeholder.includes('email') ? 'email-address' : 'default'}
+    />
+    {isPasswordButton && (
+      <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeButton}>
+        <Ionicons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textColor2} />
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+const SignIn = ({ navigation }) => {
+  const { colors } = useSystemThemeColors('blue');
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const navigation = useNavigation();
-  const { reloadAllSchedules } = useSchedule();
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const logIn = async () => {
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert('Помилка', 'Будь ласка, заповніть всі поля');
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      setManualLogin(true); // 🔑 This signals App.js that the user has logged in manually
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      setError('');
-      setEmail('');
-      setPassword('');
-
-      // The onAuthStateChanged listener in App.js will now handle device registration.
-
-      // Attempt to migrate local data (if any)
-      try {
-        await migrateLocalToCloud(cred.user.uid);
-      } catch (e) {
-        console.warn('Migration on sign-in failed', e);
-      }
-
-      // Allow some time for onAuthStateChanged -> ScheduleProvider to update the user
-      setTimeout(() => {
-        try {
-          reloadAllSchedules();
-        } catch (e) {
-          /* safe */
-        }
-      }, 400);
-    } catch (e) {
-      console.error(e);
-      setError("SORRY, COULDN'T FIND YOUR ACCOUNT");
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      let msg = "Невірний email або пароль";
+      if (error.code === 'auth/invalid-email') msg = "Некоректний формат email";
+      if (error.code === 'auth/user-not-found') msg = "Користувача не знайдено";
+      if (error.code === 'auth/wrong-password') msg = "Невірний пароль";
+      if (error.code === 'auth/too-many-requests') msg = "Забагато спроб. Спробуйте пізніше.";
+      
+      Alert.alert('Помилка входу', msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Log in</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Please enter your email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Please enter your password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <Button title="Login" onPress={logIn} />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.signupContainer}>
-        <Button
-          title="Sign Up"
-          onPress={() => navigation.navigate('SignUp')}
+    <AuthLayout
+      title="З поверненням!"
+      subtitle="Увійдіть, щоб синхронізувати розклад."
+      showBackButton
+      onBack={() => navigation.goBack()}
+    >
+      <View style={styles.form}>
+        <InputField
+          icon="mail-outline"
+          placeholder="Email пошта"
+          value={email}
+          onChangeText={setEmail}
+          colors={colors}
         />
+        <InputField
+          icon="lock-closed-outline"
+          placeholder="Пароль"
+          secureTextEntry={!isPasswordVisible}
+          value={password}
+          onChangeText={setPassword}
+          isPasswordButton={true}
+          isPasswordVisible={isPasswordVisible}
+          setIsPasswordVisible={setIsPasswordVisible}
+          colors={colors}
+        />
+
+        <TouchableOpacity style={styles.forgotPassword}>
+          <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>Забули пароль?</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.loginButton, { backgroundColor: colors.accentColor, opacity: isLoading ? 0.7 : 1 }]}
+          onPress={handleSignIn}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginButtonText}>Увійти</Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Text style={[styles.footerText, { color: colors.textColor2 }]}>Ще не маєте акаунту? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+            <Text style={[styles.footerLink, { color: colors.accentColor }]}>Зареєструватись</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </AuthLayout>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 16 },
-  header: { fontSize: 24, marginBottom: 16, textAlign: 'center' },
-  input: {
-    height: 40,
-    borderColor: 'gray',
+  form: { gap: 16 },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    marginBottom: 16,
-    paddingLeft: 8,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 56,
   },
-  error: { color: 'red', textAlign: 'center', marginBottom: 16 },
-  signupContainer: { marginTop: 16, alignItems: 'center' },
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, height: '100%', fontSize: 16 },
+  eyeButton: { padding: 10, marginRight: -10 },
+  forgotPassword: { alignSelf: 'flex-end', marginTop: -6, marginBottom: 10 },
+  forgotPasswordText: { fontSize: 14, fontWeight: '500' },
+  loginButton: {
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  loginButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
+  footerText: { fontSize: 15 },
+  footerLink: { fontSize: 15, fontWeight: '600' },
 });
+
+export default SignIn;

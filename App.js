@@ -17,7 +17,7 @@ import { ScheduleProvider } from "./src/context/ScheduleProvider";
 import { EditorProvider } from "./src/context/EditorProvider";
 import { registerDevice, listenForDeviceRemoval } from "./src/utils/deviceService";
 import { setManualLogin } from "./src/utils/authFlags";
-import themes from "./src/config/themes"; // Імпорт тем для правильного кольору
+import themes from "./src/config/themes"; 
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,6 +33,7 @@ export default function App() {
       try {
         await Font.loadAsync(Ionicons.font);
         const localSchedule = await AsyncStorage.getItem("guest_schedule");
+        // Якщо є локальні дані, автоматично вмикаємо гостя (якщо не залогінений)
         if (localSchedule) setGuest(true);
       } catch (e) {
         console.warn(e);
@@ -76,24 +77,38 @@ export default function App() {
     return null; 
   }
 
+  // Функція для виходу з режиму гостя (повертає на екран Welcome)
+  const handleExitGuest = () => {
+    setGuest(false);
+  };
+
   return (
-    // 🔥 ВИПРАВЛЕННЯ: Додано чорний фон, щоб уникнути білих кутиків при анімації pageSheet
     <View style={{ flex: 1, backgroundColor: '#000' }} onLayout={onLayoutRootView}>
       <ScheduleProvider guest={guest} user={user}>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {/* Логіка: Показуємо MainLayout, якщо є Юзер АБО Гість */}
             {user || guest ? (
               <Stack.Screen name="MainLayout">
                 {(props) => (
                   <EditorProvider>
-                    <MainLayout {...props} guest={guest} onExitGuest={() => {}} />
+                    <MainLayout 
+                      {...props} 
+                      guest={guest} 
+                      onExitGuest={handleExitGuest} // 🔥 ВИПРАВЛЕНО: Тепер передаємо функцію зміни стану
+                    />
                   </EditorProvider>
                 )}
               </Stack.Screen>
             ) : (
               <>
                 <Stack.Screen name="Welcome">
-                  {(props) => <WelcomeScreen {...props} setGuest={setGuest} />}
+                  {(props) => (
+                    <WelcomeScreen 
+                      {...props} 
+                      onGuestLogin={() => setGuest(true)} // 🔥 ВИПРАВЛЕНО: Правильна назва пропсу для WelcomeScreen
+                    />
+                  )}
                 </Stack.Screen>
                 <Stack.Screen name="SignIn" component={SignIn} />
                 <Stack.Screen name="SignUp" component={SignUp} />

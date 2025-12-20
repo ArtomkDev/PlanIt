@@ -1,91 +1,147 @@
-// src/auth/SignUp.jsx
 import React, { useState } from 'react';
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../../firebase';
-import { doc, setDoc } from 'firebase/firestore';
-import { useSchedule } from '../context/ScheduleProvider';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import createDefaultData from '../config/createDefaultData';
-import { migrateLocalToCloud } from './migrateLocalToCloud';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '../../firebase'; 
+import AuthLayout from '../components/AuthLayout';
+import useSystemThemeColors from '../hooks/useSystemThemeColors';
 
-export default function SignUp() {
+// 🔥 ВАЖЛИВО: Винесено назовні
+const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, setIsPasswordVisible, isPasswordVisible, autoCapitalize="none", colors }) => (
+  <View style={[styles.inputContainer, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
+    <Ionicons name={icon} size={20} color={colors.textColor2} style={styles.inputIcon} />
+    <TextInput
+      style={[styles.input, { color: colors.textColor }]}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textColor2}
+      secureTextEntry={secureTextEntry}
+      value={value}
+      onChangeText={onChangeText}
+      autoCapitalize={autoCapitalize}
+    />
+    {isPasswordButton && (
+      <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeButton}>
+        <Ionicons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textColor2} />
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+const SignUp = ({ navigation }) => {
+  const { colors } = useSystemThemeColors('blue');
+  
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const { reloadAllSchedules } = useSchedule();
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const register = async () => {
-	  if (password !== confirmPassword) {
-	    setError("Passwords didn't match");
-	    return;
-	  }
-  
-	  try {
-	    const cred = await createUserWithEmailAndPassword(auth, email, password);
-	
-	    // Спочатку міграція локальних даних
-	    const rawLocal = await AsyncStorage.getItem('guest_schedule');
-	    if (rawLocal) {
-	      await migrateLocalToCloud(cred.user.uid);
-	    } else {
-	      const def = createDefaultData();
-	      await setDoc(doc(db, 'schedules', cred.user.uid), { schedule: def });
-	    }
-	
-	    // Після цього дозволяємо ScheduleProvider підвантажити дані
-	    setTimeout(() => {
-	      try { reloadAllSchedules(); } catch (e) { /* safe */ }
-	    }, 400);
-	
-	  } catch (e) {
-	    console.error(e);
-	    setError('Error creating account');
-	  }
-	};
+  const handleSignUp = async () => {
+    if (!name || !email || !password) {
+      Alert.alert('Помилка', 'Будь ласка, заповніть всі поля');
+      return;
+    }
 
+    setIsLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      await updateProfile(user, { displayName: name });
+      
+    } catch (error) {
+       let msg = "Помилка реєстрації";
+       if (error.code === 'auth/email-already-in-use') msg = "Цей email вже використовується";
+       if (error.code === 'auth/weak-password') msg = "Пароль занадто слабкий (мінімум 6 символів)";
+       if (error.code === 'auth/invalid-email') msg = "Некоректний email";
+
+       Alert.alert('Помилка', msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create an Account</Text>
-      <TextInput
-        style={styles.input}
-        placeholder='Please enter your email'
-        value={email}
-        onChangeText={setEmail}
-        keyboardType='email-address'
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder='Please enter your password'
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <TextInput
-        style={styles.input}
-        placeholder='Please re-enter your password'
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-      />
-      <Button title='Create' onPress={register} />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
+    <AuthLayout
+      title="Створити акаунт"
+      subtitle="Зареєструйтесь, щоб зберігати розклад у хмарі."
+      showBackButton
+      onBack={() => navigation.goBack()}
+    >
+      <View style={styles.form}>
+        <InputField
+          icon="person-outline"
+          placeholder="Ваше ім'я"
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+          colors={colors}
+        />
+        <InputField
+          icon="mail-outline"
+          placeholder="Email пошта"
+          value={email}
+          onChangeText={setEmail}
+          colors={colors}
+        />
+        <InputField
+          icon="lock-closed-outline"
+          placeholder="Пароль"
+          secureTextEntry={!isPasswordVisible}
+          value={password}
+          onChangeText={setPassword}
+          isPasswordButton={true}
+          isPasswordVisible={isPasswordVisible}
+          setIsPasswordVisible={setIsPasswordVisible}
+          colors={colors}
+        />
+
+        <TouchableOpacity
+          style={[styles.registerButton, { backgroundColor: colors.accentColor, opacity: isLoading ? 0.7 : 1 }]}
+          onPress={handleSignUp}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.registerButtonText}>Створити акаунт</Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Text style={[styles.footerText, { color: colors.textColor2 }]}>Вже є акаунт? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
+            <Text style={[styles.footerLink, { color: colors.accentColor }]}>Увійти</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </AuthLayout>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 16 },
-  title: { fontSize: 24, marginBottom: 16, textAlign: 'center' },
-  input: {
-    height: 40,
-    borderColor: 'gray',
+  form: { gap: 16, marginTop: 10 },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    marginBottom: 16,
-    paddingLeft: 8,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 56,
   },
-  error: { color: 'red', textAlign: 'center' },
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, height: '100%', fontSize: 16 },
+  eyeButton: { padding: 10, marginRight: -10 },
+  registerButton: {
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  registerButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
+  footerText: { fontSize: 15 },
+  footerLink: { fontSize: 15, fontWeight: '600' },
 });
+
+export default SignUp;
