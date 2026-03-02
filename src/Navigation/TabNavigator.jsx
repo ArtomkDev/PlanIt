@@ -2,6 +2,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import themes from '../config/themes';
 import { useSchedule } from '../context/ScheduleProvider';
@@ -36,23 +37,24 @@ function ScheduleSettingsStack({ screenProps }) {
       <Stack.Screen name="ScheduleSettingsMain">
         {props => <ScheduleSettings {...props} {...screenProps} />}
       </Stack.Screen>
-      <Stack.Screen name="Breaks" component={BreaksManager} options={{ title: 'Перерви' }} />
-      <Stack.Screen name="Weeks" component={WeekManager} options={{ title: 'Тижні' }} />
-      <Stack.Screen name="StartWeek" component={StartWeekManager} options={{ title: 'Початок семестру' }} />
-      <Stack.Screen name="Subjects" component={SubjectsManager} options={{ title: 'Предмети' }} />
-      <Stack.Screen name="Teachers" component={TeachersManager} options={{ title: 'Викладачі' }} />
-      <Stack.Screen name="Schedule" component={ScheduleManager} options={{ title: 'Редактор розкладу' }} />
-      <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} options={{ title: 'Мої розклади' }} />
-      <Stack.Screen name="AutoSave" component={AutoSaveManager} options={{ title: 'Автозбереження' }} />
-      <Stack.Screen name="Theme" component={ThemeSettings} options={{ title: 'Тема' }} />
-      <Stack.Screen name="ResetDB" component={ResetDB} options={{ title: 'Скидання' }} />
-      <Stack.Screen name="DeviceService" component={DeviceManager} options={{ title: 'Пристрої' }} />
+      <Stack.Screen name="Breaks" component={BreaksManager} />
+      <Stack.Screen name="Weeks" component={WeekManager} />
+      <Stack.Screen name="StartWeek" component={StartWeekManager} />
+      <Stack.Screen name="Subjects" component={SubjectsManager} />
+      <Stack.Screen name="Teachers" component={TeachersManager} />
+      <Stack.Screen name="Schedule" component={ScheduleManager} />
+      <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
+      <Stack.Screen name="AutoSave" component={AutoSaveManager} />
+      <Stack.Screen name="Theme" component={ThemeSettings} />
+      <Stack.Screen name="ResetDB" component={ResetDB} />
+      <Stack.Screen name="DeviceService" component={DeviceManager} />
     </Stack.Navigator>
   );
 }
 
 export default function TabNavigator({ screenProps }) {
   const { global } = useSchedule();
+  const insets = useSafeAreaInsets();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -61,15 +63,14 @@ export default function TabNavigator({ screenProps }) {
       screenOptions={{
         tabBarStyle: {
           position: 'absolute',
-          height: 70,
-          paddingBottom: 10,
+          height: 70 + insets.bottom,
+          paddingBottom: 10 + insets.bottom,
           paddingTop: 0,
           backgroundColor: 'transparent',
           elevation: 0,
           shadowOpacity: 0,
           borderTopWidth: 0,
         },
-        // 🔥 AppBlur тепер сам знає, який він має бути, просто рендеримо його
         tabBarBackground: () => <AppBlur style={{ flex: 1, overflow: 'hidden' }} />,
         tabBarLabelStyle: { fontSize: 12, fontWeight: 'bold' },
         tabBarActiveTintColor: themeColors.accentColor,
@@ -77,7 +78,6 @@ export default function TabNavigator({ screenProps }) {
         headerShown: false,
       }}
     >
-      {/* ... (Tab.Screen Home3_1 та Home3_2 без змін) ... */}
       <Tab.Screen
         name="Home3_1"
         component={Schedule}

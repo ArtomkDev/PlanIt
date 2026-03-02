@@ -55,7 +55,7 @@ export default function DaySchedule({
       overScrollMode="always"
       onScroll={Animated.event(
         [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false }
+        { useNativeDriver: true }
       )}
       scrollEventThrottle={16}
     >
@@ -69,16 +69,9 @@ export default function DaySchedule({
           scheduleForDay.map((item, index) => {
             if (!item) return null; 
 
-            // 🔥 ЛОГІКА СУМІСНОСТІ:
-            // Якщо item - об'єкт, беремо subjectId з нього.
-            // Якщо item - рядок/число (старий формат), то це і є subjectId.
             const isInstance = typeof item === 'object' && item !== null;
             const subjectId = isInstance ? item.subjectId : item;
-            
-            // Формуємо об'єкт даних уроку
-            // Якщо це інстанс, передаємо його весь, інакше - пустий об'єкт
             const lessonData = isInstance ? item : {};
-
             const timeInfo = lessonTimes?.[index] || {};
 
             return (

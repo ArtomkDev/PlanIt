@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, StyleSheet } from "react-native"; 
+import { View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import { createStackNavigator } from "@react-navigation/stack";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import { Ionicons } from "@expo/vector-icons";
-import * as SplashScreen from "expo-splash-screen"; 
+import * as SplashScreen from "expo-splash-screen";
 
 import { auth } from "./firebase";
 import SignIn from "./src/auth/SignIn";
@@ -17,11 +17,10 @@ import { ScheduleProvider } from "./src/context/ScheduleProvider";
 import { EditorProvider } from "./src/context/EditorProvider";
 import { registerDevice, listenForDeviceRemoval } from "./src/utils/deviceService";
 import { setManualLogin } from "./src/utils/authFlags";
-import themes from "./src/config/themes"; 
 
 SplashScreen.preventAutoHideAsync();
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -33,7 +32,6 @@ export default function App() {
       try {
         await Font.loadAsync(Ionicons.font);
         const localSchedule = await AsyncStorage.getItem("guest_schedule");
-        // Якщо є локальні дані, автоматично вмикаємо гостя (якщо не залогінений)
         if (localSchedule) setGuest(true);
       } catch (e) {
         console.warn(e);
@@ -47,7 +45,7 @@ export default function App() {
   useEffect(() => {
     let deviceListenerUnsubscribe = () => {};
     const handleSignOut = () => {
-      signOut(auth).catch((error) => console.error("Sign out error", error));
+      signOut(auth).catch((error) => console.error(error));
     };
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       deviceListenerUnsubscribe();
@@ -74,10 +72,9 @@ export default function App() {
   }, [appIsReady]);
 
   if (!appIsReady) {
-    return null; 
+    return null;
   }
 
-  // Функція для виходу з режиму гостя (повертає на екран Welcome)
   const handleExitGuest = () => {
     setGuest(false);
   };
@@ -87,15 +84,14 @@ export default function App() {
       <ScheduleProvider guest={guest} user={user}>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {/* Логіка: Показуємо MainLayout, якщо є Юзер АБО Гість */}
             {user || guest ? (
               <Stack.Screen name="MainLayout">
                 {(props) => (
                   <EditorProvider>
-                    <MainLayout 
-                      {...props} 
-                      guest={guest} 
-                      onExitGuest={handleExitGuest} // 🔥 ВИПРАВЛЕНО: Тепер передаємо функцію зміни стану
+                    <MainLayout
+                      {...props}
+                      guest={guest}
+                      onExitGuest={handleExitGuest}
                     />
                   </EditorProvider>
                 )}
@@ -104,9 +100,9 @@ export default function App() {
               <>
                 <Stack.Screen name="Welcome">
                   {(props) => (
-                    <WelcomeScreen 
-                      {...props} 
-                      onGuestLogin={() => setGuest(true)} // 🔥 ВИПРАВЛЕНО: Правильна назва пропсу для WelcomeScreen
+                    <WelcomeScreen
+                      {...props}
+                      onGuestLogin={() => setGuest(true)}
                     />
                   )}
                 </Stack.Screen>

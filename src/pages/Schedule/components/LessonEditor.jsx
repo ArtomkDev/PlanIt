@@ -20,7 +20,6 @@ import useEntityManager from "../../../hooks/useEntityManager";
 import themes from "../../../config/themes";
 import { SUBJECT_ICONS } from "../../../config/subjectIcons"; 
 
-// ЕКРАНИ
 import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
 import LessonEditorSubjectColorScreen from "./LessonEditor/screens/ColorScreen";
 import LessonEditorGradientEditScreen from "./LessonEditor/screens/GradientScreen";
@@ -48,17 +47,13 @@ export default function LessonEditor({ lesson, onClose }) {
   const links = dataSource?.links ?? [];
   const gradients = dataSource?.gradients ?? [];
 
-  // 🔥 HELPER: Очищення даних від subjectId, щоб він не перезаписував вибір
   const getCleanInstanceData = (data) => {
     if (!data || typeof data !== 'object') return {};
-    const { subjectId, ...rest } = data; // Викидаємо subjectId з об'єкта даних
+    const { subjectId, ...rest } = data; 
     return rest;
   };
 
-  // --- STATE ---
   const [selectedSubjectId, setSelectedSubjectId] = useState(lesson?.subjectId || null);
-  
-  // Використовуємо функцію очистки при ініціалізації
   const [instanceData, setInstanceData] = useState(
     lesson?.data ? getCleanInstanceData(lesson.data) : {}
   );
@@ -72,12 +67,10 @@ export default function LessonEditor({ lesson, onClose }) {
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
   const [advancedPickerTarget, setAdvancedPickerTarget] = useState(null);
 
-  // 🔥 ВАЖЛИВО: Оновлюємо стан, якщо змінився пропс lesson (щоб не редагувати стару пару)
   useEffect(() => {
     setSelectedSubjectId(lesson?.subjectId || null);
     setInstanceData(lesson?.data ? getCleanInstanceData(lesson.data) : {});
     
-    // Скидаємо навігацію на головний екран
     if (currentScreen !== "main") {
       setCurrentScreen("main");
       setPickerType(null);
@@ -87,13 +80,11 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const currentSubject = subjects.find((s) => s.id === selectedSubjectId) || {};
 
-  // 🔥 HELPER: Санітайзер масивів
   const sanitizeArray = (arr) => {
       if (!Array.isArray(arr)) return [];
       return arr.flat(Infinity).filter(id => id && id !== 0 && id !== "0");
   };
 
-  // --- АНІМАЦІЯ ---
   const panY = useRef(new Animated.Value(IS_IOS ? 0 : SCREEN_HEIGHT)).current;
 
   useEffect(() => {
@@ -155,7 +146,6 @@ export default function LessonEditor({ lesson, onClose }) {
     })
   ).current;
 
-  // --- НАВІГАЦІЯ ---
   const goToScreen = (screenName, data = null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     if (data !== null) setEditingItemData(data);
@@ -195,26 +185,23 @@ export default function LessonEditor({ lesson, onClose }) {
     }
   };
 
-  // --- ЗБЕРЕЖЕННЯ ---
   const handleSave = () => {
     if (!selectedSubjectId) return;
     setScheduleDraft((prev) => {
       const next = { ...prev };
       const dayIndex = getDayIndex(currentDate);
       const weekKey = `week${calculateCurrentWeek(currentDate)}`;
-      if (!next.schedule) next.schedule = Array(7).fill(null).map(() => ({}));
-      if (!next.schedule[dayIndex]) next.schedule[dayIndex] = {};
-      if (!next.schedule[dayIndex][weekKey]) next.schedule[dayIndex][weekKey] = [];
-      const weekArr = [...next.schedule[dayIndex][weekKey]];
       
-      // 🔥 ВИПРАВЛЕНО: Змінено порядок злиття об'єктів
-      // Спочатку instanceData, а потім subjectId, щоб нове значення перекрило старе
+      next.schedule = next.schedule ? [...next.schedule] : Array(7).fill(null).map(() => ({}));
+      next.schedule[dayIndex] = next.schedule[dayIndex] ? { ...next.schedule[dayIndex] } : {};
+      
+      const weekArr = next.schedule[dayIndex][weekKey] ? [...next.schedule[dayIndex][weekKey]] : [];
+      
       const lessonObject = {
         ...instanceData,
         subjectId: selectedSubjectId, 
       };
 
-      // Чистка пустих полів
       Object.keys(lessonObject).forEach(key => {
           if (lessonObject[key] === undefined || lessonObject[key] === null || lessonObject[key] === "") {
               delete lessonObject[key];
@@ -230,6 +217,7 @@ export default function LessonEditor({ lesson, onClose }) {
       } else {
         weekArr.push(lessonObject);
       }
+      
       next.schedule[dayIndex][weekKey] = weekArr;
       return next;
     });
@@ -240,6 +228,8 @@ export default function LessonEditor({ lesson, onClose }) {
     if (!selectedSubjectId) return;
     setScheduleDraft((prev) => {
       const next = { ...prev };
+      next.subjects = [...(next.subjects || [])];
+      
       const subjIndex = next.subjects.findIndex((s) => s.id === selectedSubjectId);
       if (subjIndex !== -1) {
         next.subjects[subjIndex] = { ...next.subjects[subjIndex], ...updates };
@@ -257,7 +247,6 @@ export default function LessonEditor({ lesson, onClose }) {
 
       if (scope === 'global') {
           handleUpdateSubject({ [field]: cleanValue });
-          // При глобальному збереженні видаляємо локальне перевизначення
           setInstanceData(prev => {
               const next = { ...prev };
               delete next[field];
@@ -281,6 +270,8 @@ export default function LessonEditor({ lesson, onClose }) {
     if (editingItemData) { 
        setScheduleDraft((prev) => {
         const next = { ...prev };
+        next.subjects = [...(next.subjects || [])];
+        
         const idx = next.subjects.findIndex((s) => s.id === editingItemData);
         if (idx !== -1) {
           next.subjects[idx] = { ...next.subjects[idx], name: newName };
@@ -319,10 +310,7 @@ export default function LessonEditor({ lesson, onClose }) {
     setShowAdvancedPicker(true);
   };
 
-  // --- GET DATA ---
   const getPickerData = () => {
-    
-    // Вчителі
     if (pickerType === "teacher") {
         const hasLocal = instanceData.teachers !== undefined;
         const rawTeachers = hasLocal 
@@ -337,15 +325,12 @@ export default function LessonEditor({ lesson, onClose }) {
             multi: true,
             onAdd: () => { const newT = addTeacher(); goToScreen("teacherEditor", newT.id); },
             onEdit: (id) => goToScreen("teacherEditor", id),
-            
             onSaveLocal: (ids) => handleGenericSave("teachers", ids, 'local'),
             onSaveGlobal: (ids) => handleGenericSave("teachers", ids, 'global'),
-            
             onReset: hasLocal ? () => handleResetLocal("teachers") : null
         };
     }
 
-    // Посилання
     if (pickerType === "link") {
         const hasLocal = instanceData.links !== undefined;
         const rawLinks = hasLocal ? instanceData.links : currentSubject.links;
@@ -357,15 +342,12 @@ export default function LessonEditor({ lesson, onClose }) {
             multi: true,
             onAdd: () => { const newL = addLink(); goToScreen("linkEditor", newL.id); },
             onEdit: (id) => goToScreen("linkEditor", id),
-            
             onSaveLocal: (ids) => handleGenericSave("links", ids, 'local'),
             onSaveGlobal: (ids) => handleGenericSave("links", ids, 'global'),
-            
             onReset: hasLocal ? () => handleResetLocal("links") : null
         };
     }
 
-    // Тип
     if (pickerType === "type") {
         const types = ["Лекція", "Практика", "Лабораторна", "Семінар"];
         const hasLocal = instanceData.type !== undefined;
@@ -381,7 +363,6 @@ export default function LessonEditor({ lesson, onClose }) {
         };
     }
 
-    // Предмет
     if (pickerType === "subject") {
         return {
             options: subjects.map((s) => ({ key: s.id, label: s.name })),
@@ -393,7 +374,6 @@ export default function LessonEditor({ lesson, onClose }) {
         };
     }
 
-    // Іконка
     if (pickerType === "icon") {
         const iconOptions = Object.keys(SUBJECT_ICONS).map((key) => ({
             key: key,
@@ -417,7 +397,6 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const pickerData = getPickerData();
 
-  // --- ДАНІ ДЛЯ INPUT ---
   const getInputData = () => {
       if (inputType === "building") {
           const hasLocal = instanceData.building !== undefined;
@@ -466,7 +445,6 @@ export default function LessonEditor({ lesson, onClose }) {
     return value;
   };
 
-  // Helper для MainScreen
   const getDisplayData = () => {
       return {
           teachers: instanceData.teachers !== undefined ? instanceData.teachers : (currentSubject.teachers || []),

@@ -10,20 +10,17 @@ export default function AutoSaveManager() {
   const [timeLeft, setTimeLeft] = useState(autoSaveInterval);
   const [isConnected, setIsConnected] = useState(true);
   
-  // UI States
   const [statusMessage, setStatusMessage] = useState("");
   const [statusColor, setStatusColor] = useState("#4dff88"); 
-  const [showSavedState, setShowSavedState] = useState(false); // Для утримання "Збережено"
+  const [showSavedState, setShowSavedState] = useState(false);
 
-  // Refs
   const timerRef = useRef(null);
   const hideTimeoutRef = useRef(null);
+  const prevCloudSavingRef = useRef(false);
   
-  // Animations
   const heightAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
-  // 1. Monitor Connection
   useEffect(() => {
     if (!user) return;
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -32,83 +29,73 @@ export default function AutoSaveManager() {
     return () => unsubscribe();
   }, [user]);
 
-  // 2. LOGIC: Timer (Non-resetting)
   useEffect(() => {
     if (!user) return;
 
-    // Якщо є зміни, є інтернет, не йде збереження і таймер ЩЕ НЕ ЗАПУЩЕНИЙ
     if (isDirty && isConnected && !isCloudSaving && !timerRef.current) {
-      
-      // Скидаємо час на початок циклу тільки якщо таймер не був активний
       setTimeLeft(autoSaveInterval);
-
       timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            // Час вийшов -> Зберігаємо
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-            saveNow(); 
-            return 0;
-          }
-          return prev - 1;
-        });
+        setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     
-    // Якщо раптом зник інтернет або почалося хмарне збереження - ставимо таймер на паузу/стоп
     if ((!isConnected || isCloudSaving) && timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
     return () => {
-      // Чистимо таймер тільки при розмонтуванні компонента
-      // (ми навмисно не чистимо його при зміні isDirty, щоб він не скидався)
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isDirty, isConnected, isCloudSaving, autoSaveInterval, user, saveNow]);
+  }, [isDirty, isConnected, isCloudSaving, autoSaveInterval, user]);
 
-  // 3. LOGIC: Handle "Saved" state duration (5 seconds)
   useEffect(() => {
-    // Якщо збереження завершилось (isCloudSaving: true -> false) і немає нових змін (!isDirty)
-    if (!isCloudSaving && !isDirty && isConnected) {
+    if (timeLeft === 0 && isDirty && !isCloudSaving) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      saveNow();
+    }
+  }, [timeLeft, isDirty, isCloudSaving, saveNow]);
+
+  useEffect(() => {
+    const justFinishedSaving = prevCloudSavingRef.current === true && isCloudSaving === false;
+    
+    if (justFinishedSaving && !isDirty && isConnected) {
       setShowSavedState(true);
       
-      // Очищаємо попередній таймаут, якщо був
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
 
-      // Ховаємо через 5 секунд
       hideTimeoutRef.current = setTimeout(() => {
         setShowSavedState(false);
       }, 5000);
     } else if (isDirty || isCloudSaving || !isConnected) {
-      // Якщо почали щось міняти - одразу прибираємо стан "Збережено" (щоб показати таймер)
       setShowSavedState(false);
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     }
+    
+    prevCloudSavingRef.current = isCloudSaving;
   }, [isCloudSaving, isDirty, isConnected]);
 
-
-  // 4. UI: Update Text & Visibility
   useEffect(() => {
     let shouldShow = false;
 
     if (!isConnected) {
       setStatusMessage("Немає інтернету");
-      setStatusColor("#ff4d4d"); // Red
+      setStatusColor("#ff4d4d");
       shouldShow = true;
     } else if (isCloudSaving) {
       setStatusMessage("Збереження у хмару...");
-      setStatusColor("#ffcc00"); // Yellow
+      setStatusColor("#ffcc00");
       shouldShow = true;
     } else if (isDirty) {
       setStatusMessage(`Автозбереження через: ${timeLeft} сек`);
-      setStatusColor("#ffcc00"); // Yellow
+      setStatusColor("#ffcc00");
       shouldShow = true;
     } else if (showSavedState) {
-      // Показуємо "Збережено" протягом 5 секунд
       setStatusMessage("Всі зміни збережено");
-      setStatusColor("#4dff88"); // Green
+      setStatusColor("#4dff88");
       shouldShow = true;
     } else {
       shouldShow = false;

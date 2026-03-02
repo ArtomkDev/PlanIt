@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
-import { AppState } from 'react-native';
-// 🔥 ДОДАНО resetUserSchedules
-import { getSchedule, saveSchedule, resetUserSchedules, saveLocalSchedule, getLocalSchedule } from "../../firestore";
+import { AppState } from "react-native";
+import { getSchedule, saveSchedule, resetUserSchedules } from "../../firestore";
+import { getLocalSchedule, saveLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 
 const ScheduleContext = createContext(null);
@@ -15,7 +15,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [isCloudSaving, setIsCloudSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // ------------------ LOAD ------------------
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -31,7 +30,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         }
         setError(null);
       } catch (e) {
-        console.error("❌ Load error:", e);
         setError(e?.message || "Помилка завантаження розкладу");
       } finally {
         setIsLoading(false);
@@ -40,16 +38,16 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     load();
   }, [guest, user]);
 
-  // ------------------ GUEST SAVE ------------------
   useEffect(() => {
     if (!guest || !data || isLoading) return;
-    const saveGuestData = async () => {
+    
+    const timeoutId = setTimeout(async () => {
       await saveLocalSchedule(data);
-    };
-    saveGuestData();
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
   }, [data, guest, isLoading]);
 
-  // ------------------ SELECTORS ------------------
   const currentScheduleId = data?.global?.currentScheduleId || null;
 
   const schedule = useMemo(() => {
@@ -62,7 +60,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const global = data?.global || null;
 
-  // ------------------ FIX INVALID ID ------------------
   useEffect(() => {
     if (!data?.schedules?.length) return;
     const exists = data.schedules.some((s) => s.id === currentScheduleId);
@@ -76,7 +73,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [data, currentScheduleId, guest]);
 
-  // ------------------ UPDATERS ------------------
   const setScheduleDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
@@ -99,25 +95,33 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!guest) setIsDirty(true);
   }, [guest]);
 
-  const addSchedule = useCallback((schedule) => {
+  const addSchedule = useCallback((scheduleObj) => {
     setData((prev) => {
       if (!prev) return prev;
-      const nextSchedules = [...(prev.schedules || []), schedule];
+      const nextSchedules = [...(prev.schedules || []), scheduleObj];
       return { ...prev, schedules: nextSchedules };
     });
     if (!guest) setIsDirty(true);
   }, [guest]);
 
-  // ------------------ SAVE (CLOUD) ------------------
   const saveNow = useCallback(async () => {
     if (guest || !data || isSaving || !isDirty) return;
+    
+    const currentDataSnapshot = data;
+    
     setIsSaving(true);
     setIsCloudSaving(true);
+    
     try {
-      await saveSchedule(user.uid, data);
-      setIsDirty(false);
+      await saveSchedule(user.uid, currentDataSnapshot);
+      
+      setData(prev => {
+        if (prev === currentDataSnapshot) {
+          setIsDirty(false);
+        }
+        return prev;
+      });
     } catch (e) {
-      console.error("❌ Save error:", e);
       setError(e?.message || "Помилка збереження");
     } finally {
       setIsSaving(false);
@@ -125,7 +129,17 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [user, data, isSaving, isDirty, guest]);
 
-  // ------------------ RELOAD ------------------
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
+        if (isDirty) {
+          saveNow();
+        }
+      }
+    });
+    return () => subscription.remove();
+  }, [isDirty, saveNow]);
+
   const reloadAllSchedules = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -139,38 +153,29 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setIsDirty(false);
       setError(null);
     } catch (e) {
-      console.error("❌ Refresh error:", e);
       setError(e?.message || "Помилка оновлення розкладу");
     } finally {
       setIsRefreshing(false);
     }
   }, [guest, user]);
 
-  // 🔥 ОНОВЛЕНА ФУНКЦІЯ СКИДАННЯ
   const resetApplication = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Зберігаємо поточні налаштування (Global), щоб не видалити їх
       const currentGlobal = data?.global || createDefaultData().global;
 
-      // 2. Очищаємо лише розклади в хмарі
       if (user) {
         await resetUserSchedules(user.uid);
       }
 
-      // 3. Генеруємо нові дефолтні дані (там є новий розклад)
       const defaultData = createDefaultData();
-
-      // 4. Об'єднуємо: Старий Global + Нові Schedules
       const newData = {
           global: currentGlobal,
           schedules: defaultData.schedules
       };
 
-      // 5. Оновлюємо стан додатка
       setData(newData);
 
-      // 6. Зберігаємо новий розклад в БД (Global просто перезапишеться тим самим, це безпечно)
       if (user) {
         await saveSchedule(user.uid, newData);
       } else {
@@ -178,10 +183,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       }
 
       setIsDirty(false);
-      console.log("✅ Schedules reset successful. Settings preserved.");
-
     } catch (e) {
-      console.error("❌ Reset Error:", e);
       setError("Не вдалося скинути розклади");
     } finally {
       setIsLoading(false);
@@ -200,7 +202,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     addSchedule,
     saveNow,
     reloadAllSchedules,
-    resetApplication, // 🔥 Експортуємо нову функцію
+    resetApplication,
     isDirty,
     isSaving,
     isCloudSaving,

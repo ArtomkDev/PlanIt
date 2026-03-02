@@ -1,9 +1,8 @@
-// src/auth/migrateLocalToCloud.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import createDefaultData from '../config/createDefaultData';
-import { generateId } from '../utils/idGenerator'; // ⚡️ Імпортуємо спільну утиліту
+import { generateId } from '../utils/idGenerator';
 
 const LOCAL_KEY = 'guest_schedule';
 
@@ -11,55 +10,54 @@ export async function migrateLocalToCloud(userId) {
   try {
     const raw = await AsyncStorage.getItem(LOCAL_KEY);
     const localData = raw ? JSON.parse(raw) : null;
-    const userDocRef = doc(db, 'schedules', userId);
-    const snap = await getDoc(userDocRef);
 
-    if (snap.exists()) {
-      const cloud = snap.data().schedule || {};
-      const cloudSchedules = Array.isArray(cloud.schedules) ? cloud.schedules : [];
+    if (!localData) {
+      return { migrated: false, reason: 'No local data found' };
+    }
 
-      if (cloudSchedules.length > 0 && localData) {
-        const existingIds = new Set(cloudSchedules.map(s => s.id));
-        const mergedSchedules = cloudSchedules.slice();
+    const globalRef = doc(db, 'users', userId, 'global', 'settings');
+    const globalSnap = await getDoc(globalRef);
+    
+    const schedulesRef = collection(db, 'users', userId, 'schedules');
+    const schedulesSnap = await getDocs(schedulesRef);
+    
+    const cloudSchedules = schedulesSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-        for (const ls of (localData.schedules || [])) {
-          const copy = JSON.parse(JSON.stringify(ls));
-          
-          if (existingIds.has(copy.id)) {
-            // ⚡️ Використовуємо надійний генератор ID
-            copy.id = generateId(); 
-          }
-          mergedSchedules.push(copy);
-        }
+    const existingIds = new Set(cloudSchedules.map(s => s.id));
+    const mergedSchedules = [...cloudSchedules];
 
-        const merged = { ...cloud, schedules: mergedSchedules };
-        await setDoc(userDocRef, { schedule: merged }, { merge: true });
-
-      } else if (localData) {
-        // ... (решта коду без змін)
-        const merged = {
-          global: localData.global || createDefaultData().global,
-          schedules: localData.schedules || [],
-        };
-        await setDoc(userDocRef, { schedule: merged }, { merge: true });
+    for (const ls of (localData.schedules || [])) {
+      const copy = JSON.parse(JSON.stringify(ls));
+      
+      if (existingIds.has(copy.id)) {
+        copy.id = generateId(); 
       }
-    } else {
-        // ... (решта коду без змін)
-      const newData = localData || createDefaultData();
-      const merged = {
-        global: newData.global || createDefaultData().global,
-        schedules: newData.schedules || [],
-      };
-      await setDoc(userDocRef, { schedule: merged });
+      mergedSchedules.push(copy);
     }
 
-    if (localData) {
-      await AsyncStorage.removeItem(LOCAL_KEY);
-    }
+    const batch = writeBatch(db);
+
+    const mergedGlobal = globalSnap.exists() 
+      ? { ...localData.global, ...globalSnap.data() } 
+      : (localData.global || createDefaultData().global);
+      
+    batch.set(globalRef, mergedGlobal, { merge: true });
+
+    mergedSchedules.forEach((schedule) => {
+      if (schedule && schedule.id) {
+        const scheduleRef = doc(db, 'users', userId, 'schedules', schedule.id);
+        batch.set(scheduleRef, schedule, { merge: true });
+      }
+    });
+
+    await batch.commit();
+    await AsyncStorage.removeItem(LOCAL_KEY);
 
     return { migrated: true };
   } catch (err) {
-    console.error('migrateLocalToCloud error', err);
-    return { migrated: false, reason: err.message || 'error' };
+    return { migrated: false, reason: err.message || 'Error during migration' };
   }
 }

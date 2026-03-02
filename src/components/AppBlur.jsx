@@ -13,20 +13,11 @@ export default function AppBlur({ style, intensity = 80, children }) {
   const themeColors = themes.getColors(mode, accent);
   const blurEnabled = global?.blur ?? true;
 
-  // --- 🔥 РОЗУМНА ЛОГІКА БЛЮРУ ---
-  // Ми використовуємо useNavigationState, щоб дізнатися назву активного екрану.
-  // Цей хук безпечно працює і в TabBar, і в Headers.
-  let activeRouteName = "Unknown";
-  try {
-    activeRouteName = useNavigationState(state => state?.routes?.[state?.index]?.name);
-  } catch (e) {
-    // Якщо компонент використовується поза навігацією, ігноруємо помилку
-  }
+  const navState = useNavigationState(state => state);
+  const activeRouteName = navState?.routes?.[navState?.index]?.name || "Unknown";
 
-  // Якщо ми в "Розкладі" (Home3_1) -> темніше (0.7), інакше (Налаштування та ін.) -> світліше (0.1)
   const dynamicOpacity = activeRouteName === 'Home3_1' ? 0.7 : 0.1;
 
-  // Фолбек для Android або якщо блюр вимкнено
   if (!blurEnabled || Platform.OS === "android") {
     const fallbackColor = !blurEnabled 
       ? (themeColors.backgroundColorTabNavigator || themeColors.backgroundColor2)
@@ -47,15 +38,13 @@ export default function AppBlur({ style, intensity = 80, children }) {
       tint={blurTint} 
       style={style} 
     >
-      {/* Шар з динамічною прозорістю */}
       <View style={[
         StyleSheet.absoluteFill, 
         { 
           backgroundColor: themeColors.backgroundColor, 
-          opacity: dynamicOpacity // 🔥 AppBlur вирішує це сам!
+          opacity: dynamicOpacity 
         }
       ]} />
-      
       {children}
     </BlurView>
   );

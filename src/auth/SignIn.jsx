@@ -6,7 +6,6 @@ import { auth } from '../../firebase';
 import AuthLayout from '../components/AuthLayout';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
 
-// 🔥 ВАЖЛИВО: Цей компонент винесено назовні, щоб інпут не втрачав фокус
 const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, setIsPasswordVisible, isPasswordVisible, colors }) => (
   <View style={[styles.inputContainer, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
     <Ionicons name={icon} size={20} color={colors.textColor2} style={styles.inputIcon} />
@@ -48,8 +47,7 @@ const SignIn = ({ navigation }) => {
     } catch (error) {
       let msg = "Невірний email або пароль";
       if (error.code === 'auth/invalid-email') msg = "Некоректний формат email";
-      if (error.code === 'auth/user-not-found') msg = "Користувача не знайдено";
-      if (error.code === 'auth/wrong-password') msg = "Невірний пароль";
+      if (error.code === 'auth/invalid-credential') msg = "Невірний email або пароль";
       if (error.code === 'auth/too-many-requests') msg = "Забагато спроб. Спробуйте пізніше.";
       
       Alert.alert('Помилка входу', msg);

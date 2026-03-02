@@ -1,6 +1,5 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { StyleSheet, View, Modal, TouchableOpacity, Text, FlatList, Platform, useWindowDimensions, Animated } from "react-native";
-// 👇 ДОДАНО ЦЕЙ РЯДОК
 import { Ionicons } from "@expo/vector-icons"; 
 
 import Header from "./components/Header";
@@ -57,7 +56,6 @@ export default function Schedule() {
     const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
     
     const targetIndex = diffDays + HALF_SIZE;
-
     const isSafeRange = targetIndex >= 5 && targetIndex <= TOTAL_SIZE - 5;
 
     if (isSafeRange) {
@@ -75,7 +73,7 @@ export default function Schedule() {
   const handleDateChange = (newDate) => goToDate(newDate, false);
   const handleToday = () => goToDate(new Date(), true);
 
-  const onScroll = useCallback((event) => {
+  const handleScrollEnd = useCallback((event) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / SCREEN_WIDTH);
     const offset = index - HALF_SIZE;
@@ -163,8 +161,7 @@ export default function Schedule() {
             maxToRenderPerBatch={2}
             removeClippedSubviews={Platform.OS !== 'web'}
             showsHorizontalScrollIndicator={false}
-            onScroll={onScroll}
-            scrollEventThrottle={16}
+            onMomentumScrollEnd={handleScrollEnd}
             onLayout={() => {
                 if (Platform.OS === 'web') {
                      flatListRef.current?.scrollToIndex({ index: HALF_SIZE, animated: false });
@@ -198,9 +195,7 @@ export default function Schedule() {
         visible={calendarVisible}
         currentDate={currentDate}
         onClose={() => setCalendarVisible(false)}
-        onDateSelect={(date) => {
-            goToDate(date, true);
-        }}
+        onDateSelect={(date) => goToDate(date, true)}
       />
 
     </View>
@@ -210,18 +205,9 @@ export default function Schedule() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  
-  headerContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-
+  headerContainer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   fab: { 
       position: 'absolute', bottom: 90, right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', zIndex: 50,
-      // 🔥 Виправлення shadow для Web
       ...Platform.select({ 
           web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.3)' }, 
           default: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4.65, elevation: 8 } 

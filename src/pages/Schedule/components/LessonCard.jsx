@@ -7,13 +7,11 @@ import themes from "../../../config/themes";
 import GradientBackground from "../../../components/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 
-// Константи
 const CELL_SIZE = 45;
 const ICON_SIZE = 26;
 const CARD_BORDER_RADIUS = 28;
 const ROWS = 4;
 
-// --- Допоміжні функції (таймер) ---
 const parseTime = (timeStr) => {
   if (!timeStr) return new Date();
   const [h, m] = timeStr.split(":").map(Number);
@@ -49,39 +47,25 @@ function useLessonTimer(startStr, endStr, isToday) {
   return timerState;
 }
 
-const LessonCard = React.memo(({ lesson, onPress, onLongPress }) => {
-  const { schedule } = useSchedule();
-  const { isToday } = useDaySchedule(); 
-  const { width: screenWidth } = useWindowDimensions();
-
+const LessonCardPure = React.memo(({ lesson, schedule, isToday, screenWidth, onPress, onLongPress }) => {
   const { subjects = [], teachers = [], gradients = [] } = schedule || {};
   
-  // Глобальний предмет
   const subject = subjects.find((s) => s.id === lesson.subjectId) || {};
-  
-  // 🔥 Дані конкретної пари (якщо є)
   const instanceData = lesson.data || {};
 
-  // 1. ВИКЛАДАЧ: Пріоритет інстансу, потім предмет
   let teacherId = null;
-  // Перевіряємо інстанс
   if (Array.isArray(instanceData.teachers) && instanceData.teachers.length > 0) {
     teacherId = instanceData.teachers[0];
   } else if (instanceData.teacher) {
     teacherId = instanceData.teacher;
-  } 
-  // Якщо в інстансі пусто, беремо з предмета
-  else if (Array.isArray(subject.teachers) && subject.teachers.length > 0) {
+  } else if (Array.isArray(subject.teachers) && subject.teachers.length > 0) {
     teacherId = subject.teachers[0];
   } else {
     teacherId = subject.teacher;
   }
   const teacher = teachers.find((t) => t.id === teacherId) || {};
 
-  // 2. ТИП (Лекція/Практика): Пріоритет інстансу
   const displayType = instanceData.type || subject.type;
-
-  // 3. АУДИТОРІЯ/КОРПУС: Пріоритет інстансу
   const displayRoom = instanceData.room || subject.room;
   const displayBuilding = instanceData.building || subject.building;
 
@@ -98,7 +82,6 @@ const LessonCard = React.memo(({ lesson, onPress, onLongPress }) => {
     Animated.timing(iconOpacity, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, []);
 
-  // --- Фон ---
   const backgroundStyle = { ...StyleSheet.absoluteFillObject, borderRadius: CARD_BORDER_RADIUS };
   let backgroundContent;
   if (subject?.typeColor === "gradient" && subject?.colorGradient) {
@@ -109,7 +92,6 @@ const LessonCard = React.memo(({ lesson, onPress, onLongPress }) => {
     backgroundContent = <View style={[backgroundStyle, { backgroundColor: subjectColor }]} />;
   }
 
-  // --- Патерн ---
   const patternContent = useMemo(() => {
     if (!MainIcon) return null;
     const cols = Math.ceil(screenWidth / CELL_SIZE) + 1;
@@ -131,7 +113,6 @@ const LessonCard = React.memo(({ lesson, onPress, onLongPress }) => {
     <TouchableOpacity
       style={[styles.card, isActive && styles.cardActive]} 
       activeOpacity={0.9}
-      // Передаємо в onPress оновлені дані (злиті subject + instance)
       onPress={() => onPress && onPress({ ...lesson, subject, teacher, displayType, displayRoom, displayBuilding })}
       onLongPress={() => onLongPress && onLongPress({ ...lesson, subject, teacher })}
       delayLongPress={300}
@@ -187,7 +168,13 @@ const LessonCard = React.memo(({ lesson, onPress, onLongPress }) => {
   );
 });
 
-export default LessonCard;
+export default function LessonCard(props) {
+  const { schedule } = useSchedule();
+  const { isToday } = useDaySchedule();
+  const { width } = useWindowDimensions();
+
+  return <LessonCardPure {...props} schedule={schedule} isToday={isToday} screenWidth={width} />;
+}
 
 const styles = StyleSheet.create({
   card: { borderRadius: CARD_BORDER_RADIUS, marginBottom: 14, minHeight: 110, overflow: "hidden", borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', position: 'relative', backgroundColor: '#333', ...Platform.select({ web: { boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.2)' }, default: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 5 } }) },
