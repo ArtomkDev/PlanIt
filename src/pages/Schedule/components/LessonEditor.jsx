@@ -16,7 +16,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
-import useEntityManager from "../../../hooks/useEntityManager";
 import themes from "../../../config/themes";
 import { SUBJECT_ICONS } from "../../../config/subjectIcons"; 
 
@@ -33,19 +32,26 @@ import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const IS_IOS = Platform.OS === "ios"; 
 
+// Deep clone used to guarantee complete detachment from global context references
+const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
+const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+
 export default function LessonEditor({ lesson, onClose }) {
   const { global, schedule, scheduleDraft, setScheduleDraft } = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
-  const { addTeacher, addSubject, addLink, addGradient } = useEntityManager();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   const dataSource = scheduleDraft || schedule;
-  const subjects = dataSource?.subjects ?? [];
-  const teachers = dataSource?.teachers ?? [];
-  const links = dataSource?.links ?? [];
-  const gradients = dataSource?.gradients ?? [];
+
+  // Fully isolated local state buffer
+  const [localData, setLocalData] = useState({
+    subjects: deepClone(dataSource?.subjects),
+    teachers: deepClone(dataSource?.teachers),
+    links: deepClone(dataSource?.links),
+    gradients: deepClone(dataSource?.gradients),
+  });
 
   const getCleanInstanceData = (data) => {
     if (!data || typeof data !== 'object') return {};
@@ -70,6 +76,12 @@ export default function LessonEditor({ lesson, onClose }) {
   useEffect(() => {
     setSelectedSubjectId(lesson?.subjectId || null);
     setInstanceData(lesson?.data ? getCleanInstanceData(lesson.data) : {});
+    setLocalData({
+        subjects: deepClone(dataSource?.subjects),
+        teachers: deepClone(dataSource?.teachers),
+        links: deepClone(dataSource?.links),
+        gradients: deepClone(dataSource?.gradients),
+    });
     
     if (currentScreen !== "main") {
       setCurrentScreen("main");
@@ -78,7 +90,7 @@ export default function LessonEditor({ lesson, onClose }) {
     }
   }, [lesson]);
 
-  const currentSubject = subjects.find((s) => s.id === selectedSubjectId) || {};
+  const currentSubject = localData.subjects.find((s) => s.id === selectedSubjectId) || {};
 
   const sanitizeArray = (arr) => {
       if (!Array.isArray(arr)) return [];
@@ -189,6 +201,13 @@ export default function LessonEditor({ lesson, onClose }) {
     if (!selectedSubjectId) return;
     setScheduleDraft((prev) => {
       const next = { ...prev };
+      
+      // Batch apply all buffered local changes to the global context
+      next.subjects = localData.subjects;
+      next.teachers = localData.teachers;
+      next.links = localData.links;
+      next.gradients = localData.gradients;
+
       const dayIndex = getDayIndex(currentDate);
       const weekKey = `week${calculateCurrentWeek(currentDate)}`;
       
@@ -224,17 +243,14 @@ export default function LessonEditor({ lesson, onClose }) {
     closeWithAnimation();
   };
 
+  // Local state modifiers replacing immediate global dispatches
   const handleUpdateSubject = (updates) => {
     if (!selectedSubjectId) return;
-    setScheduleDraft((prev) => {
-      const next = { ...prev };
-      next.subjects = [...(next.subjects || [])];
-      
-      const subjIndex = next.subjects.findIndex((s) => s.id === selectedSubjectId);
-      if (subjIndex !== -1) {
-        next.subjects[subjIndex] = { ...next.subjects[subjIndex], ...updates };
-      }
-      return next;
+    setLocalData((prev) => {
+      const nextSubjects = [...prev.subjects];
+      const subjIndex = nextSubjects.findIndex((s) => s.id === selectedSubjectId);
+      if (subjIndex !== -1) nextSubjects[subjIndex] = { ...nextSubjects[subjIndex], ...updates };
+      return { ...prev, subjects: nextSubjects };
     });
   };
 
@@ -268,31 +284,29 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const handleRenameSubject = (newName) => {
     if (editingItemData) { 
-       setScheduleDraft((prev) => {
-        const next = { ...prev };
-        next.subjects = [...(next.subjects || [])];
-        
-        const idx = next.subjects.findIndex((s) => s.id === editingItemData);
-        if (idx !== -1) {
-          next.subjects[idx] = { ...next.subjects[idx], name: newName };
-        }
-        return next;
+       setLocalData((prev) => {
+        const nextSubjects = [...prev.subjects];
+        const idx = nextSubjects.findIndex((s) => s.id === editingItemData);
+        if (idx !== -1) nextSubjects[idx] = { ...nextSubjects[idx], name: newName };
+        return { ...prev, subjects: nextSubjects };
       });
       goToScreen("picker"); 
     }
   };
 
   const handleSaveGradient = (newGradient) => {
-    setScheduleDraft((prev) => {
-      const next = { ...prev };
-      const grads = [...(next.gradients || [])];
+    setLocalData((prev) => {
+      const grads = [...prev.gradients];
       const idx = grads.findIndex((g) => g.id === newGradient.id);
       if (idx !== -1) grads[idx] = newGradient;
       else grads.push(newGradient);
-      next.gradients = grads;
-      return next;
+      return { ...prev, gradients: grads };
     });
-    goToScreen("subjectColor");
+    
+    // ОДРАЗУ вибираємо цей градієнт для предмету
+    handleUpdateSubject({ colorGradient: newGradient.id, typeColor: "gradient" });
+    // ЗАКРИВАЄМО всі вікна вибору і повертаємось на головний екран
+    goToScreen("main");
   };
 
   const handleOpenPicker = (type) => {
@@ -320,10 +334,14 @@ export default function LessonEditor({ lesson, onClose }) {
         const cleanSelected = sanitizeArray(rawTeachers);
 
         return {
-            options: teachers.map((t) => ({ key: t.id, label: t.name })),
+            options: localData.teachers.map((t) => ({ key: t.id, label: t.name })),
             selected: cleanSelected,
             multi: true,
-            onAdd: () => { const newT = addTeacher(); goToScreen("teacherEditor", newT.id); },
+            onAdd: () => {
+                const newT = { id: generateLocalId(), name: "Новий викладач" };
+                setLocalData(prev => ({ ...prev, teachers: [...prev.teachers, newT] }));
+                goToScreen("teacherEditor", newT.id);
+            },
             onEdit: (id) => goToScreen("teacherEditor", id),
             onSaveLocal: (ids) => handleGenericSave("teachers", ids, 'local'),
             onSaveGlobal: (ids) => handleGenericSave("teachers", ids, 'global'),
@@ -337,10 +355,14 @@ export default function LessonEditor({ lesson, onClose }) {
         const cleanSelected = sanitizeArray(rawLinks);
         
         return {
-            options: links.map((l) => ({ key: l.id, label: l.name })),
+            options: localData.links.map((l) => ({ key: l.id, label: l.name })),
             selected: cleanSelected,
             multi: true,
-            onAdd: () => { const newL = addLink(); goToScreen("linkEditor", newL.id); },
+            onAdd: () => {
+                const newL = { id: generateLocalId(), name: "Нове посилання", url: "" };
+                setLocalData(prev => ({ ...prev, links: [...prev.links, newL] }));
+                goToScreen("linkEditor", newL.id);
+            },
             onEdit: (id) => goToScreen("linkEditor", id),
             onSaveLocal: (ids) => handleGenericSave("links", ids, 'local'),
             onSaveGlobal: (ids) => handleGenericSave("links", ids, 'global'),
@@ -365,10 +387,15 @@ export default function LessonEditor({ lesson, onClose }) {
 
     if (pickerType === "subject") {
         return {
-            options: subjects.map((s) => ({ key: s.id, label: s.name })),
+            options: localData.subjects.map((s) => ({ key: s.id, label: s.name })),
             selected: selectedSubjectId ? [selectedSubjectId] : [],
             multi: false,
-            onAdd: () => { const newS = addSubject(); setSelectedSubjectId(newS.id); goToScreen("main"); },
+            onAdd: () => {
+                const newS = { id: generateLocalId(), name: "Новий предмет" };
+                setLocalData(prev => ({ ...prev, subjects: [...prev.subjects, newS] }));
+                setSelectedSubjectId(newS.id);
+                goToScreen("main");
+            },
             onEdit: (id) => { setPickerType("subject"); setInputType("subject_rename"); goToScreen("input", id); },
             onSelect: (key) => { setSelectedSubjectId(key); goToScreen("main"); }
         };
@@ -419,7 +446,7 @@ export default function LessonEditor({ lesson, onClose }) {
           };
       }
       if (inputType === "subject_rename") {
-          const subj = subjects.find(s => s.id === editingItemData);
+          const subj = localData.subjects.find(s => s.id === editingItemData);
           return {
               val: subj?.name,
               ph: "Назва предмету",
@@ -432,12 +459,12 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const getLabel = (type, value) => {
     if (!value) return null;
-    if (type === "subject") return subjects.find((s) => s.id === value)?.name;
+    if (type === "subject") return localData.subjects.find((s) => s.id === value)?.name;
     if (type === "link" || type === "teacher") {
         const list = sanitizeArray(Array.isArray(value) ? value : [value]);
         
         if (list.length === 0) return "Не обрано";
-        const source = type === "link" ? links : teachers;
+        const source = type === "link" ? localData.links : localData.teachers;
         const names = list.map(id => source.find(item => item.id === id)?.name).filter(Boolean);
         if (names.length === 0) return "Не обрано";
         return names.join(", ");
@@ -489,7 +516,7 @@ export default function LessonEditor({ lesson, onClose }) {
               selectedSubjectId={selectedSubjectId}
               currentSubject={currentSubject}
               instanceData={displayData}
-              gradients={gradients}
+              gradients={localData.gradients}
               setActivePicker={handleOpenPicker}
               onEditSubjectColor={() => goToScreen("subjectColor")}
               getLabel={getLabel}
@@ -497,7 +524,22 @@ export default function LessonEditor({ lesson, onClose }) {
           )}
 
           {currentScreen === "subjectColor" && (
-            <LessonEditorSubjectColorScreen themeColors={themeColors} currentSubject={currentSubject} handleUpdateSubject={handleUpdateSubject} onEditGradient={(grad) => { setEditingGradient(grad); goToScreen("gradientEdit"); }} onAddGradient={() => { setEditingGradient(addGradient()); goToScreen("gradientEdit"); }} />
+            <LessonEditorSubjectColorScreen 
+                themeColors={themeColors} 
+                currentSubject={currentSubject} 
+                // Замінюємо handleUpdateSubject на onSelect
+                onSelect={(updates) => {
+                    handleUpdateSubject(updates);
+                    goToScreen("main"); // Повертаємось на головний екран після вибору
+                }} 
+                onEditGradient={(grad) => { setEditingGradient(grad); goToScreen("gradientEdit"); }} 
+                onAddGradient={() => {
+                    const newG = { id: generateLocalId(), colors: ["#4facfe", "#00f2fe"] };
+                    setLocalData(prev => ({ ...prev, gradients: [...prev.gradients, newG] }));
+                    setEditingGradient(newG);
+                    goToScreen("gradientEdit");
+                }} 
+            />
           )}
           {currentScreen === "gradientEdit" && editingGradient && (
             <LessonEditorGradientEditScreen themeColors={themeColors} gradientToEdit={editingGradient} onSave={handleSaveGradient} openColorPicker={openAdvancedColorPicker} />
@@ -537,8 +579,30 @@ export default function LessonEditor({ lesson, onClose }) {
             />
           )}
 
-          {currentScreen === "teacherEditor" && (<TeacherEditor teacherId={editingItemData} onBack={() => goToScreen("picker")} themeColors={themeColors}/>)}
-          {currentScreen === "linkEditor" && (<LinkEditor linkId={editingItemData} onBack={() => goToScreen("picker")} themeColors={themeColors}/>)}
+          {currentScreen === "teacherEditor" && (
+              <TeacherEditor 
+                teacherId={editingItemData} 
+                localTeacherData={localData.teachers.find(t => t.id === editingItemData)}
+                onSaveLocal={(updated) => {
+                    setLocalData(prev => ({ ...prev, teachers: prev.teachers.map(t => t.id === updated.id ? updated : t) }));
+                    goToScreen("picker");
+                }}
+                onBack={() => goToScreen("picker")} 
+                themeColors={themeColors}
+              />
+          )}
+          {currentScreen === "linkEditor" && (
+              <LinkEditor 
+                linkId={editingItemData} 
+                localLinkData={localData.links.find(l => l.id === editingItemData)}
+                onSaveLocal={(updated) => {
+                    setLocalData(prev => ({ ...prev, links: prev.links.map(l => l.id === updated.id ? updated : l) }));
+                    goToScreen("picker");
+                }}
+                onBack={() => goToScreen("picker")} 
+                themeColors={themeColors}
+              />
+          )}
         </View>
       </Animated.View>
       {advancedPickerTarget && (<AdvancedColorPicker visible={showAdvancedPicker} initialColor={advancedPickerTarget.colorValue} onSave={(color) => { advancedPickerTarget.setter(color); setShowAdvancedPicker(false); }} onClose={() => setShowAdvancedPicker(false)}/>)}
@@ -567,4 +631,4 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: 'center', paddingHorizontal: 16, paddingBottom: 15, borderBottomWidth: StyleSheet.hairlineWidth },
   headerTitle: { fontSize: 17, fontWeight: "600", flex: 1, textAlign: "center" },
   backButton: { flexDirection: "row", alignItems: "center", marginLeft: -8 },
-});
+}); 

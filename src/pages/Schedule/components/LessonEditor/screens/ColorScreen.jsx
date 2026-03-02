@@ -1,139 +1,102 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
-import Slider from "@react-native-assets/slider";
-import GradientBackground from "../../../../../components/GradientBackground";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import ColorGrid from "../ui/ColorGrid";
+import GradientGrid from "../ui/GradientGrid";
 
-export default function LessonEditorGradientEditScreen({
+export default function LessonEditorSubjectColorScreen({
   themeColors,
-  gradientToEdit,
-  onSave,
-  openColorPicker,
+  currentSubject,
+  onSelect, // Використовуємо новий пропс
+  onEditGradient,
+  onAddGradient,
 }) {
-  const [color1, setColor1] = useState("#ffffff");
-  const [color2, setColor2] = useState("#000000");
-  const [angle, setAngle] = useState(0);
+  const [activeTab, setActiveTab] = useState(
+    currentSubject?.typeColor === "gradient" ? "gradient" : "color"
+  );
 
-  useEffect(() => {
-    if (gradientToEdit) {
-      setColor1(gradientToEdit.colors?.[0]?.color || "#ffffff");
-      setColor2(gradientToEdit.colors?.[1]?.color || "#000000");
-      setAngle(gradientToEdit.angle || 0);
-    }
-  }, [gradientToEdit]);
+  const handleSelectColor = (colorKey) => {
+    onSelect({ color: colorKey, typeColor: "color" });
+  };
 
-  const handleSave = () => {
-    const newGradient = {
-      ...(gradientToEdit || { id: Date.now() }),
-      type: "linear",
-      angle,
-      colors: [
-        { color: color1, position: 0 },
-        { color: color2, position: 1 },
-      ],
-    };
-    onSave(newGradient);
+  const handleSelectGradient = (gradientId) => {
+    onSelect({ colorGradient: gradientId, typeColor: "gradient" });
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.previewContainer}>
-        <GradientBackground
-          gradient={{
-            type: "linear",
-            angle,
-            colors: [
-              { color: color1, position: 0 },
-              { color: color2, position: 1 },
-            ],
-          }}
-          style={styles.preview}
-        />
+      <View style={[styles.tabContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "color" && { backgroundColor: themeColors.backgroundColor }]}
+          onPress={() => setActiveTab("color")}
+        >
+          <Text style={[styles.tabText, { color: activeTab === "color" ? themeColors.textColor : themeColors.textColor2 }]}>
+            Колір
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "gradient" && { backgroundColor: themeColors.backgroundColor }]}
+          onPress={() => setActiveTab("gradient")}
+        >
+          <Text style={[styles.tabText, { color: activeTab === "gradient" ? themeColors.textColor : themeColors.textColor2 }]}>
+            Градієнт
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.colorsRow}>
-        <View style={styles.colorControl}>
-          <Text style={[styles.label, { color: themeColors.textColor2 }]}>Колір 1</Text>
-          <TouchableOpacity
-            style={[styles.colorBtn, { backgroundColor: color1, borderColor: themeColors.borderColor }]}
-            onPress={() => openColorPicker(color1, setColor1)}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {activeTab === "color" ? (
+          <ColorGrid
+            themeColors={themeColors}
+            selectedColor={currentSubject?.typeColor !== "gradient" ? currentSubject?.color : null}
+            onSelect={handleSelectColor} // Викличе оновлення і закриє вікно
           />
-        </View>
-
-        <View style={styles.colorControl}>
-          <Text style={[styles.label, { color: themeColors.textColor2 }]}>Колір 2</Text>
-          <TouchableOpacity
-            style={[styles.colorBtn, { backgroundColor: color2, borderColor: themeColors.borderColor }]}
-            onPress={() => openColorPicker(color2, setColor2)}
-          />
-        </View>
-      </View>
-
-      <View style={styles.sliderContainer}>
-        <View style={styles.sliderHeader}>
-          <Text style={[styles.label, { color: themeColors.textColor }]}>Кут нахилу</Text>
-          <Text style={[styles.value, { color: themeColors.accentColor }]}>{Math.round(angle)}°</Text>
-        </View>
-        <Slider
-          style={{ width: "100%", height: 40 }}
-          minimumValue={0}
-          maximumValue={360}
-          value={angle}
-          onValueChange={setAngle}
-          step={1}
-          minimumTrackTintColor={themeColors.accentColor}
-          maximumTrackTintColor={themeColors.backgroundColor2}
-          thumbTintColor={themeColors.textColor}
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]}
-        onPress={handleSave}
-      >
-        <Text style={[styles.saveText, { color: "#fff" }]}>Зберегти градієнт</Text>
-      </TouchableOpacity>
+        ) : (
+          <View>
+            <GradientGrid
+              themeColors={themeColors}
+              selectedGradient={currentSubject?.typeColor === "gradient" ? currentSubject?.colorGradient : null}
+              onSelect={handleSelectGradient} // Викличе оновлення і закриє вікно
+              onEdit={onEditGradient}
+            />
+            
+            <TouchableOpacity
+              style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
+              onPress={onAddGradient}
+            >
+              <Text style={styles.addButtonText}>+ Створити градієнт</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 10 },
-  previewContainer: {
-    height: 120,
-    borderRadius: 16,
-    marginBottom: 24,
-    overflow: "hidden",
-    ...Platform.select({
-      web: { boxShadow: '0px 0px 5px rgba(0,0,0,0.1)' },
-      default: { shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 }
-    })
-  },
-  preview: { flex: 1 },
-  colorsRow: {
+  container: { flex: 1 },
+  tabContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 24,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 20,
+    padding: 4,
+    borderRadius: 8,
   },
-  colorControl: { alignItems: "center" },
-  colorBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    marginTop: 8,
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 6,
   },
-  label: { fontSize: 14, fontWeight: "500" },
-  sliderContainer: { marginBottom: 30 },
-  sliderHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 5,
-  },
-  value: { fontWeight: "bold" },
-  saveBtn: {
+  tabText: { fontSize: 15, fontWeight: "600" },
+  content: { flex: 1, paddingHorizontal: 16 },
+  addButton: {
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
+    marginTop: 16,
+    marginBottom: 40,
   },
-  saveText: { fontSize: 16, fontWeight: "bold" },
+  addButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });
