@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
-  TouchableWithoutFeedback,
+  Pressable,
   Keyboard,
   Animated,
   PanResponder,
@@ -91,7 +91,7 @@ export default function LessonEditor({ lesson, onClose }) {
     if (!IS_IOS) {
       Animated.spring(panY, {
         toValue: 0,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         damping: 20,
         stiffness: 90,
         mass: 1,
@@ -107,7 +107,7 @@ export default function LessonEditor({ lesson, onClose }) {
         Animated.timing(panY, {
           toValue: SCREEN_HEIGHT,
           duration: 200,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }).start(() => onClose());
     }
   };
@@ -137,7 +137,7 @@ export default function LessonEditor({ lesson, onClose }) {
         } else {
           Animated.spring(panY, { 
               toValue: 0, 
-              useNativeDriver: true, 
+              useNativeDriver: Platform.OS !== 'web', 
               bounciness: 6,
               speed: 14 
           }).start();
@@ -458,7 +458,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.overlay}>
-      {!IS_IOS && (<TouchableWithoutFeedback onPress={closeWithAnimation}><View style={styles.backdrop} /></TouchableWithoutFeedback>)}
+      {!IS_IOS && (<Pressable onPress={closeWithAnimation} style={styles.backdrop} />)}
       
       <Animated.View style={[styles.sheetContainer, { backgroundColor: themeColors.backgroundColor }, !IS_IOS && { transform: [{ translateY: panY }] }]}>
         <View {...panResponder.panHandlers} style={styles.dragZone}>
@@ -549,7 +549,18 @@ export default function LessonEditor({ lesson, onClose }) {
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" }, 
-  sheetContainer: { flex: 1, marginTop: IS_IOS ? 0 : '10%', borderTopLeftRadius: IS_IOS ? 0 : 20, borderTopRightRadius: IS_IOS ? 0 : 20, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: -5 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 10 },
+  sheetContainer: { 
+    flex: 1, 
+    marginTop: IS_IOS ? 0 : '10%', 
+    borderTopLeftRadius: IS_IOS ? 0 : 20, 
+    borderTopRightRadius: IS_IOS ? 0 : 20, 
+    overflow: "hidden", 
+    elevation: 10,
+    ...Platform.select({
+      web: { boxShadow: "0px -5px 10px rgba(0,0,0,0.3)" },
+      default: { shadowColor: "#000", shadowOffset: { width: 0, height: -5 }, shadowOpacity: 0.3, shadowRadius: 10 }
+    })
+  },
   dragZone: { backgroundColor: "transparent", paddingTop: 10 },
   handleContainer: { alignItems: "center", paddingBottom: 10 },
   handle: { width: 40, height: 5, borderRadius: 3, opacity: 0.5 },

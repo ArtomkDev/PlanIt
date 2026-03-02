@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, Text } from "react-native";
 import SettingRow from "../ui/SettingRow"; 
 import Group from "../ui/Group";
 import GradientBackground from "../../../../../components/GradientBackground";
@@ -10,7 +10,7 @@ export default function LessonEditorMainScreen({
   themeColors,
   selectedSubjectId,
   currentSubject,
-  instanceData = {}, // 🔥 Новий проп
+  instanceData = {},
   gradients,
   setActivePicker,
   onEditSubjectColor,
@@ -20,9 +20,15 @@ export default function LessonEditorMainScreen({
   const safeGetLabel = getLabel || ((type, val) => "Не визначено");
 
   const renderIconValue = () => {
-    if (!currentSubject.icon) return "Немає";
+    if (!currentSubject.icon) {
+      return <Text style={{ color: themeColors.textColor2, fontSize: 16 }}>Немає</Text>;
+    }
     const IconCmp = getIconComponent(currentSubject.icon);
-    return IconCmp ? <IconCmp size={20} color={themeColors.textColor2} /> : "Немає";
+    return IconCmp ? (
+      <IconCmp size={20} color={themeColors.textColor2} />
+    ) : (
+      <Text style={{ color: themeColors.textColor2, fontSize: 16 }}>Немає</Text>
+    );
   };
 
   const renderColorPreview = () => {
@@ -50,10 +56,6 @@ export default function LessonEditorMainScreen({
     );
   }
 
-  // 🔥 Використовуємо instanceData для відображення значень, що можуть бути змінені для конкретної пари
-  // Для вчителів і лінків: якщо в instanceData пусто, можна було б показувати "За замовчуванням" або брати з Subject
-  // Але для чистоти редагування показуємо те, що реально записано в урок.
-
   return (
     <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
       <Group themeColors={themeColors} title="Предмет">
@@ -69,7 +71,6 @@ export default function LessonEditorMainScreen({
       <Group themeColors={themeColors} title="Люди">
         <SettingRow
             label="Викладачі"
-            // 🔥 Беремо з instanceData
             value={safeGetLabel("teacher", instanceData.teachers || [])} 
             onPress={() => setActivePicker("teacher")}
             themeColors={themeColors}
@@ -80,7 +81,6 @@ export default function LessonEditorMainScreen({
       <Group themeColors={themeColors} title="Деталі">
         <SettingRow
           label="Тип заняття"
-          // 🔥 Беремо з instanceData
           value={safeGetLabel("type", instanceData.type) || "Не вказано"}
           onPress={() => setActivePicker("type")}
           themeColors={themeColors}
@@ -88,7 +88,6 @@ export default function LessonEditorMainScreen({
         />
         <SettingRow
           label="Корпус"
-          // 🔥 Беремо з instanceData
           value={instanceData.building || "—"}
           onPress={() => setActivePicker("building")}
           themeColors={themeColors}
@@ -96,7 +95,6 @@ export default function LessonEditorMainScreen({
         />
         <SettingRow
           label="Аудиторія"
-          // 🔥 Беремо з instanceData
           value={instanceData.room || "—"}
           onPress={() => setActivePicker("room")}
           themeColors={themeColors}
@@ -104,7 +102,6 @@ export default function LessonEditorMainScreen({
         />
       </Group>
 
-      {/* Оформлення залишається глобальним для предмета */}
       <Group themeColors={themeColors} title="Оформлення (для всіх пар)">
         <SettingRow
           label="Колір картки"
@@ -125,7 +122,6 @@ export default function LessonEditorMainScreen({
       <Group themeColors={themeColors} title="Матеріали">
         <SettingRow
           label="Посилання"
-          // 🔥 Беремо з instanceData
           value={safeGetLabel("link", instanceData.links || [])}
           onPress={() => setActivePicker("link")}
           themeColors={themeColors}

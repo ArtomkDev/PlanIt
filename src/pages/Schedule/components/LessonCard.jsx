@@ -79,7 +79,11 @@ const LessonCardPure = React.memo(({ lesson, schedule, isToday, screenWidth, onP
 
   const iconOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(iconOpacity, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    Animated.timing(iconOpacity, { 
+      toValue: 1, 
+      duration: 400, 
+      useNativeDriver: Platform.OS !== 'web' 
+    }).start();
   }, []);
 
   const backgroundStyle = { ...StyleSheet.absoluteFillObject, borderRadius: CARD_BORDER_RADIUS };
@@ -106,7 +110,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, isToday, screenWidth, onP
         }
       }
     }
-    return <Animated.View style={[styles.patternOverlay, { opacity: iconOpacity }]} pointerEvents="none">{icons}</Animated.View>;
+    return <Animated.View style={[styles.patternOverlay, { opacity: iconOpacity, pointerEvents: 'none' }]}>{icons}</Animated.View>;
   }, [screenWidth, MainIcon]);
 
   return (
@@ -131,7 +135,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, isToday, screenWidth, onP
             </Text>
           </View>
 
-          {displayType && (
+          {!!displayType && (
             <View style={styles.typeBadge}>
               <Text style={styles.typeText}>{displayType}</Text>
             </View>
@@ -152,7 +156,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, isToday, screenWidth, onP
             <Text style={styles.footerText} numberOfLines={1}>{teacher?.name || "—"}</Text>
           </View>
 
-          {(displayRoom || displayBuilding) && (
+          {!!(displayRoom || displayBuilding) && (
             <View style={styles.footerItem}>
               <View style={styles.iconFixedContainer}>
                   <Ionicons name="location" size={14} color="rgba(255,255,255,0.9)" />

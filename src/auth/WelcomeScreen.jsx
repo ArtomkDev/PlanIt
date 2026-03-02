@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
@@ -50,7 +50,6 @@ const WelcomeScreen = ({ navigation, onGuestLogin }) => {
             <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>Створити акаунт</Text>
           </TouchableOpacity>
 
-          {/* 🔥 КНОПКА ГОСТЯ ТЕПЕР НОРМАЛЬНА */}
           <TouchableOpacity 
             style={[styles.secondaryButton, { backgroundColor: 'transparent', borderColor: colors.borderColor, marginTop: 0 }]} 
             onPress={onGuestLogin}
@@ -95,9 +94,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 25,
     elevation: 10,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.3)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }
+    })
   },
   title: {
     fontSize: 38,

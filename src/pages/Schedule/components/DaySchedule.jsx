@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, Platform } from "react-native";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import LessonCard from "./LessonCard";
@@ -55,7 +55,7 @@ export default function DaySchedule({
       overScrollMode="always"
       onScroll={Animated.event(
         [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: true }
+        { useNativeDriver: Platform.OS !== 'web' }
       )}
       scrollEventThrottle={16}
     >

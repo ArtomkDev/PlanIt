@@ -114,7 +114,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
             
             {/* Назва та Тип */}
             <View style={styles.titleSection}>
-              {displayType && (
+              {!!displayType && (
                 <View style={[styles.typeBadge, { borderColor: themeColors.accentColor }]}>
                   <Text style={[styles.typeText, { color: themeColors.accentColor }]}>
                     {displayType.toUpperCase()}
@@ -124,7 +124,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
               <Text style={[styles.subjectName, { color: themeColors.textColor }]}>
                 {fullSubject.name || "Без назви"}
               </Text>
-              {fullSubject.fullName && (
+              {!!fullSubject.fullName && (
                 <Text style={[styles.subjectFullName, { color: themeColors.textColor2 }]}>
                   {fullSubject.fullName}
                 </Text>
@@ -169,7 +169,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                       <Text style={[styles.rowTitle, { color: themeColors.textColor }]}>{teacher.name}</Text>
                       {teacher.phone ? <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]}>{teacher.phone}</Text> : null}
                     </View>
-                    {teacher.phone && (
+                    {!!teacher.phone && (
                         <TouchableOpacity onPress={() => Linking.openURL(`tel:${teacher.phone}`)} hitSlop={10}>
                             <Ionicons name="call-outline" size={22} color={themeColors.accentColor} style={{marginRight: 8}}/>
                         </TouchableOpacity>

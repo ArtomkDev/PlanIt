@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { 
   View, Text, Modal, StyleSheet, TouchableOpacity, 
-  Animated, Dimensions, TouchableWithoutFeedback, FlatList 
+  Animated, Dimensions, Pressable, FlatList, Platform
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import AppBlur from '../../../../components/AppBlur';
@@ -32,21 +32,28 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
   useEffect(() => {
     if (visible) {
       setIsPickerMode(false);
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 90 }).start();
+      Animated.spring(slideAnim, { 
+        toValue: 0, 
+        useNativeDriver: Platform.OS !== 'web', 
+        damping: 20, 
+        stiffness: 90 
+      }).start();
     } else {
-      Animated.timing(slideAnim, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: true }).start();
+      Animated.timing(slideAnim, { 
+        toValue: SCREEN_HEIGHT, 
+        duration: 250, 
+        useNativeDriver: Platform.OS !== 'web' 
+      }).start();
     }
   }, [visible]);
 
-  // 🔥 ВИПРАВЛЕННЯ: Миттєве центрування року
   useEffect(() => {
     if (isPickerMode && yearsListRef.current) {
-        // Використовуємо setTimeout 0, щоб дати списку змонтуватися
         setTimeout(() => {
             yearsListRef.current?.scrollToIndex({ 
                 index: 5, 
-                animated: false, // 👈 Головне: вимикаємо анімацію, щоб не було "їзди"
-                viewPosition: 0.5 // 👈 Центруємо елемент (0.5 = центр)
+                animated: false, 
+                viewPosition: 0.5 
             });
         }, 0);
     }
@@ -59,22 +66,18 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
     "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
   ];
 
-  // Масив років: завжди 11 елементів, де поточний рік по центру (індекс 5)
   const years = Array.from({ length: 11 }, (_, i) => viewDate.getFullYear() - 5 + i);
 
   return (
     <Modal transparent visible={visible} onRequestClose={onClose} animationType="none">
       <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
+        <Pressable onPress={onClose} style={styles.backdrop} />
 
         <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }], backgroundColor: themeColors.backgroundColor }]}>
             <View style={StyleSheet.absoluteFill}>
                  <AppBlur style={StyleSheet.absoluteFill} intensity={80} tint={mode === 'dark' ? 'dark' : 'light'} />
             </View>
 
-            {/* --- HEADER --- */}
             <View style={styles.header}>
                 <View style={styles.navButtonContainer}>
                     {!isPickerMode && (
@@ -84,7 +87,6 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
                     )}
                 </View>
 
-                {/* Центральна кнопка-перемикач */}
                 <TouchableOpacity 
                   style={[
                     styles.titleButton, 
@@ -113,10 +115,8 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
                 </View>
             </View>
 
-            {/* --- BODY --- */}
             <View style={{ height: CONTENT_HEIGHT }}>
               {isPickerMode ? (
-                // --- PICKER MODE ---
                 <View style={styles.pickerContainer}>
                   
                   <View style={styles.yearsWrapper}>
@@ -129,7 +129,6 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
                         getItemLayout={(data, index) => (
                             { length: 80, offset: 80 * index, index }
                         )}
-                        // initialScrollIndex={5} // Можна прибрати, бо useEffect зробить це точніше
                         renderItem={({ item: y }) => {
                             const isSelected = y === viewDate.getFullYear();
                             return (
@@ -175,7 +174,6 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
                   </View>
                 </View>
               ) : (
-                // --- CALENDAR GRID ---
                 <CalendarGrid 
                     days={calendarDays}
                     weekDayNames={weekDayNames}
@@ -204,7 +202,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingTop: 20,
     overflow: 'hidden',
-    shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10,
+    ...Platform.select({
+      web: { boxShadow: '0px -2px 10px rgba(0,0,0,0.1)' },
+      default: { shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10 }
+    })
   },
   
   header: {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, Switch } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, Switch, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import themes from "../../../config/themes";
 import { useSchedule } from "../../../context/ScheduleProvider";
@@ -20,7 +20,6 @@ const ThemeSettings = () => {
 
   const themeColors = useMemo(() => themes.getColors(selectedMode, selectedColor), [selectedMode, selectedColor]);
 
-  // Синхронізація з глобальним станом
   useEffect(() => {
     if (
       currentMode !== selectedMode || 
@@ -30,7 +29,7 @@ const ThemeSettings = () => {
       setGlobalDraft((prev) => ({
         ...prev,
         theme: [selectedMode, selectedColor],
-        blur: isBlurEnabled, // Зберігаємо налаштування блюру
+        blur: isBlurEnabled,
       }));
     }
   }, [selectedMode, selectedColor, isBlurEnabled]);
@@ -66,7 +65,6 @@ const ThemeSettings = () => {
     <SettingsScreenLayout>
       <View style={styles.container}>
         
-        {/* Секція 1: Режим теми */}
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           🎨 Режим
         </Text>
@@ -84,8 +82,10 @@ const ThemeSettings = () => {
                 selectedMode === item.key && {
                   borderColor: themeColors.accentColor,
                   borderWidth: 2,
-                  shadowColor: themeColors.accentColor,
-                  elevation: 2,
+                  ...Platform.select({
+                    web: { boxShadow: `0px 2px 6px ${themeColors.accentColor}80` },
+                    default: { shadowColor: themeColors.accentColor, elevation: 2 }
+                  })
                 },
               ]}
               onPress={() => setSelectedMode(item.key)}
@@ -97,7 +97,6 @@ const ThemeSettings = () => {
           ))}
         </View>
 
-        {/* Секція 2: Блюр (Нове налаштування) */}
         <View style={[styles.switchRow, { backgroundColor: themeColors.backgroundColor2 }]}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.switchLabel, { color: themeColors.textColor }]}>Ефект розмиття (Blur)</Text>
@@ -113,7 +112,6 @@ const ThemeSettings = () => {
           />
         </View>
 
-        {/* Секція 3: Акцентний колір */}
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           🌈 Акцентний колір
         </Text>
@@ -142,7 +140,6 @@ const ThemeSettings = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Секція 4: Превʼю */}
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           👀 Результат
         </Text>
@@ -193,13 +190,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: 'center',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
+      default: { shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }
+    })
   },
   themeCardText: { fontSize: 14, fontWeight: "600" },
 
-  // Switch Styles
   switchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -224,18 +221,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 3px rgba(0,0,0,0.15)' },
+      default: { shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 2 } }
+    })
   },
   colorTileSelected: {
     borderWidth: 3,
     borderColor: "#fff",
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
     transform: [{ scale: 1.05 }],
+    ...Platform.select({
+      web: { boxShadow: '0px 0px 5px rgba(0,0,0,0.4)' },
+      default: { shadowOpacity: 0.4, shadowRadius: 5 }
+    })
   },
   customTile: {
     borderWidth: 1,
@@ -246,18 +245,21 @@ const styles = StyleSheet.create({
     color: "#fff", 
     fontWeight: "bold", 
     fontSize: 18,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: {width: 0, height: 1},
-    textShadowRadius: 2
+    ...Platform.select({
+      web: { textShadow: '0px 1px 2px rgba(0,0,0,0.3)' },
+      default: { textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 2 }
+    })
   },
 
   previewCard: {
     borderRadius: 16,
     padding: 20,
     borderLeftWidth: 6,
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
     elevation: 1,
+    ...Platform.select({
+      web: { boxShadow: '0px 0px 10px rgba(0,0,0,0.05)' },
+      default: { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 }
+    })
   },
   previewHeader: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
   previewText: { fontSize: 14, lineHeight: 20, marginBottom: 15, opacity: 0.8 },
