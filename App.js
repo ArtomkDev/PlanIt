@@ -8,6 +8,8 @@ import * as Font from "expo-font";
 import { Ionicons } from "@expo/vector-icons";
 import * as SplashScreen from "expo-splash-screen";
 
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
 import { auth } from "./firebase";
 import SignIn from "./src/auth/SignIn";
 import SignUp from "./src/auth/SignUp";
@@ -25,21 +27,21 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   const [user, setUser] = useState(null);
   const [guest, setGuest] = useState(false);
-  const [appIsReady, setAppIsReady] = useState(false);
+
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
 
   useEffect(() => {
-    async function prepare() {
+    async function loadFonts() {
       try {
         await Font.loadAsync(Ionicons.font);
-        const localSchedule = await AsyncStorage.getItem("guest_schedule");
-        if (localSchedule) setGuest(true);
       } catch (e) {
         console.warn(e);
       } finally {
-        setAppIsReady(true);
+        setFontsLoaded(true);
       }
     }
-    prepare();
+    loadFonts();
   }, []);
 
   useEffect(() => {
@@ -47,23 +49,39 @@ export default function App() {
     const handleSignOut = () => {
       signOut(auth).catch((error) => console.error(error));
     };
+
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       deviceListenerUnsubscribe();
+      
       if (firebaseUser) {
         setUser(firebaseUser);
         setGuest(false);
         setManualLogin(false);
         await registerDevice(firebaseUser.uid);
         deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+        setAuthResolved(true);
       } else {
         setUser(null);
+        // Ensure we only look for a guest schedule if the user is definitely unauthenticated
+        try {
+          const localSchedule = await AsyncStorage.getItem("guest_schedule");
+          setGuest(!!localSchedule);
+        } catch (e) {
+          console.warn(e);
+        } finally {
+          setAuthResolved(true);
+        }
       }
     });
+
     return () => {
       authUnsubscribe();
       deviceListenerUnsubscribe();
     };
   }, []);
+
+  // Block rendering until both fonts are loaded and Firebase has returned the auth state
+  const appIsReady = fontsLoaded && authResolved;
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
@@ -80,7 +98,7 @@ export default function App() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }} onLayout={onLayoutRootView}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }} onLayout={onLayoutRootView}>
       <ScheduleProvider guest={guest} user={user}>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -113,6 +131,6 @@ export default function App() {
           </Stack.Navigator>
         </NavigationContainer>
       </ScheduleProvider>
-    </View>
+    </GestureHandlerRootView>
   );
 }

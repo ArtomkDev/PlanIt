@@ -63,7 +63,7 @@ export default function TabNavigator({ screenProps }) {
       screenOptions={{
         tabBarStyle: {
           position: 'absolute',
-          height: 70 + insets.bottom,
+          height: 50 + insets.bottom,
           paddingBottom: 10 + insets.bottom,
           paddingTop: 0,
           backgroundColor: 'transparent',

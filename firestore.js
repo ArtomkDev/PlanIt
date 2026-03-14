@@ -3,12 +3,64 @@ import {
   getDoc, 
   collection, 
   getDocs, 
-  writeBatch 
+  writeBatch,
+  onSnapshot // ДОДАНО: Для підписки в реальному часі
 } from "firebase/firestore";
 import { db } from "./firebase";
 import createDefaultData from './src/config/createDefaultData';
-import { getLocalSchedule, saveLocalSchedule } from './src/utils/storage';
 
+// НОВА ФУНКЦІЯ: Підписка на оновлення розкладу в реальному часі
+export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
+  let globalData = null;
+  let schedulesList = null;
+
+  // Функція об'єднання: чекає, поки завантажаться І глобальні налаштування, І розклади
+  const checkAndEmit = () => {
+    if (globalData !== null && schedulesList !== null) {
+      onDataUpdate({ global: globalData, schedules: schedulesList });
+    }
+  };
+
+  // 1. Слухаємо зміни в глобальних налаштуваннях
+  const globalRef = doc(db, 'users', userId, 'global', 'settings');
+  const unsubGlobal = onSnapshot(globalRef, async (docSnap) => {
+    if (docSnap.exists()) {
+      globalData = docSnap.data();
+    } else {
+      // Для сумісності з дуже старими акаунтами, де global був у корневому документі
+      const userDocRef = doc(db, "users", userId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists() && userDocSnap.data().global) {
+        globalData = userDocSnap.data().global;
+      } else {
+        globalData = createDefaultData().global;
+      }
+    }
+    checkAndEmit();
+  }, (error) => {
+    if (onError) onError(error);
+  });
+
+  // 2. Слухаємо зміни в колекції розкладів
+  const schedulesRef = collection(db, 'users', userId, 'schedules');
+  const unsubSchedules = onSnapshot(schedulesRef, (querySnapshot) => {
+    schedulesList = querySnapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
+    checkAndEmit();
+  }, (error) => {
+    if (onError) onError(error);
+  });
+
+  // Повертаємо функцію відписки, щоб викликати її при виході з акаунта або закритті додатку
+  return () => {
+    unsubGlobal();
+    unsubSchedules();
+  };
+};
+
+// СТАРА ФУНКЦІЯ: Залишаємо для сумісності (наприклад, для одноразового завантаження)
 export const getSchedule = async (userId) => {
   try {
     const globalRef = doc(db, 'users', userId, 'global', 'settings');
@@ -48,8 +100,8 @@ export const getSchedule = async (userId) => {
     };
 
   } catch (error) {
-    const local = await getLocalSchedule();
-    return local || createDefaultData();
+    console.error("Помилка завантаження з Firestore:", error);
+    throw error; // Тепер ми прокидаємо помилку, щоб її обробив ScheduleProvider
   }
 };
 
