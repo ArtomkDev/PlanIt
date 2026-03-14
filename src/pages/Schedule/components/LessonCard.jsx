@@ -47,6 +47,39 @@ function useLessonTimer(startStr, endStr, isToday) {
   return timerState;
 }
 
+// КАСТОМНИЙ ХУК ДЛЯ АНІМАЦІЇ: Реагує на будь-яку зміну переданого значення
+function useHighlightAnim(value) {
+  const anim = useRef(new Animated.Value(1)).current;
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    if (prevValue.current !== value) {
+      prevValue.current = value;
+      // При зміні: різко скидаємо масштаб та прозорість, потім пружинимо назад
+      anim.setValue(0.3);
+      Animated.spring(anim, {
+        toValue: 1,
+        friction: 5,     // Наскільки швидко згасає коливання
+        tension: 60,     // Наскільки різкий відскок
+        useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    }
+  }, [value]);
+
+  // Конвертуємо значення 0.3 -> 1.0 у красиві візуальні ефекти
+  return {
+    opacity: anim,
+    transform: [
+      {
+        scale: anim.interpolate({
+          inputRange: [0.3, 1],
+          outputRange: [0.85, 1],
+        }),
+      },
+    ],
+  };
+}
+
 const LessonCardPure = React.memo(({ lesson, schedule, isToday, screenWidth, onPress, onLongPress }) => {
   const { subjects = [], teachers = [], gradients = [] } = schedule || {};
   
@@ -77,14 +110,24 @@ const LessonCardPure = React.memo(({ lesson, schedule, isToday, screenWidth, onP
     isToday
   );
 
+  // Створюємо анімації для КОЖНОГО блоку даних
+  const titleAnim = useHighlightAnim(subject?.name || "");
+  const typeAnim = useHighlightAnim(displayType || "");
+  const teacherAnim = useHighlightAnim(teacher?.name || "");
+  const locationAnim = useHighlightAnim(`${displayBuilding || ""}-${displayRoom || ""}`);
+  const timeAnim = useHighlightAnim(`${lesson?.timeInfo?.start || ""}-${lesson?.timeInfo?.end || ""}`);
+  const bgAnim = useHighlightAnim(`${subject?.color || ""}-${subject?.colorGradient || ""}-${subject?.typeColor || ""}`);
+
+  // Анімація для фонових піктограм (перезапускається при зміні іконки)
   const iconOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    iconOpacity.setValue(0);
     Animated.timing(iconOpacity, { 
       toValue: 1, 
-      duration: 400, 
+      duration: 500, 
       useNativeDriver: Platform.OS !== 'web' 
     }).start();
-  }, []);
+  }, [subject?.icon]); // Додали залежність від іконки!
 
   const backgroundStyle = { ...StyleSheet.absoluteFillObject, borderRadius: CARD_BORDER_RADIUS };
   let backgroundContent;
@@ -121,50 +164,54 @@ const LessonCardPure = React.memo(({ lesson, schedule, isToday, screenWidth, onP
       onLongPress={() => onLongPress && onLongPress({ ...lesson, subject, teacher })}
       delayLongPress={300}
     >
-      {backgroundContent}
+      {/* Фон тепер також реагує пульсацією на зміну кольору */}
+      <Animated.View style={[StyleSheet.absoluteFillObject, bgAnim]}>
+        {backgroundContent}
+      </Animated.View>
+      
       {patternContent}
 
       <View style={styles.cardContent}>
         <View style={styles.headerRow}>
-          <View style={[styles.timeContainer, isActive && styles.timeContainerActive]}>
+          <Animated.View style={[styles.timeContainer, isActive && styles.timeContainerActive, timeAnim]}>
             <View style={styles.iconFixedContainer}>
                 <Ionicons name={isActive ? "hourglass-outline" : "time"} size={14} color="#fff" style={{ opacity: 0.9 }} />
             </View>
             <Text style={styles.timeText}>
               {isActive ? `Залишилось ${timeLeft}` : `${lesson?.timeInfo?.start} - ${lesson?.timeInfo?.end}`}
             </Text>
-          </View>
+          </Animated.View>
 
           {!!displayType && (
-            <View style={styles.typeBadge}>
+            <Animated.View style={[styles.typeBadge, typeAnim]}>
               <Text style={styles.typeText}>{displayType}</Text>
-            </View>
+            </Animated.View>
           )}
         </View>
 
         <View style={styles.mainInfo}>
-          <Text style={styles.subjectTitle} numberOfLines={2}>
+          <Animated.Text style={[styles.subjectTitle, titleAnim]} numberOfLines={2}>
             {subject?.name || "Предмет"}
-          </Text>
+          </Animated.Text>
         </View>
 
         <View style={styles.footerRow}>
-          <View style={styles.footerItem}>
+          <Animated.View style={[styles.footerItem, teacherAnim]}>
             <View style={styles.iconFixedContainer}>
                 <Ionicons name="person" size={14} color="rgba(255,255,255,0.9)" />
             </View>
             <Text style={styles.footerText} numberOfLines={1}>{teacher?.name || "—"}</Text>
-          </View>
+          </Animated.View>
 
           {!!(displayRoom || displayBuilding) && (
-            <View style={styles.footerItem}>
+            <Animated.View style={[styles.footerItem, locationAnim]}>
               <View style={styles.iconFixedContainer}>
                   <Ionicons name="location" size={14} color="rgba(255,255,255,0.9)" />
               </View>
               <Text style={styles.footerText}>
                   {displayBuilding ? `${displayBuilding} ` : ''}{displayRoom}
               </Text>
-            </View>
+            </Animated.View>
           )}
         </View>
       </View>
