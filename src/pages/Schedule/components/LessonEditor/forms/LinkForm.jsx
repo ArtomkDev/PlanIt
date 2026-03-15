@@ -1,92 +1,114 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  ScrollView, 
+  Platform 
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function LinkEditor({ linkId, onBack, themeColors }) {
-  const { schedule, setScheduleDraft } = useSchedule();
-  const link = schedule?.links.find((l) => l.id === linkId);
-
-  const [name, setName] = useState(link?.name || "");
-  const [url, setUrl] = useState(link?.url || "");
+export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack, themeColors }) {
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
 
   useEffect(() => {
-    if (link) {
-      setName(link.name);
-      setUrl(link.url);
+    if (localLinkData) {
+      setName(localLinkData.name || "");
+      setUrl(localLinkData.url || "");
     }
-  }, [linkId]);
+  }, [localLinkData]);
 
   const handleSave = () => {
-    setScheduleDraft((prev) => {
-      const next = { ...prev };
-      next.links = prev.links.map((l) =>
-        l.id === linkId ? { ...l, name, url } : l
-      );
-      return next;
+    onSaveLocal({
+      ...localLinkData,
+      id: linkId,
+      name: name.trim() || "Нове посилання",
+      url: url.trim()
     });
-    onBack();
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.label, { color: themeColors.textColor2 }]}>Назва посилання</Text>
-      <TextInput
-        style={[styles.input, { backgroundColor: themeColors.backgroundColor3, color: themeColors.textColor }]}
-        placeholder="Напр. Zoom лекція"
-        placeholderTextColor={themeColors.textColor2}
-        value={name}
-        onChangeText={setName}
-      />
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 110 : 0} 
+    >
+      <ScrollView 
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled" 
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, { color: themeColors.textColor2 }]}>Назва посилання</Text>
+          <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
+            <Ionicons name="text-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, { color: themeColors.textColor }]}
+              placeholder="Напр. Zoom лекція"
+              placeholderTextColor={themeColors.textColor2 + '80'}
+              value={name}
+              onChangeText={setName}
+              autoFocus
+            />
+          </View>
+        </View>
 
-      <Text style={[styles.label, { color: themeColors.textColor2 }]}>URL адреса</Text>
-      <TextInput
-        style={[styles.input, { backgroundColor: themeColors.backgroundColor3, color: themeColors.textColor }]}
-        placeholder="https://..."
-        placeholderTextColor={themeColors.textColor2}
-        value={url}
-        onChangeText={setUrl}
-        autoCapitalize="none"
-      />
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, { color: themeColors.textColor2 }]}>URL адреса</Text>
+          <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
+            <Ionicons name="link-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, { color: themeColors.textColor }]}
+              placeholder="https://..."
+              placeholderTextColor={themeColors.textColor2 + '80'}
+              value={url}
+              onChangeText={setUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+          </View>
+        </View>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity 
-            style={[styles.button, { backgroundColor: themeColors.backgroundColor3 }]} 
-            onPress={onBack}
-        >
-          <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
-        </TouchableOpacity>
+        {/* Пустий блок, який виштовхує кнопки донизу */}
+        <View style={{ flex: 1, minHeight: 40 }} />
 
-        <TouchableOpacity 
-            style={[styles.button, { backgroundColor: themeColors.accentColor }]} 
-            onPress={handleSave}
-        >
-          <Text style={[styles.buttonText, { color: "#fff" }]}>Зберегти</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity 
+              style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 
+              onPress={onBack}
+          >
+            <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+              style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]} 
+              onPress={handleSave}
+          >
+            <Text style={styles.saveButtonText}>Зберегти зміни</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 10 },
-  label: { fontSize: 14, marginBottom: 6, marginLeft: 4 },
-  input: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    fontSize: 16,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-    gap: 15,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
+  // Замінено flex: 1 на flexGrow: 1
+  container: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 30 },
+  formGroup: { marginBottom: 24 },
+  label: { fontSize: 14, fontWeight: "500", marginBottom: 8, marginLeft: 4, textTransform: "uppercase", letterSpacing: 0.5 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingHorizontal: 14, height: 54 },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 16, height: "100%" },
+  buttonRow: { flexDirection: "row", justifyContent: "space-between", gap: 12, marginTop: 20 },
+  button: { flex: 1, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  cancelButton: { borderWidth: 0 },
+  saveButton: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   buttonText: { fontSize: 16, fontWeight: "600" },
+  saveButtonText: { fontSize: 16, fontWeight: "700", color: "#fff" },
 });

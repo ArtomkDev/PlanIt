@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import ColorGrid from "../ui/ColorGrid";
 import GradientGrid from "../ui/GradientGrid";
 
 export default function LessonEditorSubjectColorScreen({
   themeColors,
   currentSubject,
-  onSelect, // Використовуємо новий пропс
+  onSelect,
   onEditGradient,
   onAddGradient,
 }) {
@@ -28,6 +28,7 @@ export default function LessonEditorSubjectColorScreen({
         <TouchableOpacity
           style={[styles.tab, activeTab === "color" && { backgroundColor: themeColors.backgroundColor }]}
           onPress={() => setActiveTab("color")}
+          activeOpacity={0.8}
         >
           <Text style={[styles.tabText, { color: activeTab === "color" ? themeColors.textColor : themeColors.textColor2 }]}>
             Колір
@@ -37,6 +38,7 @@ export default function LessonEditorSubjectColorScreen({
         <TouchableOpacity
           style={[styles.tab, activeTab === "gradient" && { backgroundColor: themeColors.backgroundColor }]}
           onPress={() => setActiveTab("gradient")}
+          activeOpacity={0.8}
         >
           <Text style={[styles.tabText, { color: activeTab === "gradient" ? themeColors.textColor : themeColors.textColor2 }]}>
             Градієнт
@@ -44,31 +46,23 @@ export default function LessonEditorSubjectColorScreen({
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
         {activeTab === "color" ? (
           <ColorGrid
             themeColors={themeColors}
-            selectedColor={currentSubject?.typeColor !== "gradient" ? currentSubject?.color : null}
-            onSelect={handleSelectColor} // Викличе оновлення і закриє вікно
+            selected={currentSubject?.typeColor !== "gradient" ? currentSubject?.color : null}
+            onSelect={handleSelectColor} 
           />
         ) : (
-          <View>
-            <GradientGrid
-              themeColors={themeColors}
-              selectedGradient={currentSubject?.typeColor === "gradient" ? currentSubject?.colorGradient : null}
-              onSelect={handleSelectGradient} // Викличе оновлення і закриє вікно
-              onEdit={onEditGradient}
-            />
-            
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
-              onPress={onAddGradient}
-            >
-              <Text style={styles.addButtonText}>+ Створити градієнт</Text>
-            </TouchableOpacity>
-          </View>
+          <GradientGrid
+            themeColors={themeColors}
+            selected={currentSubject?.typeColor === "gradient" ? currentSubject?.colorGradient : null}
+            onSelect={handleSelectGradient} 
+            onEdit={onEditGradient}
+            onAddGradient={onAddGradient}
+          />
         )}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -79,24 +73,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginHorizontal: 16,
     marginTop: 10,
-    marginBottom: 20,
+    marginBottom: 16,
     padding: 4,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   tab: {
     flex: 1,
     paddingVertical: 8,
     alignItems: "center",
-    borderRadius: 6,
+    borderRadius: 8,
   },
   tabText: { fontSize: 15, fontWeight: "600" },
   content: { flex: 1, paddingHorizontal: 16 },
-  addButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 16,
-    marginBottom: 40,
-  },
-  addButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });

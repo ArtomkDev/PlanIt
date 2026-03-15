@@ -11,6 +11,7 @@ export default function ColorPicker({ selected, onSelect }) {
       numColumns={5}
       keyExtractor={([key]) => key}
       contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
       renderItem={({ item }) => {
         const [key, color] = item;
         const isSelected = selected === key;
@@ -19,6 +20,7 @@ export default function ColorPicker({ selected, onSelect }) {
           <TouchableOpacity
             style={[styles.colorTile, { backgroundColor: color }]}
             onPress={() => onSelect(key)}
+            activeOpacity={0.8}
           >
             {isSelected && <View style={styles.selectedMark} />}
           </TouchableOpacity>
@@ -30,23 +32,25 @@ export default function ColorPicker({ selected, onSelect }) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    justifyContent: "center",
+    paddingBottom: 40,
   },
   colorTile: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    margin: 8,
+    width: "16%", // 16% width + 2% margins = evenly distributed 5 columns
+    aspectRatio: 1,
+    borderRadius: 14,
+    margin: "2%",
     justifyContent: "center",
     alignItems: "center",
   },
   selectedMark: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "#fff",
-    backgroundColor: "rgba(0,0,0,0.4)",
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });

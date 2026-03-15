@@ -36,10 +36,16 @@ export default function LessonEditorPickerScreen({
     }
   };
 
+  // Витягуємо системну опцію 'none' (Видалити слот), щоб не показувати її в загальному списку
+  const displayOptions = layout === 'list' ? options.filter(o => o.key !== 'none') : options;
+  const showRemoveSlot = layout === 'list' && options.some(o => o.key === 'none');
+
   const renderItem = ({ item }) => {
     const isSelected = tempSelected.includes(item.key);
     const isAlreadySelected = alreadySelected.includes(item.key) && item.key !== 'none';
     const IconComponent = item.iconComponent;
+    
+    const canBeEdited = onEdit && item.key !== 'none';
 
     if (layout === 'grid') {
       return (
@@ -60,17 +66,16 @@ export default function LessonEditorPickerScreen({
           { 
             backgroundColor: themeColors.backgroundColor2, 
             borderColor: isSelected ? themeColors.accentColor : 'transparent', 
-            borderWidth: 1,
+            borderWidth: 1, 
             opacity: isAlreadySelected ? 0.5 : 1
           }
         ]}
         onPress={() => {
             if (!isAlreadySelected) handlePressItem(item.key);
         }}
-        disabled={isAlreadySelected}
-        onLongPress={() => onEdit && onEdit(item.key)}
+        activeOpacity={isAlreadySelected ? 1 : 0.7}
+        onLongPress={() => canBeEdited && onEdit(item.key)}
         delayLongPress={300}
-        activeOpacity={0.7}
       >
         <View style={styles.leftContainer}>
           <Text style={[styles.optionText, { color: themeColors.textColor }, isSelected && { color: themeColors.accentColor, fontWeight: "bold" }]}>
@@ -79,11 +84,19 @@ export default function LessonEditorPickerScreen({
           {isAlreadySelected && (
             <Text style={[styles.hintText, { color: themeColors.accentColor, opacity: 1 }]}>Вже додано до пари</Text>
           )}
-          {onEdit && !isAlreadySelected && (
-            <Text style={[styles.hintText, { color: themeColors.textColor2 }]}>Затисніть для редагування</Text>
+        </View>
+        
+        <View style={styles.rightContainer}>
+          {canBeEdited && (
+            <TouchableOpacity 
+              hitSlop={15}
+              onPress={() => onEdit(item.key)}
+              style={styles.editButton}
+            >
+              <Ionicons name="pencil" size={20} color={themeColors.textColor2} />
+            </TouchableOpacity>
           )}
         </View>
-        {isSelected && <Ionicons name="checkmark-circle" size={24} color={themeColors.accentColor} />}
       </TouchableOpacity>
     );
   };
@@ -94,13 +107,31 @@ export default function LessonEditorPickerScreen({
     <View style={styles.container}>
       <FlatList
         key={layout} 
-        data={options}
+        data={displayOptions}
         keyExtractor={(item) => String(item.key)} 
         renderItem={renderItem}
         contentContainerStyle={[styles.listContent, hasFooter && { paddingBottom: 140 }]}
         numColumns={layout === 'grid' ? COLUMNS : 1}
         columnWrapperStyle={layout === 'grid' ? styles.columnWrapper : null}
-        ListFooterComponent={onAdd && (<TouchableOpacity style={[styles.addButton, { borderColor: themeColors.accentColor }]} onPress={onAdd}><Text style={[styles.addButtonText, { color: themeColors.accentColor }]}>+ Додати новий</Text></TouchableOpacity>)}
+        ListFooterComponent={(onAdd || showRemoveSlot) && (
+          <View style={styles.actionButtonsContainer}>
+            {/* Кнопка "Додати новий" */}
+            {onAdd && (
+              <TouchableOpacity style={[styles.actionButton, { borderColor: themeColors.accentColor, borderStyle: 'dashed' }]} onPress={onAdd}>
+                <Ionicons name="add-circle-outline" size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} />
+                <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>Додати новий</Text>
+              </TouchableOpacity>
+            )}
+            
+            {/* Кнопка "Видалити слот" */}
+            {showRemoveSlot && (
+              <TouchableOpacity style={[styles.actionButton, { borderColor: '#EF4444', backgroundColor: '#EF444415', borderStyle: 'solid' }]} onPress={() => handlePressItem('none')}>
+                <Ionicons name="trash-outline" size={20} color="#EF4444" style={{ marginRight: 6 }} />
+                <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>Видалити слот</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       />
 
       {hasFooter && (
@@ -133,39 +164,36 @@ export default function LessonEditorPickerScreen({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   listContent: { paddingHorizontal: 16, paddingTop: 10 },
-  option: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  leftContainer: { flex: 1 },
-  optionText: { fontSize: 16 },
-  hintText: { fontSize: 11, marginTop: 2, opacity: 0.7 },
+  option: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  leftContainer: { flex: 1, justifyContent: 'center' },
+  rightContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  optionText: { fontSize: 16, fontWeight: "500" },
+  hintText: { fontSize: 12, marginTop: 4, opacity: 0.8 },
+  editButton: { padding: 4, borderRadius: 8 },
   columnWrapper: { gap: GRID_SPACING, marginBottom: GRID_SPACING },
-  gridItem: { width: ITEM_SIZE, height: ITEM_SIZE, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  addButton: { padding: 14, borderRadius: 12, alignItems: "center", marginTop: 10, borderWidth: 1, borderStyle: 'dashed' },
-  addButtonText: { fontWeight: "600", fontSize: 16 },
+  gridItem: { width: ITEM_SIZE, height: ITEM_SIZE, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   
-  footer: { 
-      padding: 16, 
-      borderTopWidth: StyleSheet.hairlineWidth, 
-      position: 'absolute', 
-      bottom: 0, 
-      left: 0, 
-      right: 0,
-      gap: 12 
+  // Стилі для кнопок у футері списку
+  actionButtonsContainer: {
+    marginTop: 10,
+    gap: 12, // Відстань між кнопками (працює в нових версіях RN)
   },
-  resetBtn: {
-      width: '100%',
-      paddingVertical: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderRadius: 12,
+  actionButton: { 
+    padding: 14, 
+    borderRadius: 16, 
+    alignItems: "center", 
+    justifyContent: "center", 
+    flexDirection: 'row', 
+    borderWidth: 1, 
   },
+  actionButtonText: { 
+    fontWeight: "600", 
+    fontSize: 16 
+  },
+  
+  footer: { padding: 16, borderTopWidth: StyleSheet.hairlineWidth, position: 'absolute', bottom: 0, left: 0, right: 0, gap: 12 },
+  resetBtn: { width: '100%', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 12 },
   resetText: { fontSize: 15, fontWeight: '600' },
-  saveBtn: { 
-      width: '100%', 
-      paddingVertical: 14, 
-      borderRadius: 12, 
-      alignItems: 'center', 
-      justifyContent: 'center' 
-  },
+  saveBtn: { width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontWeight: '700', fontSize: 16 },
 });

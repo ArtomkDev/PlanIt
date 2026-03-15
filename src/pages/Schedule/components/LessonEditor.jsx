@@ -116,8 +116,11 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const handleBack = () => {
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
-    if (currentScreen === "teacherEditor") return goToScreen("picker"); 
-    if (currentScreen === "linkEditor") return goToScreen("picker");    
+    if (currentScreen === "teacherEditor") return goToScreen(pickerType ? "picker" : "main"); 
+    if (currentScreen === "linkEditor") return goToScreen(pickerType ? "picker" : "main");    
+    // Якщо ми створювали/редагували предмет і натиснули назад, повертаємось до списку предметів
+    if (currentScreen === "input" && pickerType === "subject") return goToScreen("picker");
+    
     if (["picker", "input", "subjectColor"].includes(currentScreen)) {
         return goToScreen("main");
     }
@@ -252,10 +255,22 @@ export default function LessonEditor({ lesson, onClose }) {
        setLocalData((prev) => {
         const nextSubjects = [...prev.subjects];
         const idx = nextSubjects.findIndex((s) => s.id === editingItemData);
-        if (idx !== -1) nextSubjects[idx] = { ...nextSubjects[idx], name: newName };
+        if (idx !== -1) {
+            nextSubjects[idx] = { ...nextSubjects[idx], name: newName };
+        } else {
+            // Додаємо новий предмет ТІЛЬКИ якщо користувач натиснув "Зберегти"
+            nextSubjects.push({ id: editingItemData, name: newName });
+        }
         return { ...prev, subjects: nextSubjects };
       });
-      goToScreen("picker"); 
+      
+      const isNew = !localData.subjects.some((s) => s.id === editingItemData);
+      if (isNew) {
+          setSelectedSubjectId(editingItemData);
+          goToScreen("main");
+      } else {
+          goToScreen("picker"); 
+      }
     }
   };
 
@@ -281,6 +296,15 @@ export default function LessonEditor({ lesson, onClose }) {
         setEditingSlotIndex(index);
         goToScreen("picker");
     }
+  };
+
+  const handleDirectEdit = (type, id, index) => {
+    if (!id) return;
+    setEditingSlotIndex(index); 
+    setPickerType(null); 
+    
+    if (type === "teacher") goToScreen("teacherEditor", id);
+    if (type === "link") goToScreen("linkEditor", id);
   };
 
   const openAdvancedColorPicker = (colorValue, setter) => {
@@ -316,23 +340,18 @@ export default function LessonEditor({ lesson, onClose }) {
             alreadySelected,
             multi: false,
             onAdd: () => {
-                const newT = { id: generateLocalId(), name: "Новий викладач" };
-                setLocalData(prev => ({ ...prev, teachers: [...prev.teachers, newT] }));
-                goToScreen("teacherEditor", newT.id);
+                // НЕ додаємо об'єкт в localData одразу, лише відкриваємо форму з новим ID
+                const newId = generateLocalId();
+                goToScreen("teacherEditor", newId);
             },
             onEdit: (id) => { if (id !== 'none') goToScreen("teacherEditor", id); },
             onSave: (key) => {
                 let newArr = [...cleanSelected];
                 if (key === 'none') {
-                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) {
-                        newArr.splice(editingSlotIndex, 1);
-                    }
+                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) newArr.splice(editingSlotIndex, 1);
                 } else {
-                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) {
-                        newArr[editingSlotIndex] = key;
-                    } else {
-                        newArr.push(key);
-                    }
+                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) newArr[editingSlotIndex] = key;
+                    else newArr.push(key);
                 }
                 newArr = [...new Set(newArr)];
                 handleGenericSave("teachers", newArr, 'people');
@@ -355,23 +374,18 @@ export default function LessonEditor({ lesson, onClose }) {
             alreadySelected,
             multi: false,
             onAdd: () => {
-                const newL = { id: generateLocalId(), name: "Нове посилання", url: "" };
-                setLocalData(prev => ({ ...prev, links: [...prev.links, newL] }));
-                goToScreen("linkEditor", newL.id);
+                // НЕ додаємо об'єкт в localData одразу
+                const newId = generateLocalId();
+                goToScreen("linkEditor", newId);
             },
             onEdit: (id) => { if (id !== 'none') goToScreen("linkEditor", id); },
             onSave: (key) => {
                 let newArr = [...cleanSelected];
                 if (key === 'none') {
-                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) {
-                        newArr.splice(editingSlotIndex, 1);
-                    }
+                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) newArr.splice(editingSlotIndex, 1);
                 } else {
-                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) {
-                        newArr[editingSlotIndex] = key;
-                    } else {
-                        newArr.push(key);
-                    }
+                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) newArr[editingSlotIndex] = key;
+                    else newArr.push(key);
                 }
                 newArr = [...new Set(newArr)];
                 handleGenericSave("links", newArr, 'materials');
@@ -401,10 +415,11 @@ export default function LessonEditor({ lesson, onClose }) {
             selected: selectedSubjectId ? [selectedSubjectId] : [],
             multi: false,
             onAdd: () => {
-                const newS = { id: generateLocalId(), name: "Новий предмет" };
-                setLocalData(prev => ({ ...prev, subjects: [...prev.subjects, newS] }));
-                setSelectedSubjectId(newS.id);
-                goToScreen("main");
+                // Одразу переходимо до вводу імені предмету, НЕ зберігаючи "пустишку"
+                const newId = generateLocalId();
+                setPickerType("subject");
+                setInputType("subject_rename");
+                goToScreen("input", newId);
             },
             onEdit: (id) => { setPickerType("subject"); setInputType("subject_rename"); goToScreen("input", id); },
             onSave: (key) => { setSelectedSubjectId(key); goToScreen("main"); }
@@ -462,7 +477,7 @@ export default function LessonEditor({ lesson, onClose }) {
       if (inputType === "subject_rename") {
           const subj = localData.subjects.find(s => s.id === editingItemData);
           return {
-              val: subj?.name,
+              val: subj?.name || "", // Якщо об'єкта ще немає, повертаємо пустий рядок
               ph: "Назва предмету",
               onSave: handleRenameSubject
           };
@@ -486,7 +501,6 @@ export default function LessonEditor({ lesson, onClose }) {
     return value;
   };
 
-  // Прибираємо логіку формування напису "Як у всіх"
   const getValueLabel = (field, type, scopeGroup) => {
       const scope = scopes[scopeGroup];
       let val;
@@ -543,6 +557,7 @@ export default function LessonEditor({ lesson, onClose }) {
               currentSubject={currentSubject}
               gradients={localData.gradients}
               setActivePicker={handleOpenPicker}
+              onDirectEdit={handleDirectEdit}
               onEditSubjectColor={() => goToScreen("subjectColor")}
               getLabel={getLabel}
               scopes={scopes}
@@ -604,12 +619,21 @@ export default function LessonEditor({ lesson, onClose }) {
           {currentScreen === "teacherEditor" && (
               <TeacherEditor 
                 teacherId={editingItemData} 
-                localTeacherData={localData.teachers.find(t => t.id === editingItemData)}
+                // Передаємо пустий об'єкт, якщо викладача ще немає в масиві
+                localTeacherData={localData.teachers.find(t => t.id === editingItemData) || {}}
                 onSaveLocal={(updated) => {
-                    setLocalData(prev => ({ ...prev, teachers: prev.teachers.map(t => t.id === updated.id ? updated : t) }));
-                    goToScreen("picker");
+                    setLocalData(prev => {
+                        const exists = prev.teachers.some(t => t.id === updated.id);
+                        return {
+                            ...prev, 
+                            teachers: exists 
+                                ? prev.teachers.map(t => t.id === updated.id ? updated : t) 
+                                : [...prev.teachers, updated] // Додаємо лише при збереженні
+                        };
+                    });
+                    goToScreen(pickerType ? "picker" : "main"); 
                 }}
-                onBack={() => goToScreen("picker")} 
+                onBack={() => goToScreen(pickerType ? "picker" : "main")} 
                 themeColors={themeColors}
               />
           )}
@@ -617,12 +641,21 @@ export default function LessonEditor({ lesson, onClose }) {
           {currentScreen === "linkEditor" && (
               <LinkEditor 
                 linkId={editingItemData} 
-                localLinkData={localData.links.find(l => l.id === editingItemData)}
+                // Передаємо пустий об'єкт, якщо посилання ще немає в масиві
+                localLinkData={localData.links.find(l => l.id === editingItemData) || {}}
                 onSaveLocal={(updated) => {
-                    setLocalData(prev => ({ ...prev, links: prev.links.map(l => l.id === updated.id ? updated : l) }));
-                    goToScreen("picker");
+                    setLocalData(prev => {
+                        const exists = prev.links.some(l => l.id === updated.id);
+                        return {
+                            ...prev, 
+                            links: exists 
+                                ? prev.links.map(l => l.id === updated.id ? updated : l) 
+                                : [...prev.links, updated] // Додаємо лише при збереженні
+                        };
+                    });
+                    goToScreen(pickerType ? "picker" : "main");
                 }}
-                onBack={() => goToScreen("picker")} 
+                onBack={() => goToScreen(pickerType ? "picker" : "main")} 
                 themeColors={themeColors}
               />
           )}

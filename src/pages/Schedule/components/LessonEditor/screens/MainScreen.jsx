@@ -12,6 +12,7 @@ export default function LessonEditorMainScreen({
   currentSubject,
   gradients,
   setActivePicker,
+  onDirectEdit,
   onEditSubjectColor,
   getLabel,
   scopes,
@@ -134,6 +135,7 @@ export default function LessonEditorMainScreen({
                     label={`Викладач ${index + 1}`}
                     value={safeGetLabel("teacher", id)}
                     onPress={() => setActivePicker("teacher", index)}
+                    onLongPress={() => onDirectEdit("teacher", id, index)} // Передаємо index
                     themeColors={themeColors}
                     icon="person-outline"
                 />
@@ -162,6 +164,7 @@ export default function LessonEditorMainScreen({
                     label={`Посилання ${index + 1}`}
                     value={safeGetLabel("link", id)}
                     onPress={() => setActivePicker("link", index)}
+                    onLongPress={() => onDirectEdit("link", id, index)} // Передаємо index
                     themeColors={themeColors}
                     icon="link-outline"
                 />

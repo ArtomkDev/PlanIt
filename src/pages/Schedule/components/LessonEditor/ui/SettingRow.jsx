@@ -19,6 +19,7 @@ export default function SettingRow({
       style={styles.row} 
       onPress={onPress} 
       onLongPress={onLongPress}
+      delayLongPress={250} // Швидше реагування на затискання (250мс замість 500мс)
       activeOpacity={0.7}
     >
       <View style={styles.left}>
@@ -34,9 +35,6 @@ export default function SettingRow({
         {rightContent ? (
           rightContent
         ) : (
-          /* Завдяки key={value} при кожній зміні тексту відтворюється анімація появи.
-            Не використовуємо exiting, щоб текст не "зависав" під час переходів між екранами.
-          */
           <Animated.Text 
             key={value}
             entering={isWeb ? undefined : FadeIn.duration(250).easing(Easing.out(Easing.quad))}
@@ -72,7 +70,5 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   label: { fontSize: 16, fontWeight: "500" },
-  // flexShrink: 1 гарантує, що довгий текст (аудиторія, ім'я) коректно обріжеться трьома крапками 
-  // і не виштовхне іконку стрілочки за межі екрану
   value: { fontSize: 16, textAlign: 'right', flexShrink: 1 },
 });
