@@ -12,8 +12,7 @@ import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
 import { SUBJECT_ICONS } from "../../../config/subjectIcons"; 
 
-// Імпортуємо наш новий універсальний компонент спливаючого вікна
-import BottomSheet from "../../../components/BottomSheet"; // Вкажіть правильний шлях, якщо він відрізняється
+import BottomSheet from "../../../components/BottomSheet";
 
 import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
 import LessonEditorSubjectColorScreen from "./LessonEditor/screens/ColorScreen";
@@ -25,7 +24,6 @@ import TeacherEditor from "./LessonEditor/forms/TeacherForm";
 import LinkEditor from "./LessonEditor/forms/LinkForm";
 import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
 
-// Deep clone used to guarantee complete detachment from global context references
 const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
 const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 
@@ -38,7 +36,6 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const dataSource = scheduleDraft || schedule;
 
-  // Fully isolated local state buffer
   const [localData, setLocalData] = useState({
     subjects: deepClone(dataSource?.subjects),
     teachers: deepClone(dataSource?.teachers),
@@ -57,20 +54,38 @@ export default function LessonEditor({ lesson, onClose }) {
     lesson?.data ? getCleanInstanceData(lesson.data) : {}
   );
   
+  const [scopes, setScopes] = useState({
+    people: 'global',
+    type: 'global',
+    location: 'global',
+    materials: 'global'
+  });
+  
   const [currentScreen, setCurrentScreen] = useState("main"); 
   const [pickerType, setPickerType] = useState(null); 
   const [inputType, setInputType] = useState(null);   
   const [editingItemData, setEditingItemData] = useState(null); 
+  const [editingSlotIndex, setEditingSlotIndex] = useState(null);
   
   const [editingGradient, setEditingGradient] = useState(null);
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
   const [advancedPickerTarget, setAdvancedPickerTarget] = useState(null);
 
-  const sheetRef = useRef(null); // Реф для керування анімацією закриття вікна
+  const sheetRef = useRef(null); 
 
   useEffect(() => {
     setSelectedSubjectId(lesson?.subjectId || null);
-    setInstanceData(lesson?.data ? getCleanInstanceData(lesson.data) : {});
+    
+    const initialInstanceData = lesson?.data ? getCleanInstanceData(lesson.data) : {};
+    setInstanceData(initialInstanceData);
+
+    setScopes({
+      people: initialInstanceData.teachers !== undefined ? 'local' : 'global',
+      type: initialInstanceData.type !== undefined ? 'local' : 'global',
+      location: (initialInstanceData.building !== undefined || initialInstanceData.room !== undefined) ? 'local' : 'global',
+      materials: initialInstanceData.links !== undefined ? 'local' : 'global'
+    });
+
     setLocalData({
         subjects: deepClone(dataSource?.subjects),
         teachers: deepClone(dataSource?.teachers),
@@ -82,6 +97,7 @@ export default function LessonEditor({ lesson, onClose }) {
       setCurrentScreen("main");
       setPickerType(null);
       setInputType(null);
+      setEditingSlotIndex(null);
     }
   }, [lesson]);
 
@@ -136,7 +152,6 @@ export default function LessonEditor({ lesson, onClose }) {
     setScheduleDraft((prev) => {
       const next = { ...prev };
       
-      // Batch apply all buffered local changes to the global context
       next.subjects = localData.subjects;
       next.teachers = localData.teachers;
       next.links = localData.links;
@@ -155,11 +170,25 @@ export default function LessonEditor({ lesson, onClose }) {
         subjectId: selectedSubjectId, 
       };
 
+      if (scopes.people === 'global') {
+          delete lessonObject.teachers;
+      }
+
+      if (scopes.type === 'global') {
+          delete lessonObject.type;
+      }
+
+      if (scopes.location === 'global') {
+          delete lessonObject.building;
+          delete lessonObject.room;
+      }
+
+      if (scopes.materials === 'global') {
+          delete lessonObject.links;
+      }
+
       Object.keys(lessonObject).forEach(key => {
-          if (lessonObject[key] === undefined || lessonObject[key] === null || lessonObject[key] === "") {
-              delete lessonObject[key];
-          }
-          if (Array.isArray(lessonObject[key]) && lessonObject[key].length === 0) {
+          if (lessonObject[key] === undefined || lessonObject[key] === null) {
               delete lessonObject[key];
           }
       });
@@ -175,11 +204,9 @@ export default function LessonEditor({ lesson, onClose }) {
       return next;
     });
     
-    // Програмне закриття з анімацією
     sheetRef.current?.close();
   };
 
-  // Local state modifiers replacing immediate global dispatches
   const handleUpdateSubject = (updates) => {
     if (!selectedSubjectId) return;
     setLocalData((prev) => {
@@ -194,8 +221,9 @@ export default function LessonEditor({ lesson, onClose }) {
       setInstanceData(prev => ({ ...prev, ...updates }));
   };
 
-  const handleGenericSave = (field, value, scope) => {
+  const handleGenericSave = (field, value, groupName) => {
       const cleanValue = Array.isArray(value) ? sanitizeArray(value) : value;
+      const scope = scopes[groupName] || 'global';
 
       if (scope === 'global') {
           handleUpdateSubject({ [field]: cleanValue });
@@ -216,6 +244,7 @@ export default function LessonEditor({ lesson, onClose }) {
           delete next[field];
           return next;
       });
+      goToScreen("main");
   };
 
   const handleRenameSubject = (newName) => {
@@ -243,12 +272,13 @@ export default function LessonEditor({ lesson, onClose }) {
     goToScreen("main");
   };
 
-  const handleOpenPicker = (type) => {
+  const handleOpenPicker = (type, index = null) => {
     if (["building", "room"].includes(type)) {
         setInputType(type);
         goToScreen("input");
     } else {
         setPickerType(type);
+        setEditingSlotIndex(index);
         goToScreen("picker");
     }
   };
@@ -258,64 +288,110 @@ export default function LessonEditor({ lesson, onClose }) {
     setShowAdvancedPicker(true);
   };
 
+  const getArrayData = (field, scopeGroup) => {
+      const scope = scopes[scopeGroup];
+      let val;
+
+      if (scope === 'global') {
+          val = field === 'teachers' ? (currentSubject.teachers || currentSubject.teacher) : currentSubject[field];
+      } else {
+          val = instanceData[field] !== undefined ? instanceData[field] : [];
+      }
+
+      return { array: sanitizeArray(val), isInherited: false };
+  };
+
   const getPickerData = () => {
     if (pickerType === "teacher") {
-        const hasLocal = instanceData.teachers !== undefined;
-        const rawTeachers = hasLocal 
-            ? instanceData.teachers 
-            : (currentSubject.teachers || (currentSubject.teacher ? [currentSubject.teacher] : []));
-            
-        const cleanSelected = sanitizeArray(rawTeachers);
+        const { array: cleanSelected } = getArrayData("teachers", "people");
+        const currentSelectedId = editingSlotIndex !== null && editingSlotIndex < cleanSelected.length ? cleanSelected[editingSlotIndex] : null;
+        const alreadySelected = cleanSelected.filter((_, i) => i !== editingSlotIndex);
+
+        const options = localData.teachers.map((t) => ({ key: t.id, label: t.name }));
+        options.unshift({ key: 'none', label: '❌ Видалити слот' });
 
         return {
-            options: localData.teachers.map((t) => ({ key: t.id, label: t.name })),
-            selected: cleanSelected,
-            multi: true,
+            options,
+            selected: currentSelectedId ? [currentSelectedId] : [],
+            alreadySelected,
+            multi: false,
             onAdd: () => {
                 const newT = { id: generateLocalId(), name: "Новий викладач" };
                 setLocalData(prev => ({ ...prev, teachers: [...prev.teachers, newT] }));
                 goToScreen("teacherEditor", newT.id);
             },
-            onEdit: (id) => goToScreen("teacherEditor", id),
-            onSaveLocal: (ids) => handleGenericSave("teachers", ids, 'local'),
-            onSaveGlobal: (ids) => handleGenericSave("teachers", ids, 'global'),
-            onReset: hasLocal ? () => handleResetLocal("teachers") : null
+            onEdit: (id) => { if (id !== 'none') goToScreen("teacherEditor", id); },
+            onSave: (key) => {
+                let newArr = [...cleanSelected];
+                if (key === 'none') {
+                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) {
+                        newArr.splice(editingSlotIndex, 1);
+                    }
+                } else {
+                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) {
+                        newArr[editingSlotIndex] = key;
+                    } else {
+                        newArr.push(key);
+                    }
+                }
+                newArr = [...new Set(newArr)];
+                handleGenericSave("teachers", newArr, 'people');
+            },
+            onReset: scopes.people === 'local' && instanceData.teachers !== undefined ? () => handleResetLocal("teachers") : null
         };
     }
 
     if (pickerType === "link") {
-        const hasLocal = instanceData.links !== undefined;
-        const rawLinks = hasLocal ? instanceData.links : currentSubject.links;
-        const cleanSelected = sanitizeArray(rawLinks);
-        
+        const { array: cleanSelected } = getArrayData("links", "materials");
+        const currentSelectedId = editingSlotIndex !== null && editingSlotIndex < cleanSelected.length ? cleanSelected[editingSlotIndex] : null;
+        const alreadySelected = cleanSelected.filter((_, i) => i !== editingSlotIndex);
+
+        const options = localData.links.map((l) => ({ key: l.id, label: l.name }));
+        options.unshift({ key: 'none', label: '❌ Видалити слот' });
+
         return {
-            options: localData.links.map((l) => ({ key: l.id, label: l.name })),
-            selected: cleanSelected,
-            multi: true,
+            options,
+            selected: currentSelectedId ? [currentSelectedId] : [],
+            alreadySelected,
+            multi: false,
             onAdd: () => {
                 const newL = { id: generateLocalId(), name: "Нове посилання", url: "" };
                 setLocalData(prev => ({ ...prev, links: [...prev.links, newL] }));
                 goToScreen("linkEditor", newL.id);
             },
-            onEdit: (id) => goToScreen("linkEditor", id),
-            onSaveLocal: (ids) => handleGenericSave("links", ids, 'local'),
-            onSaveGlobal: (ids) => handleGenericSave("links", ids, 'global'),
-            onReset: hasLocal ? () => handleResetLocal("links") : null
+            onEdit: (id) => { if (id !== 'none') goToScreen("linkEditor", id); },
+            onSave: (key) => {
+                let newArr = [...cleanSelected];
+                if (key === 'none') {
+                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) {
+                        newArr.splice(editingSlotIndex, 1);
+                    }
+                } else {
+                    if (editingSlotIndex !== null && editingSlotIndex < newArr.length) {
+                        newArr[editingSlotIndex] = key;
+                    } else {
+                        newArr.push(key);
+                    }
+                }
+                newArr = [...new Set(newArr)];
+                handleGenericSave("links", newArr, 'materials');
+            },
+            onReset: scopes.materials === 'local' && instanceData.links !== undefined ? () => handleResetLocal("links") : null
         };
     }
 
     if (pickerType === "type") {
         const types = ["Лекція", "Практика", "Лабораторна", "Семінар"];
+        const scope = scopes.type;
         const hasLocal = instanceData.type !== undefined;
-        const currentType = hasLocal ? instanceData.type : currentSubject.type;
+        const currentType = scope === 'local' ? (hasLocal ? instanceData.type : null) : currentSubject.type;
 
         return {
             options: types.map(t => ({ key: t, label: t })),
             selected: currentType ? [currentType] : [],
             multi: false,
-            onSaveLocal: (key) => handleGenericSave("type", key, 'local'),
-            onSaveGlobal: (key) => handleGenericSave("type", key, 'global'),
-            onReset: hasLocal ? () => handleResetLocal("type") : null
+            onSave: (key) => handleGenericSave("type", key, 'type'),
+            onReset: scope === 'local' && hasLocal ? () => handleResetLocal("type") : null
         };
     }
 
@@ -331,7 +407,7 @@ export default function LessonEditor({ lesson, onClose }) {
                 goToScreen("main");
             },
             onEdit: (id) => { setPickerType("subject"); setInputType("subject_rename"); goToScreen("input", id); },
-            onSelect: (key) => { setSelectedSubjectId(key); goToScreen("main"); }
+            onSave: (key) => { setSelectedSubjectId(key); goToScreen("main"); }
         };
     }
 
@@ -346,7 +422,7 @@ export default function LessonEditor({ lesson, onClose }) {
             options: iconOptions,
             selected: currentSubject.icon ? [currentSubject.icon] : ['none'],
             multi: false,
-            onSelect: (key) => { 
+            onSave: (key) => { 
                 const valueToSave = key === 'none' ? null : key;
                 handleUpdateSubject({ icon: valueToSave }); 
                 goToScreen("main"); 
@@ -360,23 +436,27 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const getInputData = () => {
       if (inputType === "building") {
+          const scope = scopes.location;
           const hasLocal = instanceData.building !== undefined;
+          const currentBuilding = scope === 'local' ? (hasLocal ? instanceData.building : "") : currentSubject.building;
+          
           return { 
-            val: hasLocal ? instanceData.building : (currentSubject.building || ""), 
+            val: currentBuilding || "", 
             ph: "Наприклад: Головний",
-            onSaveLocal: (val) => handleGenericSave("building", val, 'local'),
-            onSaveGlobal: (val) => handleGenericSave("building", val, 'global'),
-            onReset: hasLocal ? () => handleResetLocal("building") : null
+            onSave: (val) => handleGenericSave("building", val, 'location'),
+            onReset: scope === 'local' && hasLocal ? () => handleResetLocal("building") : null
           };
       }
       if (inputType === "room") {
+          const scope = scopes.location;
           const hasLocal = instanceData.room !== undefined;
+          const currentRoom = scope === 'local' ? (hasLocal ? instanceData.room : "") : currentSubject.room;
+
           return { 
-            val: hasLocal ? instanceData.room : (currentSubject.room || ""),
+            val: currentRoom || "",
             ph: "Наприклад: 204",
-            onSaveLocal: (val) => handleGenericSave("room", val, 'local'),
-            onSaveGlobal: (val) => handleGenericSave("room", val, 'global'),
-            onReset: hasLocal ? () => handleResetLocal("room") : null
+            onSave: (val) => handleGenericSave("room", val, 'location'),
+            onReset: scope === 'local' && hasLocal ? () => handleResetLocal("room") : null
           };
       }
       if (inputType === "subject_rename") {
@@ -392,7 +472,7 @@ export default function LessonEditor({ lesson, onClose }) {
   const inputData = getInputData();
 
   const getLabel = (type, value) => {
-    if (!value) return null;
+    if (value === "" || value === null || value === undefined) return null;
     if (type === "subject") return localData.subjects.find((s) => s.id === value)?.name;
     if (type === "link" || type === "teacher") {
         const list = sanitizeArray(Array.isArray(value) ? value : [value]);
@@ -406,18 +486,23 @@ export default function LessonEditor({ lesson, onClose }) {
     return value;
   };
 
-  const getDisplayData = () => {
-      return {
-          teachers: instanceData.teachers !== undefined ? instanceData.teachers : (currentSubject.teachers || []),
-          links: instanceData.links !== undefined ? instanceData.links : (currentSubject.links || []),
-          type: instanceData.type !== undefined ? instanceData.type : currentSubject.type,
-          building: instanceData.building !== undefined ? instanceData.building : currentSubject.building,
-          room: instanceData.room !== undefined ? instanceData.room : currentSubject.room,
-      };
-  };
-  const displayData = getDisplayData();
+  // Прибираємо логіку формування напису "Як у всіх"
+  const getValueLabel = (field, type, scopeGroup) => {
+      const scope = scopes[scopeGroup];
+      let val;
 
-  // Header render функція, яку ми передаємо в BottomSheet
+      if (scope === 'global') {
+          val = field === 'teachers' ? (currentSubject.teachers || currentSubject.teacher) : currentSubject[field];
+      } else {
+          val = instanceData[field] !== undefined ? instanceData[field] : null;
+      }
+
+      const labelStr = getLabel(type, val);
+      const isEmpty = !labelStr || labelStr === "Не обрано";
+
+      return isEmpty ? "Не вказано" : labelStr;
+  };
+
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
       {currentScreen === "main" ? (
@@ -456,11 +541,14 @@ export default function LessonEditor({ lesson, onClose }) {
               themeColors={themeColors}
               selectedSubjectId={selectedSubjectId}
               currentSubject={currentSubject}
-              instanceData={displayData}
               gradients={localData.gradients}
               setActivePicker={handleOpenPicker}
               onEditSubjectColor={() => goToScreen("subjectColor")}
               getLabel={getLabel}
+              scopes={scopes}
+              onScopeChange={(group, newScope) => setScopes(prev => ({ ...prev, [group]: newScope }))}
+              getValueLabel={getValueLabel} 
+              getArrayData={getArrayData}
             />
           )}
 
@@ -491,10 +579,9 @@ export default function LessonEditor({ lesson, onClose }) {
               title={getHeaderTitle()}
               options={pickerData.options}
               selectedValues={pickerData.selected}
+              alreadySelected={pickerData.alreadySelected}
               multiSelect={pickerData.multi}
-              onSelect={pickerData.onSelect} 
-              onSaveLocal={pickerData.onSaveLocal} 
-              onSaveGlobal={pickerData.onSaveGlobal} 
+              onSave={pickerData.onSave} 
               onReset={pickerData.onReset}
               onEdit={pickerData.onEdit}
               onAdd={pickerData.onAdd}
@@ -509,8 +596,6 @@ export default function LessonEditor({ lesson, onClose }) {
                 initialValue={inputData.val}
                 placeholder={inputData.ph}
                 onSave={inputData.onSave} 
-                onSaveLocal={inputData.onSaveLocal} 
-                onSaveGlobal={inputData.onSaveGlobal} 
                 onReset={inputData.onReset}
                 themeColors={themeColors}
             />

@@ -10,13 +10,15 @@ export default function LessonEditorMainScreen({
   themeColors,
   selectedSubjectId,
   currentSubject,
-  instanceData = {},
   gradients,
   setActivePicker,
   onEditSubjectColor,
-  getLabel, 
+  getLabel,
+  scopes,
+  onScopeChange,
+  getValueLabel,
+  getArrayData
 }) {
-  
   const safeGetLabel = getLabel || ((type, val) => "Не визначено");
 
   const renderIconValue = () => {
@@ -42,8 +44,8 @@ export default function LessonEditorMainScreen({
 
   if (!selectedSubjectId) {
     return (
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
-        <Group themeColors={themeColors} title="Предмет">
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+        <Group themeColors={themeColors} title="Предмет" showScopeToggle={false}>
           <SettingRow
             label="Назва предмету"
             value={safeGetLabel("subject", selectedSubjectId) || "Не обрано"}
@@ -56,9 +58,13 @@ export default function LessonEditorMainScreen({
     );
   }
 
+  const { array: teachersArr } = getArrayData("teachers", "people");
+  const { array: linksArr } = getArrayData("links", "materials");
+
   return (
-    <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Group themeColors={themeColors} title="Предмет">
+    <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+      
+      <Group themeColors={themeColors} title="Предмет" showScopeToggle={false}>
         <SettingRow
           label="Назва предмету"
           value={safeGetLabel("subject", selectedSubjectId) || "Не обрано"}
@@ -68,41 +74,102 @@ export default function LessonEditorMainScreen({
         />
       </Group>
 
-      <Group themeColors={themeColors} title="Люди">
-        <SettingRow
-            label="Викладачі"
-            value={safeGetLabel("teacher", instanceData.teachers || [])} 
-            onPress={() => setActivePicker("teacher")}
-            themeColors={themeColors}
-            icon="people-outline"
-        />
-      </Group>
-
-      <Group themeColors={themeColors} title="Деталі">
+      <Group 
+        themeColors={themeColors} 
+        title="Тип заняття"
+        showScopeToggle={true}
+        scope={scopes.type}
+        onScopeChange={(newScope) => onScopeChange('type', newScope)}
+      >
         <SettingRow
           label="Тип заняття"
-          value={safeGetLabel("type", instanceData.type) || "Не вказано"}
+          value={getValueLabel("type", "type", "type")}
           onPress={() => setActivePicker("type")}
           themeColors={themeColors}
           icon="pricetag-outline"
         />
+      </Group>
+
+      <Group 
+        themeColors={themeColors} 
+        title="Місце проведення"
+        showScopeToggle={true}
+        scope={scopes.location}
+        onScopeChange={(newScope) => onScopeChange('location', newScope)}
+      >
         <SettingRow
           label="Корпус"
-          value={instanceData.building || "—"}
+          value={getValueLabel("building", "text", "location")}
           onPress={() => setActivePicker("building")}
           themeColors={themeColors}
           icon="business-outline"
         />
         <SettingRow
           label="Аудиторія"
-          value={instanceData.room || "—"}
+          value={getValueLabel("room", "text", "location")}
           onPress={() => setActivePicker("room")}
           themeColors={themeColors}
           icon="location-outline"
         />
       </Group>
 
-      <Group themeColors={themeColors} title="Оформлення (для всіх пар)">
+      <Group 
+        themeColors={themeColors} 
+        title="Люди"
+        showScopeToggle={true}
+        scope={scopes.people}
+        onScopeChange={(newScope) => onScopeChange('people', newScope)}
+        onAdd={() => setActivePicker('teacher', teachersArr.length)}
+      >
+        {teachersArr.length === 0 ? (
+           <View style={styles.emptyContainer}>
+               <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
+                   Немає викладачів. Натисніть + щоб додати
+               </Text>
+           </View>
+        ) : (
+            teachersArr.map((id, index) => (
+                <SettingRow
+                    key={`teacher-${id}`}
+                    label={`Викладач ${index + 1}`}
+                    value={safeGetLabel("teacher", id)}
+                    onPress={() => setActivePicker("teacher", index)}
+                    themeColors={themeColors}
+                    icon="person-outline"
+                />
+            ))
+        )}
+      </Group>
+
+      <Group 
+        themeColors={themeColors} 
+        title="Матеріали"
+        showScopeToggle={true}
+        scope={scopes.materials}
+        onScopeChange={(newScope) => onScopeChange('materials', newScope)}
+        onAdd={() => setActivePicker('link', linksArr.length)}
+      >
+        {linksArr.length === 0 ? (
+           <View style={styles.emptyContainer}>
+               <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
+                   Немає посилань. Натисніть + щоб додати
+               </Text>
+           </View>
+        ) : (
+            linksArr.map((id, index) => (
+                <SettingRow
+                    key={`link-${id}`}
+                    label={`Посилання ${index + 1}`}
+                    value={safeGetLabel("link", id)}
+                    onPress={() => setActivePicker("link", index)}
+                    themeColors={themeColors}
+                    icon="link-outline"
+                />
+            ))
+        )}
+      </Group>
+
+      <Group themeColors={themeColors} title="Оформлення" showScopeToggle={false}>
         <SettingRow
           label="Колір картки"
           rightContent={renderColorPreview()}
@@ -119,21 +186,13 @@ export default function LessonEditorMainScreen({
         />
       </Group>
 
-      <Group themeColors={themeColors} title="Матеріали">
-        <SettingRow
-          label="Посилання"
-          value={safeGetLabel("link", instanceData.links || [])}
-          onPress={() => setActivePicker("link")}
-          themeColors={themeColors}
-          icon="link-outline"
-        />
-      </Group>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
+  scrollContent: { paddingBottom: 40 },
   colorPreview: {
     width: 34,
     height: 34,
@@ -141,4 +200,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.1)",
   },
+  emptyContainer: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  emptyText: {
+    fontSize: 15,
+  }
 });

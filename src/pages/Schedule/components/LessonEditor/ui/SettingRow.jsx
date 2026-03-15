@@ -1,6 +1,9 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet, View } from "react-native";
+import { TouchableOpacity, Text, StyleSheet, View, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeIn, Easing } from "react-native-reanimated";
+
+const isWeb = Platform.OS === "web";
 
 export default function SettingRow({ 
   label, 
@@ -31,12 +34,17 @@ export default function SettingRow({
         {rightContent ? (
           rightContent
         ) : (
-          <Text 
+          /* Завдяки key={value} при кожній зміні тексту відтворюється анімація появи.
+            Не використовуємо exiting, щоб текст не "зависав" під час переходів між екранами.
+          */
+          <Animated.Text 
+            key={value}
+            entering={isWeb ? undefined : FadeIn.duration(250).easing(Easing.out(Easing.quad))}
             style={[styles.value, { color: themeColors.textColor2 }]} 
             numberOfLines={1}
           >
             {value}
-          </Text>
+          </Animated.Text>
         )}
         <Ionicons name="chevron-forward" size={18} color={themeColors.textColor3 || "#aaa"} style={{marginLeft: 6}}/>
       </View>
@@ -64,5 +72,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   label: { fontSize: 16, fontWeight: "500" },
-  value: { fontSize: 16, textAlign: 'right' },
+  // flexShrink: 1 гарантує, що довгий текст (аудиторія, ім'я) коректно обріжеться трьома крапками 
+  // і не виштовхне іконку стрілочки за межі екрану
+  value: { fontSize: 16, textAlign: 'right', flexShrink: 1 },
 });
