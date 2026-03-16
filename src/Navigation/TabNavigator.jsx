@@ -21,6 +21,7 @@ import ThemeSettings from '../pages/ScheduleSettings/components/ThemeSettings';
 import ResetDB from '../pages/ScheduleSettings/components/ResetDB';
 import ScheduleSwitcher from '../pages/ScheduleSettings/components/ScheduleSwitcher';
 import DeviceManager from '../pages/ScheduleSettings/components/DeviceManager';
+import ScheduleEditorScreen from '../pages/ScheduleSettings/components/ScheduleEditorScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -44,6 +45,7 @@ function ScheduleSettingsStack({ screenProps }) {
       <Stack.Screen name="Teachers" component={TeachersManager} />
       <Stack.Screen name="Schedule" component={ScheduleManager} />
       <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
+      <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
       <Stack.Screen name="AutoSave" component={AutoSaveManager} />
       <Stack.Screen name="Theme" component={ThemeSettings} />
       <Stack.Screen name="ResetDB" component={ResetDB} />

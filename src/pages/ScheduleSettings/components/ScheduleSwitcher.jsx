@@ -1,101 +1,110 @@
 // src/pages/ScheduleSettings/components/ScheduleSwitcher.jsx
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, Button, TouchableOpacity } from "react-native";
-import { Picker } from "@react-native-picker/picker";
+import React from "react";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  LayoutAnimation, 
+  Platform, 
+  UIManager 
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { useSchedule } from "../../../context/ScheduleProvider";
-import useUniqueId from "../../../hooks/useUniqueId";
-import defaultSchedule from "../../../config/defaultSchedule";
 import SettingsScreenLayout from "../SettingsScreenLayout";
+import themes from "../../../config/themes"; // Використовуємо глобальні теми
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const ScheduleSwitcher = () => {
-  const { global, setGlobalDraft, schedules, setScheduleDraft, addSchedule } = useSchedule();
-  const generateId = useUniqueId();
+  const { global, setGlobalDraft, schedules } = useSchedule();
+  const navigation = useNavigation();
 
-  const [newName, setNewName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
+  // Отримуємо кольори на основі глобальних налаштувань користувача
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
 
   if (!global) return null;
 
   const handleChange = (newId) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setGlobalDraft((prev) => ({
       ...prev,
       currentScheduleId: newId,
     }));
   };
 
-  const handleCreate = () => {
-    if (!newName.trim()) return;
-
-    const id = generateId();
-    const newSchedule = {
-      ...defaultSchedule,
-      id,
-      name: newName.trim(),
-    };
-
-    // додаємо у список
-    addSchedule(newSchedule);
-
-    // переключаємо глобально
-    setGlobalDraft((prev) => ({
-      ...prev,
-      currentScheduleId: id,
-    }));
-
-    setNewName("");
-    setIsCreating(false);
+  const handleEdit = (scheduleId) => {
+    navigation.navigate("ScheduleEditorScreen", { scheduleId });
   };
 
-  const handleRename = (newLabel) => {
-    setScheduleDraft((prev) => ({
-      ...prev,
-      name: newLabel,
-    }));
+  const handleAddNew = () => {
+    navigation.navigate("ScheduleEditorScreen", { isNew: true });
   };
-
-  const currentSchedule = schedules.find((s) => s.id === global.currentScheduleId);
 
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
-        <Text style={styles.label}>Активний розклад:</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>Ваші розклади</Text>
 
-        <Picker
-          selectedValue={global.currentScheduleId}
-          onValueChange={handleChange}
-          style={styles.picker}
-        >
-          {schedules.map((s) => (
-            <Picker.Item key={s.id} label={s.name || s.id} value={s.id} />
-          ))}
-        </Picker>
+        <View style={styles.listContent}>
+          {schedules.map((s) => {
+            const isSelected = s.id === global.currentScheduleId;
 
-        {currentSchedule && (
-          <View style={styles.renameBox}>
-            <Text style={styles.renameLabel}>Назва:</Text>
-            <TextInput
-              style={styles.input}
-              value={currentSchedule.name}
-              onChangeText={handleRename}
-            />
-          </View>
-        )}
+            return (
+              <TouchableOpacity
+                key={s.id}
+                style={[
+                  styles.option,
+                  {
+                    backgroundColor: themeColors.backgroundColor2,
+                    borderColor: isSelected ? themeColors.accentColor : 'transparent',
+                    borderWidth: isSelected ? 2 : 1,
+                  }
+                ]}
+                onPress={() => !isSelected && handleChange(s.id)}
+                onLongPress={() => handleEdit(s.id)}
+                delayLongPress={300}
+                activeOpacity={isSelected ? 1 : 0.7}
+              >
+                <View style={styles.leftContainer}>
+                  <Text style={[
+                    styles.optionText, 
+                    { color: themeColors.textColor },
+                    isSelected && { color: themeColors.accentColor, fontWeight: "bold" }
+                  ]}>
+                    {s.name || "Без назви"}
+                  </Text>
+                </View>
 
-        {isCreating ? (
-          <View style={styles.newBox}>
-            <TextInput
-              style={styles.input}
-              placeholder="Назва нового розкладу"
-              value={newName}
-              onChangeText={setNewName}
-            />
-            <Button title="Створити" onPress={handleCreate} />
-          </View>
-        ) : (
-          <TouchableOpacity onPress={() => setIsCreating(true)} style={styles.addButton}>
-            <Text style={styles.addText}>+ Додати розклад</Text>
+                <View style={styles.rightContainer}>
+                  <TouchableOpacity 
+                    hitSlop={15}
+                    onPress={() => handleEdit(s.id)}
+                    style={styles.editButton}
+                  >
+                    <Ionicons name="pencil" size={20} color={themeColors.textColor2} />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          <TouchableOpacity 
+            style={[
+              styles.actionButton, 
+              { borderColor: themeColors.accentColor, borderStyle: 'dashed' }
+            ]} 
+            onPress={handleAddNew}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add-circle-outline" size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} />
+            <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>Додати новий</Text>
           </TouchableOpacity>
-        )}
+        </View>
       </View>
     </SettingsScreenLayout>
   );
@@ -103,46 +112,56 @@ const ScheduleSwitcher = () => {
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
+    flex: 1,
+    paddingTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 16,
     paddingHorizontal: 16,
   },
-  label: {
+  listContent: {
+    paddingHorizontal: 16,
+  },
+  option: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  leftContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  rightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  optionText: {
     fontSize: 16,
-    marginBottom: 8,
-    fontWeight: "600",
+    fontWeight: "500",
   },
-  picker: {
-    backgroundColor: "#f0f0f0",
+  editButton: {
+    padding: 4,
     borderRadius: 8,
   },
-  renameBox: {
-    marginTop: 12,
-  },
-  renameLabel: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 8,
-    backgroundColor: "#fff",
-  },
-  newBox: {
-    marginTop: 16,
-    gap: 8,
-  },
-  addButton: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: "#007AFF",
-    borderRadius: 8,
+  actionButton: {
+    padding: 14,
+    borderRadius: 16,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: 'row',
+    borderWidth: 1,
+    marginTop: 4,
   },
-  addText: {
-    color: "#fff",
+  actionButtonText: {
     fontWeight: "600",
+    fontSize: 16,
   },
 });
 

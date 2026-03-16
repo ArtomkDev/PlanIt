@@ -1,192 +1,319 @@
-import React, { useEffect, useState } from 'react';
+// src/pages/ScheduleSettings/components/BreaksManager.jsx
+import React, { useState, useEffect } from 'react';
 import {
-	FlatList,
-	StyleSheet,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  Keyboard,
+  LayoutAnimation,
+  UIManager
 } from 'react-native';
-// ВИДАЛЯЄМО: import { BlurView } from 'expo-blur';
-import AppBlur from '../../../components/AppBlur'; // ДОДАЄМО
-
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function BreaksManager() {
-	const { global, schedule, setScheduleDraft } = useSchedule();
-	const [tempBreaks, setTempBreaks] = useState([...schedule.breaks]);
-	const [isChanged, setIsChanged] = useState(false);
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const { global, schedule, setScheduleDraft } = useSchedule();
 
-  	const [mode, accent] = global?.theme || ["light", "blue"];
-  	const themeColors = themes.getColors(mode, accent);
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
 
-	useEffect(() => {
-		setIsChanged(JSON.stringify(tempBreaks) !== JSON.stringify(schedule.breaks));
-	}, [tempBreaks, schedule.breaks]);
+  // Використовуємо рядки для зручного редагування в TextInput
+  const [tempBreaks, setTempBreaks] = useState(() => schedule.breaks.map(String));
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
-    // ... (функції handleBreakChange, handleAddBreak і т.д. залишаються без змін) ...
-	const handleBreakChange = (value, index) => {
-		const updatedBreaks = [...tempBreaks];
-		updatedBreaks[index] = Number(value);
-		setTempBreaks(updatedBreaks);
-	};
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-	const handleAddBreak = () => {
-		setTempBreaks([...tempBreaks, 10]);
-	};
+    const showSub = Keyboard.addListener(showEvent, () => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setKeyboardVisible(true);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setKeyboardVisible(false);
+    });
 
-	const handleRemoveBreak = (index) => {
-		const updatedBreaks = tempBreaks.filter((_, i) => i !== index);
-		setTempBreaks(updatedBreaks);
-	};
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
-	const handleConfirm = () => {
-		if (isChanged) {
-			setScheduleDraft(prev => ({ ...prev, breaks: tempBreaks }));
-		}
-	};
+  const handleBreakChange = (value, index) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setTempBreaks((prev) => {
+      const updated = [...prev];
+      updated[index] = numericValue;
+      return updated;
+    });
+  };
 
-	return (
-		<View style={[
-			styles.container,
-			{ backgroundColor: themeColors.backgroundColor },
-		]}>
-			<FlatList
-				data={tempBreaks}
-				style={styles.containerBlock}
-				renderItem={({ item, index }) => (
-					<View
-						style={[
-							styles.breakContainer,
-							{ backgroundColor: themeColors.backgroundColor2 },
-						]}
-					>
-						<Text style={[styles.breakLabel, { color: themeColors.textColor }]}>
-							Перерва: {index + 1}
-						</Text>
-						<TextInput
-							style={[
-								styles.input,
-								{
-									color: themeColors.textColor,
-									backgroundColor: themeColors.backgroundColor,
-								},
-							]}
-							keyboardType="number-pad"
-							value={String(item)}
-							onChangeText={(value) => handleBreakChange(value, index)}
-						/>
-						<TouchableOpacity
-							style={styles.removeButton}
-							onPress={() => handleRemoveBreak(index)}
-						>
-							<Text style={{ color: themeColors.textColor }}>Видалити</Text>
-						</TouchableOpacity>
-					</View>
-				)}
-				keyExtractor={(item, index) => index.toString()}
-			/>
+  const handleAddBreak = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setTempBreaks([...tempBreaks, "10"]);
+  };
 
-			{/* ЗАМІНЕНО BlurView на AppBlur */}
-			<AppBlur
-			  	intensity={100}
-			  	style={styles.buttonsContainer}
-			>
-			  <TouchableOpacity
-			    style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
-			    onPress={handleAddBreak}
-			  >
-			    <Text style={[styles.confirmButtonText, { color: themeColors.textColor }]}>
-			      Додати перерву
-			    </Text>
-			  </TouchableOpacity>
-						
-			  <TouchableOpacity
-			    style={[
-			      styles.confirmButton,
-			      {
-			        backgroundColor: isChanged
-			          ? themeColors.accentColor
-			          : themeColors.backgroundColor2,
-			      },
-			    ]}
-			    onPress={handleConfirm}
-			    disabled={!isChanged}
-			  >
-			    <Text
-			      style={[styles.confirmButtonText, { color: themeColors.textColor }]}
-			    >
-			      Підтвердити
-			    </Text>
-			  </TouchableOpacity>
-			</AppBlur>
+  const handleRemoveBreak = (index) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setTempBreaks((prev) => prev.filter((_, i) => i !== index));
+  };
 
-		</View>
-	);
+  const handleSave = () => {
+    // Конвертуємо назад у числа, прибираємо порожні значення або 0
+    const finalBreaks = tempBreaks
+      .map(Number)
+      .map(n => isNaN(n) || n <= 0 ? 10 : n); 
+
+    setScheduleDraft((prev) => ({ ...prev, breaks: finalBreaks }));
+    navigation.goBack();
+  };
+
+  const isChanged = JSON.stringify(tempBreaks.map(Number)) !== JSON.stringify(schedule.breaks);
+
+  const tabBarHeightOffset = 50 + insets.bottom + 20;
+  const footerPaddingBottom = isKeyboardVisible ? (Platform.OS === 'ios' ? 12 : 20) : tabBarHeightOffset;
+
+  return (
+    <View style={[styles.mainContainer, { backgroundColor: themeColors.backgroundColor, paddingTop: insets.top }]}>
+      
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={15}>
+          <Ionicons name="chevron-back" size={28} color={themeColors.textColor} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>
+          Налаштування перерв
+        </Text>
+        <View style={styles.backButton} />
+      </View>
+
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
+          <View style={styles.listContent}>
+            {tempBreaks.map((item, index) => (
+              <View 
+                key={`break-${index}`} 
+                style={[styles.card, { backgroundColor: themeColors.backgroundColor2 }]}
+              >
+                <View style={styles.cardLeft}>
+                  <Ionicons name="time-outline" size={22} color={themeColors.accentColor} style={styles.cardIcon} />
+                  <Text style={[styles.cardTitle, { color: themeColors.textColor }]}>
+                    Перерва {index + 1}
+                  </Text>
+                </View>
+
+                <View style={styles.cardRight}>
+                  <TextInput
+                    style={[
+                      styles.input, 
+                      { 
+                        color: themeColors.textColor,
+                        backgroundColor: isKeyboardVisible ? themeColors.backgroundColor : 'transparent'
+                      }
+                    ]}
+                    keyboardType="number-pad"
+                    value={item}
+                    onChangeText={(val) => handleBreakChange(val, index)}
+                    maxLength={3}
+                    selectTextOnFocus
+                  />
+                  <Text style={[styles.minutesText, { color: themeColors.textColor2 }]}>хв</Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.deleteBtn} 
+                    onPress={() => handleRemoveBreak(index)}
+                    hitSlop={10}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity 
+              style={[
+                styles.actionButton, 
+                { borderColor: themeColors.accentColor, borderStyle: 'dashed' }
+              ]} 
+              onPress={handleAddBreak}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add-circle-outline" size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} />
+              <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>Додати перерву</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ flex: 1, minHeight: 40 }} />
+
+          <View style={[styles.footer, { paddingBottom: footerPaddingBottom }]}>
+            <TouchableOpacity 
+                style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 
+                onPress={() => navigation.goBack()}
+            >
+              <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={[
+                  styles.button, 
+                  styles.saveButton, 
+                  { 
+                    backgroundColor: isChanged ? themeColors.accentColor : themeColors.backgroundColor2,
+                    opacity: isChanged ? 1 : 0.6
+                  }
+                ]} 
+                onPress={handleSave}
+                disabled={!isChanged}
+            >
+              <Text style={[
+                styles.saveButtonText, 
+                { color: isChanged ? "#fff" : themeColors.textColor2 }
+              ]}>
+                Зберегти
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, marginBottom: 0,},
-	containerBlock: { paddingLeft: 10, paddingRight: 10 , paddingTop: 15, paddingBottom: 150, paddingTop: 100,},
-	title: {
-		fontSize: 20,
-		fontWeight: 'bold',
-		marginBottom: 20,
-		textAlign: 'center',
-	},
-	breakContainer: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		marginBottom: 15,
-		padding: 10,
-		borderRadius: 10,
-		elevation: 2,
-	},
-	buttonsContainer: {
-		position: 'absolute',
-		bottom: 0,
-		left: 0,
-		right: 0,
-		marginBottom: 80,
-		marginRight: 20,
-		marginLeft: 15,
-		flexDirection: 'row',
-		justifyContent: 'space-around',
-		padding: 10,
-		borderRadius: 15,
-		overflow: 'hidden',
-	},
-    // ... решта стилів ...
-	breakLabel: { fontSize: 16, fontWeight: 'bold', marginRight: 10 },
-	input: {
-		borderRadius: 5,
-		padding: 10,
-		marginRight: 10,
-		width: 60,
-		textAlign: 'center',
-		fontSize: 16,
-	},
-	removeButton: {
-		backgroundColor: '#ff5c5c',
-		paddingVertical: 8,
-		paddingHorizontal: 12,
-		borderRadius: 5,
-	},
-	removeButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-	addButton: {
-		paddingVertical: 15,
-		paddingHorizontal: 20,
-		borderRadius: 10,
-		alignItems: 'center',
-	},
-	addButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-	confirmButton: {
-		paddingVertical: 15,
-		paddingHorizontal: 20,
-		borderRadius: 10,
-		alignItems: 'center',
-	},
-	confirmButtonText: { fontWeight: 'bold', fontSize: 16 },
-	disabledButton: { backgroundColor: '#ccc' },
+  mainContainer: { 
+    flex: 1, 
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 12, 
+    paddingVertical: 14 
+  },
+  backButton: { 
+    width: 40, 
+    alignItems: 'flex-start' 
+  },
+  headerTitle: { 
+    fontSize: 18, 
+    fontWeight: '700' 
+  },
+  scrollContent: { 
+    flexGrow: 1, 
+    paddingTop: 16 
+  },
+  listContent: {
+    paddingHorizontal: 16,
+  },
+  card: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 10,
+  },
+  cardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardIcon: {
+    marginRight: 10,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  cardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  input: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    minWidth: 40,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  minutesText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 4,
+    marginRight: 16,
+  },
+  deleteBtn: {
+    padding: 6,
+    backgroundColor: '#FF3B3015',
+    borderRadius: 8,
+  },
+  actionButton: {
+    padding: 14,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: 'row',
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  actionButtonText: {
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  footer: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    gap: 12, 
+    paddingHorizontal: 16,
+    marginTop: 20 
+  },
+  button: { 
+    flex: 1, 
+    height: 50, 
+    borderRadius: 14, 
+    alignItems: "center", 
+    justifyContent: "center" 
+  },
+  cancelButton: { 
+    borderWidth: 0 
+  },
+  saveButton: { 
+    shadowColor: "#000", 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 4, 
+    elevation: 2 
+  },
+  buttonText: { 
+    fontSize: 16, 
+    fontWeight: "600" 
+  },
+  saveButtonText: { 
+    fontSize: 16, 
+    fontWeight: "700" 
+  },
 });
