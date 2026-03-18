@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { AppState } from "react-native";
+import { AppState, useColorScheme } from "react-native"; // 🔥 ДОДАНО: useColorScheme
 import NetInfo from "@react-native-community/netinfo";
 import { v4 as uuidv4 } from 'uuid'; 
-import { enableNetwork, disableNetwork } from "firebase/firestore"; // 🔥 ДОДАНО: Інструменти для миттєвого пробудження
-import { db } from "../../firebase"; // 🔥 ДОДАНО: Доступ до бази
+import { enableNetwork, disableNetwork } from "firebase/firestore";
+import { db } from "../../firebase";
 import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer } from "../../firestore"; 
-import { getLocalSchedule, saveLocalSchedule } from "../utils/storage";
+import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage"; 
 import createDefaultData from "../config/createDefaultData";
 import SyncConflictScreen from "../components/SyncConflictScreen";
 
@@ -104,6 +104,15 @@ function resolveSyncConflict(localData, cloudData) {
 
 export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [data, setData] = useState(null);
+  
+  // 🔥 Отримуємо системну тему пристрою (світла або темна)
+  const systemColorScheme = useColorScheme(); 
+
+  // Стейт для налаштувань пристрою
+  const [devicePrefs, setDevicePrefs] = useState({});
+  const devicePrefsRef = useRef(devicePrefs);
+  useEffect(() => { devicePrefsRef.current = devicePrefs; }, [devicePrefs]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -126,6 +135,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   useEffect(() => {
     const loadLocal = async () => {
+      const prefs = await getDevicePrefs(user?.uid);
+      setDevicePrefs(prefs);
+
       if (guest) {
         const local = await getLocalSchedule(null);
         setData(local || createDefaultData());
@@ -143,7 +155,46 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     loadLocal();
   }, [guest, user]);
 
-  // 🔥 1. ВІДСТЕЖУЄМО ІНТЕРНЕТ (Ідеальна інтеграція з Firebase)
+  // ФІКСАЦІЯ (LOCKING) ДЛЯ НОВИХ ПРИСТРОЇВ
+  useEffect(() => {
+    if (!data || isLoading) return;
+    
+    // Чекаємо, поки хмара дасть дані, або якщо ми офлайн / гості
+    if (guest || cloudSyncState === 'synced' || cloudSyncState === 'offline') {
+        const currentPrefs = devicePrefsRef.current;
+        let prefsNeedSave = false;
+        const newPrefs = { ...currentPrefs };
+
+        // 1. Фіксуємо тему
+        if (!newPrefs.theme) {
+            // 🔥 ВИПРАВЛЕНО: Беремо шаблон з хмари, інакше системну тему + червоний акцент
+            const defaultMode = systemColorScheme === 'light' ? 'light' : 'dark';
+            newPrefs.theme = data.global?.theme || [defaultMode, 'red'];
+            prefsNeedSave = true;
+        }
+
+        // 2. Фіксуємо розклад (Беремо останньо змінений, інакше з шаблону)
+        if (!newPrefs.currentScheduleId) {
+            if (data.schedules && data.schedules.length > 0) {
+                // Шукаємо останньо змінений розклад
+                const sorted = [...data.schedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+                newPrefs.currentScheduleId = sorted[0].id;
+            } else if (data.global?.currentScheduleId) {
+                newPrefs.currentScheduleId = data.global.currentScheduleId;
+            }
+            
+            if (newPrefs.currentScheduleId) {
+                prefsNeedSave = true;
+            }
+        }
+
+        if (prefsNeedSave) {
+            setDevicePrefs(newPrefs);
+            saveDevicePrefs(newPrefs, user?.uid);
+        }
+    }
+  }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme]); // 🔥 Додано systemColorScheme в залежності
+
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       const currentlyOnline = !!state.isConnected;
@@ -152,11 +203,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       if (!currentlyOnline) {
          setCloudSyncState('offline');
-         // Миттєво переводимо Firebase в офлайн-режим (щоб не чекав тайм-аутів)
          disableNetwork(db).catch(() => {}); 
       } else if (currentlyOnline && !prevOnlineRef.current && user && !guest) {
          setCloudSyncState('syncing');
-         // 🔥 МИТТЄВО будимо Firebase! Це прибирає 5 секунд затримки
          enableNetwork(db).catch(() => {}); 
       }
       prevOnlineRef.current = currentlyOnline;
@@ -164,13 +213,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     return () => unsubscribe();
   }, [user, guest]);
 
-  // 🔥 2. СЛУХАЧ FIREBASE (Більше ніяких перезапусків!)
   useEffect(() => {
     let unsubscribeCloud = null;
     if (guest || !user) return;
 
-    // Слухач створюється лише ОДИН РАЗ. Коли інтернет з'являється, 
-    // він автоматично і миттєво відправить сюди нові дані.
     unsubscribeCloud = subscribeToSchedule(
       user.uid,
       async (fetchedCloudData, isFromCache) => {
@@ -205,7 +251,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     return () => {
       if (unsubscribeCloud) unsubscribeCloud();
     };
-  }, [guest, user]); // Прибрали reconnectCounter!
+  }, [guest, user]);
 
   useEffect(() => {
     if (!data || isLoading) return;
@@ -215,7 +261,17 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     return () => clearTimeout(timeoutId);
   }, [data, isLoading, user]);
 
-  const currentScheduleId = data?.global?.currentScheduleId || null;
+  // Зливаємо дані: локальні преференції ПЕРЕЗАПИСУЮТЬ хмарні для цього пристрою
+  const mergedGlobal = useMemo(() => {
+    if (!data?.global) return null;
+    return {
+      ...data.global,
+      ...(devicePrefs.theme ? { theme: devicePrefs.theme } : {}),
+      ...(devicePrefs.currentScheduleId ? { currentScheduleId: devicePrefs.currentScheduleId } : {})
+    };
+  }, [data?.global, devicePrefs]);
+
+  const currentScheduleId = mergedGlobal?.currentScheduleId || null;
 
   const schedule = useMemo(() => {
     if (!data?.schedules?.length) return null;
@@ -224,28 +280,35 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       : null) || data.schedules[0];
   }, [data, currentScheduleId]);
 
-  const global = data?.global || null;
-
+  // Захист, якщо обраний розклад видалили
   useEffect(() => {
     if (!data?.schedules?.length) return;
     const exists = data.schedules.some((s) => s.id === currentScheduleId);
-    if (!exists) {
+    if (!exists && currentScheduleId) {
+      // Перемикаємо на останньо змінений розклад
+      const sorted = [...data.schedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+      const fallbackId = sorted[0].id;
+      
+      const newPrefs = { ...devicePrefsRef.current, currentScheduleId: fallbackId };
+      setDevicePrefs(newPrefs);
+      saveDevicePrefs(newPrefs, user?.uid);
+
       setData((prev) => ({
         ...prev,
         global: { 
           ...(prev?.global || {}), 
-          currentScheduleId: data.schedules[0].id,
+          currentScheduleId: fallbackId,
           lastModified: Date.now() 
         },
       }));
       if (!guest) setIsDirty(true);
     }
-  }, [data, currentScheduleId, guest]);
+  }, [data?.schedules, currentScheduleId, guest, user]);
 
   const setScheduleDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
-      const currentId = prev?.global?.currentScheduleId;
+      const currentId = devicePrefsRef.current.currentScheduleId || prev?.global?.currentScheduleId;
       if (!currentId) return prev;
       
       const nextSchedules = prev.schedules.map((s) => {
@@ -260,14 +323,46 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!guest) setIsDirty(true);
   }, [guest]);
 
+  // Записуємо і в налаштування пристрою, І В ХМАРУ (як шаблон)
   const setGlobalDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
-      const nextGlobal = typeof updater === "function" ? updater(prev.global) : updater;
-      return { ...prev, global: { ...nextGlobal, lastModified: Date.now() } };
+
+      // Спочатку формуємо поточний стан як його бачить користувач
+      const currentMerged = {
+        ...prev.global,
+        ...(devicePrefsRef.current.theme ? { theme: devicePrefsRef.current.theme } : {}),
+        ...(devicePrefsRef.current.currentScheduleId ? { currentScheduleId: devicePrefsRef.current.currentScheduleId } : {})
+      };
+
+      const nextGlobal = typeof updater === "function" ? updater(currentMerged) : updater;
+      
+      const newPrefs = { ...devicePrefsRef.current };
+      let prefsChanged = false;
+
+      // Якщо користувач змінив тему - запам'ятовуємо для цього пристрою
+      if (nextGlobal.theme && JSON.stringify(nextGlobal.theme) !== JSON.stringify(currentMerged.theme)) {
+        newPrefs.theme = nextGlobal.theme;
+        prefsChanged = true;
+      }
+      // Якщо змінив розклад - запам'ятовуємо для цього пристрою
+      if (nextGlobal.currentScheduleId && nextGlobal.currentScheduleId !== currentMerged.currentScheduleId) {
+        newPrefs.currentScheduleId = nextGlobal.currentScheduleId;
+        prefsChanged = true;
+      }
+
+      if (prefsChanged) {
+        setDevicePrefs(newPrefs);
+        saveDevicePrefs(newPrefs, user?.uid);
+      }
+
+      // ТАКОЖ оновлюємо prev.global, щоб цей "шаблон" відправився в хмару
+      return { ...prev, global: { ...prev.global, ...nextGlobal, lastModified: Date.now() } };
     });
+    
+    // Ставимо прапорець, що є зміни для відправки в Firebase
     if (!guest) setIsDirty(true);
-  }, [guest]);
+  }, [guest, user]);
 
   const addSchedule = useCallback((scheduleObj) => {
     setData((prev) => {
@@ -359,7 +454,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [user, isSaving, isDirty, guest, conflictQueue.length, cloudSyncState]);
 
-  // Ручне оновлення кнопкою
   const reloadAllSchedules = useCallback(async () => {
     if (guest || !user) return;
     setCloudSyncState('syncing');
@@ -407,6 +501,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     try {
       const currentGlobal = dataRef.current?.global || createDefaultData().global;
       const newData = { global: currentGlobal, schedules: createDefaultData().schedules };
+      
+      setDevicePrefs({});
+      await saveDevicePrefs({}, user?.uid);
+
       setData(newData);
       if (user) {
         await resetUserSchedules(user.uid);
@@ -501,7 +599,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   };
 
   const value = {
-    user, guest, schedule, global, schedules: data?.schedules || [],
+    user, guest, schedule, 
+    global: mergedGlobal, // Віддаємо мердж!
+    schedules: data?.schedules || [],
     setData, setScheduleDraft, setGlobalDraft, addSchedule, saveNow,
     reloadAllSchedules, resetApplication, isDirty, isSaving, isCloudSaving,
     isLoading, error, isOnline,

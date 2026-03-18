@@ -2,11 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GUEST_KEY = 'guest_schedule';
 
-// Dynamic key generation isolates offline storage for each unique user
 const getStorageKey = (userId) => {
   return userId ? `user_schedule_${userId}` : GUEST_KEY;
 };
 
+// --- СТАРІ ФУНКЦІЇ ЗАЛИШАЄМО БЕЗ ЗМІН ---
 export async function getLocalSchedule(userId = null) {
   const key = getStorageKey(userId);
   try {
@@ -33,5 +33,25 @@ export async function clearLocalSchedule(userId = null) {
     await AsyncStorage.removeItem(key);
   } catch (e) {
     console.warn(`Помилка видалення локального розкладу для ключа ${key}`, e);
+  }
+}
+
+// 🔥 НОВІ ФУНКЦІЇ ДЛЯ НАЛАШТУВАНЬ ПРИСТРОЮ
+export async function getDevicePrefs(userId = null) {
+  const key = `device_prefs_${userId || 'guest'}`;
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+export async function saveDevicePrefs(prefs, userId = null) {
+  const key = `device_prefs_${userId || 'guest'}`;
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(prefs));
+  } catch (e) {
+    console.warn(`Помилка збереження налаштувань пристрою`, e);
   }
 }
