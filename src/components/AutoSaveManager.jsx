@@ -1,14 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Pressable } from "react-native";
-import NetInfo from "@react-native-community/netinfo";
 import { useSchedule } from "../context/ScheduleProvider";
 
 export default function AutoSaveManager() {
-  const { saveNow, isCloudSaving, isDirty, user, global } = useSchedule();
+  const { saveNow, isCloudSaving, isDirty, user, global, isOnline, conflictQueue, cloudSyncState } = useSchedule();
   const autoSaveInterval = global?.auto_save || 60;
 
   const [timeLeft, setTimeLeft] = useState(autoSaveInterval);
-  const [isConnected, setIsConnected] = useState(true);
   
   const [statusMessage, setStatusMessage] = useState("");
   const [statusColor, setStatusColor] = useState("#4dff88"); 
@@ -21,25 +19,22 @@ export default function AutoSaveManager() {
   const heightAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    if (!user) return;
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsConnected(!!state.isConnected);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
+  // 1. Управління таймером
   useEffect(() => {
     if (!user) return;
 
-    if (isDirty && isConnected && !isCloudSaving && !timerRef.current) {
+    // 🔥 Таймер має право стартувати ТІЛЬКИ якщо Firebase підтвердив, що ми в синхроні ('synced')
+    const canStartTimer = isDirty && isOnline && !isCloudSaving && cloudSyncState === 'synced' && conflictQueue.length === 0;
+
+    if (canStartTimer && !timerRef.current) {
       setTimeLeft(autoSaveInterval);
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     
-    if ((!isConnected || isCloudSaving) && timerRef.current) {
+    // Якщо таймер працював, але зв'язок пропав, або почалася перевірка - зупиняємо
+    if (!canStartTimer && timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
@@ -47,22 +42,25 @@ export default function AutoSaveManager() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isDirty, isConnected, isCloudSaving, autoSaveInterval, user]);
+  }, [isDirty, isOnline, isCloudSaving, cloudSyncState, autoSaveInterval, user, conflictQueue.length]);
 
+  // 2. Дія по закінченню таймера
   useEffect(() => {
-    if (timeLeft === 0 && isDirty && !isCloudSaving) {
+    if (timeLeft === 0 && isDirty && !isCloudSaving && cloudSyncState === 'synced' && conflictQueue.length === 0) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      setTimeLeft(autoSaveInterval);
       saveNow();
     }
-  }, [timeLeft, isDirty, isCloudSaving, saveNow]);
+  }, [timeLeft, isDirty, isCloudSaving, cloudSyncState, saveNow, autoSaveInterval, conflictQueue.length]);
 
+  // 3. Візуалізація успішного збереження
   useEffect(() => {
     const justFinishedSaving = prevCloudSavingRef.current === true && isCloudSaving === false;
     
-    if (justFinishedSaving && !isDirty && isConnected) {
+    if (justFinishedSaving && !isDirty && isOnline) {
       setShowSavedState(true);
       
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
@@ -70,20 +68,28 @@ export default function AutoSaveManager() {
       hideTimeoutRef.current = setTimeout(() => {
         setShowSavedState(false);
       }, 5000);
-    } else if (isDirty || isCloudSaving || !isConnected) {
+    } else if (isDirty || isCloudSaving || !isOnline) {
       setShowSavedState(false);
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     }
     
     prevCloudSavingRef.current = isCloudSaving;
-  }, [isCloudSaving, isDirty, isConnected]);
+  }, [isCloudSaving, isDirty, isOnline]);
 
+  // 4. Логіка відображення плашки
   useEffect(() => {
     let shouldShow = false;
 
-    if (!isConnected) {
+    if (conflictQueue.length > 0) {
+      shouldShow = false; 
+    } else if (!isOnline) {
       setStatusMessage("Немає інтернету");
       setStatusColor("#ff4d4d");
+      shouldShow = true;
+    } else if (cloudSyncState === 'syncing') {
+      // 🔥 Цей статус висітиме стільки, скільки Firebase буде встановлювати реальне з'єднання з Google
+      setStatusMessage("Синхронізація з хмарою...");
+      setStatusColor("#3399ff"); 
       shouldShow = true;
     } else if (isCloudSaving) {
       setStatusMessage("Збереження у хмару...");
@@ -106,42 +112,26 @@ export default function AutoSaveManager() {
     } else {
       hideBar();
     }
-  }, [isConnected, isCloudSaving, isDirty, timeLeft, showSavedState]);
+  }, [isOnline, isCloudSaving, isDirty, cloudSyncState, timeLeft, showSavedState, conflictQueue.length]);
 
   const showBar = () => {
     Animated.parallel([
-      Animated.timing(heightAnim, {
-        toValue: 40,
-        duration: 300,
-        useNativeDriver: false,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: false,
-      })
+      Animated.timing(heightAnim, { toValue: 40, duration: 300, useNativeDriver: false }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: false })
     ]).start();
   };
 
   const hideBar = () => {
     Animated.parallel([
-      Animated.timing(heightAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: false,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: false,
-      })
+      Animated.timing(heightAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 300, useNativeDriver: false })
     ]).start();
   };
 
   if (!user) return null;
 
   return (
-    <Pressable onPress={isDirty ? saveNow : null}>
+    <Pressable onPress={(isDirty && conflictQueue.length === 0 && cloudSyncState === 'synced') ? () => saveNow() : null}>
       <Animated.View 
         style={[
           styles.container, 

@@ -4,34 +4,56 @@ import {
   collection, 
   getDocs, 
   writeBatch,
-  onSnapshot // ДОДАНО: Для підписки в реальному часі
+  onSnapshot,
+  getDocFromServer,
+  getDocsFromServer
 } from "firebase/firestore";
 import { db } from "./firebase";
 import createDefaultData from './src/config/createDefaultData';
 
-// НОВА ФУНКЦІЯ: Підписка на оновлення розкладу в реальному часі
+// ДОПОМІЖНА ФУНКЦІЯ: Патчить старі дані, щоб вони мали версії
+const ensureVersioning = (data) => {
+  const now = Date.now();
+  return {
+    ...data,
+    version: data.version || 1,
+    baseVersion: data.baseVersion || 1,
+    lastModified: data.lastModified || now,
+    lastSynced: data.lastSynced || now,
+  };
+};
+
 export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   let globalData = null;
   let schedulesList = null;
+  
+  // 🔥 Трекаємо стан кешу для кожної колекції
+  let globalFromCache = true;
+  let schedulesFromCache = true;
 
-  // Функція об'єднання: чекає, поки завантажаться І глобальні налаштування, І розклади
   const checkAndEmit = () => {
     if (globalData !== null && schedulesList !== null) {
-      onDataUpdate({ global: globalData, schedules: schedulesList });
+      // Дані вважаються серверними ТІЛЬКИ якщо обидві колекції стягнуті з реального сервера
+      const isFromCache = globalFromCache || schedulesFromCache;
+      // Передаємо статус isFromCache у ScheduleProvider
+      onDataUpdate({ global: globalData, schedules: schedulesList }, isFromCache);
     }
   };
 
-  // 1. Слухаємо зміни в глобальних налаштуваннях
   const globalRef = doc(db, 'users', userId, 'global', 'settings');
-  const unsubGlobal = onSnapshot(globalRef, async (docSnap) => {
+  // 🔥 ДОДАНО: includeMetadataChanges: true
+  const unsubGlobal = onSnapshot(globalRef, { includeMetadataChanges: true }, async (docSnap) => {
+    globalFromCache = docSnap.metadata.fromCache; // Читаємо метадані Firebase
+    
     if (docSnap.exists()) {
-      globalData = docSnap.data();
+      const data = docSnap.data();
+      globalData = { ...data, lastModified: data.lastModified || Date.now() };
     } else {
-      // Для сумісності з дуже старими акаунтами, де global був у корневому документі
       const userDocRef = doc(db, "users", userId);
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists() && userDocSnap.data().global) {
-        globalData = userDocSnap.data().global;
+        const data = userDocSnap.data().global;
+        globalData = { ...data, lastModified: data.lastModified || Date.now() };
       } else {
         globalData = createDefaultData().global;
       }
@@ -41,26 +63,26 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
     if (onError) onError(error);
   });
 
-  // 2. Слухаємо зміни в колекції розкладів
   const schedulesRef = collection(db, 'users', userId, 'schedules');
-  const unsubSchedules = onSnapshot(schedulesRef, (querySnapshot) => {
+  // 🔥 ДОДАНО: includeMetadataChanges: true
+  const unsubSchedules = onSnapshot(schedulesRef, { includeMetadataChanges: true }, (querySnapshot) => {
+    schedulesFromCache = querySnapshot.metadata.fromCache; // Читаємо метадані Firebase
+    
     schedulesList = querySnapshot.docs.map(docSnap => ({
       id: docSnap.id,
-      ...docSnap.data()
+      ...ensureVersioning(docSnap.data()) // ПРОПУСКАЄМО ЧЕРЕЗ ПАТЧЕР!
     }));
     checkAndEmit();
   }, (error) => {
     if (onError) onError(error);
   });
 
-  // Повертаємо функцію відписки, щоб викликати її при виході з акаунта або закритті додатку
   return () => {
     unsubGlobal();
     unsubSchedules();
   };
 };
 
-// СТАРА ФУНКЦІЯ: Залишаємо для сумісності (наприклад, для одноразового завантаження)
 export const getSchedule = async (userId) => {
   try {
     const globalRef = doc(db, 'users', userId, 'global', 'settings');
@@ -68,12 +90,14 @@ export const getSchedule = async (userId) => {
     
     let globalData = null;
     if (globalSnap.exists()) {
-      globalData = globalSnap.data();
+      const data = globalSnap.data();
+      globalData = { ...data, lastModified: data.lastModified || Date.now() };
     } else {
       const userDocRef = doc(db, "users", userId);
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists() && userDocSnap.data().global) {
-        globalData = userDocSnap.data().global;
+        const data = userDocSnap.data().global;
+        globalData = { ...data, lastModified: data.lastModified || Date.now() };
       }
     }
 
@@ -82,7 +106,7 @@ export const getSchedule = async (userId) => {
 
     let schedulesList = schedulesSnap.docs.map(docSnap => ({
       id: docSnap.id,
-      ...docSnap.data()
+      ...ensureVersioning(docSnap.data()) // ПРОПУСКАЄМО ЧЕРЕЗ ПАТЧЕР!
     }));
 
     if (!globalData && schedulesList.length === 0) {
@@ -101,7 +125,54 @@ export const getSchedule = async (userId) => {
 
   } catch (error) {
     console.error("Помилка завантаження з Firestore:", error);
-    throw error; // Тепер ми прокидаємо помилку, щоб її обробив ScheduleProvider
+    throw error;
+  }
+};
+
+// Примусове завантаження саме з СЕРВЕРА (ігноруючи офлайн-кеш)
+export const getScheduleFromServer = async (userId) => {
+  try {
+    const globalRef = doc(db, 'users', userId, 'global', 'settings');
+    const globalSnap = await getDocFromServer(globalRef); // ЧИТАЄМО З СЕРВЕРА
+    
+    let globalData = null;
+    if (globalSnap.exists()) {
+      const data = globalSnap.data();
+      globalData = { ...data, lastModified: data.lastModified || Date.now() };
+    } else {
+      const userDocRef = doc(db, "users", userId);
+      const userDocSnap = await getDocFromServer(userDocRef); // ЧИТАЄМО З СЕРВЕРА
+      if (userDocSnap.exists() && userDocSnap.data().global) {
+        const data = userDocSnap.data().global;
+        globalData = { ...data, lastModified: data.lastModified || Date.now() };
+      }
+    }
+
+    const schedulesRef = collection(db, 'users', userId, 'schedules');
+    const schedulesSnap = await getDocsFromServer(schedulesRef); // ЧИТАЄМО З СЕРВЕРА
+
+    let schedulesList = schedulesSnap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...ensureVersioning(docSnap.data()) // ПРОПУСКАЄМО ЧЕРЕЗ ПАТЧЕР!
+    }));
+
+    if (!globalData && schedulesList.length === 0) {
+      return null; 
+    }
+
+    if (!globalData) {
+      const def = createDefaultData();
+      globalData = def.global;
+    }
+
+    return {
+      global: globalData,
+      schedules: schedulesList
+    };
+
+  } catch (error) {
+    console.error("Помилка примусового завантаження з сервера:", error);
+    throw error;
   }
 };
 
