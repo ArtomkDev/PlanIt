@@ -32,37 +32,58 @@ export default function App() {
   const [authResolved, setAuthResolved] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadFonts() {
-      try {
-        await Font.loadAsync(Ionicons.font);
-      } catch (e) {
-        console.warn(e);
-      } finally {
+      let success = false;
+      while (!success && isMounted) {
+        try {
+          await Font.loadAsync(Ionicons.font);
+          success = true;
+        } catch (e) {
+          console.warn("Font loading failed, retrying in 3 seconds...", e);
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      }
+      if (isMounted) {
         setFontsLoaded(true);
       }
     }
+
     loadFonts();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
     let deviceListenerUnsubscribe = () => {};
+    let currentUid = null;
+
     const handleSignOut = () => {
-      signOut(auth).catch((error) => console.error(error));
+      signOut(auth).catch(console.error);
     };
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       deviceListenerUnsubscribe();
       
       if (firebaseUser) {
+        currentUid = firebaseUser.uid;
         setUser(firebaseUser);
         setGuest(false);
         setManualLogin(false);
+        
         await registerDevice(firebaseUser.uid);
-        deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+        
+        if (currentUid === firebaseUser.uid) {
+          deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+        }
         setAuthResolved(true);
       } else {
+        currentUid = null;
         setUser(null);
-        // Ensure we only look for a guest schedule if the user is definitely unauthenticated
+        
         try {
           const localSchedule = await AsyncStorage.getItem("guest_schedule");
           setGuest(!!localSchedule);
@@ -80,7 +101,6 @@ export default function App() {
     };
   }, []);
 
-  // Block rendering until both fonts are loaded and Firebase has returned the auth state
   const appIsReady = fontsLoaded && authResolved;
 
   const onLayoutRootView = useCallback(async () => {

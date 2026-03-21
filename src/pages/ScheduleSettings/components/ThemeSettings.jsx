@@ -66,7 +66,7 @@ const ThemeSettings = () => {
       <View style={styles.container}>
         
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          🎨 Режим
+          Режим
         </Text>
         <View style={styles.themeContainer}>
           {[
@@ -113,7 +113,7 @@ const ThemeSettings = () => {
         </View>
 
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          🌈 Акцентний колір
+          Акцентний колір
         </Text>
         
         <View style={styles.colorsContainer}>
@@ -141,7 +141,7 @@ const ThemeSettings = () => {
         </View>
 
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          👀 Результат
+          Результат
         </Text>
         <View
           style={[

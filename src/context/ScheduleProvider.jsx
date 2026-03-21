@@ -1,30 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { AppState, useColorScheme } from "react-native"; // 🔥 ДОДАНО: useColorScheme
+import { AppState, useColorScheme } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
-import { v4 as uuidv4 } from 'uuid'; 
+import { v4 as uuidv4 } from 'uuid';
 import { enableNetwork, disableNetwork } from "firebase/firestore";
 import { db } from "../../firebase";
-import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer } from "../../firestore"; 
-import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage"; 
+import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer, deleteUserSchedule } from "../../firestore";
+import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import SyncConflictScreen from "../components/SyncConflictScreen";
 
 const ScheduleContext = createContext(null);
-
-const checkIsOnline = async () => {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 3000);
-    await fetch('https://firestore.googleapis.com/favicon.ico?_=' + new Date().getTime(), { 
-       mode: 'no-cors',
-       signal: controller.signal
-    });
-    clearTimeout(id);
-    return true;
-  } catch (e) {
-    return false;
-  }
-};
 
 function resolveSyncConflict(localData, cloudData) {
   if (!localData) return { mergedData: cloudData, needsPushToCloud: false, conflicts: [] };
@@ -40,35 +25,29 @@ function resolveSyncConflict(localData, cloudData) {
   });
 
   (localData.schedules || []).forEach(localSch => {
-    if (!localSch || !localSch.id) return; 
+    if (!localSch || !localSch.id) return;
     const cloudSch = cloudMap.get(localSch.id);
 
     if (!cloudSch) {
       mergedSchedulesMap.set(localSch.id, localSch);
       needsPushToCloud = true;
     } else {
-      if (localSch.lastModified === cloudSch.lastModified) {
-        mergedSchedulesMap.set(cloudSch.id, cloudSch);
-      } else {
-        const localBase = Number(localSch.baseVersion) || 1;
-        const cloudVer = Number(cloudSch.version) || 1;
-        const isLocalDirty = (localSch.lastModified || 0) > (localSch.lastSynced || 0);
+      const localBase = Number(localSch.baseVersion) || 1;
+      const cloudVer = Number(cloudSch.version) || 1;
+      const isLocalDirty = (localSch.lastModified || 0) > (localSch.lastSynced || 0);
 
-        if (cloudVer > localBase) {
-          if (isLocalDirty) {
-            conflicts.push({ local: localSch, cloud: cloudSch });
-            mergedSchedulesMap.set(localSch.id, localSch); 
-          } else {
-            mergedSchedulesMap.set(cloudSch.id, cloudSch);
-          }
+      if (!isLocalDirty) {
+        if (localBase > cloudVer) {
+          mergedSchedulesMap.set(localSch.id, localSch);
         } else {
-          if (isLocalDirty) {
-             mergedSchedulesMap.set(localSch.id, localSch);
-             needsPushToCloud = true;
-          } else {
-             mergedSchedulesMap.set(cloudSch.id, cloudSch);
-          }
+          mergedSchedulesMap.set(cloudSch.id, cloudSch);
         }
+      } else if (cloudVer > localBase) {
+        conflicts.push({ local: localSch, cloud: cloudSch });
+        mergedSchedulesMap.set(localSch.id, localSch);
+      } else {
+        mergedSchedulesMap.set(localSch.id, localSch);
+        needsPushToCloud = true;
       }
     }
   });
@@ -79,22 +58,28 @@ function resolveSyncConflict(localData, cloudData) {
     }
   });
 
-  const localGlobalMod = localData.global?.lastModified || 0;
-  const cloudGlobalMod = cloudData.global?.lastModified || 0;
+  const isGlobalDirty = (localData.global?.lastModified || 0) > (localData.global?.lastSynced || 0);
+  const localGlobalBase = Number(localData.global?.baseVersion) || 1;
+  const cloudGlobalVer = Number(cloudData.global?.version) || 1;
   let mergedGlobal;
 
-  if (localGlobalMod === cloudGlobalMod) {
-    mergedGlobal = cloudData.global;
-  } else if (localGlobalMod > cloudGlobalMod) {
-    mergedGlobal = { ...cloudData.global, ...localData.global };
+  if (!isGlobalDirty) {
+    if (localGlobalBase > cloudGlobalVer) {
+      mergedGlobal = localData.global;
+    } else {
+      mergedGlobal = cloudData.global;
+    }
+  } else if (cloudGlobalVer > localGlobalBase) {
+    mergedGlobal = { ...cloudData.global, ...localData.global, version: cloudGlobalVer, baseVersion: cloudGlobalVer };
     needsPushToCloud = true;
   } else {
-    mergedGlobal = { ...localData.global, ...cloudData.global };
+    mergedGlobal = localData.global;
+    needsPushToCloud = true;
   }
 
   return {
     mergedData: {
-      global: mergedGlobal, 
+      global: mergedGlobal,
       schedules: Array.from(mergedSchedulesMap.values())
     },
     needsPushToCloud,
@@ -104,11 +89,8 @@ function resolveSyncConflict(localData, cloudData) {
 
 export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [data, setData] = useState(null);
-  
-  // 🔥 Отримуємо системну тему пристрою (світла або темна)
-  const systemColorScheme = useColorScheme(); 
+  const systemColorScheme = useColorScheme();
 
-  // Стейт для налаштувань пристрою
   const [devicePrefs, setDevicePrefs] = useState({});
   const devicePrefsRef = useRef(devicePrefs);
   useEffect(() => { devicePrefsRef.current = devicePrefs; }, [devicePrefs]);
@@ -119,12 +101,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
   const [conflictQueue, setConflictQueue] = useState([]);
-  
-  const [isOnline, setIsOnline] = useState(true); 
-  const prevOnlineRef = useRef(isOnline); 
-  const isOnlineRef = useRef(isOnline); 
-  
-  const [cloudSyncState, setCloudSyncState] = useState('syncing'); 
+
+  const [isOnline, setIsOnline] = useState(true);
+  const prevOnlineRef = useRef(isOnline);
+
+  const [cloudSyncState, setCloudSyncState] = useState('syncing');
   const [pendingImmediateSave, setPendingImmediateSave] = useState(false);
 
   const dataRef = useRef(data);
@@ -155,34 +136,28 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     loadLocal();
   }, [guest, user]);
 
-  // ФІКСАЦІЯ (LOCKING) ДЛЯ НОВИХ ПРИСТРОЇВ
   useEffect(() => {
     if (!data || isLoading) return;
-    
-    // Чекаємо, поки хмара дасть дані, або якщо ми офлайн / гості
+
     if (guest || cloudSyncState === 'synced' || cloudSyncState === 'offline') {
         const currentPrefs = devicePrefsRef.current;
         let prefsNeedSave = false;
         const newPrefs = { ...currentPrefs };
 
-        // 1. Фіксуємо тему
         if (!newPrefs.theme) {
-            // 🔥 ВИПРАВЛЕНО: Беремо шаблон з хмари, інакше системну тему + червоний акцент
             const defaultMode = systemColorScheme === 'light' ? 'light' : 'dark';
             newPrefs.theme = data.global?.theme || [defaultMode, 'red'];
             prefsNeedSave = true;
         }
 
-        // 2. Фіксуємо розклад (Беремо останньо змінений, інакше з шаблону)
         if (!newPrefs.currentScheduleId) {
             if (data.schedules && data.schedules.length > 0) {
-                // Шукаємо останньо змінений розклад
                 const sorted = [...data.schedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
                 newPrefs.currentScheduleId = sorted[0].id;
             } else if (data.global?.currentScheduleId) {
                 newPrefs.currentScheduleId = data.global.currentScheduleId;
             }
-            
+
             if (newPrefs.currentScheduleId) {
                 prefsNeedSave = true;
             }
@@ -193,20 +168,19 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             saveDevicePrefs(newPrefs, user?.uid);
         }
     }
-  }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme]); // 🔥 Додано systemColorScheme в залежності
+  }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       const currentlyOnline = !!state.isConnected;
       setIsOnline(currentlyOnline);
-      isOnlineRef.current = currentlyOnline;
 
       if (!currentlyOnline) {
          setCloudSyncState('offline');
-         disableNetwork(db).catch(() => {}); 
+         disableNetwork(db).catch(() => {});
       } else if (currentlyOnline && !prevOnlineRef.current && user && !guest) {
          setCloudSyncState('syncing');
-         enableNetwork(db).catch(() => {}); 
+         enableNetwork(db).catch(() => {});
       }
       prevOnlineRef.current = currentlyOnline;
     });
@@ -227,25 +201,25 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
           if (!currentLocal) return;
 
           const { mergedData, needsPushToCloud, conflicts } = resolveSyncConflict(currentLocal, fetchedCloudData);
-          
+
           if (conflicts.length > 0) {
             setConflictQueue(conflicts);
-            setCloudSyncState('synced'); 
+            setCloudSyncState('synced');
             return;
           }
 
           setData(mergedData);
-          await saveLocalSchedule(mergedData, user.uid); 
-          
+          await saveLocalSchedule(mergedData, user.uid);
+
           if (needsPushToCloud) setIsDirty(true);
-          else setIsDirty(false); 
+          else setIsDirty(false);
 
           if (!isFromCache) {
              setCloudSyncState('synced');
           }
         } catch (e) {}
       },
-      (cloudError) => {}
+      () => {}
     );
 
     return () => {
@@ -257,11 +231,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!data || isLoading) return;
     const timeoutId = setTimeout(() => {
       saveLocalSchedule(data, user?.uid || null);
-    }, 500); 
+    }, 500);
     return () => clearTimeout(timeoutId);
   }, [data, isLoading, user]);
 
-  // Зливаємо дані: локальні преференції ПЕРЕЗАПИСУЮТЬ хмарні для цього пристрою
   const mergedGlobal = useMemo(() => {
     if (!data?.global) return null;
     return {
@@ -275,46 +248,21 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const schedule = useMemo(() => {
     if (!data?.schedules?.length) return null;
-    return (currentScheduleId 
-      ? data.schedules.find((s) => s.id === currentScheduleId) 
+    return (currentScheduleId
+      ? data.schedules.find((s) => s.id === currentScheduleId)
       : null) || data.schedules[0];
   }, [data, currentScheduleId]);
-
-  // Захист, якщо обраний розклад видалили
-  useEffect(() => {
-    if (!data?.schedules?.length) return;
-    const exists = data.schedules.some((s) => s.id === currentScheduleId);
-    if (!exists && currentScheduleId) {
-      // Перемикаємо на останньо змінений розклад
-      const sorted = [...data.schedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
-      const fallbackId = sorted[0].id;
-      
-      const newPrefs = { ...devicePrefsRef.current, currentScheduleId: fallbackId };
-      setDevicePrefs(newPrefs);
-      saveDevicePrefs(newPrefs, user?.uid);
-
-      setData((prev) => ({
-        ...prev,
-        global: { 
-          ...(prev?.global || {}), 
-          currentScheduleId: fallbackId,
-          lastModified: Date.now() 
-        },
-      }));
-      if (!guest) setIsDirty(true);
-    }
-  }, [data?.schedules, currentScheduleId, guest, user]);
 
   const setScheduleDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
       const currentId = devicePrefsRef.current.currentScheduleId || prev?.global?.currentScheduleId;
       if (!currentId) return prev;
-      
+
       const nextSchedules = prev.schedules.map((s) => {
         if (s.id === currentId) {
           const updated = typeof updater === "function" ? updater(s) : updater;
-          return { ...updated, lastModified: Date.now() }; 
+          return { ...updated, lastModified: Date.now() };
         }
         return s;
       });
@@ -323,12 +271,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!guest) setIsDirty(true);
   }, [guest]);
 
-  // Записуємо і в налаштування пристрою, І В ХМАРУ (як шаблон)
   const setGlobalDraft = useCallback((updater) => {
     setData((prev) => {
       if (!prev) return prev;
 
-      // Спочатку формуємо поточний стан як його бачить користувач
       const currentMerged = {
         ...prev.global,
         ...(devicePrefsRef.current.theme ? { theme: devicePrefsRef.current.theme } : {}),
@@ -336,16 +282,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       };
 
       const nextGlobal = typeof updater === "function" ? updater(currentMerged) : updater;
-      
+
       const newPrefs = { ...devicePrefsRef.current };
       let prefsChanged = false;
 
-      // Якщо користувач змінив тему - запам'ятовуємо для цього пристрою
       if (nextGlobal.theme && JSON.stringify(nextGlobal.theme) !== JSON.stringify(currentMerged.theme)) {
         newPrefs.theme = nextGlobal.theme;
         prefsChanged = true;
       }
-      // Якщо змінив розклад - запам'ятовуємо для цього пристрою
       if (nextGlobal.currentScheduleId && nextGlobal.currentScheduleId !== currentMerged.currentScheduleId) {
         newPrefs.currentScheduleId = nextGlobal.currentScheduleId;
         prefsChanged = true;
@@ -356,20 +300,18 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         saveDevicePrefs(newPrefs, user?.uid);
       }
 
-      // ТАКОЖ оновлюємо prev.global, щоб цей "шаблон" відправився в хмару
       return { ...prev, global: { ...prev.global, ...nextGlobal, lastModified: Date.now() } };
     });
-    
-    // Ставимо прапорець, що є зміни для відправки в Firebase
+
     if (!guest) setIsDirty(true);
   }, [guest, user]);
 
   const addSchedule = useCallback((scheduleObj) => {
     setData((prev) => {
       if (!prev) return prev;
-      const newSchedule = { 
-        ...scheduleObj, 
-        version: 1,       
+      const newSchedule = {
+        ...scheduleObj,
+        version: 1,
         baseVersion: 1,
         lastModified: Date.now(),
         lastSynced: 0
@@ -379,80 +321,111 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!guest) setIsDirty(true);
   }, [guest]);
 
+  const removeSchedule = useCallback(async (scheduleId) => {
+    let fallbackId = null;
+
+    setData(prev => {
+      if (!prev) return prev;
+
+      const nextSchedules = prev.schedules.filter(s => s.id !== scheduleId);
+      let nextGlobal = { ...prev.global };
+
+      const currentId = devicePrefsRef.current.currentScheduleId || prev.global?.currentScheduleId;
+
+      if (currentId === scheduleId && nextSchedules.length > 0) {
+        const sorted = [...nextSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+        fallbackId = sorted[0].id;
+        nextGlobal.currentScheduleId = fallbackId;
+        nextGlobal.lastModified = Date.now();
+      }
+
+      return { ...prev, global: nextGlobal, schedules: nextSchedules };
+    });
+
+    if (fallbackId) {
+      const newPrefs = { ...devicePrefsRef.current, currentScheduleId: fallbackId };
+      setDevicePrefs(newPrefs);
+      saveDevicePrefs(newPrefs, user?.uid);
+      if (!guest) setIsDirty(true);
+    }
+
+    if (!guest && user) {
+      try {
+        await deleteUserSchedule(user.uid, scheduleId);
+      } catch (e) {}
+    }
+  }, [guest, user]);
+
   const saveNow = useCallback(async (force = false) => {
-    if (cloudSyncState === 'syncing' || guest || !dataRef.current || isSaving || conflictQueue.length > 0) return;
-    if (!isDirty && force !== true) return; 
-    
+    if (guest || !dataRef.current || isSaving || conflictQueue.length > 0) return;
+    if (!isDirty && force !== true) return;
+
     setIsSaving(true);
     setIsCloudSaving(true);
 
-    const online = await checkIsOnline();
-    if (!online) {
-      setIsSaving(false);
-      setIsCloudSaving(false);
-      return; 
-    }
-
     try {
-      const latestCloud = await getScheduleFromServer(user.uid);
-      
-      if (latestCloud) {
-         const { conflicts } = resolveSyncConflict(dataRef.current, latestCloud);
-         if (conflicts.length > 0) {
-            setConflictQueue(conflicts);
-            setIsSaving(false);
-            setIsCloudSaving(false);
-            return; 
-         }
-      }
-
       const now = Date.now();
       const prev = dataRef.current;
 
-      const dataToSave = {
-        ...prev,
-        global: {
-          ...(prev?.global || {}),
-          lastSynced: (prev.global?.lastModified || 0) > (prev.global?.lastSynced || 0) ? now : prev.global?.lastSynced
-        },
-        schedules: prev.schedules.map(s => {
-          const isModified = (s.lastModified || 0) > (s.lastSynced || 0);
-          if (isModified || force) {
-            const nextVer = (s.version || 1) + 1;
-            return { ...s, version: nextVer, baseVersion: nextVer, lastSynced: now };
+      const isGlobalDirty = force || (prev.global?.lastModified || 0) > (prev.global?.lastSynced || 0);
+      const dirtySchedules = prev.schedules.filter(s => force || (s.lastModified || 0) > (s.lastSynced || 0));
+
+      if (!isGlobalDirty && dirtySchedules.length === 0 && !force) {
+        setIsDirty(false);
+        setIsSaving(false);
+        setIsCloudSaving(false);
+        return;
+      }
+
+      const dataToSave = {};
+      let nextGlobal = { ...prev.global };
+      let nextSchedules = [...prev.schedules];
+
+      if (isGlobalDirty) {
+        const nextGlobalVer = (prev.global?.version || 1) + 1;
+        const updatedGlobal = { ...prev.global, version: nextGlobalVer, baseVersion: nextGlobalVer, lastSynced: now };
+        dataToSave.global = updatedGlobal;
+        nextGlobal = updatedGlobal;
+      }
+
+      if (dirtySchedules.length > 0) {
+        dataToSave.schedules = dirtySchedules.map(s => {
+          const nextVer = (s.version || 1) + 1;
+          return { ...s, version: nextVer, baseVersion: nextVer, lastSynced: now };
+        });
+
+        nextSchedules = prev.schedules.map(currentSch => {
+          const savedSch = dataToSave.schedules?.find(s => s.id === currentSch.id);
+          if (savedSch) {
+            return { 
+              ...currentSch, 
+              version: savedSch.version, 
+              baseVersion: savedSch.baseVersion, 
+              lastSynced: savedSch.lastSynced 
+            };
           }
-          return s;
-        })
-      };
-      
-      await saveSchedule(user.uid, dataToSave);
-      
-      const nextSchedules = prev.schedules.map(pSch => {
-        const savedSch = dataToSave.schedules.find(s => s.id === pSch.id);
-        if (savedSch && pSch.lastModified === savedSch.lastModified) {
-          return { ...pSch, version: savedSch.version, baseVersion: savedSch.baseVersion, lastSynced: savedSch.lastSynced };
-        }
-        return pSch;
-      });
+          return currentSch;
+        });
+      }
 
-      const nextGlobal = prev.global?.lastModified === dataToSave.global.lastModified
-        ? { ...prev.global, lastSynced: dataToSave.global.lastSynced }
-        : prev.global;
+      const optimisticData = { ...prev, global: nextGlobal, schedules: nextSchedules };
 
-      const finalDataToLocal = { ...prev, global: nextGlobal, schedules: nextSchedules };
-
-      await saveLocalSchedule(finalDataToLocal, user.uid);
-      setData(finalDataToLocal);
-
+      // ОНОВЛЮЄМО СТЕЙТ ДО ТОГО ЯК ФАЙРБЕЙС ДАСТЬ ЗВОРОТНУ ЛУНУ
+      setData(optimisticData);
+      dataRef.current = optimisticData;
+      await saveLocalSchedule(optimisticData, user.uid);
       setIsDirty(false);
 
+      // Тепер безпечно відправляємо в Firebase
+      await saveSchedule(user.uid, dataToSave, true);
+
     } catch (e) {
-      setError(e?.message || "Помилка збереження");
+      setError(e?.message || "Error saving");
     } finally {
       setIsSaving(false);
       setIsCloudSaving(false);
     }
-  }, [user, isSaving, isDirty, guest, conflictQueue.length, cloudSyncState]);
+  }, [user, isSaving, isDirty, guest, conflictQueue.length]);
 
   const reloadAllSchedules = useCallback(async () => {
     if (guest || !user) return;
@@ -474,14 +447,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setCloudSyncState('synced');
     } catch (e) {
       setCloudSyncState('synced');
-      setError(e?.message || "Помилка оновлення розкладу");
+      setError(e?.message || "Error");
     }
   }, [guest, user]);
 
   useEffect(() => {
     if (pendingImmediateSave && conflictQueue.length === 0) {
       setPendingImmediateSave(false);
-      saveNow(true); 
+      saveNow(true);
     }
   }, [pendingImmediateSave, conflictQueue.length, saveNow]);
 
@@ -501,7 +474,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     try {
       const currentGlobal = dataRef.current?.global || createDefaultData().global;
       const newData = { global: currentGlobal, schedules: createDefaultData().schedules };
-      
+
       setDevicePrefs({});
       await saveDevicePrefs({}, user?.uid);
 
@@ -515,7 +488,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       }
       setIsDirty(false);
     } catch (e) {
-      setError("Не вдалося скинути розклади");
+      setError("Error");
     } finally {
       setIsLoading(false);
     }
@@ -535,7 +508,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
           return {
             ...currentConflict.local,
             baseVersion: currentConflict.cloud.version,
-            lastModified: Date.now() 
+            lastModified: Date.now()
           };
         }
         return s;
@@ -545,7 +518,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         if (s.id === conflictId) {
           return {
              ...currentConflict.cloud,
-             lastSynced: currentConflict.cloud.lastModified 
+             lastSynced: currentConflict.cloud.lastModified
           };
         }
         return s;
@@ -562,25 +535,25 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       });
       const newLocalSchedule = {
         ...currentConflict.local,
-        id: uuidv4(), 
-        name: `${currentConflict.local.name || "Без назви"} (Копія)`, 
-        baseVersion: 1, 
+        id: uuidv4(),
+        name: `${currentConflict.local.name || ""} (Copy)`,
+        baseVersion: 1,
         version: 1,
-        lastModified: Date.now(), 
+        lastModified: Date.now(),
         lastSynced: 0
       };
       nextSchedules.push(newLocalSchedule);
     }
 
     const updatedData = { ...prev, schedules: nextSchedules };
-    
+
     setData(updatedData);
-    dataRef.current = updatedData; 
-    saveLocalSchedule(updatedData, user?.uid || null); 
-    
+    dataRef.current = updatedData;
+    saveLocalSchedule(updatedData, user?.uid || null);
+
     const filteredQ = conflictQueue.filter(c => c.local?.id !== conflictId);
     setConflictQueue(filteredQ);
-    
+
     if (filteredQ.length === 0) {
       if (!guest) {
         const hasDirtySchedules = nextSchedules.some(s => (s.lastModified || 0) > (s.lastSynced || 0));
@@ -589,20 +562,20 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         if (hasDirtySchedules || isGlobalDirty) {
           setIsDirty(true);
           if (action !== 'cloud') {
-             setPendingImmediateSave(true); 
+             setPendingImmediateSave(true);
           }
         } else {
-          setIsDirty(false); 
+          setIsDirty(false);
         }
       }
     }
   };
 
   const value = {
-    user, guest, schedule, 
-    global: mergedGlobal, // Віддаємо мердж!
+    user, guest, schedule,
+    global: mergedGlobal,
     schedules: data?.schedules || [],
-    setData, setScheduleDraft, setGlobalDraft, addSchedule, saveNow,
+    setData, setScheduleDraft, setGlobalDraft, addSchedule, removeSchedule, saveNow,
     reloadAllSchedules, resetApplication, isDirty, isSaving, isCloudSaving,
     isLoading, error, isOnline,
     conflictQueue, handleResolveConflict,
