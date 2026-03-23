@@ -2,8 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { AppState, useColorScheme } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { v4 as uuidv4 } from 'uuid';
-import { enableNetwork, disableNetwork } from "firebase/firestore";
-import { db } from "../../firebase";
+import { db } from "../../firebase"; // 🔥 ВИДАЛЕНО: enableNetwork, disableNetwork
 import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer, deleteUserSchedule } from "../../firestore";
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
@@ -170,6 +169,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme]);
 
+  // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ: Прибрано ручне маніпулювання мережею Firebase, яке блокувало Android!
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       const currentlyOnline = !!state.isConnected;
@@ -177,10 +177,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       if (!currentlyOnline) {
          setCloudSyncState('offline');
-         disableNetwork(db).catch(() => {});
       } else if (currentlyOnline && !prevOnlineRef.current && user && !guest) {
          setCloudSyncState('syncing');
-         enableNetwork(db).catch(() => {});
       }
       prevOnlineRef.current = currentlyOnline;
     });
@@ -410,13 +408,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       const optimisticData = { ...prev, global: nextGlobal, schedules: nextSchedules };
 
-      // ОНОВЛЮЄМО СТЕЙТ ДО ТОГО ЯК ФАЙРБЕЙС ДАСТЬ ЗВОРОТНУ ЛУНУ
       setData(optimisticData);
       dataRef.current = optimisticData;
       await saveLocalSchedule(optimisticData, user.uid);
       setIsDirty(false);
 
-      // Тепер безпечно відправляємо в Firebase
       await saveSchedule(user.uid, dataToSave, true);
 
     } catch (e) {
@@ -585,7 +581,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   return (
     <ScheduleContext.Provider value={value}>
       {children}
-      <SyncConflictScreen />
+      <SyncConflictScreen 
+        conflictQueue={conflictQueue} 
+        handleResolveConflict={handleResolveConflict} 
+      />
     </ScheduleContext.Provider>
   );
 };

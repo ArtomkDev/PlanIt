@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start --tunnel",
+    "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "emu": "D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin",
+    "dev": "start /MIN D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin && expo start"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

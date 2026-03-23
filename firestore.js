@@ -51,7 +51,8 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
 
   const globalRef = doc(db, 'users', userId, 'global', 'settings');
   
-  const unsubGlobal = onSnapshot(globalRef, { includeMetadataChanges: true }, async (docSnap) => {
+  // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ: Прибрано async/await, що блокував потік Android
+  const unsubGlobal = onSnapshot(globalRef, { includeMetadataChanges: true }, (docSnap) => {
     const currentCount = ++globalSnapshotCount;
     globalFromCache = docSnap.metadata.fromCache; 
     
@@ -62,18 +63,23 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
       checkAndEmit();
     } else {
       const userDocRef = doc(db, "users", userId);
-      const userDocSnap = await getDoc(userDocRef);
       
-      if (currentCount !== globalSnapshotCount) return;
+      getDoc(userDocRef).then((userDocSnap) => {
+        if (currentCount !== globalSnapshotCount) return;
 
-      if (userDocSnap.exists() && userDocSnap.data().global) {
-        const data = userDocSnap.data().global;
-        const lastMod = parseTimestamp(data.lastModified) || Date.now();
-        globalData = { ...data, lastModified: lastMod, lastSynced: lastMod };
-      } else {
+        if (userDocSnap.exists() && userDocSnap.data().global) {
+          const data = userDocSnap.data().global;
+          const lastMod = parseTimestamp(data.lastModified) || Date.now();
+          globalData = { ...data, lastModified: lastMod, lastSynced: lastMod };
+        } else {
+          globalData = createDefaultData().global;
+        }
+        checkAndEmit();
+      }).catch((e) => {
+        if (currentCount !== globalSnapshotCount) return;
         globalData = createDefaultData().global;
-      }
-      checkAndEmit();
+        checkAndEmit();
+      });
     }
   }, (error) => {
     if (onError) onError(error);

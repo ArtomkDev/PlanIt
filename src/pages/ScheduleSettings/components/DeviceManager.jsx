@@ -1,16 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   TouchableOpacity,
+  Platform,
 } from "react-native";
-import {
-  Ionicons,
-  MaterialCommunityIcons,
-  FontAwesome5,
-} from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import Animated, { 
+  FadeInDown, 
+  FadeOutDown, 
+  CurvedTransition 
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import {
   removeDevice,
   removeAllOtherDevices,
@@ -27,8 +30,10 @@ export default function DeviceManager() {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDeviceId, setCurrentDeviceId] = useState(null);
+  
+  const insets = useSafeAreaInsets();
 
-  const [mode, accent] = global.theme || ["light", "blue"];
+  const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   useEffect(() => {
@@ -51,16 +56,74 @@ export default function DeviceManager() {
     return () => unsubscribe();
   }, [user]);
 
-  function getPlatformIcon(platform) {
-    if (platform === "iOS")
-      return <Ionicons name="logo-apple" size={24} color={themeColors.textColor} />;
-    if (platform === "Android")
-      return <Ionicons name="logo-android" size={24} color="green" />;
-    if (platform === "Web")
-      return <MaterialCommunityIcons name="web" size={24} color={themeColors.textColor2} />;
-    // Add more specific icons as needed
-    return <MaterialCommunityIcons name="devices" size={24} color={themeColors.textColor2} />;
-  }
+  // Гарантуємо, що поточний пристрій завжди буде найпершим у списку
+  const sortedDevices = useMemo(() => {
+    return [...devices].sort((a, b) => {
+      if (a.id === currentDeviceId) return -1;
+      if (b.id === currentDeviceId) return 1;
+      return new Date(b.lastLogin) - new Date(a.lastLogin);
+    });
+  }, [devices, currentDeviceId]);
+
+  const parseWebUserAgent = (ua) => {
+    if (!ua) return "Unknown Device";
+    let browser = "Web Browser";
+    let os = "Unknown OS";
+
+    if (ua.includes("Edg")) browser = "Edge";
+    else if (ua.includes("Chrome")) browser = "Chrome";
+    else if (ua.includes("Firefox")) browser = "Firefox";
+    else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+
+    if (ua.includes("Windows")) os = "Windows";
+    else if (ua.includes("Mac")) os = "macOS";
+    else if (ua.includes("Linux")) os = "Linux";
+    else if (ua.includes("Android")) os = "Android";
+    else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+
+    return `${browser} on ${os}`;
+  };
+
+  const getDeviceDisplayName = (device) => {
+    if (!device) return "Unknown Device"; 
+
+    if (device.platform === "Web") return parseWebUserAgent(device.name);
+    
+    if (device.model) {
+      if (device.brand?.toLowerCase() === "apple") return device.model;
+      if (device.brand && !device.model.toLowerCase().includes(device.brand.toLowerCase())) {
+        return `${device.brand} ${device.model}`;
+      }
+      return device.model;
+    }
+    
+    return device.name || "Unknown Device";
+  };
+
+  const getDeviceIconDetails = (device) => {
+    if (!device) return { name: "phone-portrait-outline", color: themeColors.textColor2 };
+
+    if (device.platform === "Web") {
+      return { name: "desktop-outline", color: themes.accentColors.blue };
+    }
+    if (device.platform === "iOS" || device.brand?.toLowerCase() === "apple") {
+      return { name: "logo-apple", color: themeColors.textColor };
+    }
+    if (device.platform?.includes("Android") || device.platform?.includes("realme") || (device.brand && device.brand?.toLowerCase() !== "apple")) {
+      return { name: "logo-android", color: themes.accentColors.green };
+    }
+    return { name: "phone-portrait-outline", color: themeColors.textColor2 };
+  };
+
+  const formatDate = (isoString) => {
+    if (!isoString) return "Невідомо";
+    return new Date(isoString).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   async function handleRemoveDevice(deviceId) {
     await removeDevice(user.uid, deviceId);
@@ -70,88 +133,201 @@ export default function DeviceManager() {
     await removeAllOtherDevices(user.uid);
   }
 
-  if (loading)
-    return <Text style={{ color: themeColors.textColor }}>Loading devices...</Text>;
-
-  function renderDevice({ item }) {
-    const isCurrent = item.id === currentDeviceId;
+  if (loading) {
     return (
-      <View
+      <SettingsScreenLayout>
+        <Text style={[styles.loadingText, { color: themeColors.textColor2 }]}>
+          Завантаження пристроїв...
+        </Text>
+      </SettingsScreenLayout>
+    );
+  }
+
+  function renderDevice(item, index) {
+    if (!item) return null;
+
+    const isCurrent = item.id === currentDeviceId;
+    const displayName = getDeviceDisplayName(item);
+    const iconDetails = getDeviceIconDetails(item);
+
+    const delay = index * 100;
+
+    return (
+      <Animated.View
+        key={item.id}
+        entering={FadeInDown.delay(delay).springify()}
+        exiting={FadeOutDown.springify()}
+        layout={CurvedTransition} 
         style={[
-          styles.item,
-          { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.backgroundColor3 },
-          isCurrent && styles.currentDeviceHighlight,
+          styles.card,
+          { 
+            backgroundColor: themeColors.backgroundColor2,
+            borderColor: isCurrent ? themeColors.accentColor : "transparent",
+            borderWidth: isCurrent ? 1 : 0
+          },
         ]}
       >
-        <View style={styles.row}>
-          {getPlatformIcon(item.platform)}
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={[styles.deviceName, { color: themeColors.textColor }]}>
-              {item.name} {isCurrent && "(This Device)"}
+        <View style={styles.cardLeft}>
+          <View style={[styles.iconContainer, { backgroundColor: iconDetails.color + "15" }]}>
+            <Ionicons name={iconDetails.name} size={24} color={iconDetails.color} />
+          </View>
+          <View style={styles.textContainer}>
+            <Text style={[styles.deviceName, { color: themeColors.textColor }]} numberOfLines={1}>
+              {displayName}
             </Text>
             <Text style={[styles.subText, { color: themeColors.textColor2 }]}>
-              Last login: {new Date(item.lastLogin).toLocaleString()}
+              {formatDate(item.lastLogin)}
             </Text>
           </View>
-          {!isCurrent && (
-            <TouchableOpacity onPress={() => handleRemoveDevice(item.id)}>
-              <Ionicons
-                name="log-out-outline"
-                size={28}
-                color={themes.accentColors.red}
-              />
+        </View>
+
+        <View style={styles.cardRight}>
+          {isCurrent ? (
+            <View style={[styles.currentBadge, { backgroundColor: themeColors.accentColor + "20" }]}>
+              <Text style={[styles.currentBadgeText, { color: themeColors.accentColor }]}>
+                Поточний
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() => handleRemoveDevice(item.id)}
+              hitSlop={10}
+            >
+              <Ionicons name="log-out-outline" size={22} color={themes.accentColors.red} />
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </Animated.View>
     );
   }
+
+  // Робимо відступ для нижньої панелі в ScrollView
+  const bottomPadding = insets.bottom + (Platform.OS === 'ios' ? 90 : 110);
 
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
-        <Text style={[styles.title, { color: themeColors.textColor }]}>
-          Logged-in Devices
-        </Text>
-        <FlatList
-          data={devices}
-          keyExtractor={(item) => item.id}
-          renderItem={renderDevice}
-        />
-        {devices.length > 1 && (
-          <TouchableOpacity
-            style={[styles.deactivateAll, { backgroundColor: themes.accentColors.red }]}
-            onPress={handleRemoveAllOthers}
+        
+        <View>
+          <Text style={[styles.title, { color: themeColors.textColor }]}>
+            Активні сеанси
+          </Text>
+          <View style={styles.listContent}>
+            {sortedDevices.map((device, index) => renderDevice(device, index))}
+          </View>
+        </View>
+
+        {/* Додаємо marginBottom сюди, щоб скрол міг підняти кнопку над таб-баром */}
+        {sortedDevices.length > 1 && (
+          <Animated.View 
+            entering={FadeInDown.delay(300).springify()} 
+            style={{ marginTop: 10, marginBottom: bottomPadding }}
           >
-            <Text style={styles.deactivateAllText}>Log Out on All Other Devices</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.deactivateAll, { backgroundColor: themes.accentColors.red + "15" }]}
+              onPress={handleRemoveAllOthers}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name="log-out-outline" 
+                size={20} 
+                color={themes.accentColors.red} 
+                style={{ marginRight: 8 }} 
+              />
+              <Text style={[styles.deactivateAllText, { color: themes.accentColors.red }]}>
+                Вийти на всіх інших пристроях
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
+
       </View>
     </SettingsScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  title: { fontSize: 20, fontWeight: "bold", marginVertical: 10 },
-  item: {
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+  container: {
+    padding: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 16,
+  },
+  loadingText: {
+    padding: 20,
+    fontSize: 16,
+    textAlign: "center",
+  },
+  listContent: {
+    paddingBottom: 10,
+  },
+  card: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
     marginBottom: 10,
   },
-  row: { flexDirection: "row", alignItems: "center" },
-  deviceName: { fontSize: 16, fontWeight: "600" },
-  subText: { fontSize: 12 },
-  currentDeviceHighlight: {
-    borderColor: themes.accentColors.blue, // Or any color to highlight the current device
-    borderWidth: 2,
+  cardLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
-  deactivateAll: {
-    marginTop: 20,
-    padding: 12,
-    borderRadius: 10,
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  textContainer: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  deviceName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  subText: {
+    fontSize: 13,
+    fontWeight: "400",
+  },
+  cardRight: {
+    flexDirection: "row",
     alignItems: "center",
   },
-  deactivateAllText: { color: "white", fontWeight: "bold" },
+  currentBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  currentBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  deleteBtn: {
+    padding: 8,
+    backgroundColor: "rgba(255, 59, 48, 0.1)",
+    borderRadius: 10,
+  },
+  deactivateAll: {
+    padding: 16,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 59, 48, 0.3)",
+  },
+  deactivateAllText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });

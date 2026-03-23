@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import React, { useEffect, useState, useCallback } from "react";
 import { View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
@@ -35,26 +36,17 @@ export default function App() {
     let isMounted = true;
 
     async function loadFonts() {
-      let success = false;
-      while (!success && isMounted) {
-        try {
-          await Font.loadAsync(Ionicons.font);
-          success = true;
-        } catch (e) {
-          console.warn("Font loading failed, retrying in 3 seconds...", e);
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-        }
-      }
-      if (isMounted) {
-        setFontsLoaded(true);
+      try {
+        await Font.loadAsync(Ionicons.font);
+      } catch (e) {
+        console.warn("Font loading failed, starting offline mode...", e);
+      } finally {
+        if (isMounted) setFontsLoaded(true);
       }
     }
 
     loadFonts();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
   useEffect(() => {
@@ -74,12 +66,16 @@ export default function App() {
         setGuest(false);
         setManualLogin(false);
         
-        await registerDevice(firebaseUser.uid);
+        setAuthResolved(true); 
         
-        if (currentUid === firebaseUser.uid) {
-          deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+        try {
+          await registerDevice(firebaseUser.uid);
+          if (currentUid === firebaseUser.uid) {
+            deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+          }
+        } catch (error) {
+          console.error("Помилка реєстрації пристрою:", error);
         }
-        setAuthResolved(true);
       } else {
         currentUid = null;
         setUser(null);
@@ -103,9 +99,13 @@ export default function App() {
 
   const appIsReady = fontsLoaded && authResolved;
 
-  const onLayoutRootView = useCallback(async () => {
+  // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ №1: Примусово прибираємо Splash Screen через useEffect
+  useEffect(() => {
     if (appIsReady) {
-      await SplashScreen.hideAsync();
+      // Даємо React Native мілісекунду на рендер і зносимо Splash Screen
+      setTimeout(() => {
+        SplashScreen.hideAsync().catch(() => {});
+      }, 100);
     }
   }, [appIsReady]);
 
@@ -117,10 +117,11 @@ export default function App() {
     setGuest(false);
   };
 
+  // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ №2: Забираємо проблемний onLayout і використовуємо onReady
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }} onLayout={onLayoutRootView}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
       <ScheduleProvider guest={guest} user={user}>
-        <NavigationContainer>
+        <NavigationContainer onReady={() => SplashScreen.hideAsync().catch(() => {})}>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             {user || guest ? (
               <Stack.Screen name="MainLayout">
