@@ -21,7 +21,6 @@ import useUniqueId from "../../../hooks/useUniqueId";
 import defaultSchedule from "../../../config/defaultSchedule";
 import themes from "../../../config/themes";
 
-// Дозволяємо LayoutAnimation на Android для плавних анімацій
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -41,9 +40,7 @@ const ScheduleEditorScreen = () => {
   const [name, setName] = useState("");
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
-  // Відслідковуємо клавіатуру для анімації та підняття кнопок
   useEffect(() => {
-    // На iOS події WillShow працюють плавніше, на Android використовуємо DidShow
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
@@ -92,6 +89,11 @@ const ScheduleEditorScreen = () => {
         );
         return { ...prev, schedules: nextSchedules };
       });
+      
+      // 🔥 ВИПРАВЛЕННЯ: Викликаємо setGlobalDraft без реальних змін, 
+      // щоб під капотом ScheduleProvider спрацювало setIsDirty(true).
+      // Це успішно запустить таймер AutoSaveManager, і збереження відбудеться плавно.
+      setGlobalDraft(prev => prev);
     }
 
     navigation.goBack();
@@ -99,9 +101,6 @@ const ScheduleEditorScreen = () => {
 
   const isFormValid = name.trim().length > 0;
 
-  // РОЗРАХУНОК ВІДСТУПУ ЗНИЗУ:
-  // Коли клавіатура закрита - піднімаємо кнопки вище за TabBar (висота TabBar ~ 50 + insets.bottom + 20px для візуального відступу)
-  // Коли відкрита - скидаємо відступ, бо клавіатура перекриє TabBar сама
   const tabBarHeightOffset = 50 + insets.bottom + 20;
   const footerPaddingBottom = isKeyboardVisible ? (Platform.OS === 'ios' ? 12 : 20) : tabBarHeightOffset;
 
@@ -147,7 +146,6 @@ const ScheduleEditorScreen = () => {
 
           <View style={{ flex: 1, minHeight: 20 }} />
 
-          {/* Блок з кнопками: його нижній відступ плавно анімується залежно від стану клавіатури */}
           <View style={[styles.footer, { paddingBottom: footerPaddingBottom }]}>
             <TouchableOpacity 
                 style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 

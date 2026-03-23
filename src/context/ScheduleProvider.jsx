@@ -2,8 +2,8 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { AppState, useColorScheme } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { v4 as uuidv4 } from 'uuid';
-import { db } from "../../firebase"; // 🔥 ВИДАЛЕНО: enableNetwork, disableNetwork
-import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer, deleteUserSchedule } from "../../firestore";
+import { db } from "../../firebase"; 
+import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer } from "../../firestore";
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import SyncConflictScreen from "../components/SyncConflictScreen";
@@ -28,8 +28,11 @@ function resolveSyncConflict(localData, cloudData) {
     const cloudSch = cloudMap.get(localSch.id);
 
     if (!cloudSch) {
-      mergedSchedulesMap.set(localSch.id, localSch);
-      needsPushToCloud = true;
+      if ((localSch.lastSynced || 0) > 0) {
+      } else {
+        mergedSchedulesMap.set(localSch.id, localSch);
+        needsPushToCloud = true;
+      }
     } else {
       const localBase = Number(localSch.baseVersion) || 1;
       const cloudVer = Number(cloudSch.version) || 1;
@@ -42,8 +45,12 @@ function resolveSyncConflict(localData, cloudData) {
           mergedSchedulesMap.set(cloudSch.id, cloudSch);
         }
       } else if (cloudVer > localBase) {
-        conflicts.push({ local: localSch, cloud: cloudSch });
-        mergedSchedulesMap.set(localSch.id, localSch);
+        if (cloudSch.isDeleted && !localSch.isDeleted) {
+          mergedSchedulesMap.set(cloudSch.id, cloudSch);
+        } else {
+          conflicts.push({ local: localSch, cloud: cloudSch });
+          mergedSchedulesMap.set(localSch.id, localSch);
+        }
       } else {
         mergedSchedulesMap.set(localSch.id, localSch);
         needsPushToCloud = true;
@@ -150,8 +157,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         }
 
         if (!newPrefs.currentScheduleId) {
-            if (data.schedules && data.schedules.length > 0) {
-                const sorted = [...data.schedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+            const activeSchedules = (data.schedules || []).filter(s => !s.isDeleted);
+            if (activeSchedules.length > 0) {
+                const sorted = [...activeSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
                 newPrefs.currentScheduleId = sorted[0].id;
             } else if (data.global?.currentScheduleId) {
                 newPrefs.currentScheduleId = data.global.currentScheduleId;
@@ -169,7 +177,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme]);
 
-  // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ: Прибрано ручне маніпулювання мережею Firebase, яке блокувало Android!
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       const currentlyOnline = !!state.isConnected;
@@ -244,12 +251,16 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const currentScheduleId = mergedGlobal?.currentScheduleId || null;
 
+  const activeSchedules = useMemo(() => {
+    return (data?.schedules || []).filter(s => !s.isDeleted);
+  }, [data?.schedules]);
+
   const schedule = useMemo(() => {
-    if (!data?.schedules?.length) return null;
+    if (!activeSchedules.length) return null;
     return (currentScheduleId
-      ? data.schedules.find((s) => s.id === currentScheduleId)
-      : null) || data.schedules[0];
-  }, [data, currentScheduleId]);
+      ? activeSchedules.find((s) => s.id === currentScheduleId)
+      : null) || activeSchedules[0];
+  }, [activeSchedules, currentScheduleId]);
 
   const setScheduleDraft = useCallback((updater) => {
     setData((prev) => {
@@ -325,33 +336,47 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     setData(prev => {
       if (!prev) return prev;
 
-      const nextSchedules = prev.schedules.filter(s => s.id !== scheduleId);
+      // 🔥 ЧИСТИЙ НАДГРОБОК: Зберігаємо ТІЛЬКИ ідентифікатори та версії. Жодних старих полів чи null.
+      const nextSchedules = prev.schedules.map(s => {
+        if (s.id === scheduleId) {
+          return {
+            id: s.id, 
+            isDeleted: true, 
+            version: s.version || 1, 
+            baseVersion: s.baseVersion || 1,
+            lastSynced: s.lastSynced || 0,
+            lastModified: Date.now()
+          };
+        }
+        return s;
+      });
+      
+      const availableSchedules = nextSchedules.filter(s => !s.isDeleted);
       let nextGlobal = { ...prev.global };
 
       const currentId = devicePrefsRef.current.currentScheduleId || prev.global?.currentScheduleId;
 
-      if (currentId === scheduleId && nextSchedules.length > 0) {
-        const sorted = [...nextSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+      if (currentId === scheduleId && availableSchedules.length > 0) {
+        const sorted = [...availableSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
         fallbackId = sorted[0].id;
         nextGlobal.currentScheduleId = fallbackId;
+        nextGlobal.lastModified = Date.now();
+      } else if (currentId === scheduleId) {
+        fallbackId = null;
+        nextGlobal.currentScheduleId = null;
         nextGlobal.lastModified = Date.now();
       }
 
       return { ...prev, global: nextGlobal, schedules: nextSchedules };
     });
 
-    if (fallbackId) {
+    if (fallbackId !== null) {
       const newPrefs = { ...devicePrefsRef.current, currentScheduleId: fallbackId };
       setDevicePrefs(newPrefs);
       saveDevicePrefs(newPrefs, user?.uid);
-      if (!guest) setIsDirty(true);
     }
 
-    if (!guest && user) {
-      try {
-        await deleteUserSchedule(user.uid, scheduleId);
-      } catch (e) {}
-    }
+    if (!guest) setIsDirty(true);
   }, [guest, user]);
 
   const saveNow = useCallback(async (force = false) => {
@@ -469,15 +494,31 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     setIsLoading(true);
     try {
       const currentGlobal = dataRef.current?.global || createDefaultData().global;
-      const newData = { global: currentGlobal, schedules: createDefaultData().schedules };
+      const defaultData = createDefaultData();
+
+      // 🔥 ЧИСТИЙ НАДГРОБОК
+      const oldTombstones = (dataRef.current?.schedules || []).map(s => ({
+          id: s.id, 
+          isDeleted: true,
+          version: (s.version || 1) + 1,
+          baseVersion: (s.version || 1) + 1,
+          lastModified: Date.now(),
+          lastSynced: 0
+      }));
+
+      const newData = { 
+        global: { ...currentGlobal, lastModified: Date.now() }, 
+        schedules: [...oldTombstones, ...defaultData.schedules] 
+      };
 
       setDevicePrefs({});
       await saveDevicePrefs({}, user?.uid);
 
       setData(newData);
+      
       if (user) {
-        await resetUserSchedules(user.uid);
-        await saveSchedule(user.uid, newData);
+        await resetUserSchedules(user.uid); 
+        await saveSchedule(user.uid, { global: newData.global, schedules: defaultData.schedules }, true);
         await saveLocalSchedule(newData, user.uid);
       } else {
         await saveLocalSchedule(newData, null);
@@ -570,7 +611,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const value = {
     user, guest, schedule,
     global: mergedGlobal,
-    schedules: data?.schedules || [],
+    schedules: activeSchedules, 
     setData, setScheduleDraft, setGlobalDraft, addSchedule, removeSchedule, saveNow,
     reloadAllSchedules, resetApplication, isDirty, isSaving, isCloudSaving,
     isLoading, error, isOnline,
