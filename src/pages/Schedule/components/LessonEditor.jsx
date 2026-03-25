@@ -571,6 +571,7 @@ export default function LessonEditor({ lesson, onClose }) {
             <LessonEditorSubjectColorScreen 
                 themeColors={themeColors} 
                 currentSubject={currentSubject} 
+                gradients={localData.gradients}
                 onSelect={(updates) => {
                     handleUpdateSubject(updates);
                     goToScreen("main");

@@ -1,15 +1,11 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from "react-native";
-import { useSchedule } from "../../../../../context/ScheduleProvider";
 import GradientBackground from "../../../../../components/GradientBackground";
 
-export default function GradientPicker({ selected, onSelect, onEdit, onAddGradient, themeColors }) {
-  const { schedule } = useSchedule();
-  const gradients = schedule?.gradients || [];
-
+export default function GradientGrid({ gradients, selected, onSelect, onEdit, onAddGradient, themeColors }) {
   return (
     <FlatList
-      data={gradients}
+      data={gradients || []}
       keyExtractor={(g) => g.id.toString()}
       numColumns={2}
       contentContainerStyle={styles.listContent}
@@ -32,7 +28,6 @@ export default function GradientPicker({ selected, onSelect, onEdit, onAddGradie
           </TouchableOpacity>
         );
       }}
-      // Кнопка перенесена у футер списку
       ListFooterComponent={
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
@@ -47,39 +42,44 @@ export default function GradientPicker({ selected, onSelect, onEdit, onAddGradie
 }
 
 const styles = StyleSheet.create({
-  listContent: {
-    paddingBottom: 40, 
-  },
+  listContent: { paddingBottom: 20 },
   gradientTile: {
-    width: "46%", // 46% + 2% margins
-    height: 70, // Фіксована висота для гарного відображення градієнту
-    borderRadius: 14,
-    margin: "2%",
-    justifyContent: "center",
-    alignItems: "center",
+    flex: 1,
+    height: 80,
+    margin: 6,
+    borderRadius: 12,
     overflow: "hidden",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
   },
   selectedMark: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#ffffff",
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    borderWidth: 4,
+    borderColor: "#4facfe",
+    elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
-    elevation: 3,
   },
   addButton: {
-    paddingVertical: 14,
-    borderRadius: 14,
+    height: 50,
+    margin: 6,
+    borderRadius: 12,
     alignItems: "center",
-    marginTop: 16,
-    marginHorizontal: "2%", 
+    justifyContent: "center",
+    marginTop: 10,
   },
-  addButtonText: { 
-    color: "#fff", 
-    fontSize: 16, 
-    fontWeight: "bold" 
+  addButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "bold",
   },
 });

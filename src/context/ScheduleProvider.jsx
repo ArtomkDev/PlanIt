@@ -335,8 +335,21 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
     setData(prev => {
       if (!prev) return prev;
-
-      const nextSchedules = prev.schedules.filter(s => s.id !== scheduleId);
+      const nextSchedules = prev.schedules.map(s => {
+        if (s.id === scheduleId) {
+          return {
+            id: s.id, 
+            isDeleted: true, 
+            version: s.version || 1, 
+            baseVersion: s.baseVersion || 1,
+            lastSynced: s.lastSynced || 0,
+            lastModified: Date.now()
+          };
+        }
+        return s;
+      });
+      
+      const availableSchedules = nextSchedules.filter(s => !s.isDeleted);
       let nextGlobal = { ...prev.global };
 
       const currentId = devicePrefsRef.current.currentScheduleId || prev.global?.currentScheduleId;

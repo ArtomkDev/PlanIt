@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import ColorGrid from "../ui/ColorGrid";
 import GradientGrid from "../ui/GradientGrid";
+import TabSwitcher from "../ui/TabSwitcher";
 
 export default function LessonEditorSubjectColorScreen({
   themeColors,
   currentSubject,
+  gradients,
   onSelect,
   onEditGradient,
   onAddGradient,
@@ -22,28 +24,22 @@ export default function LessonEditorSubjectColorScreen({
     onSelect({ colorGradient: gradientId, typeColor: "gradient" });
   };
 
+  const tabs = [
+    { id: "color", label: "Колір" },
+    { id: "gradient", label: "Градієнт" },
+  ];
+
   return (
     <View style={styles.container}>
-      <View style={[styles.tabContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "color" && { backgroundColor: themeColors.backgroundColor }]}
-          onPress={() => setActiveTab("color")}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabText, { color: activeTab === "color" ? themeColors.textColor : themeColors.textColor2 }]}>
-            Колір
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "gradient" && { backgroundColor: themeColors.backgroundColor }]}
-          onPress={() => setActiveTab("gradient")}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabText, { color: activeTab === "gradient" ? themeColors.textColor : themeColors.textColor2 }]}>
-            Градієнт
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.switcherWrapper}>
+        <TabSwitcher
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabPress={setActiveTab}
+          themeColors={themeColors}
+          containerBackgroundColor={themeColors.backgroundColor2}
+          activeTabBackgroundColor={themeColors.backgroundColor}
+        />
       </View>
 
       <View style={styles.content}>
@@ -56,6 +52,7 @@ export default function LessonEditorSubjectColorScreen({
         ) : (
           <GradientGrid
             themeColors={themeColors}
+            gradients={gradients}
             selected={currentSubject?.typeColor === "gradient" ? currentSubject?.colorGradient : null}
             onSelect={handleSelectGradient} 
             onEdit={onEditGradient}
@@ -69,20 +66,9 @@ export default function LessonEditorSubjectColorScreen({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  tabContainer: {
-    flexDirection: "row",
+  switcherWrapper: {
     marginHorizontal: 16,
     marginTop: 10,
-    marginBottom: 16,
-    padding: 4,
-    borderRadius: 10,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  tabText: { fontSize: 15, fontWeight: "600" },
   content: { flex: 1, paddingHorizontal: 16 },
 });
