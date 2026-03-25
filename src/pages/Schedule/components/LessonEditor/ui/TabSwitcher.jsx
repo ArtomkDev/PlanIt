@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
+import { triggerLightHaptic } from "../../../../../utils/haptics";
 
 export default function TabSwitcher({
   tabs,
@@ -29,7 +30,7 @@ export default function TabSwitcher({
           toValue: currentLayout.x,
           duration: 250,
           easing: Easing.out(Easing.exp),
-          useNativeDriver: false, // Cannot use layout props on native driver
+          useNativeDriver: false,
         }),
         Animated.timing(indicatorWidth, {
           toValue: currentLayout.width,
@@ -40,6 +41,13 @@ export default function TabSwitcher({
       ]).start();
     }
   }, [activeTab, tabLayouts]);
+
+  const handlePress = (id) => {
+    if (activeTab !== id) {
+      triggerLightHaptic();
+      onTabPress(id);
+    }
+  };
 
   const bgColorContainer = containerBackgroundColor || themeColors.backgroundColor2;
   const bgColorActive = activeTabBackgroundColor || themeColors.backgroundColor;
@@ -69,7 +77,7 @@ export default function TabSwitcher({
             key={tab.id}
             onLayout={(event) => handleTabLayout(tab.id, event)}
             style={styles.tab}
-            onPress={() => onTabPress(tab.id)}
+            onPress={() => handlePress(tab.id)}
             activeOpacity={0.9}
           >
             <View style={styles.tabContent}>
