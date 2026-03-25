@@ -178,7 +178,7 @@ export default function Schedule() {
           </TouchableOpacity>
       </View>
 
-      <Modal visible={editorVisible} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'} transparent={Platform.OS !== 'ios'} onRequestClose={() => setEditorVisible(false)}>
+      <Modal visible={editorVisible} animationType="fade" transparent={true} onRequestClose={() => setEditorVisible(false)}>
          <DayScheduleProvider date={currentDate}>
              <LessonEditor lesson={selectedLesson} onClose={() => setEditorVisible(false)} />
          </DayScheduleProvider>
