@@ -122,7 +122,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   useEffect(() => {
     const loadLocal = async () => {
-      const prefs = await getDevicePrefs(user?.uid);
+      const prefs = await getDevicePrefs();
       setDevicePrefs(prefs);
 
       if (guest) {
@@ -152,27 +152,31 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
         if (!newPrefs.theme) {
             const defaultMode = systemColorScheme === 'light' ? 'light' : 'dark';
-            newPrefs.theme = data.global?.theme || [defaultMode, 'red'];
+            newPrefs.theme = data.global?.theme || [defaultMode, 'blue'];
             prefsNeedSave = true;
         }
 
-        if (!newPrefs.currentScheduleId) {
-            const activeSchedules = (data.schedules || []).filter(s => !s.isDeleted);
+        const activeSchedules = (data.schedules || []).filter(s => !s.isDeleted);
+        const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
+
+        if (!hasValidScheduleId) {
             if (activeSchedules.length > 0) {
                 const sorted = [...activeSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
                 newPrefs.currentScheduleId = sorted[0].id;
             } else if (data.global?.currentScheduleId) {
                 newPrefs.currentScheduleId = data.global.currentScheduleId;
+            } else {
+                newPrefs.currentScheduleId = null;
             }
 
-            if (newPrefs.currentScheduleId) {
+            if (newPrefs.currentScheduleId !== currentPrefs.currentScheduleId) {
                 prefsNeedSave = true;
             }
         }
 
         if (prefsNeedSave) {
             setDevicePrefs(newPrefs);
-            saveDevicePrefs(newPrefs, user?.uid);
+            saveDevicePrefs(newPrefs);
         }
     }
   }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme]);
@@ -306,7 +310,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       if (prefsChanged) {
         setDevicePrefs(newPrefs);
-        saveDevicePrefs(newPrefs, user?.uid);
+        saveDevicePrefs(newPrefs);
       }
 
       return { ...prev, global: { ...prev.global, ...nextGlobal, lastModified: Date.now() } };
@@ -371,7 +375,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (fallbackId !== null) {
       const newPrefs = { ...devicePrefsRef.current, currentScheduleId: fallbackId };
       setDevicePrefs(newPrefs);
-      saveDevicePrefs(newPrefs, user?.uid);
+      saveDevicePrefs(newPrefs);
     }
 
     if (!guest) setIsDirty(true);
@@ -494,7 +498,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const currentGlobal = dataRef.current?.global || createDefaultData().global;
       const defaultData = createDefaultData();
 
-      // 🔥 ЧИСТИЙ НАДГРОБОК
       const oldTombstones = (dataRef.current?.schedules || []).map(s => ({
           id: s.id, 
           isDeleted: true,
@@ -509,8 +512,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         schedules: [...oldTombstones, ...defaultData.schedules] 
       };
 
-      setDevicePrefs({});
-      await saveDevicePrefs({}, user?.uid);
+      const retainedPrefs = { theme: devicePrefsRef.current.theme };
+      setDevicePrefs(retainedPrefs);
+      await saveDevicePrefs(retainedPrefs);
 
       setData(newData);
       

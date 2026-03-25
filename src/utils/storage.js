@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GUEST_KEY = 'guest_schedule';
+const DEVICE_SETTINGS_KEY = 'app_device_settings';
 
 const getStorageKey = (userId) => {
   return userId ? `user_schedule_${userId}` : GUEST_KEY;
 };
 
-// --- СТАРІ ФУНКЦІЇ ЗАЛИШАЄМО БЕЗ ЗМІН ---
 export async function getLocalSchedule(userId = null) {
   const key = getStorageKey(userId);
   try {
@@ -36,21 +36,18 @@ export async function clearLocalSchedule(userId = null) {
   }
 }
 
-// 🔥 НОВІ ФУНКЦІЇ ДЛЯ НАЛАШТУВАНЬ ПРИСТРОЮ
-export async function getDevicePrefs(userId = null) {
-  const key = `device_prefs_${userId || 'guest'}`;
+export async function getDevicePrefs() {
   try {
-    const raw = await AsyncStorage.getItem(key);
+    const raw = await AsyncStorage.getItem(DEVICE_SETTINGS_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch (e) {
     return {};
   }
 }
 
-export async function saveDevicePrefs(prefs, userId = null) {
-  const key = `device_prefs_${userId || 'guest'}`;
+export async function saveDevicePrefs(prefs) {
   try {
-    await AsyncStorage.setItem(key, JSON.stringify(prefs));
+    await AsyncStorage.setItem(DEVICE_SETTINGS_KEY, JSON.stringify(prefs));
   } catch (e) {
     console.warn(`Помилка збереження налаштувань пристрою`, e);
   }
