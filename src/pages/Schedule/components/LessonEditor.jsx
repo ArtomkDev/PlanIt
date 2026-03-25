@@ -5,6 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   LayoutAnimation,
+  Platform,
+  Animated,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSchedule } from "../../../context/ScheduleProvider";
@@ -13,6 +16,7 @@ import themes from "../../../config/themes";
 import { SUBJECT_ICONS } from "../../../config/subjectIcons"; 
 
 import BottomSheet from "../../../components/BottomSheet";
+import AppBlur from "../../../components/AppBlur";
 
 import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
 import LessonEditorSubjectColorScreen from "./LessonEditor/screens/ColorScreen";
@@ -71,6 +75,9 @@ export default function LessonEditor({ lesson, onClose }) {
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
   const [advancedPickerTarget, setAdvancedPickerTarget] = useState(null);
 
+  const [isMinimized, setIsMinimized] = useState(false);
+  const minimizeAnim = useRef(new Animated.Value(0)).current;
+
   const sheetRef = useRef(null); 
 
   useEffect(() => {
@@ -99,7 +106,40 @@ export default function LessonEditor({ lesson, onClose }) {
       setInputType(null);
       setEditingSlotIndex(null);
     }
+
+    if (isMinimized) {
+      handleExpand();
+    }
   }, [lesson]);
+
+  useEffect(() => {
+    if (isMinimized) {
+      Animated.spring(minimizeAnim, {
+        toValue: 1,
+        stiffness: 300,
+        damping: 20,
+        useNativeDriver: Platform.OS !== "web",
+      }).start();
+    } else {
+      minimizeAnim.setValue(0);
+    }
+  }, [isMinimized]);
+
+  const handleExpand = () => {
+    Animated.timing(minimizeAnim, {
+      toValue: 0,
+      duration: 120,
+      useNativeDriver: Platform.OS !== "web",
+    }).start(() => setIsMinimized(false));
+  };
+  
+  const handleCloseMinimized = () => {
+    Animated.timing(minimizeAnim, {
+      toValue: 0,
+      duration: 120,
+      useNativeDriver: Platform.OS !== "web",
+    }).start(() => onClose());
+  };
 
   const currentSubject = localData.subjects.find((s) => s.id === selectedSubjectId) || {};
 
@@ -118,7 +158,6 @@ export default function LessonEditor({ lesson, onClose }) {
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
     if (currentScreen === "teacherEditor") return goToScreen(pickerType ? "picker" : "main"); 
     if (currentScreen === "linkEditor") return goToScreen(pickerType ? "picker" : "main");    
-    // Якщо ми створювали/редагували предмет і натиснули назад, повертаємось до списку предметів
     if (currentScreen === "input" && pickerType === "subject") return goToScreen("picker");
     
     if (["picker", "input", "subjectColor"].includes(currentScreen)) {
@@ -173,22 +212,13 @@ export default function LessonEditor({ lesson, onClose }) {
         subjectId: selectedSubjectId, 
       };
 
-      if (scopes.people === 'global') {
-          delete lessonObject.teachers;
-      }
-
-      if (scopes.type === 'global') {
-          delete lessonObject.type;
-      }
-
+      if (scopes.people === 'global') delete lessonObject.teachers;
+      if (scopes.type === 'global') delete lessonObject.type;
       if (scopes.location === 'global') {
           delete lessonObject.building;
           delete lessonObject.room;
       }
-
-      if (scopes.materials === 'global') {
-          delete lessonObject.links;
-      }
+      if (scopes.materials === 'global') delete lessonObject.links;
 
       Object.keys(lessonObject).forEach(key => {
           if (lessonObject[key] === undefined || lessonObject[key] === null) {
@@ -207,7 +237,15 @@ export default function LessonEditor({ lesson, onClose }) {
       return next;
     });
     
-    sheetRef.current?.close();
+    if (isMinimized) {
+      Animated.timing(minimizeAnim, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: Platform.OS !== "web",
+      }).start(() => onClose());
+    } else {
+      sheetRef.current?.close();
+    }
   };
 
   const handleUpdateSubject = (updates) => {
@@ -258,7 +296,6 @@ export default function LessonEditor({ lesson, onClose }) {
         if (idx !== -1) {
             nextSubjects[idx] = { ...nextSubjects[idx], name: newName };
         } else {
-            // Додаємо новий предмет ТІЛЬКИ якщо користувач натиснув "Зберегти"
             nextSubjects.push({ id: editingItemData, name: newName });
         }
         return { ...prev, subjects: nextSubjects };
@@ -315,13 +352,11 @@ export default function LessonEditor({ lesson, onClose }) {
   const getArrayData = (field, scopeGroup) => {
       const scope = scopes[scopeGroup];
       let val;
-
       if (scope === 'global') {
           val = field === 'teachers' ? (currentSubject.teachers || currentSubject.teacher) : currentSubject[field];
       } else {
           val = instanceData[field] !== undefined ? instanceData[field] : [];
       }
-
       return { array: sanitizeArray(val), isInherited: false };
   };
 
@@ -340,7 +375,6 @@ export default function LessonEditor({ lesson, onClose }) {
             alreadySelected,
             multi: false,
             onAdd: () => {
-                // НЕ додаємо об'єкт в localData одразу, лише відкриваємо форму з новим ID
                 const newId = generateLocalId();
                 goToScreen("teacherEditor", newId);
             },
@@ -374,7 +408,6 @@ export default function LessonEditor({ lesson, onClose }) {
             alreadySelected,
             multi: false,
             onAdd: () => {
-                // НЕ додаємо об'єкт в localData одразу
                 const newId = generateLocalId();
                 goToScreen("linkEditor", newId);
             },
@@ -415,7 +448,6 @@ export default function LessonEditor({ lesson, onClose }) {
             selected: selectedSubjectId ? [selectedSubjectId] : [],
             multi: false,
             onAdd: () => {
-                // Одразу переходимо до вводу імені предмету, НЕ зберігаючи "пустишку"
                 const newId = generateLocalId();
                 setPickerType("subject");
                 setInputType("subject_rename");
@@ -477,7 +509,7 @@ export default function LessonEditor({ lesson, onClose }) {
       if (inputType === "subject_rename") {
           const subj = localData.subjects.find(s => s.id === editingItemData);
           return {
-              val: subj?.name || "", // Якщо об'єкта ще немає, повертаємо пустий рядок
+              val: subj?.name || "", 
               ph: "Назва предмету",
               onSave: handleRenameSubject
           };
@@ -491,7 +523,6 @@ export default function LessonEditor({ lesson, onClose }) {
     if (type === "subject") return localData.subjects.find((s) => s.id === value)?.name;
     if (type === "link" || type === "teacher") {
         const list = sanitizeArray(Array.isArray(value) ? value : [value]);
-        
         if (list.length === 0) return "Не обрано";
         const source = type === "link" ? localData.links : localData.teachers;
         const names = list.map(id => source.find(item => item.id === id)?.name).filter(Boolean);
@@ -504,16 +535,13 @@ export default function LessonEditor({ lesson, onClose }) {
   const getValueLabel = (field, type, scopeGroup) => {
       const scope = scopes[scopeGroup];
       let val;
-
       if (scope === 'global') {
           val = field === 'teachers' ? (currentSubject.teachers || currentSubject.teacher) : currentSubject[field];
       } else {
           val = instanceData[field] !== undefined ? instanceData[field] : null;
       }
-
       const labelStr = getLabel(type, val);
       const isEmpty = !labelStr || labelStr === "Не обрано";
-
       return isEmpty ? "Не вказано" : labelStr;
   };
 
@@ -542,126 +570,193 @@ export default function LessonEditor({ lesson, onClose }) {
 
   return (
     <>
-      <BottomSheet
-        ref={sheetRef}
-        onClose={onClose}
-        backgroundColor={themeColors.backgroundColor}
-        handleColor={themeColors.borderColor || "#ccc"}
-        header={renderHeader()}
-      >
-        <View style={{ flex: 1 }}>
-          {currentScreen === "main" && (
-            <LessonEditorMainScreen
-              themeColors={themeColors}
-              selectedSubjectId={selectedSubjectId}
-              currentSubject={currentSubject}
-              gradients={localData.gradients}
-              setActivePicker={handleOpenPicker}
-              onDirectEdit={handleDirectEdit}
-              onEditSubjectColor={() => goToScreen("subjectColor")}
-              getLabel={getLabel}
-              scopes={scopes}
-              onScopeChange={(group, newScope) => setScopes(prev => ({ ...prev, [group]: newScope }))}
-              getValueLabel={getValueLabel} 
-              getArrayData={getArrayData}
-            />
-          )}
+      {isMinimized && (
+        <View style={styles.minimizedOverlay} pointerEvents="box-none">
+          <Animated.View 
+            style={[
+              styles.minimizedBar, 
+              { borderColor: themeColors.borderColor, backgroundColor: "transparent" },
+              {
+                opacity: minimizeAnim,
+                transform: [
+                  {
+                    translateY: minimizeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [40, 0]
+                    })
+                  },
+                  {
+                    scale: minimizeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.85, 1]
+                    })
+                  }
+                ]
+              }
+            ]}
+          >
+            <View style={[StyleSheet.absoluteFill, { borderRadius: 28, overflow: "hidden" }]}>
+              <AppBlur style={StyleSheet.absoluteFill} intensity={80} />
+            </View>
 
-          {currentScreen === "subjectColor" && (
-            <LessonEditorSubjectColorScreen 
-                themeColors={themeColors} 
-                currentSubject={currentSubject} 
-                gradients={localData.gradients}
-                onSelect={(updates) => {
-                    handleUpdateSubject(updates);
-                    goToScreen("main");
-                }} 
-                onEditGradient={(grad) => { setEditingGradient(grad); goToScreen("gradientEdit"); }} 
-                onAddGradient={() => {
-                    const newG = { id: generateLocalId(), colors: ["#4facfe", "#00f2fe"] };
-                    setLocalData(prev => ({ ...prev, gradients: [...prev.gradients, newG] }));
-                    setEditingGradient(newG);
-                    goToScreen("gradientEdit");
-                }} 
-            />
-          )}
+            <TouchableOpacity 
+              style={styles.minimizedContent} 
+              onPress={handleExpand}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.minimizedIcon, { backgroundColor: themeColors.accentColor + '20' }]}>
+                <Ionicons name="pencil" size={18} color={themeColors.accentColor} />
+              </View>
+              <View style={{ flex: 1, paddingRight: 5 }}>
+                <Text style={[styles.minimizedTitle, { color: themeColors.textColor }]} numberOfLines={1}>
+                  {Number.isInteger(lesson?.index) ? "Редагування..." : "Нове заняття..."}
+                </Text>
+                <Text style={[styles.minimizedSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+                  {currentSubject.name || "Предмет не обрано"}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-          {currentScreen === "gradientEdit" && editingGradient && (
-            <LessonEditorGradientEditScreen themeColors={themeColors} gradientToEdit={editingGradient} onSave={handleSaveGradient} openColorPicker={openAdvancedColorPicker} />
-          )}
-
-          {currentScreen === "picker" && (
-            <LessonEditorPickerScreen
-              title={getHeaderTitle()}
-              options={pickerData.options}
-              selectedValues={pickerData.selected}
-              alreadySelected={pickerData.alreadySelected}
-              multiSelect={pickerData.multi}
-              onSave={pickerData.onSave} 
-              onReset={pickerData.onReset}
-              onEdit={pickerData.onEdit}
-              onAdd={pickerData.onAdd}
-              themeColors={themeColors}
-              layout={pickerType === 'icon' ? 'grid' : 'list'} 
-            />
-          )}
-
-          {currentScreen === "input" && (
-            <LessonEditorInputScreen
-                title={getHeaderTitle()}
-                initialValue={inputData.val}
-                placeholder={inputData.ph}
-                onSave={inputData.onSave} 
-                onReset={inputData.onReset}
-                themeColors={themeColors}
-            />
-          )}
-
-          {currentScreen === "teacherEditor" && (
-              <TeacherEditor 
-                teacherId={editingItemData} 
-                // Передаємо пустий об'єкт, якщо викладача ще немає в масиві
-                localTeacherData={localData.teachers.find(t => t.id === editingItemData) || {}}
-                onSaveLocal={(updated) => {
-                    setLocalData(prev => {
-                        const exists = prev.teachers.some(t => t.id === updated.id);
-                        return {
-                            ...prev, 
-                            teachers: exists 
-                                ? prev.teachers.map(t => t.id === updated.id ? updated : t) 
-                                : [...prev.teachers, updated] // Додаємо лише при збереженні
-                        };
-                    });
-                    goToScreen(pickerType ? "picker" : "main"); 
-                }}
-                onBack={() => goToScreen(pickerType ? "picker" : "main")} 
-                themeColors={themeColors}
-              />
-          )}
-
-          {currentScreen === "linkEditor" && (
-              <LinkEditor 
-                linkId={editingItemData} 
-                // Передаємо пустий об'єкт, якщо посилання ще немає в масиві
-                localLinkData={localData.links.find(l => l.id === editingItemData) || {}}
-                onSaveLocal={(updated) => {
-                    setLocalData(prev => {
-                        const exists = prev.links.some(l => l.id === updated.id);
-                        return {
-                            ...prev, 
-                            links: exists 
-                                ? prev.links.map(l => l.id === updated.id ? updated : l) 
-                                : [...prev.links, updated] // Додаємо лише при збереженні
-                        };
-                    });
-                    goToScreen(pickerType ? "picker" : "main");
-                }}
-                onBack={() => goToScreen(pickerType ? "picker" : "main")} 
-                themeColors={themeColors}
-              />
-          )}
+            <View style={styles.minimizedActions}>
+              {selectedSubjectId && (
+                <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn}>
+                  <Ionicons name="checkmark-circle" size={28} color={themeColors.accentColor} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]}>
+                <Ionicons name="close-circle" size={28} color={themeColors.accentColor || "#ff4444"} />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         </View>
-      </BottomSheet>
+      )}
+
+      <Modal
+        visible={!isMinimized}
+        transparent={true}
+        animationType="none"
+        onRequestClose={onClose}
+      >
+        <BottomSheet
+          ref={sheetRef}
+          onClose={onClose}
+          onMinimize={() => setIsMinimized(true)}
+          backgroundColor={themeColors.backgroundColor}
+          handleColor={themeColors.borderColor || "#ccc"}
+          header={renderHeader()}
+        >
+          <View style={{ flex: 1 }}>
+            {currentScreen === "main" && (
+              <LessonEditorMainScreen
+                themeColors={themeColors}
+                selectedSubjectId={selectedSubjectId}
+                currentSubject={currentSubject}
+                gradients={localData.gradients}
+                setActivePicker={handleOpenPicker}
+                onDirectEdit={handleDirectEdit}
+                onEditSubjectColor={() => goToScreen("subjectColor")}
+                getLabel={getLabel}
+                scopes={scopes}
+                onScopeChange={(group, newScope) => setScopes(prev => ({ ...prev, [group]: newScope }))}
+                getValueLabel={getValueLabel} 
+                getArrayData={getArrayData}
+              />
+            )}
+
+            {currentScreen === "subjectColor" && (
+              <LessonEditorSubjectColorScreen 
+                  themeColors={themeColors} 
+                  currentSubject={currentSubject} 
+                  gradients={localData.gradients}
+                  onSelect={(updates) => {
+                      handleUpdateSubject(updates);
+                      goToScreen("main");
+                  }} 
+                  onEditGradient={(grad) => { setEditingGradient(grad); goToScreen("gradientEdit"); }} 
+                  onAddGradient={() => {
+                      const newG = { id: generateLocalId(), colors: ["#4facfe", "#00f2fe"] };
+                      setLocalData(prev => ({ ...prev, gradients: [...prev.gradients, newG] }));
+                      setEditingGradient(newG);
+                      goToScreen("gradientEdit");
+                  }} 
+              />
+            )}
+
+            {currentScreen === "gradientEdit" && editingGradient && (
+              <LessonEditorGradientEditScreen themeColors={themeColors} gradientToEdit={editingGradient} onSave={handleSaveGradient} openColorPicker={openAdvancedColorPicker} />
+            )}
+
+            {currentScreen === "picker" && (
+              <LessonEditorPickerScreen
+                title={getHeaderTitle()}
+                options={pickerData.options}
+                selectedValues={pickerData.selected}
+                alreadySelected={pickerData.alreadySelected}
+                multiSelect={pickerData.multi}
+                onSave={pickerData.onSave} 
+                onReset={pickerData.onReset}
+                onEdit={pickerData.onEdit}
+                onAdd={pickerData.onAdd}
+                themeColors={themeColors}
+                layout={pickerType === 'icon' ? 'grid' : 'list'} 
+              />
+            )}
+
+            {currentScreen === "input" && (
+              <LessonEditorInputScreen
+                  title={getHeaderTitle()}
+                  initialValue={inputData.val}
+                  placeholder={inputData.ph}
+                  onSave={inputData.onSave} 
+                  onReset={inputData.onReset}
+                  themeColors={themeColors}
+              />
+            )}
+
+            {currentScreen === "teacherEditor" && (
+                <TeacherEditor 
+                  teacherId={editingItemData} 
+                  localTeacherData={localData.teachers.find(t => t.id === editingItemData) || {}}
+                  onSaveLocal={(updated) => {
+                      setLocalData(prev => {
+                          const exists = prev.teachers.some(t => t.id === updated.id);
+                          return {
+                              ...prev, 
+                              teachers: exists 
+                                  ? prev.teachers.map(t => t.id === updated.id ? updated : t) 
+                                  : [...prev.teachers, updated] 
+                          };
+                      });
+                      goToScreen(pickerType ? "picker" : "main"); 
+                  }}
+                  onBack={() => goToScreen(pickerType ? "picker" : "main")} 
+                  themeColors={themeColors}
+                />
+            )}
+
+            {currentScreen === "linkEditor" && (
+                <LinkEditor 
+                  linkId={editingItemData} 
+                  localLinkData={localData.links.find(l => l.id === editingItemData) || {}}
+                  onSaveLocal={(updated) => {
+                      setLocalData(prev => {
+                          const exists = prev.links.some(l => l.id === updated.id);
+                          return {
+                              ...prev, 
+                              links: exists 
+                                  ? prev.links.map(l => l.id === updated.id ? updated : l) 
+                                  : [...prev.links, updated] 
+                          };
+                      });
+                      goToScreen(pickerType ? "picker" : "main");
+                  }}
+                  onBack={() => goToScreen(pickerType ? "picker" : "main")} 
+                  themeColors={themeColors}
+                />
+            )}
+          </View>
+        </BottomSheet>
+      </Modal>
       
       {advancedPickerTarget && (
         <AdvancedColorPicker 
@@ -695,4 +790,62 @@ const styles = StyleSheet.create({
     alignItems: "center", 
     marginLeft: -8 
   },
-});
+  minimizedOverlay: {
+    position: 'absolute',
+    bottom: 90,
+    left: 16,
+    right: 88, 
+    zIndex: 999,
+  },
+  minimizedBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 6,
+    paddingLeft: 8,
+    borderRadius: 28,
+    borderWidth: 1,
+    height: 56,
+    ...Platform.select({
+      web: { boxShadow: "0px 4px 12px rgba(0,0,0,0.15)" },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 8,
+      },
+    }),
+  },
+  minimizedContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    zIndex: 10,
+  },
+  minimizedIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  minimizedTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  minimizedSubtitle: {
+    fontSize: 11,
+  },
+  minimizedActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 4,
+    zIndex: 10,
+  },
+  minimizedActionBtn: {
+    padding: 2,
+  },
+});   

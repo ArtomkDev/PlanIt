@@ -16,6 +16,7 @@ const IS_IOS = Platform.OS === "ios";
 
 const BottomSheet = forwardRef(({ 
   onClose, 
+  onMinimize, 
   children, 
   header, 
   backgroundColor = "#fff", 
@@ -37,19 +38,34 @@ const BottomSheet = forwardRef(({
     Keyboard.dismiss();
     Animated.timing(panY, {
       toValue: SCREEN_HEIGHT,
-      duration: 200,
+      duration: 150,
       useNativeDriver: Platform.OS !== "web",
     }).start(() => onClose());
   };
 
+  const minimizeWithAnimation = () => {
+    Keyboard.dismiss();
+    Animated.timing(panY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 100,
+      useNativeDriver: Platform.OS !== "web",
+    }).start(() => {
+      if (onMinimize) {
+        onMinimize();
+      } else {
+        onClose();
+      }
+    });
+  };
+
   useImperativeHandle(ref, () => ({
     close: closeWithAnimation,
+    minimize: minimizeWithAnimation,
   }));
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true, 
-      
       onStartShouldSetPanResponderCapture: () => false, 
 
       onMoveShouldSetPanResponderCapture: (_, gestureState) => {
@@ -71,7 +87,7 @@ const BottomSheet = forwardRef(({
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > 120 || (gestureState.vy > 0.5 && gestureState.dy > 40)) {
-          closeWithAnimation();
+          minimizeWithAnimation(); 
         } else {
           Animated.spring(panY, {
             toValue: 0,
@@ -86,7 +102,7 @@ const BottomSheet = forwardRef(({
 
   return (
     <KeyboardAvoidingView behavior={IS_IOS ? "padding" : "height"} style={styles.overlay}>
-      <Pressable onPress={closeWithAnimation} style={styles.backdrop} />
+      <Pressable onPress={minimizeWithAnimation} style={styles.backdrop} />
 
       <Animated.View
         style={[

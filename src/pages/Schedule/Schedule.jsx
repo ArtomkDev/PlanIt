@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
-import { StyleSheet, View, Modal, TouchableOpacity, Text, FlatList, Platform, useWindowDimensions, Animated } from "react-native";
+import { StyleSheet, View, TouchableOpacity, Text, FlatList, Platform, useWindowDimensions, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons"; 
 
 import Header from "./components/Header";
@@ -30,7 +30,9 @@ export default function Schedule() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
-  const [selectedLesson, setSelectedLesson] = useState(null);
+  
+  const [editingLesson, setEditingLesson] = useState(null);
+  const [viewingLesson, setViewingLesson] = useState(null);
 
   const flatListRef = useRef(null);
 
@@ -105,17 +107,23 @@ export default function Schedule() {
     length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index,
   }), [SCREEN_WIDTH]);
 
-  const openViewer = (lesson) => { setSelectedLesson(lesson); setViewerVisible(true); };
+  const openViewer = (lesson) => { 
+      setViewingLesson(lesson); 
+      setViewerVisible(true); 
+  };
   
   const openEditor = (lesson) => { 
       setViewerVisible(false);
       setTimeout(() => {
-          setSelectedLesson(lesson); 
+          setEditingLesson(lesson); 
           setEditorVisible(true); 
       }, 100);
   };
   
-  const handleAddLesson = () => { setSelectedLesson({ index: null, subjectId: null }); setEditorVisible(true); };
+  const handleAddLesson = () => { 
+      setEditingLesson({ index: null, subjectId: null }); 
+      setEditorVisible(true); 
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
@@ -178,15 +186,17 @@ export default function Schedule() {
           </TouchableOpacity>
       </View>
 
-      <Modal visible={editorVisible} animationType="fade" transparent={true} onRequestClose={() => setEditorVisible(false)}>
-         <DayScheduleProvider date={currentDate}>
-             <LessonEditor lesson={selectedLesson} onClose={() => setEditorVisible(false)} />
-         </DayScheduleProvider>
-      </Modal>
+      {editorVisible && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 100 }]} pointerEvents="box-none">
+           <DayScheduleProvider date={currentDate}>
+               <LessonEditor lesson={editingLesson} onClose={() => setEditorVisible(false)} />
+           </DayScheduleProvider>
+        </View>
+      )}
 
       <LessonViewer 
         visible={viewerVisible}
-        lesson={selectedLesson}
+        lesson={viewingLesson}
         onClose={() => setViewerVisible(false)}
         onEdit={openEditor}
       />
