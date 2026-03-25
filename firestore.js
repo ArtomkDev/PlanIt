@@ -8,7 +8,8 @@ import {
   getDocFromServer,
   getDocsFromServer,
   deleteDoc,
-  serverTimestamp
+  serverTimestamp,
+  setDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
 import createDefaultData from './src/config/createDefaultData';
@@ -51,7 +52,6 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
 
   const globalRef = doc(db, 'users', userId, 'global', 'settings');
   
-  // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ: Прибрано async/await, що блокував потік Android
   const unsubGlobal = onSnapshot(globalRef, { includeMetadataChanges: true }, (docSnap) => {
     const currentCount = ++globalSnapshotCount;
     globalFromCache = docSnap.metadata.fromCache; 
@@ -142,10 +142,7 @@ export const getSchedule = async (userId) => {
       globalData = def.global;
     }
 
-    return {
-      global: globalData,
-      schedules: schedulesList
-    };
+    return { global: globalData, schedules: schedulesList };
 
   } catch (error) {
     throw error;
@@ -189,10 +186,7 @@ export const getScheduleFromServer = async (userId) => {
       globalData = def.global;
     }
 
-    return {
-      global: globalData,
-      schedules: schedulesList
-    };
+    return { global: globalData, schedules: schedulesList };
 
   } catch (error) {
     throw error;
@@ -216,7 +210,14 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
 
       snapshot.docs.forEach(docSnap => {
         if (!activeIds.includes(docSnap.id)) {
-          batch.delete(docSnap.ref);
+          // 🔥 ВИПРАВЛЕННЯ: БЕЗ merge: true для повного затирання старих полів
+          batch.set(docSnap.ref, { 
+            id: docSnap.id,
+            isDeleted: true, 
+            version: (docSnap.data().version || 1) + 1,
+            baseVersion: (docSnap.data().baseVersion || 1) + 1,
+            lastModified: serverTimestamp() 
+          });
         }
       });
     }
@@ -224,7 +225,14 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
     data.schedules.forEach((schedule) => {
       if (schedule && schedule.id) {
         const scheduleDocRef = doc(db, 'users', userId, 'schedules', schedule.id);
-        batch.set(scheduleDocRef, { ...schedule, lastModified: serverTimestamp() }, { merge: true });
+        
+        if (schedule.isDeleted) {
+          // 🔥 БЕЗ merge: true, якщо це розклад-надгробок (tombstone)
+          batch.set(scheduleDocRef, { ...schedule, lastModified: serverTimestamp() });
+        } else {
+          // 🔥 З merge: true для звичайного оновлення існуючого розкладу
+          batch.set(scheduleDocRef, { ...schedule, lastModified: serverTimestamp() }, { merge: true });
+        }
       }
     });
   }
@@ -234,7 +242,17 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
 
 export const deleteUserSchedule = async (userId, scheduleId) => {
   const scheduleRef = doc(db, 'users', userId, 'schedules', scheduleId);
-  await deleteDoc(scheduleRef);
+  const docSnap = await getDoc(scheduleRef);
+  const data = docSnap.exists() ? docSnap.data() : {};
+  
+  // 🔥 Повне затирання документа для конкретного розкладу (БЕЗ merge: true)
+  await setDoc(scheduleRef, { 
+    id: scheduleId,
+    isDeleted: true, 
+    version: (data.version || 1) + 1,
+    baseVersion: (data.baseVersion || 1) + 1,
+    lastModified: serverTimestamp() 
+  });
 };
 
 export const resetUserSchedules = async (userId) => {
@@ -245,7 +263,14 @@ export const resetUserSchedules = async (userId) => {
   if (snapshot.empty) return;
 
   snapshot.docs.forEach((docSnap) => {
-    batch.delete(docSnap.ref);
+    // 🔥 Повне затирання всіх документів при скиданні (БЕЗ merge: true)
+    batch.set(docSnap.ref, { 
+      id: docSnap.id,
+      isDeleted: true, 
+      version: (docSnap.data().version || 1) + 1,
+      baseVersion: (docSnap.data().baseVersion || 1) + 1,
+      lastModified: serverTimestamp() 
+    });
   });
 
   await batch.commit();

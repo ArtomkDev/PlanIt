@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "start": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start",
+    "android": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start --android",
+    "ios": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start --ios",
+    "web": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start --web",
     "emu": "D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin",
-    "dev": "start /MIN D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin && expo start"
+    "dev": "start /MIN D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin && cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -56,7 +56,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
-    "baseline-browser-mapping": "^2.10.0"
+    "baseline-browser-mapping": "^2.10.0",
+    "cross-env": "^7.0.3"
   },
   "private": true
 }
