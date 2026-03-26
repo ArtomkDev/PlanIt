@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { AppState, useColorScheme } from "react-native";
+import * as Localization from 'expo-localization';
 import NetInfo from "@react-native-community/netinfo";
 import { v4 as uuidv4 } from 'uuid';
 import { db } from "../../firebase"; 
@@ -28,8 +29,7 @@ function resolveSyncConflict(localData, cloudData) {
     const cloudSch = cloudMap.get(localSch.id);
 
     if (!cloudSch) {
-      if ((localSch.lastSynced || 0) > 0) {
-      } else {
+      if (!((localSch.lastSynced || 0) > 0)) {
         mergedSchedulesMap.set(localSch.id, localSch);
         needsPushToCloud = true;
       }
@@ -156,6 +156,15 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             prefsNeedSave = true;
         }
 
+        if (!newPrefs.language) {
+          const rawLocale = Localization.locale || 'uk'; 
+          const deviceLang = rawLocale.split('-')[0];
+
+          const supported = ['uk', 'en', 'pl', 'de'];
+          newPrefs.language = data.global?.language || (supported.includes(deviceLang) ? deviceLang : 'uk');
+          prefsNeedSave = true;
+        }
+
         const activeSchedules = (data.schedules || []).filter(s => !s.isDeleted);
         const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
 
@@ -248,8 +257,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!data?.global) return null;
     return {
       ...data.global,
-      ...(devicePrefs.theme ? { theme: devicePrefs.theme } : {}),
-      ...(devicePrefs.currentScheduleId ? { currentScheduleId: devicePrefs.currentScheduleId } : {})
+      theme: devicePrefs.theme || data.global.theme,
+      currentScheduleId: devicePrefs.currentScheduleId || data.global.currentScheduleId,
+      language: devicePrefs.language || data.global.language || 'uk'
     };
   }, [data?.global, devicePrefs]);
 
@@ -290,8 +300,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       const currentMerged = {
         ...prev.global,
-        ...(devicePrefsRef.current.theme ? { theme: devicePrefsRef.current.theme } : {}),
-        ...(devicePrefsRef.current.currentScheduleId ? { currentScheduleId: devicePrefsRef.current.currentScheduleId } : {})
+        theme: devicePrefsRef.current.theme,
+        currentScheduleId: devicePrefsRef.current.currentScheduleId,
+        language: devicePrefsRef.current.language
       };
 
       const nextGlobal = typeof updater === "function" ? updater(currentMerged) : updater;
@@ -305,6 +316,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       }
       if (nextGlobal.currentScheduleId && nextGlobal.currentScheduleId !== currentMerged.currentScheduleId) {
         newPrefs.currentScheduleId = nextGlobal.currentScheduleId;
+        prefsChanged = true;
+      }
+      if (nextGlobal.language && nextGlobal.language !== currentMerged.language) {
+        newPrefs.language = nextGlobal.language;
         prefsChanged = true;
       }
 
@@ -498,7 +513,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const currentGlobal = dataRef.current?.global || createDefaultData().global;
       const defaultData = createDefaultData();
 
-      const oldTombstones = (dataRef.current?.schedules || []).map(s => ({
+      const oldSchedules = (dataRef.current?.schedules || []).map(s => ({
           id: s.id, 
           isDeleted: true,
           version: (s.version || 1) + 1,
@@ -509,10 +524,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       const newData = { 
         global: { ...currentGlobal, lastModified: Date.now() }, 
-        schedules: [...oldTombstones, ...defaultData.schedules] 
+        schedules: [...oldSchedules, ...defaultData.schedules] 
       };
 
-      const retainedPrefs = { theme: devicePrefsRef.current.theme };
+      const retainedPrefs = { 
+        theme: devicePrefsRef.current.theme, 
+        language: devicePrefsRef.current.language 
+      };
       setDevicePrefs(retainedPrefs);
       await saveDevicePrefs(retainedPrefs);
 
@@ -601,7 +619,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         if (hasDirtySchedules || isGlobalDirty) {
           setIsDirty(true);
           if (action !== 'cloud') {
-             setPendingImmediateSave(true);
+              setPendingImmediateSave(true);
           }
         } else {
           setIsDirty(false);

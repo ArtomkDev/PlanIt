@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import themes from '../config/themes';
 import { useSchedule } from '../context/ScheduleProvider';
 import AppBlur from '../components/AppBlur';
+import { t } from '../utils/i18n';
 
 import Schedule from '../pages/Schedule/Schedule';
 import ScheduleSettings from '../pages/ScheduleSettings/ScheduleSettings';
@@ -22,6 +23,7 @@ import ResetDB from '../pages/ScheduleSettings/components/ResetDB';
 import ScheduleSwitcher from '../pages/ScheduleSettings/components/ScheduleSwitcher';
 import DeviceManager from '../pages/ScheduleSettings/components/DeviceManager';
 import ScheduleEditorScreen from '../pages/ScheduleSettings/components/ScheduleEditorScreen';
+import LanguageSettings from '../pages/ScheduleSettings/components/LanguageSettings';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -48,6 +50,7 @@ function ScheduleSettingsStack({ screenProps }) {
       <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
       <Stack.Screen name="AutoSave" component={AutoSaveManager} />
       <Stack.Screen name="Theme" component={ThemeSettings} />
+      <Stack.Screen name="Language" component={LanguageSettings} />
       <Stack.Screen name="ResetDB" component={ResetDB} />
       <Stack.Screen name="DeviceService" component={DeviceManager} />
     </Stack.Navigator>
@@ -57,7 +60,9 @@ function ScheduleSettingsStack({ screenProps }) {
 export default function TabNavigator({ screenProps }) {
   const { global } = useSchedule();
   const insets = useSafeAreaInsets();
+  
   const [mode, accent] = global?.theme || ["light", "blue"];
+  const lang = global?.language || 'uk';
   const themeColors = themes.getColors(mode, accent);
 
   return (
@@ -84,14 +89,14 @@ export default function TabNavigator({ screenProps }) {
         name="Home3_1"
         component={Schedule}
         options={{
-          tabBarLabel: 'Розклад',
+          tabBarLabel: t('common.schedule', lang),
           tabBarIcon: ({ color, size }) => <Icon name="calendar" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Home3_2"
         options={{
-          tabBarLabel: 'Налаштування',
+          tabBarLabel: t('common.settings', lang),
           tabBarIcon: ({ color, size }) => <Icon name="settings" size={size} color={color} />,
         }}
       >

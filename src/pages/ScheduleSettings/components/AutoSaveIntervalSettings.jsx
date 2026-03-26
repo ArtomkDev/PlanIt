@@ -1,4 +1,3 @@
-// src/pages/ScheduleSettings/components/AutoSaveIntervalSettings.jsx
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -10,17 +9,16 @@ import {
 import { useSchedule } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../SettingsScreenLayout";
 import themes from '../../../config/themes';
+import { t } from '../../../utils/i18n';
 
 const AutoSaveIntervalSettings = () => {
-  // 🔥 ЗМІНА 1: Беремо setGlobalDraft замість setScheduleDraft
   const { global, setGlobalDraft } = useSchedule();
+  const lang = global?.language || 'uk';
 
-  // 🔥 ЗМІНА 2: Читаємо значення з global, а не з schedule
   const currentInterval = global?.auto_save ?? 60;
   
   const [tempInterval, setTempInterval] = useState(currentInterval);
 
-  // Синхронізація, якщо значення змінилося ззовні
   useEffect(() => {
     setTempInterval(currentInterval);
   }, [currentInterval]);
@@ -29,12 +27,10 @@ const AutoSaveIntervalSettings = () => {
   const themeColors = themes.getColors(mode, accent);
 
   const confirmIntervalChange = () => {
-    // Мінімальний поріг можна зменшити, наприклад, до 10-15 секунд для глобального синхра
     const correctedInterval = tempInterval < 10 ? 10 : tempInterval;
 
     setTempInterval(correctedInterval);
 
-    // 🔥 ЗМІНА 3: Оновлюємо глобальні налаштування
     setGlobalDraft((prev) => ({
       ...prev,
       auto_save: correctedInterval,
@@ -47,7 +43,7 @@ const AutoSaveIntervalSettings = () => {
     <SettingsScreenLayout>
       <View style={styles.inputContainer}>
         <Text style={[styles.label, { color: themeColors.textColor }]}>
-          Інтервал автозбереження (секунди):
+          {t('settings.autosave_screen.interval_label', lang)}
         </Text>
     
         <TextInput
@@ -61,7 +57,6 @@ const AutoSaveIntervalSettings = () => {
           keyboardType="number-pad"
           value={String(tempInterval)}
           onChangeText={(value) => {
-             // Дозволяємо вводити лише цифри
              const numericValue = value.replace(/[^0-9]/g, '');
              setTempInterval(Number(numericValue));
           }}
@@ -80,12 +75,12 @@ const AutoSaveIntervalSettings = () => {
           disabled={!isValueChanged}
         >
           <Text style={{ color: isValueChanged ? "#fff" : themeColors.textColor2, fontWeight: "600" }}>
-            Підтвердити
+            {t('common.confirm', lang)}
           </Text>
         </TouchableOpacity>
 
         <Text style={{ marginTop: 10, fontSize: 12, color: themeColors.textColor2, textAlign: 'center' }}>
-          Це налаштування впливає на частоту збереження даних у хмару.
+          {t('settings.autosave_screen.info_text', lang)}
         </Text>
       </View>
     </SettingsScreenLayout>

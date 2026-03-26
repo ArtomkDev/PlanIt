@@ -3,28 +3,30 @@ import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } fr
 import { useSchedule } from '../../../context/ScheduleProvider';
 import SettingsScreenLayout from '../SettingsScreenLayout';
 import themes from '../../../config/themes';
+import { t } from '../../../utils/i18n';
 
 export default function ResetDB() {
   const { resetApplication, global, isLoading } = useSchedule();
   const [isResetting, setIsResetting] = useState(false);
+  const lang = global?.language || 'uk';
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   const handleReset = () => {
     Alert.alert(
-      "Скинути розклади?",
-      "Ваші налаштування теми та акаунту збережуться, але всі створені розклади будуть видалені і замінені на стандартний.",
+      t('settings.reset_db_screen.alert_title', lang),
+      t('settings.reset_db_screen.alert_msg', lang),
       [
-        { text: "Скасувати", style: "cancel" },
+        { text: t('common.cancel', lang), style: "cancel" },
         {
-          text: "Скинути",
+          text: t('settings.reset_db_screen.alert_confirm', lang),
           style: "destructive",
           onPress: async () => {
             setIsResetting(true);
             await resetApplication();
             setIsResetting(false);
-            Alert.alert("Успішно", "Розклади оновлено.");
+            Alert.alert(t('common.success', lang), t('settings.reset_db_screen.success_msg', lang));
           },
         },
       ]
@@ -35,9 +37,9 @@ export default function ResetDB() {
     <SettingsScreenLayout>
       <View style={styles.container}>
         <View style={styles.warningBox}>
-          <Text style={styles.warningTitle}>Очищення розкладів</Text>
+          <Text style={styles.warningTitle}>{t('settings.reset_db_screen.box_title', lang)}</Text>
           <Text style={styles.warningText}>
-            Ця дія видалить усі ваші поточні пари та розклади, але збереже налаштування додатку.
+            {t('settings.reset_db_screen.box_text', lang)}
           </Text>
         </View>
 
@@ -49,7 +51,7 @@ export default function ResetDB() {
           {isResetting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.resetButtonText}>Скинути розклади</Text>
+            <Text style={styles.resetButtonText}>{t('settings.reset_db_screen.button_text', lang)}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -63,7 +65,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   warningBox: {
-    backgroundColor: '#fff3cd', // Жовтий замість червоного, бо це не повний wipe
+    backgroundColor: '#fff3cd', 
     borderColor: '#ffecb5',
     borderWidth: 1,
     borderRadius: 12,

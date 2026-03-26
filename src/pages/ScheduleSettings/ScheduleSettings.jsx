@@ -1,15 +1,15 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useHeaderHeight } from '@react-navigation/elements';
-import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { signOut } from 'firebase/auth'; // 1. Імпорт функції виходу
+import Icon from 'react-native-vector-icons/Ionicons';
+import { signOut } from 'firebase/auth';
 
 import { auth } from '../../../firebase';
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/SettingsHeader';
+import { t } from '../../utils/i18n';
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
@@ -23,6 +23,8 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
 
+  const lang = global?.language || 'uk';
+
   const autoSaveVal = global?.auto_save; 
   const autoSaveEnabled = typeof autoSaveVal === 'number' && autoSaveVal > 0;
   
@@ -31,30 +33,27 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const subjectsCount = Array.isArray(schedule?.subjects) ? schedule.subjects.length : undefined;
   const teachersCount = Array.isArray(schedule?.teachers) ? schedule.teachers.length : undefined;
 
-  // Дія для Гостя (повернутись на екран входу)
   const handleAuthAction = () => {
     if (guest && onExitGuest) {
       onExitGuest();
     }
   };
 
-  // 3. Функція виходу з акаунта
   const handleSignOut = async () => {
     Alert.alert(
-      "Вихід",
-      "Ви впевнені, що хочете вийти з акаунту?",
+      t('settings.alerts.logout_title', lang),
+      t('settings.alerts.logout_confirm', lang),
       [
-        { text: "Скасувати", style: "cancel" },
+        { text: t('common.cancel', lang), style: "cancel" },
         { 
-          text: "Вийти", 
+          text: t('settings.menu.logout.title', lang), 
           style: "destructive", 
           onPress: async () => {
             try {
               await signOut(auth);
-              // App.js автоматично перекине на WelcomeScreen через onAuthStateChanged
             } catch (error) {
-              console.error("Помилка виходу:", error);
-              Alert.alert("Помилка", "Не вдалося вийти з акаунту");
+              console.error("Logout error:", error);
+              Alert.alert(t('common.error', lang), t('settings.alerts.logout_error', lang));
             }
           } 
         }
@@ -64,59 +63,64 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
 
   const sections = useMemo(() => ([
     {
-      title: 'Структура розкладу',
+      title: t('settings.sections.schedule', lang),
       data: [
-        { label: 'Кількість тижнів', screen: 'Weeks', icon: 'layers-outline', meta: weeksCount ? String(weeksCount) : undefined, desc: 'Непарні/парні або цикл тижнів' },
-        { label: 'Початкова дата', screen: 'StartWeek', icon: 'calendar-outline', desc: 'Звідси рахується № тижня' },
-        { label: 'Кількість перерв', screen: 'Breaks', icon: 'timer-outline', meta: breaksCount ? String(breaksCount) : undefined, desc: 'Довжина та кількість перерв' },
-        { label: 'Розклад', screen: 'Schedule', icon: 'grid-outline', desc: 'Редактор занять по днях' },
-        { label: 'Глобальний розклад', screen: 'ScheduleSwitcher', icon: 'grid-outline', desc: 'Змінити глобальний розклад' },
+        { label: t('settings.menu.weeks.title', lang), screen: 'Weeks', icon: 'layers-outline', meta: weeksCount ? String(weeksCount) : undefined, desc: t('settings.menu.weeks.desc', lang) },
+        { label: t('settings.menu.start_date.title', lang), screen: 'StartWeek', icon: 'calendar-outline', desc: t('settings.menu.start_date.desc', lang) },
+        { label: t('settings.menu.breaks.title', lang), screen: 'Breaks', icon: 'timer-outline', meta: breaksCount ? String(breaksCount) : undefined, desc: t('settings.menu.breaks.desc', lang) },
+        { label: t('settings.menu.schedule.title', lang), screen: 'Schedule', icon: 'grid-outline', desc: t('settings.menu.schedule.desc', lang) },
+        { label: t('settings.menu.global_schedule.title', lang), screen: 'ScheduleSwitcher', icon: 'grid-outline', desc: t('settings.menu.global_schedule.desc', lang) },
       ],
     },
     {
-      title: 'Дані',
+      title: t('settings.sections.data', lang),
       data: [
-        { label: 'Пари', screen: 'Subjects', icon: 'book-outline', meta: subjectsCount ? String(subjectsCount) : undefined, desc: 'Список предметів / аудиторій' },
-        { label: 'Викладачі', screen: 'Teachers', icon: 'people-outline', meta: teachersCount ? String(teachersCount) : undefined, desc: 'Контакти та скорочення' },
+        { label: t('settings.menu.subjects.title', lang), screen: 'Subjects', icon: 'book-outline', meta: subjectsCount ? String(subjectsCount) : undefined, desc: t('settings.menu.subjects.desc', lang) },
+        { label: t('settings.menu.teachers.title', lang), screen: 'Teachers', icon: 'people-outline', meta: teachersCount ? String(teachersCount) : undefined, desc: t('settings.menu.teachers.desc', lang) },
       ],
     },
     {
-      title: 'Оформлення',
+      title: t('settings.sections.appearance', lang),
       data: [
-        { label: 'Теми', screen: 'Theme', icon: 'color-palette-outline', desc: 'Світла/темна, акцент' },
-      ],
-    },
-    {
-      title: 'Автоматизація',
-      data: [
+        { label: t('settings.menu.themes.title', lang), screen: 'Theme', icon: 'color-palette-outline', desc: t('settings.menu.themes.desc', lang) },
         { 
-          label: 'Авто збереження', 
-          screen: 'AutoSave', 
-          icon: 'save-outline',
-          meta: autoSaveEnabled ? `кожні ${autoSaveVal} сек` : 'вимкнено',
-          desc: 'Фонове збереження змін' 
+          label: t('settings.menu.language.title', lang), 
+          screen: 'Language', 
+          icon: 'language-outline', 
+          meta: lang.toUpperCase(), 
+          desc: t('settings.menu.language.desc', lang) 
         },
       ],
     },
     {
-      title: 'Акаунт',
-      // 4. Логіка відображення кнопок
-      data: !user ? [
-        { label: 'Увійти або Створити акаунт', action: handleAuthAction, icon: 'log-in-outline', desc: 'Синхронізуйте дані в хмарі' },
-      ] : [
-        { label: 'Пристрої', screen: 'DeviceService', icon: 'layers-outline', desc: 'Налаштування авторизованих пристроїв' },
-        // 🔥 Додана кнопка виходу
-        { label: 'Вийти з акаунту', action: handleSignOut, icon: 'log-out-outline', desc: 'Завершити сесію', danger: true },
+      title: t('settings.sections.automation', lang),
+      data: [
+        { 
+          label: t('settings.menu.autosave.title', lang), 
+          screen: 'AutoSave', 
+          icon: 'save-outline',
+          meta: autoSaveEnabled ? t('settings.menu.every_sec', lang).replace('{val}', autoSaveVal) : t('common.disabled', lang),
+          desc: t('settings.menu.autosave.desc', lang) 
+        },
       ],
     },
     {
-      title: 'Небезпечна зона',
-      danger: true,
-      data: [
-        { label: 'Скинути БД', screen: 'ResetDB', icon: 'trash-outline', desc: 'Повне очищення даних' },
+      title: t('settings.sections.account', lang),
+      data: !user ? [
+        { label: t('settings.menu.login.title', lang), action: handleAuthAction, icon: 'log-in-outline', desc: t('settings.menu.login.desc', lang) },
+      ] : [
+        { label: t('settings.menu.devices.title', lang), screen: 'DeviceService', icon: 'layers-outline', desc: t('settings.menu.devices.desc', lang) },
+        { label: t('settings.menu.logout.title', lang), action: handleSignOut, icon: 'log-out-outline', desc: t('settings.menu.logout.desc', lang), danger: true },
       ],
     },
-  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveVal, guest, user]);
+    {
+      title: t('settings.sections.danger_zone', lang),
+      danger: true,
+      data: [
+        { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: 'trash-outline', desc: t('settings.menu.reset_db.desc', lang) },
+      ],
+    },
+  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveVal, guest, user, lang]);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const sectionPositions = useRef([]);
@@ -138,11 +142,8 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
       setActiveSectionIndex(prev => (prev !== newActiveIndex ? newActiveIndex : prev));
     });
 
-    return () => {
-      scrollY.removeListener(listenerId);
-    };
+    return () => scrollY.removeListener(listenerId);
   }, [headerHeight, sections]);
-
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
@@ -153,7 +154,6 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
       ]}
     >
       <View style={styles.left}>
-        {/* Фарбуємо іконку в червоний, якщо це небезпечна дія (danger: true) */}
         <Icon 
           name={item.icon} 
           size={20} 
@@ -183,9 +183,8 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
-      
       <SettingsHeader 
-        title="Налаштування" 
+        title={t('common.settings', lang)} 
         subTitle={sections[activeSectionIndex]?.title || ""} 
         subTitleIndex={activeSectionIndex}
         scrollY={scrollY} 

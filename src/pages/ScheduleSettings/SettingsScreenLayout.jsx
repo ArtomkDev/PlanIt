@@ -1,10 +1,11 @@
 import React, { useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { useRoute } from '@react-navigation/native'; // Щоб отримати назву екрану
+import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/SettingsHeader';
+import { t } from '../../utils/i18n';
 
 export default function SettingsScreenLayout({ children, contentContainerStyle }) {
   const { global } = useSchedule();
@@ -13,23 +14,21 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
-  // Визначаємо заголовок
-  // Спочатку шукаємо в options, якщо нема - беремо назву роута
-  // (В React Navigation 6 options доступні трохи інакше, тому тут проста евристика)
-  // Найкраще передавати title пропом, але щоб не міняти всі файли, візьмемо назву з мапи
   const routeTitles = {
-    'Breaks': 'Перерви',
-    'Weeks': 'Тижні',
-    'StartWeek': 'Початок семестру',
-    'Subjects': 'Предмети',
-    'Teachers': 'Викладачі',
-    'Schedule': 'Редактор розкладу',
-    'ScheduleSwitcher': 'Мої розклади',
-    'AutoSave': 'Автозбереження',
-    'Theme': 'Тема',
-    'ResetDB': 'Скидання',
-    'DeviceService': 'Пристрої',
+    'Breaks': t('settings.menu.breaks.title', lang),
+    'Weeks': t('settings.menu.weeks.title', lang),
+    'StartWeek': t('settings.menu.start_date.title', lang),
+    'Subjects': t('settings.menu.subjects.title', lang),
+    'Teachers': t('settings.menu.teachers.title', lang),
+    'Schedule': t('settings.menu.schedule.title', lang),
+    'ScheduleSwitcher': t('settings.menu.global_schedule.title', lang),
+    'AutoSave': t('settings.menu.autosave.title', lang),
+    'Theme': t('settings.menu.themes.title', lang),
+    'Language': t('settings.menu.language.title', lang),
+    'ResetDB': t('settings.menu.reset_db.title', lang),
+    'DeviceService': t('settings.menu.devices.title', lang),
   };
   
   const title = routeTitles[route.name] || route.name;
@@ -39,15 +38,13 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
-      
-      {/* Наш кастомний хедер */}
       <SettingsHeader title={title} scrollY={scrollY} />
 
       <Animated.ScrollView
         contentContainerStyle={[
           styles.content,
           contentContainerStyle,
-          { paddingTop: headerHeight + 20 } // Відступ для контенту
+          { paddingTop: headerHeight + 20 }
         ]}
         keyboardShouldPersistTaps="handled"
         onScroll={Animated.event(

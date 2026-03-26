@@ -40,6 +40,9 @@
     },
     "updates": {
       "url": "https://u.expo.dev/c405e09d-0c69-44bd-859a-d6123086964f"
-    }
+    },
+    "plugins": [
+      "expo-localization"
+    ]
   }
 }

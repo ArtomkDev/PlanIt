@@ -24,6 +24,7 @@ import SettingsScreenLayout from "../SettingsScreenLayout";
 import { db } from "../../../../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import themes from "../../../config/themes";
+import { t } from "../../../utils/i18n";
 
 export default function DeviceManager() {
   const { user, global } = useSchedule();
@@ -35,6 +36,7 @@ export default function DeviceManager() {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
   useEffect(() => {
     if (!user) return;
@@ -56,7 +58,6 @@ export default function DeviceManager() {
     return () => unsubscribe();
   }, [user]);
 
-  // Гарантуємо, що поточний пристрій завжди буде найпершим у списку
   const sortedDevices = useMemo(() => {
     return [...devices].sort((a, b) => {
       if (a.id === currentDeviceId) return -1;
@@ -66,9 +67,9 @@ export default function DeviceManager() {
   }, [devices, currentDeviceId]);
 
   const parseWebUserAgent = (ua) => {
-    if (!ua) return "Unknown Device";
-    let browser = "Web Browser";
-    let os = "Unknown OS";
+    if (!ua) return t('settings.device_screen.unknown_device', lang);
+    let browser = t('settings.device_screen.web_browser', lang);
+    let os = t('settings.device_screen.unknown_os', lang);
 
     if (ua.includes("Edg")) browser = "Edge";
     else if (ua.includes("Chrome")) browser = "Chrome";
@@ -85,7 +86,7 @@ export default function DeviceManager() {
   };
 
   const getDeviceDisplayName = (device) => {
-    if (!device) return "Unknown Device"; 
+    if (!device) return t('settings.device_screen.unknown_device', lang); 
 
     if (device.platform === "Web") return parseWebUserAgent(device.name);
     
@@ -97,7 +98,7 @@ export default function DeviceManager() {
       return device.model;
     }
     
-    return device.name || "Unknown Device";
+    return device.name || t('settings.device_screen.unknown_device', lang);
   };
 
   const getDeviceIconDetails = (device) => {
@@ -116,7 +117,7 @@ export default function DeviceManager() {
   };
 
   const formatDate = (isoString) => {
-    if (!isoString) return "Невідомо";
+    if (!isoString) return t('settings.device_screen.unknown_date', lang);
     return new Date(isoString).toLocaleString(undefined, {
       month: "short",
       day: "numeric",
@@ -137,7 +138,7 @@ export default function DeviceManager() {
     return (
       <SettingsScreenLayout>
         <Text style={[styles.loadingText, { color: themeColors.textColor2 }]}>
-          Завантаження пристроїв...
+          {t('settings.device_screen.loading', lang)}
         </Text>
       </SettingsScreenLayout>
     );
@@ -185,7 +186,7 @@ export default function DeviceManager() {
           {isCurrent ? (
             <View style={[styles.currentBadge, { backgroundColor: themeColors.accentColor + "20" }]}>
               <Text style={[styles.currentBadgeText, { color: themeColors.accentColor }]}>
-                Поточний
+                {t('settings.device_screen.current', lang)}
               </Text>
             </View>
           ) : (
@@ -202,7 +203,6 @@ export default function DeviceManager() {
     );
   }
 
-  // Робимо відступ для нижньої панелі в ScrollView
   const bottomPadding = insets.bottom + (Platform.OS === 'ios' ? 90 : 110);
 
   return (
@@ -211,14 +211,13 @@ export default function DeviceManager() {
         
         <View>
           <Text style={[styles.title, { color: themeColors.textColor }]}>
-            Активні сеанси
+            {t('settings.device_screen.active_sessions', lang)}
           </Text>
           <View style={styles.listContent}>
             {sortedDevices.map((device, index) => renderDevice(device, index))}
           </View>
         </View>
 
-        {/* Додаємо marginBottom сюди, щоб скрол міг підняти кнопку над таб-баром */}
         {sortedDevices.length > 1 && (
           <Animated.View 
             entering={FadeInDown.delay(300).springify()} 
@@ -236,7 +235,7 @@ export default function DeviceManager() {
                 style={{ marginRight: 8 }} 
               />
               <Text style={[styles.deactivateAllText, { color: themes.accentColors.red }]}>
-                Вийти на всіх інших пристроях
+                {t('settings.device_screen.logout_all_others', lang)}
               </Text>
             </TouchableOpacity>
           </Animated.View>

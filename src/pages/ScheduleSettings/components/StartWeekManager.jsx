@@ -6,14 +6,15 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import SettingsScreenLayout from '../SettingsScreenLayout';
+import { t } from '../../../utils/i18n';
 
 export default function StartWeekScreen() {
   const { global, schedule, setScheduleDraft } = useSchedule();
+  const lang = global?.language || 'uk';
 
   const [showPicker, setShowPicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Використовуємо тему з розкладу або дефолт
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -48,7 +49,7 @@ export default function StartWeekScreen() {
     <SettingsScreenLayout>
       <View style={styles.inputContainer}>
         <Button
-          title={`Вибрати дату (${getMondayOfWeek(selectedDate).toISOString().split('T')[0]})`}
+          title={`${t('settings.start_week_manager.select_date', lang)} (${getMondayOfWeek(selectedDate).toISOString().split('T')[0]})`}
           onPress={() => setShowPicker(!showPicker)}
           color={themeColors.accentColor}
         />

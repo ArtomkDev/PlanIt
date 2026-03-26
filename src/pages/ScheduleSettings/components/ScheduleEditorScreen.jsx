@@ -1,4 +1,3 @@
-// src/pages/ScheduleSettings/components/ScheduleEditorScreen.jsx
 import React, { useState, useEffect } from "react";
 import { 
   View, 
@@ -20,6 +19,7 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import useUniqueId from "../../../hooks/useUniqueId";
 import defaultSchedule from "../../../config/defaultSchedule";
 import themes from "../../../config/themes";
+import { t } from "../../../utils/i18n";
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -36,6 +36,7 @@ const ScheduleEditorScreen = () => {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
   const [name, setName] = useState("");
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
@@ -90,9 +91,6 @@ const ScheduleEditorScreen = () => {
         return { ...prev, schedules: nextSchedules };
       });
       
-      // 🔥 ВИПРАВЛЕННЯ: Викликаємо setGlobalDraft без реальних змін, 
-      // щоб під капотом ScheduleProvider спрацювало setIsDirty(true).
-      // Це успішно запустить таймер AutoSaveManager, і збереження відбудеться плавно.
       setGlobalDraft(prev => prev);
     }
 
@@ -112,7 +110,7 @@ const ScheduleEditorScreen = () => {
           <Ionicons name="chevron-back" size={28} color={themeColors.accentColor} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>
-          {isNew ? "Новий розклад" : "Редагування"}
+          {isNew ? t('settings.schedule_editor.new_schedule', lang) : t('settings.schedule_editor.edit_schedule', lang)}
         </Text>
         <View style={styles.backButton} />
       </View>
@@ -128,12 +126,14 @@ const ScheduleEditorScreen = () => {
           bounces={false}
         >
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: themeColors.textColor2 }]}>Назва розкладу</Text>
+            <Text style={[styles.label, { color: themeColors.textColor2 }]}>
+              {t('settings.schedule_editor.schedule_name', lang)}
+            </Text>
             <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
               <Ionicons name="calendar-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: themeColors.textColor }]}
-                placeholder="Введіть назву..."
+                placeholder={t('settings.schedule_editor.enter_name', lang)}
                 placeholderTextColor={themeColors.textColor2 + '80'}
                 value={name}
                 onChangeText={setName}
@@ -151,7 +151,9 @@ const ScheduleEditorScreen = () => {
                 style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 
                 onPress={() => navigation.goBack()}
             >
-              <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
+              <Text style={[styles.buttonText, { color: themeColors.textColor }]}>
+                {t('common.cancel', lang)}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -170,7 +172,7 @@ const ScheduleEditorScreen = () => {
                 styles.saveButtonText, 
                 { color: isFormValid ? "#fff" : themeColors.textColor2 }
               ]}>
-                {isNew ? "Створити" : "Зберегти"}
+                {isNew ? t('common.create', lang) : t('common.save', lang)}
               </Text>
             </TouchableOpacity>
           </View>

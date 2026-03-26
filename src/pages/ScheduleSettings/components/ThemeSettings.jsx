@@ -5,12 +5,14 @@ import themes from "../../../config/themes";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../SettingsScreenLayout";
 import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
+import { t } from "../../../utils/i18n";
 
 const ThemeSettings = () => {
   const { global, setGlobalDraft } = useSchedule();
   
   const [currentMode, currentAccent] = global?.theme || ["light", "blue"];
   const currentBlur = global?.blur ?? true;
+  const lang = global?.language || 'uk'; 
   
   const [selectedMode, setSelectedMode] = useState(currentMode);
   const [selectedColor, setSelectedColor] = useState(currentAccent);
@@ -66,13 +68,13 @@ const ThemeSettings = () => {
       <View style={styles.container}>
         
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          Режим
+          {t('settings.theme_screen.mode_title', lang)}
         </Text>
         <View style={styles.themeContainer}>
           {[
-            { key: "light", label: "☀️ Світла" },
-            { key: "dark", label: "🌙 Темна" },
-            { key: "oled", label: "🖤 OLED" },
+            { key: "light", label: `☀️ ${t('settings.theme_screen.modes.light', lang)}` },
+            { key: "dark", label: `🌙 ${t('settings.theme_screen.modes.dark', lang)}` },
+            { key: "oled", label: `🖤 ${t('settings.theme_screen.modes.oled', lang)}` },
           ].map((item) => (
             <TouchableOpacity
               key={item.key}
@@ -99,9 +101,13 @@ const ThemeSettings = () => {
 
         <View style={[styles.switchRow, { backgroundColor: themeColors.backgroundColor2 }]}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.switchLabel, { color: themeColors.textColor }]}>Ефект розмиття (Blur)</Text>
+            <Text style={[styles.switchLabel, { color: themeColors.textColor }]}>
+              {t('settings.theme_screen.blur_title', lang)}
+            </Text>
             <Text style={[styles.switchSubLabel, { color: themeColors.textColor2 }]}>
-              {selectedMode === 'oled' ? 'У режимі OLED блюр буде темним' : 'Прозорість елементів інтерфейсу'}
+              {selectedMode === 'oled' 
+                ? t('settings.theme_screen.blur_desc_oled', lang) 
+                : t('settings.theme_screen.blur_desc_normal', lang)}
             </Text>
           </View>
           <Switch
@@ -113,7 +119,7 @@ const ThemeSettings = () => {
         </View>
 
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          Акцентний колір
+          {t('settings.theme_screen.accent_title', lang)}
         </Text>
         
         <View style={styles.colorsContainer}>
@@ -141,7 +147,7 @@ const ThemeSettings = () => {
         </View>
 
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          Результат
+          {t('settings.theme_screen.preview.title', lang)}
         </Text>
         <View
           style={[
@@ -150,15 +156,15 @@ const ThemeSettings = () => {
           ]}
         >
           <Text style={[styles.previewHeader, { color: themeColors.accentColor }]}>
-            Заголовок акцентним кольором
+            {t('settings.theme_screen.preview.header', lang)}
           </Text>
           <Text style={[styles.previewText, { color: themeColors.textColor }]}>
-            Блюр: {isBlurEnabled ? "Увімкнено" : "Вимкнено"}.
-            Режим: {selectedMode.toUpperCase()}.
+            {t('settings.theme_screen.preview.blur_label', lang)} {isBlurEnabled ? t('common.enabled', lang) : t('common.disabled', lang)}.{"\n"}
+            {t('settings.theme_screen.preview.mode_label', lang)} {selectedMode.toUpperCase()}.
           </Text>
           
           <View style={[styles.dummyButton, { backgroundColor: themeColors.accentColor }]}>
-             <Text style={{ color: '#fff', fontWeight: 'bold' }}>Кнопка</Text>
+             <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t('settings.theme_screen.preview.button', lang)}</Text>
           </View>
         </View>
 

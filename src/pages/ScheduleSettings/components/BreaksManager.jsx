@@ -1,4 +1,3 @@
-// src/pages/ScheduleSettings/components/BreaksManager.jsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -18,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
+import { t } from '../../../utils/i18n';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -30,8 +30,8 @@ export default function BreaksManager() {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
-  // Використовуємо рядки для зручного редагування в TextInput
   const [tempBreaks, setTempBreaks] = useState(() => schedule.breaks.map(String));
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -74,7 +74,6 @@ export default function BreaksManager() {
   };
 
   const handleSave = () => {
-    // Конвертуємо назад у числа, прибираємо порожні значення або 0
     const finalBreaks = tempBreaks
       .map(Number)
       .map(n => isNaN(n) || n <= 0 ? 10 : n); 
@@ -96,7 +95,7 @@ export default function BreaksManager() {
           <Ionicons name="chevron-back" size={28} color={themeColors.textColor} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>
-          Налаштування перерв
+          {t('settings.breaks_manager.title', lang)}
         </Text>
         <View style={styles.backButton} />
       </View>
@@ -120,7 +119,7 @@ export default function BreaksManager() {
                 <View style={styles.cardLeft}>
                   <Ionicons name="time-outline" size={22} color={themeColors.accentColor} style={styles.cardIcon} />
                   <Text style={[styles.cardTitle, { color: themeColors.textColor }]}>
-                    Перерва {index + 1}
+                    {t('settings.breaks_manager.break_item', lang)} {index + 1}
                   </Text>
                 </View>
 
@@ -139,7 +138,9 @@ export default function BreaksManager() {
                     maxLength={3}
                     selectTextOnFocus
                   />
-                  <Text style={[styles.minutesText, { color: themeColors.textColor2 }]}>хв</Text>
+                  <Text style={[styles.minutesText, { color: themeColors.textColor2 }]}>
+                    {t('settings.breaks_manager.minutes', lang)}
+                  </Text>
                   
                   <TouchableOpacity 
                     style={styles.deleteBtn} 
@@ -161,7 +162,9 @@ export default function BreaksManager() {
               activeOpacity={0.7}
             >
               <Ionicons name="add-circle-outline" size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} />
-              <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>Додати перерву</Text>
+              <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>
+                {t('settings.breaks_manager.add_btn', lang)}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -172,7 +175,9 @@ export default function BreaksManager() {
                 style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 
                 onPress={() => navigation.goBack()}
             >
-              <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
+              <Text style={[styles.buttonText, { color: themeColors.textColor }]}>
+                {t('common.cancel', lang)}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -191,7 +196,7 @@ export default function BreaksManager() {
                 styles.saveButtonText, 
                 { color: isChanged ? "#fff" : themeColors.textColor2 }
               ]}>
-                Зберегти
+                {t('common.save', lang)}
               </Text>
             </TouchableOpacity>
           </View>

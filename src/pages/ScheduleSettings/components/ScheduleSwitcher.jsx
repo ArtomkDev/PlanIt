@@ -18,6 +18,7 @@ import Animated, {
 import { useSchedule } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../SettingsScreenLayout";
 import themes from "../../../config/themes"; 
+import { t } from "../../../utils/i18n";
 
 const ScheduleSwitcher = () => {
   const { global, setGlobalDraft, schedules, removeSchedule } = useSchedule();
@@ -25,6 +26,7 @@ const ScheduleSwitcher = () => {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
   if (!global) return null;
 
@@ -44,34 +46,31 @@ const ScheduleSwitcher = () => {
   };
 
   const handleDelete = (scheduleId, scheduleName) => {
-    // 1. Обробка спроби видалити останній розклад
     if (schedules.length <= 1) {
       if (Platform.OS === 'web') {
-        window.alert("Ви не можете видалити останній розклад.");
+        window.alert(t('settings.schedule_switcher.last_schedule_error', lang));
       } else {
-        Alert.alert("Увага", "Ви не можете видалити останній розклад.");
+        Alert.alert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
       }
       return;
     }
 
-    const message = `Ви дійсно хочете видалити розклад "${scheduleName || "Без назви"}"? Цю дію неможливо скасувати.`;
+    const untitledName = t('settings.schedule_switcher.untitled', lang);
+    const message = t('settings.schedule_switcher.delete_confirm_msg', lang).replace('{name}', scheduleName || untitledName);
 
-    // 2. Обробка підтвердження видалення залежно від платформи
     if (Platform.OS === 'web') {
-      // Використовуємо нативний браузерний confirm для Web
       const confirmed = window.confirm(message);
       if (confirmed) {
         removeSchedule(scheduleId);
       }
     } else {
-      // Використовуємо нативний UI Alert для мобільних пристроїв
       Alert.alert(
-        "Видалити розклад?",
+        t('settings.schedule_switcher.delete_title', lang),
         message,
         [
-          { text: "Скасувати", style: "cancel" },
+          { text: t('common.cancel', lang), style: "cancel" },
           { 
-            text: "Видалити", 
+            text: t('common.delete', lang), 
             style: "destructive", 
             onPress: () => removeSchedule(scheduleId)
           }
@@ -83,7 +82,9 @@ const ScheduleSwitcher = () => {
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>Ваші розклади</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
+          {t('settings.schedule_switcher.your_schedules', lang)}
+        </Text>
 
         <View style={styles.listContent}>
           {schedules.map((s, index) => {
@@ -117,7 +118,7 @@ const ScheduleSwitcher = () => {
                       { color: themeColors.textColor },
                       isSelected && { color: themeColors.accentColor, fontWeight: "bold" }
                     ]}>
-                      {s.name || "Без назви"}
+                      {s.name || t('settings.schedule_switcher.untitled', lang)}
                     </Text>
                   </View>
 
@@ -153,7 +154,9 @@ const ScheduleSwitcher = () => {
               activeOpacity={0.7}
             >
               <Ionicons name="add-circle-outline" size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} />
-              <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>Додати новий</Text>
+              <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>
+                {t('settings.schedule_switcher.add_new', lang)}
+              </Text>
             </TouchableOpacity>
           </Animated.View>
           

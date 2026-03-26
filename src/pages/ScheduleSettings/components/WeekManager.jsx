@@ -3,9 +3,11 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import SettingsScreenLayout from '../SettingsScreenLayout';
+import { t } from '../../../utils/i18n';
 
 export default function WeekManager() {
   const { global, schedule, setScheduleDraft } = useSchedule();
+  const lang = global?.language || 'uk';
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -17,7 +19,7 @@ export default function WeekManager() {
     <SettingsScreenLayout>
       <View style={styles.repeatContainer}>
         <Text style={[styles.repeatLabel, { color: themeColors.textColor }]}>
-          Кількість тижнів повторення:
+          {t('settings.week_manager.repeat_label', lang)}
         </Text>
         <View style={styles.repeatButtons}>
           {[1, 2, 3, 4].map((value) => (
