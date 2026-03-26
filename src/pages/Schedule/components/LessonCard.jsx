@@ -12,6 +12,39 @@ const CELL_SIZE = 38;
 const ICON_SIZE = 18;
 const CARD_BORDER_RADIUS = 18;
 
+const cachedPatternPositions = {};
+
+const getPatternPositions = (width, height) => {
+  const key = `${width}_${height}`;
+  if (cachedPatternPositions[key]) {
+    return cachedPatternPositions[key];
+  }
+
+  const positions = [];
+  const startX = (width % CELL_SIZE) / 2 - CELL_SIZE;
+  const startY = (height % CELL_SIZE) / 2 - CELL_SIZE;
+
+  let r = 0;
+  for (let y = startY; y < height; y += CELL_SIZE) {
+    let c = 0;
+    for (let x = startX; x < width; x += CELL_SIZE) {
+      if ((r + c) % 2 === 0) {
+        const iconTop = y + (CELL_SIZE - ICON_SIZE) / 2;
+        const iconLeft = x + (CELL_SIZE - ICON_SIZE) / 2;
+        
+        if (iconLeft + ICON_SIZE > 0 && iconLeft < width && iconTop + ICON_SIZE > 0 && iconTop < height) {
+          positions.push({ top: iconTop, left: iconLeft, key: `${r}-${c}` });
+        }
+      }
+      c++;
+    }
+    r++;
+  }
+  
+  cachedPatternPositions[key] = positions;
+  return positions;
+};
+
 const isLightColor = (color) => {
   if (!color || typeof color !== 'string') return true;
   
@@ -82,7 +115,7 @@ function useLessonTimer(startStr, endStr, isToday) {
   return timerState;
 }
 
-function useLessonData(lesson, schedule) {
+function useLessonData(lesson, schedule, isDark) {
   return useMemo(() => {
     const { subjects = [], teachers = [], gradients = [] } = schedule || {};
     const subject = subjects.find((s) => s.id === lesson?.subjectId) || {};
@@ -101,6 +134,28 @@ function useLessonData(lesson, schedule) {
       }
     }
 
+    let primaryColor = subjectColor;
+    if (activeGrad?.colors && activeGrad.colors.length > 0) {
+        primaryColor = activeGrad.colors[0];
+    }
+
+    let activePillText = isDark ? '#111111' : '#ffffff';
+    if (isDark) {
+      if (!isLightColor(primaryColor)) {
+        activePillText = primaryColor;
+      } else if (activeGrad?.colors) {
+        const darkColor = activeGrad.colors.find(c => !isLightColor(c));
+        if (darkColor) activePillText = darkColor;
+      }
+    } else {
+      if (isLightColor(primaryColor)) {
+        activePillText = primaryColor;
+      } else if (activeGrad?.colors) {
+        const lightColor = activeGrad.colors.find(c => isLightColor(c));
+        if (lightColor) activePillText = lightColor;
+      }
+    }
+
     return {
       subject,
       teacher,
@@ -109,9 +164,10 @@ function useLessonData(lesson, schedule) {
       displayBuilding: instanceData.building || subject.building,
       MainIcon: getIconComponent(subject.icon),
       activeGrad,
-      subjectColor
+      subjectColor,
+      activePillText
     };
-  }, [lesson, schedule]);
+  }, [lesson, schedule, isDark]);
 }
 
 const ActiveHighlight = React.memo(({ isActive, isDark }) => {
@@ -155,11 +211,17 @@ const ActiveHighlight = React.memo(({ isActive, isDark }) => {
   );
 });
 
-const BackgroundPattern = React.memo(({ MainIcon, width, height }) => {
+const BackgroundPattern = React.memo(({ MainIcon }) => {
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
+  const positions = useMemo(() => {
+    if (dimensions.width === 0 || dimensions.height === 0) return [];
+    return getPatternPositions(dimensions.width, dimensions.height);
+  }, [dimensions.width, dimensions.height]);
+
   useEffect(() => {
-    if (MainIcon && width > 0 && height > 0) {
+    if (MainIcon && positions.length > 0) {
       opacityAnim.setValue(0);
       Animated.timing(opacityAnim, { 
         toValue: 1, 
@@ -167,103 +229,52 @@ const BackgroundPattern = React.memo(({ MainIcon, width, height }) => {
         useNativeDriver: Platform.OS !== 'web' 
       }).start();
     }
-  }, [MainIcon, width, height]);
+  }, [MainIcon, positions.length]);
 
-  if (!MainIcon || width === 0 || height === 0) return null;
+  const handleLayout = useCallback((event) => {
+    const { width, height } = event.nativeEvent.layout;
+    setDimensions(prev => {
+      if (Math.abs(prev.width - width) < 2 && Math.abs(prev.height - height) < 2) return prev;
+      return { width: Math.round(width), height: Math.round(height) };
+    });
+  }, []);
 
-  const icons = [];
-  const startX = (width % CELL_SIZE) / 2 - CELL_SIZE;
-  const startY = (height % CELL_SIZE) / 2 - CELL_SIZE;
-
-  let r = 0;
-  for (let y = startY; y < height; y += CELL_SIZE) {
-    let c = 0;
-    for (let x = startX; x < width; x += CELL_SIZE) {
-      if ((r + c) % 2 === 0) {
-        const iconTop = y + (CELL_SIZE - ICON_SIZE) / 2;
-        const iconLeft = x + (CELL_SIZE - ICON_SIZE) / 2;
-        
-        const isVisible = (
-          iconLeft + ICON_SIZE > 0 && 
-          iconLeft < width && 
-          iconTop + ICON_SIZE > 0 && 
-          iconTop < height
-        );
-
-        if (isVisible) {
-          icons.push(
-            <View 
-              key={`${r}-${c}`} 
-              style={[
-                styles.patternIconWrapper, 
-                { top: iconTop, left: iconLeft }
-              ]}
-            >
-              <MainIcon 
-                size={ICON_SIZE} 
-                color="white" 
-                strokeWidth={2} 
-                style={Platform.OS === 'web' ? { overflow: 'visible' } : {}}
-              />
-            </View>
-          );
-        }
-      }
-      c++;
-    }
-    r++;
-  }
+  if (!MainIcon) return null;
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: opacityAnim, zIndex: 0 }]} pointerEvents="none">
-      {icons}
+    <Animated.View 
+      style={[StyleSheet.absoluteFillObject, { opacity: opacityAnim, zIndex: 0 }]} 
+      pointerEvents="none"
+      onLayout={handleLayout}
+    >
+      {positions.map(pos => (
+        <View 
+          key={pos.key} 
+          style={[styles.patternIconWrapper, { top: pos.top, left: pos.left }]}
+        >
+          <MainIcon 
+            size={ICON_SIZE} 
+            color="white" 
+            strokeWidth={2} 
+            style={Platform.OS === 'web' ? { overflow: 'visible' } : {}}
+          />
+        </View>
+      ))}
     </Animated.View>
   );
 });
 
 const LessonCardPure = React.memo(({ lesson, schedule, isToday, isDark, onPress, onLongPress }) => {
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
   const { 
-    subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad, subjectColor
-  } = useLessonData(lesson, schedule);
+    subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad, subjectColor, activePillText
+  } = useLessonData(lesson, schedule, isDark);
 
   const { timeLeft, isActive } = useLessonTimer(lesson?.timeInfo?.start, lesson?.timeInfo?.end, isToday);
-
-  const onLayout = useCallback((event) => {
-    const { width, height } = event.nativeEvent.layout;
-    setDimensions(prev => {
-      if (Math.abs(prev.width - width) < 1 && Math.abs(prev.height - height) < 1) return prev;
-      return { width, height };
-    });
-  }, []);
 
   const handlePress = () => onPress?.({ ...lesson, subject, teacher, displayType, displayRoom, displayBuilding });
   const handleLongPress = () => onLongPress?.({ ...lesson, subject, teacher });
 
   const activePillBg = isDark ? '#ffffff' : '#111111';
-  let activePillText = isDark ? '#111111' : '#ffffff';
-
-  let primaryColor = subjectColor;
-  if (activeGrad?.colors && activeGrad.colors.length > 0) {
-      primaryColor = activeGrad.colors[0];
-  }
-
-  if (isDark) {
-    if (!isLightColor(primaryColor)) {
-      activePillText = primaryColor;
-    } else if (activeGrad?.colors) {
-      const darkColor = activeGrad.colors.find(c => !isLightColor(c));
-      if (darkColor) activePillText = darkColor;
-    }
-  } else {
-    if (isLightColor(primaryColor)) {
-      activePillText = primaryColor;
-    } else if (activeGrad?.colors) {
-      const lightColor = activeGrad.colors.find(c => isLightColor(c));
-      if (lightColor) activePillText = lightColor;
-    }
-  }
 
   return (
     <TouchableOpacity
@@ -272,15 +283,10 @@ const LessonCardPure = React.memo(({ lesson, schedule, isToday, isDark, onPress,
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={300}
-      onLayout={onLayout}
     >
       <View style={styles.backgroundWrapper}>
         {activeGrad && <GradientBackground gradient={activeGrad} style={StyleSheet.absoluteFillObject} />}
-        <BackgroundPattern 
-          MainIcon={MainIcon} 
-          width={dimensions.width} 
-          height={dimensions.height} 
-        />
+        <BackgroundPattern MainIcon={MainIcon} />
       </View>
 
       <ActiveHighlight isActive={isActive} isDark={isDark} />

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from "react";
-import { StyleSheet, View, TouchableOpacity, Text, FlatList, Platform, useWindowDimensions, Animated } from "react-native";
+import React, { useState, useRef, useCallback, useMemo, memo } from "react";
+import { StyleSheet, View, Text, FlatList, Platform, useWindowDimensions, Animated, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons"; 
 
 import Header from "./components/Header";
@@ -18,196 +18,150 @@ const HALF_SIZE = 300;
 const TOTAL_SIZE = HALF_SIZE * 2 + 1;
 const DAYS_INDICES = Array.from({ length: TOTAL_SIZE }, (_, i) => i - HALF_SIZE);
 
+const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handleAddLesson, scrollY }) => {
+    const targetDate = useMemo(() => {
+        const d = new Date(anchorDate);
+        d.setDate(d.getDate() + offset);
+        return d;
+    }, [offset, anchorDate]);
+
+    return (
+        <View style={{ width, flex: 1 }}>
+            <DayScheduleProvider date={targetDate}>
+               <DaySchedule 
+                  targetDate={targetDate} 
+                  onLessonPress={openViewer}
+                  onLessonLongPress={openEditor}
+                  onEmptyPress={handleAddLesson}
+                  scrollY={scrollY}
+               />
+            </DayScheduleProvider>
+        </View>
+    );
+});
+
 export default function Schedule() {
   const { global, schedule } = useSchedule();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   
-  const [anchorDate, setAnchorDate] = useState(new Date());
+  const [anchorDate, setAnchorDate] = useState(() => {
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    return d;
+  });
   const [currentDate, setCurrentDate] = useState(new Date());
-
+  
+  const flatListRef = useRef(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const isUserInteraction = useRef(false);
+  const isJumping = useRef(false);
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
-  
   const [editingLesson, setEditingLesson] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);
-
-  const flatListRef = useRef(null);
 
   if (!schedule) return <View style={styles.loading}><Text>Завантаження...</Text></View>;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
-  const themeColors = themes.getColors(mode, accent);
+  const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
 
-  const borderOpacity = scrollY.interpolate({
-    inputRange: [0, 20],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
+  const handleScroll = useCallback((event) => {
+    if (isJumping.current || !isUserInteraction.current) return;
 
-  const getDateByOffset = useCallback((offset) => {
-    const d = new Date(anchorDate);
-    d.setDate(anchorDate.getDate() + offset);
-    return d;
-  }, [anchorDate]);
-
-  const goToDate = (targetDate, animated = true) => {
-    const diffTime = targetDate.getTime() - anchorDate.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
-    
-    const targetIndex = diffDays + HALF_SIZE;
-    const isSafeRange = targetIndex >= 5 && targetIndex <= TOTAL_SIZE - 5;
-
-    if (isSafeRange) {
-      flatListRef.current?.scrollToIndex({ index: targetIndex, animated });
-      setCurrentDate(targetDate);
-    } else {
-      setAnchorDate(targetDate);
-      setCurrentDate(targetDate);
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ index: HALF_SIZE, animated: false });
-      }, 0);
-    }
-  };
-
-  const handleDateChange = (newDate) => goToDate(newDate, false);
-  const handleToday = () => goToDate(new Date(), true);
-
-  const handleScrollEnd = useCallback((event) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / SCREEN_WIDTH);
     const offset = index - HALF_SIZE;
-    
-    const newDate = getDateByOffset(offset);
+
+    const newDate = new Date(anchorDate);
+    newDate.setDate(anchorDate.getDate() + offset);
 
     if (newDate.toDateString() !== currentDate.toDateString()) {
         setCurrentDate(newDate);
     }
-  }, [SCREEN_WIDTH, currentDate, getDateByOffset]);
+  }, [SCREEN_WIDTH, anchorDate, currentDate]);
 
-  const renderItem = useCallback(({ item: offset }) => {
-    const dateForPage = getDateByOffset(offset);
-    return (
-      <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-        <DayScheduleProvider date={dateForPage}>
-           <DaySchedule 
-              onLessonPress={openViewer}
-              onLessonLongPress={openEditor}
-              onEmptyPress={handleAddLesson}
-              scrollY={scrollY}
-           />
-        </DayScheduleProvider>
-      </View>
-    );
-  }, [getDateByOffset, SCREEN_WIDTH]);
+  const goToDate = useCallback((targetDate, animated = true) => {
+    const diffDays = Math.round((targetDate.getTime() - anchorDate.getTime()) / (1000 * 3600 * 24));
+    
+    if (Math.abs(diffDays) < HALF_SIZE - 10) {
+        isJumping.current = true;
+        setCurrentDate(new Date(targetDate));
+        flatListRef.current?.scrollToIndex({ index: HALF_SIZE + diffDays, animated });
+        setTimeout(() => { isJumping.current = false; }, animated ? 500 : 0);
+    } else {
+        const newAnchor = new Date(targetDate);
+        newAnchor.setHours(0,0,0,0);
+        setAnchorDate(newAnchor);
+        setCurrentDate(new Date(targetDate));
+    }
+  }, [anchorDate]);
 
-  const getItemLayout = useCallback((data, index) => ({
-    length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index,
-  }), [SCREEN_WIDTH]);
+  const openViewer = useCallback((lesson) => { setViewingLesson(lesson); setViewerVisible(true); }, []);
+  const openEditor = useCallback((lesson) => { 
+    setViewerVisible(false);
+    setTimeout(() => { setEditingLesson(lesson); setEditorVisible(true); }, 100);
+  }, []);
 
-  const openViewer = (lesson) => { 
-      setViewingLesson(lesson); 
-      setViewerVisible(true); 
-  };
-  
-  const openEditor = (lesson) => { 
-      setViewerVisible(false);
-      setTimeout(() => {
-          setEditingLesson(lesson); 
-          setEditorVisible(true); 
-      }, 100);
-  };
-  
-  const handleAddLesson = () => { 
-      setEditingLesson({ index: null, subjectId: null }); 
-      setEditorVisible(true); 
-  };
+  const renderItem = useCallback(({ item: offset }) => (
+      <DayPage 
+         offset={offset} anchorDate={anchorDate} width={SCREEN_WIDTH}
+         openViewer={openViewer} openEditor={openEditor}
+         handleAddLesson={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }} 
+         scrollY={scrollY}
+      />
+  ), [anchorDate, SCREEN_WIDTH, openViewer, openEditor, scrollY]);
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
-      
       <View style={styles.headerContainer}>
-        <View style={StyleSheet.absoluteFill}>
-             <AppBlur style={StyleSheet.absoluteFill} intensity={50} />
-        </View>
-
+        <View style={StyleSheet.absoluteFill}><AppBlur style={StyleSheet.absoluteFill} intensity={50} /></View>
         <Header 
             currentDate={currentDate} 
-            onDateChange={handleDateChange} 
-            onTodayPress={handleToday}
+            onDateChange={(d) => goToDate(d, false)} 
+            onTodayPress={() => goToDate(new Date(), true)} 
             onTitlePress={() => setCalendarVisible(true)} 
         />
-        <WeekStrip 
-            currentDate={currentDate} 
-            onSelectDate={handleDateChange} 
-        />
-        
-        <Animated.View 
-            style={{ 
-                height: 1, 
-                backgroundColor: themeColors.borderColor, 
-                opacity: borderOpacity, 
-                width: '100%' 
-            }} 
-        />
+        <WeekStrip currentDate={currentDate} onSelectDate={(d) => goToDate(d, true)} />
+        <Animated.View style={{ height: 1, backgroundColor: themeColors.borderColor, width: '100%' }} />
       </View>
 
-      <View style={{ flex: 1 }}>
-          <FlatList
-            ref={flatListRef}
-            data={DAYS_INDICES}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.toString()}
-            horizontal
-            pagingEnabled
-            initialScrollIndex={HALF_SIZE}
-            getItemLayout={getItemLayout}
-            windowSize={5}
-            initialNumToRender={1}
-            maxToRenderPerBatch={2}
-            removeClippedSubviews={Platform.OS !== 'web'}
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleScrollEnd}
-            onLayout={() => {
-                if (Platform.OS === 'web') {
-                     flatListRef.current?.scrollToIndex({ index: HALF_SIZE, animated: false });
-                }
-            }}
-          />
+      <FlatList
+        key={`list-${anchorDate.toISOString()}`}
+        ref={flatListRef}
+        data={DAYS_INDICES}
+        renderItem={renderItem}
+        keyExtractor={item => item.toString()}
+        horizontal
+        pagingEnabled
+        initialScrollIndex={HALF_SIZE}
+        getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+        onScrollBeginDrag={() => { isUserInteraction.current = true; }} 
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={() => { isUserInteraction.current = false; }}
+        windowSize={3}
+        showsHorizontalScrollIndicator={false}
+      />
 
-          <TouchableOpacity 
-            style={[styles.fab, { backgroundColor: themeColors.accentColor }]}
-            onPress={handleAddLesson}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={32} color="#fff" />
-          </TouchableOpacity>
-      </View>
+      <TouchableOpacity 
+        style={[styles.fab, { backgroundColor: themeColors.accentColor }]}
+        onPress={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={32} color="#fff" />
+      </TouchableOpacity>
 
       {editorVisible && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 100 }]} pointerEvents="box-none">
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
            <DayScheduleProvider date={currentDate}>
-               <LessonEditor lesson={editingLesson} onClose={() => setEditorVisible(false)} />
+              <LessonEditor lesson={editingLesson} onClose={() => setEditorVisible(false)} />
            </DayScheduleProvider>
         </View>
       )}
-
-      <LessonViewer 
-        visible={viewerVisible}
-        lesson={viewingLesson}
-        onClose={() => setViewerVisible(false)}
-        onEdit={openEditor}
-      />
-
-      <CalendarSheet 
-        visible={calendarVisible}
-        currentDate={currentDate}
-        onClose={() => setCalendarVisible(false)}
-        onDateSelect={(date) => goToDate(date, true)}
-      />
-
+      <LessonViewer visible={viewerVisible} lesson={viewingLesson} onClose={() => setViewerVisible(false)} onEdit={openEditor} />
+      <CalendarSheet visible={calendarVisible} currentDate={currentDate} onClose={() => setCalendarVisible(false)} onDateSelect={date => goToDate(date, true)} />
     </View>
   );
 }
@@ -216,11 +170,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerContainer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  fab: { 
-      position: 'absolute', bottom: 90, right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', zIndex: 50,
-      ...Platform.select({ 
-          web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.3)' }, 
-          default: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4.65, elevation: 8 } 
-      })
-  }
+  fab: { position: 'absolute', bottom: 90, right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 8, zIndex: 50 }
 });

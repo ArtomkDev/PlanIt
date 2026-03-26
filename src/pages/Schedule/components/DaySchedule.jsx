@@ -30,19 +30,22 @@ function buildLessonTimes(startTime, duration, breaks, lessonsCount) {
 }
 
 export default function DaySchedule({ 
+  targetDate, 
   onLessonPress, 
   onLessonLongPress, 
   onEmptyPress,
   scrollY
 }) {
-  const { currentDate, getDaySchedule } = useDaySchedule();
+  const { getDaySchedule } = useDaySchedule();
   const { schedule, global } = useSchedule();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
-  const scheduleForDay = getDaySchedule ? getDaySchedule(currentDate) : [];
+  
+  // Дані розраховуються миттєво і синхронно
+  const scheduleForDay = getDaySchedule && targetDate ? getDaySchedule(targetDate) : [];
 
   const lessonTimes = useMemo(() => {
     return buildLessonTimes(start_time, duration, breaks, scheduleForDay.length);
@@ -74,9 +77,11 @@ export default function DaySchedule({
             const lessonData = isInstance ? item : {};
             const timeInfo = lessonTimes?.[index] || {};
 
+            const uniqueKey = `lesson-${index}-${subjectId}`;
+
             return (
               <LessonCard
-                key={index}
+                key={uniqueKey}
                 lesson={{ subjectId, index, timeInfo, data: lessonData }}
                 onPress={onLessonPress}
                 onLongPress={onLessonLongPress}
