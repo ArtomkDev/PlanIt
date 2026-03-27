@@ -10,8 +10,13 @@ import {
   Platform 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { t } from "../../../../../utils/i18n";
 
 export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack, themeColors }) {
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
+
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
 
@@ -26,7 +31,7 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
     onSaveLocal({
       ...localLinkData,
       id: linkId,
-      name: name.trim() || "Нове посилання",
+      name: name.trim() || t('schedule.lesson_editor.new_link_default', lang),
       url: url.trim()
     });
   };
@@ -44,12 +49,14 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
         bounces={false}
       >
         <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: themeColors.textColor2 }]}>Назва посилання</Text>
+          <Text style={[styles.label, { color: themeColors.textColor2 }]}>
+            {t('schedule.lesson_editor.link_name_label', lang)}
+          </Text>
           <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
             <Ionicons name="text-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: themeColors.textColor }]}
-              placeholder="Напр. Zoom лекція"
+              placeholder={t('schedule.lesson_editor.link_name_placeholder', lang)}
               placeholderTextColor={themeColors.textColor2 + '80'}
               value={name}
               onChangeText={setName}
@@ -59,7 +66,9 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: themeColors.textColor2 }]}>URL адреса</Text>
+          <Text style={[styles.label, { color: themeColors.textColor2 }]}>
+            {t('schedule.lesson_editor.link_url_label', lang)}
+          </Text>
           <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
             <Ionicons name="link-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
             <TextInput
@@ -74,7 +83,6 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
           </View>
         </View>
 
-        {/* Пустий блок, який виштовхує кнопки донизу */}
         <View style={{ flex: 1, minHeight: 40 }} />
 
         <View style={styles.buttonRow}>
@@ -82,14 +90,18 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
               style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 
               onPress={onBack}
           >
-            <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
+            <Text style={[styles.buttonText, { color: themeColors.textColor }]}>
+              {t('common.cancel', lang)}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
               style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]} 
               onPress={handleSave}
           >
-            <Text style={styles.saveButtonText}>Зберегти зміни</Text>
+            <Text style={styles.saveButtonText}>
+              {t('common.save_changes', lang)}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -98,7 +110,6 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
 }
 
 const styles = StyleSheet.create({
-  // Замінено flex: 1 на flexGrow: 1
   container: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 30 },
   formGroup: { marginBottom: 24 },
   label: { fontSize: 14, fontWeight: "500", marginBottom: 8, marginLeft: 4, textTransform: "uppercase", letterSpacing: 0.5 },

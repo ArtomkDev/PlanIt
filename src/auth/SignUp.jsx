@@ -5,8 +5,9 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../../firebase'; 
 import AuthLayout from '../components/AuthLayout';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
+import { useSchedule } from '../context/ScheduleProvider';
+import { t } from '../utils/i18n';
 
-// 🔥 ВАЖЛИВО: Винесено назовні
 const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, setIsPasswordVisible, isPasswordVisible, autoCapitalize="none", colors }) => (
   <View style={[styles.inputContainer, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
     <Ionicons name={icon} size={20} color={colors.textColor2} style={styles.inputIcon} />
@@ -28,6 +29,8 @@ const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, i
 );
 
 const SignUp = ({ navigation }) => {
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
   const { colors } = useSystemThemeColors('blue');
   
   const [name, setName] = useState('');
@@ -38,7 +41,7 @@ const SignUp = ({ navigation }) => {
 
   const handleSignUp = async () => {
     if (!name || !email || !password) {
-      Alert.alert('Помилка', 'Будь ласка, заповніть всі поля');
+      Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
       return;
     }
 
@@ -49,12 +52,12 @@ const SignUp = ({ navigation }) => {
       await updateProfile(user, { displayName: name });
       
     } catch (error) {
-       let msg = "Помилка реєстрації";
-       if (error.code === 'auth/email-already-in-use') msg = "Цей email вже використовується";
-       if (error.code === 'auth/weak-password') msg = "Пароль занадто слабкий (мінімум 6 символів)";
-       if (error.code === 'auth/invalid-email') msg = "Некоректний email";
+       let msg = t('auth.errors.signup_failed', lang);
+       if (error.code === 'auth/email-already-in-use') msg = t('auth.errors.email_already_in_use', lang);
+       if (error.code === 'auth/weak-password') msg = t('auth.errors.weak_password', lang);
+       if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
 
-       Alert.alert('Помилка', msg);
+       Alert.alert(t('common.error', lang), msg);
     } finally {
       setIsLoading(false);
     }
@@ -62,15 +65,15 @@ const SignUp = ({ navigation }) => {
 
   return (
     <AuthLayout
-      title="Створити акаунт"
-      subtitle="Зареєструйтесь, щоб зберігати розклад у хмарі."
+      title={t('auth.signup.title', lang)}
+      subtitle={t('auth.signup.subtitle', lang)}
       showBackButton
       onBack={() => navigation.goBack()}
     >
       <View style={styles.form}>
         <InputField
           icon="person-outline"
-          placeholder="Ваше ім'я"
+          placeholder={t('auth.fields.name', lang)}
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
@@ -78,14 +81,14 @@ const SignUp = ({ navigation }) => {
         />
         <InputField
           icon="mail-outline"
-          placeholder="Email пошта"
+          placeholder={t('auth.fields.email', lang)}
           value={email}
           onChangeText={setEmail}
           colors={colors}
         />
         <InputField
           icon="lock-closed-outline"
-          placeholder="Пароль"
+          placeholder={t('auth.fields.password', lang)}
           secureTextEntry={!isPasswordVisible}
           value={password}
           onChangeText={setPassword}
@@ -103,14 +106,18 @@ const SignUp = ({ navigation }) => {
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.registerButtonText}>Створити акаунт</Text>
+            <Text style={styles.registerButtonText}>{t('auth.signup.submit', lang)}</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.textColor2 }]}>Вже є акаунт? </Text>
+          <Text style={[styles.footerText, { color: colors.textColor2 }]}>
+            {t('auth.signup.already_have_account', lang)}
+          </Text>
           <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
-            <Text style={[styles.footerLink, { color: colors.accentColor }]}>Увійти</Text>
+            <Text style={[styles.footerLink, { color: colors.accentColor }]}>
+              {t('auth.signup.login_link', lang)}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

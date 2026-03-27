@@ -13,6 +13,7 @@ import AppBlur from "../../components/AppBlur";
 import { DayScheduleProvider } from "../../context/DayScheduleProvider";
 import { useSchedule } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
+import { t } from "../../utils/i18n";
 
 const HALF_SIZE = 300; 
 const TOTAL_SIZE = HALF_SIZE * 2 + 1;
@@ -62,7 +63,9 @@ export default function Schedule() {
   const [editingLesson, setEditingLesson] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);
 
-  if (!schedule) return <View style={styles.loading}><Text>Завантаження...</Text></View>;
+  const lang = global?.language || 'uk';
+
+  if (!schedule) return <View style={styles.loading}><Text>{t('schedule.loading', lang)}</Text></View>;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);

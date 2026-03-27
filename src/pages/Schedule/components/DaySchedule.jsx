@@ -4,6 +4,7 @@ import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import LessonCard from "./LessonCard";
 import themes from "../../../config/themes";
+import { t } from "../../../utils/i18n";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HEADER_HEIGHT = 140;
@@ -41,10 +42,10 @@ export default function DaySchedule({
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
   const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
   
-  // Дані розраховуються миттєво і синхронно
   const scheduleForDay = getDaySchedule && targetDate ? getDaySchedule(targetDate) : [];
 
   const lessonTimes = useMemo(() => {
@@ -91,10 +92,10 @@ export default function DaySchedule({
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={[styles.noData, {color: themeColors.textColor2}]}>
-                Пар немає 🎉
+              {t('schedule.day_schedule.no_classes', lang)}
             </Text>
             <Text style={[styles.hint, {color: themeColors.textColor3}]}>
-                Затисніть екран, щоб додати
+              {t('schedule.day_schedule.add_hint', lang)}
             </Text>
           </View>
         )}

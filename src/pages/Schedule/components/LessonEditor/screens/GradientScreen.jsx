@@ -5,6 +5,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import tinycolor from "tinycolor2";
 import GradientBackground from "../../../../../components/GradientBackground";
 import TabSwitcher from "../ui/TabSwitcher";
+import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { t } from "../../../../../utils/i18n";
 
 const HUE_COLORS = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000'];
 const HUE_INDICATOR_WIDTH = 32;
@@ -83,6 +85,9 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
 };
 
 export default function LessonEditorGradientEditScreen({ themeColors, gradientToEdit, onSave }) {
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
+
   const getInitialColor = (index, fallback) => {
     if (gradientToEdit && gradientToEdit.colors && gradientToEdit.colors[index]) {
       const c = gradientToEdit.colors[index];
@@ -118,8 +123,8 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
   };
 
   const tabs = [
-    { id: 0, label: "Колір 1", colorDot: color1 },
-    { id: 1, label: "Колір 2", colorDot: color2 },
+    { id: 0, label: `${t('schedule.lesson_editor.color_tab', lang)} 1`, colorDot: color1 },
+    { id: 1, label: `${t('schedule.lesson_editor.color_tab', lang)} 2`, colorDot: color2 },
   ];
 
   return (
@@ -132,7 +137,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
       </View>
       <View style={styles.sliderContainer}>
         <View style={styles.sliderHeader}>
-          <Text style={[styles.label, { color: themeColors.textColor }]}>Кут нахилу</Text>
+          <Text style={[styles.label, { color: themeColors.textColor }]}>{t('schedule.lesson_editor.gradient_angle', lang)}</Text>
           <Text style={[styles.value, { color: themeColors.accentColor }]}>{Math.round(angle)}°</Text>
         </View>
         <View style={styles.sliderTrackWrapper} onStartShouldSetResponder={() => true} onResponderTerminationRequest={() => false}>
@@ -157,7 +162,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
         onChange={(newColor) => activeTab === 0 ? setColor1(newColor) : setColor2(newColor)} 
       />
       <TouchableOpacity style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} onPress={handleSave}>
-        <Text style={styles.saveText}>Зберегти градієнт</Text>
+        <Text style={styles.saveText}>{t('schedule.lesson_editor.save_gradient', lang)}</Text>
       </TouchableOpacity>
     </View>
   );

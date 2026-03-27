@@ -20,10 +20,151 @@ export default {
     warning: "Warning",
     delete: "Delete",
     create: "Create",
+    edit: "Edit",
+    done: "Done",
+    save_changes: "Save changes",
+    months: {
+      jan: "January", feb: "February", mar: "March", apr: "April",
+      may: "May", jun: "June", jul: "July", aug: "August",
+      sep: "September", oct: "October", nov: "November", dec: "December"
+    },
+  },
+
+  auth: {
+    signin: {
+      title: "Welcome back!",
+      subtitle: "Sign in to sync your schedule.",
+      forgot_password: "Forgot password?",
+      submit: "Sign In",
+      no_account: "Don't have an account? ",
+      signup_link: "Sign Up",
+    },
+    signup: {
+      title: "Create account",
+      subtitle: "Sign up to keep your schedule in the cloud.",
+      submit: "Create account",
+      already_have_account: "Already have an account? ",
+      login_link: "Sign In",
+    },
+    fields: {
+      email: "Email address",
+      password: "Password",
+      name: "Your name",
+    },
+    errors: {
+      fill_fields: "Please fill in all fields",
+      signin_failed: "Sign in failed",
+      signup_failed: "Registration failed",
+      invalid_email: "Invalid email format",
+      wrong_credentials: "Wrong email or password",
+      too_many_requests: "Too many requests. Try again later.",
+      email_already_in_use: "This email is already in use",
+      weak_password: "Password is too weak (min 6 characters)",
+    },
+    welcome: {
+      subtitle: "Your perfect class schedule is always at hand.",
+      guest_btn: "Continue as guest",
+    },
+  },
+
+  main_layout: {
+    no_schedule_data: "No schedule data",
+  },
+
+  schedule: {
+    loading: "Loading...",
+    day_schedule: {
+      no_classes: "No classes",
+      add_hint: "Long press to add",
+    },
+    header: {
+      today: "Today",
+    },
+    lesson_viewer: {
+      untitled: "Untitled",
+      time: "Time",
+      room: "Room",
+      teachers: "TEACHERS",
+      materials: "MATERIALS",
+      default_link: "Link",
+      link_error: "Could not open link: ",
+    },
+    lesson_editor: {
+      edit: "Edit",
+      new_lesson: "New Lesson",
+      card_color: "Card Color",
+      gradient_settings: "Gradient Settings",
+      teachers: "Teachers",
+      links: "Links",
+      subjects: "Subjects",
+      lesson_type: "Lesson Type",
+      choose_icon: "Choose Icon",
+      selection: "Selection",
+      building: "Building",
+      room: "Room",
+      change_name: "Change Name",
+      input: "Input",
+      edit_teacher: "Edit Teacher",
+      edit_link: "Edit Link",
+      delete_slot: "Delete slot",
+      placeholder_building: "E.g.: Main",
+      placeholder_room: "E.g.: 204",
+      placeholder_subject: "Subject Name",
+      not_selected: "Not selected",
+      not_specified: "Not specified",
+      editing: "Editing...",
+      new_lesson_ellipsis: "New lesson...",
+      subject_not_selected: "Subject not selected",
+      color_tab: "Color",
+      gradient_tab: "Gradient",
+      gradient_angle: "Gradient Angle",
+      save_gradient: "Save Gradient",
+      new_link_default: "New link",
+      link_name_label: "Link title",
+      link_name_placeholder: "e.g. Zoom Lecture",
+      link_url_label: "URL Address",
+      teacher_name_label: "Teacher's Name",
+      teacher_name_placeholder: "Enter full name",
+      teacher_name_default: "No name",
+      teacher_phone_label: "Contact / Phone",
+      scope_local: "This lesson",
+      scope_global: "All lessons",
+    },
+    lesson_types: {
+      lecture: "Lecture",
+      practice: "Practice",
+      lab: "Laboratory",
+      seminar: "Seminar",
+    },
+    picker_screen: {
+      already_added: "Already added",
+      add_new: "Add new",
+      delete_slot: "Delete slot",
+      reset_to_default: "Reset to default",
+    },
+    main_screen: {
+      not_defined: "Not defined",
+      none: "None",
+      subject: "Subject",
+      subject_name: "Subject Name",
+      lesson_type_group: "Lesson Type",
+      lesson_type_label: "Lesson Type",
+      location: "Location",
+      building: "Building",
+      room: "Room",
+      people: "People",
+      no_teachers: "No teachers. Tap + to add",
+      teacher: "Teacher",
+      materials: "Materials",
+      no_links: "No links. Tap + to add",
+      link: "Link",
+      appearance: "Appearance",
+      card_color: "Card Color",
+      subject_icon: "Subject Icon",
+    }
   },
 
   settings: {
-    // Назви головних секцій на екрані налаштувань
     sections: {
       schedule: "Schedule Structure",
       data: "Data",
@@ -33,7 +174,6 @@ export default {
       danger_zone: "Danger Zone",
     },
 
-    // Головний екран налаштувань (пункти меню)
     menu: {
       weeks: { title: "Number of Weeks", desc: "Odd/even or week cycle" },
       start_date: { title: "Start Date", desc: "Week # starts from here" },
@@ -57,7 +197,6 @@ export default {
       reset_db: { title: "Reset Database", desc: "Complete data wipe" },
     },
 
-    // Окремий екран: Налаштування мови
     language_screen: {
       title: "Language",
       subtitle: "Select interface language",
@@ -65,7 +204,6 @@ export default {
       info_note: "Language settings are synced with your account and stored locally on this device",
     },
 
-    // Окремий екран: Налаштування теми
     theme_screen: {
       mode_title: "Mode",
       modes: {
@@ -141,7 +279,6 @@ export default {
       enter_name: "Enter name...",
     },
 
-    // Всі модальні вікна (Alerts) для налаштувань
     alerts: {
       logout_title: "Log Out",
       logout_confirm: "Are you sure you want to log out?",

@@ -2,15 +2,18 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, LinearTransition, Easing } from "react-native-reanimated";
+import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { t } from "../../../../../utils/i18n";
 
 const isWeb = Platform.OS === "web";
 
-// Використовуємо строгу і швидку анімацію (200мс).
 const customLayoutTransition = isWeb 
   ? undefined 
   : LinearTransition.duration(200).easing(Easing.out(Easing.quad));
 
 export default function Group({ title, children, onAdd, themeColors, showScopeToggle, scope, onScopeChange }) {
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
   
   const handleScopeChange = () => {
     onScopeChange(scope === "local" ? "global" : "local");
@@ -37,7 +40,7 @@ export default function Group({ title, children, onAdd, themeColors, showScopeTo
               activeOpacity={0.7}
             >
               <Text style={[styles.scopeText, { color: scope === "local" ? "#fff" : themeColors.textColor }]}>
-                {scope === "local" ? "Ця пара" : "Всі пари"}
+                {scope === "local" ? t('schedule.lesson_editor.scope_local', lang) : t('schedule.lesson_editor.scope_global', lang)}
               </Text>
             </TouchableOpacity>
           )}
@@ -70,10 +73,7 @@ export default function Group({ title, children, onAdd, themeColors, showScopeTo
           return (
             <Animated.View 
               key={itemKey}
-              // Залишаємо тільки появу
               entering={isWeb ? undefined : FadeIn.duration(200)}
-              // ВАЖЛИВО: Ми прибрали exiting та layout тут, щоб уникнути артефактів (zombie elements)
-              // при "руйнуванні" екрану під час переходів.
             >
               {child}
               {!isLast && <View style={[styles.separator, { backgroundColor: themeColors.borderColor || "#ccc" }]} />}

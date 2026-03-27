@@ -3,108 +3,105 @@ import { View, Text, TouchableOpacity, StyleSheet, FlatList, useWindowDimensions
 import themes from '../../../config/themes';
 import { useSchedule } from '../../../context/ScheduleProvider';
 
-const DAYS = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 const WEEKS_HALF_SIZE = 50; 
 const TOTAL_WEEKS = WEEKS_HALF_SIZE * 2 + 1;
 const WEEKS_INDICES = Array.from({ length: TOTAL_WEEKS }, (_, i) => i - WEEKS_HALF_SIZE);
 
 const WeekPage = React.memo(({ 
-    offsetWeeks, baseWeekStart, currentDateString, handleDayPress, 
-    orderedDayNames, SCREEN_WIDTH, themeColors, jumpDirection
+  offsetWeeks, baseWeekStart, currentDateString, handleDayPress, 
+  orderedDayNames, SCREEN_WIDTH, themeColors, jumpDirection
 }) => {
-    const weekStart = new Date(baseWeekStart);
-    weekStart.setDate(baseWeekStart.getDate() + offsetWeeks * 7);
+  const weekStart = new Date(baseWeekStart);
+  weekStart.setDate(baseWeekStart.getDate() + offsetWeeks * 7);
 
-    const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(weekStart);
-        d.setDate(weekStart.getDate() + i);
-        return d;
-    }), [weekStart]);
+  const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    return d;
+  }), [weekStart]);
 
-    const selectedIndex = weekDates.findIndex(d => d.toDateString() === currentDateString);
-    const isSelected = selectedIndex !== -1;
-    const prevSelectedIndex = useRef(selectedIndex);
-    
-    const animatedIndex = useRef(new Animated.Value(
-        isSelected ? selectedIndex : (jumpDirection === 1 ? -1 : 7)
-    )).current;
+  const selectedIndex = weekDates.findIndex(d => d.toDateString() === currentDateString);
+  const isSelected = selectedIndex !== -1;
+  const prevSelectedIndex = useRef(selectedIndex);
+  
+  const animatedIndex = useRef(new Animated.Value(
+    isSelected ? selectedIndex : (jumpDirection === 1 ? -1 : 7)
+  )).current;
 
-    useEffect(() => {
-        animatedIndex.stopAnimation();
-        if (isSelected) {
-            // Якщо раніше не був обраний на цій сторінці, виставляємо початкову точку для анімації в'їзду
-            if (prevSelectedIndex.current === -1) {
-                animatedIndex.setValue(jumpDirection === 1 ? -1 : 7);
-            }
-            Animated.spring(animatedIndex, {
-                toValue: selectedIndex,
-                stiffness: 450, 
-                damping: 30,    
-                mass: 1,
-                useNativeDriver: true,
-            }).start();
-            prevSelectedIndex.current = selectedIndex;
-        } else {
-            // Якщо був обраний, але тепер ні — анімуємо виїзд за межі
-            if (prevSelectedIndex.current !== -1) {
-                Animated.timing(animatedIndex, {
-                    toValue: jumpDirection === 1 ? 7 : -1,
-                    duration: 150, 
-                    useNativeDriver: true,
-                    easing: Easing.out(Easing.quad)
-                }).start();
-                prevSelectedIndex.current = -1;
-            }
+  useEffect(() => {
+    animatedIndex.stopAnimation();
+    if (isSelected) {
+      if (prevSelectedIndex.current === -1) {
+        animatedIndex.setValue(jumpDirection === 1 ? -1 : 7);
+      }
+      Animated.spring(animatedIndex, {
+        toValue: selectedIndex,
+        stiffness: 450,    
+        damping: 30,    
+        mass: 1,
+        useNativeDriver: true,
+      }).start();
+      prevSelectedIndex.current = selectedIndex;
+    } else {
+      if (prevSelectedIndex.current !== -1) {
+        Animated.timing(animatedIndex, {
+          toValue: jumpDirection === 1 ? 7 : -1,
+          duration: 150, 
+          useNativeDriver: true,
+          easing: Easing.out(Easing.quad)
+        }).start();
+        prevSelectedIndex.current = -1;
+      }
+    }
+  }, [selectedIndex, isSelected, jumpDirection]); 
+
+  const gap = (SCREEN_WIDTH - 32 - 7 * 40) / 6;
+  const translateX = animatedIndex.interpolate({
+    inputRange: [-1, 0, 1, 2, 3, 4, 5, 6, 7],
+    outputRange: [-1, 0, 1, 2, 3, 4, 5, 6, 7].map(i => i * (40 + gap) + 2)
+  });
+
+  return (
+    <View style={[styles.weekContainer, { width: SCREEN_WIDTH }]}>
+      <Animated.View style={[
+        styles.selectionIndicator,
+        { 
+          backgroundColor: themeColors.accentColor,
+          transform: [{ translateX }]
         }
-    }, [selectedIndex, isSelected, jumpDirection]); 
-
-    const gap = (SCREEN_WIDTH - 32 - 7 * 40) / 6;
-    const translateX = animatedIndex.interpolate({
-        inputRange: [-1, 0, 1, 2, 3, 4, 5, 6, 7],
-        outputRange: [-1, 0, 1, 2, 3, 4, 5, 6, 7].map(i => i * (40 + gap) + 2)
-    });
-
-    return (
-        <View style={[styles.weekContainer, { width: SCREEN_WIDTH }]}>
-            <Animated.View style={[
-                styles.selectionIndicator,
-                { 
-                    backgroundColor: themeColors.accentColor,
-                    transform: [{ translateX }]
-                }
-            ]} />
-            {weekDates.map((date, index) => {
-                const isCurrentlySelected = date.toDateString() === currentDateString;
-                const isToday = date.toDateString() === new Date().toDateString();
-                return (
-                    <TouchableOpacity
-                        key={index}
-                        style={styles.dayContainer}
-                        onPress={() => handleDayPress(date)}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={[
-                            styles.dayName, 
-                            { color: isCurrentlySelected ? themeColors.accentColor : themeColors.textColor2 }
-                        ]}>
-                            {orderedDayNames[index]}
-                        </Text>
-                        <View style={[
-                            styles.dateCircle,
-                            !isCurrentlySelected && isToday && { borderWidth: 1, borderColor: themeColors.accentColor }
-                        ]}>
-                            <Text style={[
-                                styles.dayNumber, 
-                                { color: isCurrentlySelected ? '#fff' : themeColors.textColor }
-                            ]}>
-                                {date.getDate()}
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                );
-            })}
-        </View>
-    );
+      ]} />
+      {weekDates.map((date, index) => {
+        const isCurrentlySelected = date.toDateString() === currentDateString;
+        const isToday = date.toDateString() === new Date().toDateString();
+        return (
+          <TouchableOpacity
+            key={index}
+            style={styles.dayContainer}
+            onPress={() => handleDayPress(date)}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.dayName, 
+              { color: isCurrentlySelected ? themeColors.accentColor : themeColors.textColor2 }
+            ]}>
+              {orderedDayNames[index]}
+            </Text>
+            <View style={[
+              styles.dateCircle,
+              !isCurrentlySelected && isToday && { borderWidth: 1, borderColor: themeColors.accentColor }
+            ]}>
+              <Text style={[
+                styles.dayNumber, 
+                { color: isCurrentlySelected ? '#fff' : themeColors.textColor }
+              ]}>
+                {date.getDate()}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 });
 
 const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
@@ -112,6 +109,21 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
   const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const lang = global?.language || 'uk';
+
+  const DAYS = useMemo(() => {
+    const localeMap = { uk: 'uk-UA', en: 'en-US', pl: 'pl-PL', de: 'de-DE' };
+    const locale = localeMap[lang] || 'uk-UA';
+    const days = [];
+    const baseDate = new Date(2023, 0, 1); 
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(baseDate);
+      date.setDate(baseDate.getDate() + i);
+      const dayStr = date.toLocaleDateString(locale, { weekday: 'short' });
+      days.push(dayStr.charAt(0).toUpperCase() + dayStr.slice(1));
+    }
+    return days;
+  }, [lang]);
 
   const startDayOfWeek = useMemo(() => {
     if (global?.starting_week) {
@@ -123,7 +135,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
 
   const orderedDayNames = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => DAYS[(startDayOfWeek + i) % 7]);
-  }, [startDayOfWeek]);
+  }, [startDayOfWeek, DAYS]);
 
   const getWeekStart = useCallback((date) => {
     const d = new Date(date);
@@ -139,7 +151,6 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
   const prevDateRef = useRef(currentDate);
   const [jumpDirection, setJumpDirection] = useState(1);
 
-  // Миттєве визначення напрямку для анімації індикатора
   useEffect(() => {
     if (currentDate.getTime() !== prevDateRef.current.getTime()) {
       setJumpDirection(currentDate.getTime() > prevDateRef.current.getTime() ? 1 : -1);
@@ -149,7 +160,6 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
     const newWeekStart = getWeekStart(currentDate);
     const weekDiff = Math.round((newWeekStart.getTime() - baseWeekStart.getTime()) / (1000 * 60 * 60 * 24 * 7));
 
-    // Авто-скрол до потрібного тижня, якщо currentDate змінилася
     if (Math.abs(weekDiff) > WEEKS_HALF_SIZE - 2) {
       setBaseWeekStart(newWeekStart);
     } else if (!isUserInteraction.current) {

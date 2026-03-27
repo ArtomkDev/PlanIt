@@ -20,10 +20,151 @@ export default {
     warning: "Увага",
     delete: "Видалити",
     create: "Створити",
+    edit: "Редагувати",
+    done: "Готово",
+    save_changes: "Зберегти зміни",
+    months: {
+      jan: "Січень", feb: "Лютий", mar: "Березень", apr: "Квітень",
+      may: "Травень", jun: "Червень", jul: "Липень", aug: "Серпень",
+      sep: "Вересень", oct: "Жовтень", nov: "Листопад", dec: "Грудень"
+    },
+  },
+
+  auth: {
+    signin: {
+      title: "З поверненням!",
+      subtitle: "Увійдіть, щоб синхронізувати розклад.",
+      forgot_password: "Забули пароль?",
+      submit: "Увійти",
+      no_account: "Ще не маєте акаунту? ",
+      signup_link: "Зареєструватись",
+    },
+    signup: {
+      title: "Створити акаунт",
+      subtitle: "Зареєструйтесь, щоб зберігати розклад у хмарі.",
+      submit: "Створити акаунт",
+      already_have_account: "Вже є акаунт? ",
+      login_link: "Увійти",
+    },
+    fields: {
+      email: "Email пошта",
+      password: "Пароль",
+      name: "Ваше ім'я",
+    },
+    errors: {
+      fill_fields: "Будь ласка, заповніть всі поля",
+      signin_failed: "Помилка входу",
+      signup_failed: "Помилка реєстрації",
+      invalid_email: "Некоректний формат email",
+      wrong_credentials: "Невірний email або пароль",
+      too_many_requests: "Забагато спроб. Спробуйте пізніше.",
+      email_already_in_use: "Цей email вже використовується",
+      weak_password: "Пароль занадто слабкий (мінімум 6 символів)",
+    },
+    welcome: {
+      subtitle: "Ваш ідеальний розклад занять завжди під рукою.",
+      guest_btn: "Продовжити як гість",
+    },
+  },
+
+  main_layout: {
+    no_schedule_data: "Немає даних розкладу",
+  },
+
+  schedule: {
+    loading: "Завантаження...",
+    day_schedule: {
+      no_classes: "Пар немає",
+      add_hint: "Затисніть екран, щоб додати",
+    },
+    header: {
+      today: "Сьогодні",
+    },
+    lesson_viewer: {
+      untitled: "Без назви",
+      time: "Час",
+      room: "Аудиторія",
+      teachers: "ВИКЛАДАЧІ",
+      materials: "МАТЕРІАЛИ",
+      default_link: "Посилання",
+      link_error: "Не вдалося відкрити посилання: ",
+    },
+    lesson_editor: {
+      edit: "Редагування",
+      new_lesson: "Нове заняття",
+      card_color: "Колір картки",
+      gradient_settings: "Налаштування градієнта",
+      teachers: "Викладачі",
+      links: "Посилання",
+      subjects: "Предмети",
+      lesson_type: "Тип заняття",
+      choose_icon: "Оберіть іконку",
+      selection: "Вибір",
+      building: "Корпус",
+      room: "Аудиторія",
+      change_name: "Змінити назву",
+      input: "Введення",
+      edit_teacher: "Редагування викладача",
+      edit_link: "Редагування посилання",
+      delete_slot: "Видалити слот",
+      placeholder_building: "Наприклад: Головний",
+      placeholder_room: "Наприклад: 204",
+      placeholder_subject: "Назва предмету",
+      not_selected: "Не обрано",
+      not_specified: "Не вказано",
+      editing: "Редагування...",
+      new_lesson_ellipsis: "Нове заняття...",
+      subject_not_selected: "Предмет не обрано",
+      color_tab: "Колір",
+      gradient_tab: "Градієнт",
+      gradient_angle: "Кут нахилу",
+      save_gradient: "Зберегти градієнт",
+      new_link_default: "Нове посилання",
+      link_name_label: "Назва посилання",
+      link_name_placeholder: "Напр. Zoom лекція",
+      link_url_label: "URL адреса",
+      teacher_name_label: "Ім'я викладача",
+      teacher_name_placeholder: "Введіть ПІБ",
+      teacher_name_default: "Без імені",
+      teacher_phone_label: "Контакт / Телефон",
+      scope_local: "Ця пара",
+      scope_global: "Всі пари",
+    },
+    lesson_types: {
+      lecture: "Лекція",
+      practice: "Практика",
+      lab: "Лабораторна",
+      seminar: "Семінар",
+    },
+    picker_screen: {
+      already_added: "Вже додано до пари",
+      add_new: "Додати новий",
+      delete_slot: "Видалити слот",
+      reset_to_default: "Скинути до стандартних",
+    },
+    main_screen: {
+      not_defined: "Не визначено",
+      none: "Немає",
+      subject: "Предмет",
+      subject_name: "Назва предмету",
+      lesson_type_group: "Тип заняття",
+      lesson_type_label: "Тип заняття",
+      location: "Місце проведення",
+      building: "Корпус",
+      room: "Аудиторія",
+      people: "Люди",
+      no_teachers: "Немає викладачів. Натисніть + щоб додати",
+      teacher: "Викладач",
+      materials: "Матеріали",
+      no_links: "Немає посилань. Натисніть + щоб додати",
+      link: "Посилання",
+      appearance: "Оформлення",
+      card_color: "Колір картки",
+      subject_icon: "Іконка предмету",
+    }
   },
 
   settings: {
-    // Назви головних секцій на екрані налаштувань
     sections: {
       schedule: "Структура розкладу",
       data: "Дані",
@@ -33,7 +174,6 @@ export default {
       danger_zone: "Небезпечна зона",
     },
 
-    // Головний екран налаштувань (пункти меню)
     menu: {
       weeks: { title: "Кількість тижнів", desc: "Непарні/парні або цикл тижнів" },
       start_date: { title: "Початкова дата", desc: "Звідси рахується № тижня" },
@@ -57,7 +197,6 @@ export default {
       reset_db: { title: "Скинути БД", desc: "Повне очищення даних" },
     },
 
-    // Окремий екран: Налаштування мови
     language_screen: {
       title: "Мова",
       subtitle: "Виберіть мову інтерфейсу",
@@ -65,7 +204,6 @@ export default {
       info_note: "Налаштування мови синхронізується з вашим акаунтом та зберігається локально на цьому пристрої",
     },
 
-    // Окремий екран: Налаштування теми
     theme_screen: {
       mode_title: "Режим",
       modes: {
@@ -142,7 +280,6 @@ export default {
       enter_name: "Введіть назву...",
     },
 
-    // Всі модальні вікна (Alerts) для налаштувань
     alerts: {
       logout_title: "Вихід",
       logout_confirm: "Ви впевнені, що хочете вийти з акаунту?",

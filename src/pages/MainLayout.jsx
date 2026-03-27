@@ -6,6 +6,7 @@ import AutoSaveManager from '../components/AutoSaveManager';
 import TabNavigator from '../Navigation/TabNavigator';
 import { useSchedule } from '../context/ScheduleProvider';
 import themes from '../config/themes';
+import { t } from '../utils/i18n';
 
 export default function MainLayout({ guest, onExitGuest }) {
   const {
@@ -14,6 +15,8 @@ export default function MainLayout({ guest, onExitGuest }) {
     isLoading,
     error
   } = useSchedule();
+
+  const lang = global?.language || 'uk';
 
   if (isLoading && !schedule) {
     return (
@@ -26,7 +29,7 @@ export default function MainLayout({ guest, onExitGuest }) {
   if (error && !schedule) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Помилка: {error}</Text>
+        <Text style={styles.errorText}>{t('common.error', lang)}: {error}</Text>
       </View>
     );
   }
@@ -34,7 +37,7 @@ export default function MainLayout({ guest, onExitGuest }) {
   if (!schedule) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Немає даних розкладу</Text>
+        <Text style={styles.errorText}>{t('main_layout.no_schedule_data', lang)}</Text>
       </View>
     );
   }

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { t } from "../../../../../utils/i18n";
 
 const { width } = Dimensions.get('window');
 const GRID_SPACING = 10;
@@ -13,12 +15,13 @@ export default function LessonEditorPickerScreen({
   alreadySelected = [],
   multiSelect = false,
   onSave,
-  onReset,
   onEdit,   
   onAdd,    
   themeColors,
   layout = 'list',
 }) {
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
   const [tempSelected, setTempSelected] = useState([]);
 
   useEffect(() => {
@@ -36,7 +39,6 @@ export default function LessonEditorPickerScreen({
     }
   };
 
-  // Витягуємо системну опцію 'none' (Видалити слот), щоб не показувати її в загальному списку
   const displayOptions = layout === 'list' ? options.filter(o => o.key !== 'none') : options;
   const showRemoveSlot = layout === 'list' && options.some(o => o.key === 'none');
 
@@ -82,7 +84,9 @@ export default function LessonEditorPickerScreen({
             {item.label}
           </Text>
           {isAlreadySelected && (
-            <Text style={[styles.hintText, { color: themeColors.accentColor, opacity: 1 }]}>Вже додано до пари</Text>
+            <Text style={[styles.hintText, { color: themeColors.accentColor, opacity: 1 }]}>
+              {t('schedule.picker_screen.already_added', lang)}
+            </Text>
           )}
         </View>
         
@@ -101,8 +105,6 @@ export default function LessonEditorPickerScreen({
     );
   };
 
-  const hasFooter = multiSelect || onReset;
-
   return (
     <View style={styles.container}>
       <FlatList
@@ -110,51 +112,44 @@ export default function LessonEditorPickerScreen({
         data={displayOptions}
         keyExtractor={(item) => String(item.key)} 
         renderItem={renderItem}
-        contentContainerStyle={[styles.listContent, hasFooter && { paddingBottom: 140 }]}
+        contentContainerStyle={[styles.listContent, multiSelect && { paddingBottom: 100 }]}
         numColumns={layout === 'grid' ? COLUMNS : 1}
         columnWrapperStyle={layout === 'grid' ? styles.columnWrapper : null}
         ListFooterComponent={(onAdd || showRemoveSlot) && (
           <View style={styles.actionButtonsContainer}>
-            {/* Кнопка "Додати новий" */}
             {onAdd && (
               <TouchableOpacity style={[styles.actionButton, { borderColor: themeColors.accentColor, borderStyle: 'dashed' }]} onPress={onAdd}>
                 <Ionicons name="add-circle-outline" size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} />
-                <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>Додати новий</Text>
+                <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>
+                  {t('schedule.picker_screen.add_new', lang)}
+                </Text>
               </TouchableOpacity>
             )}
             
-            {/* Кнопка "Видалити слот" */}
             {showRemoveSlot && (
               <TouchableOpacity style={[styles.actionButton, { borderColor: '#EF4444', backgroundColor: '#EF444415', borderStyle: 'solid' }]} onPress={() => handlePressItem('none')}>
                 <Ionicons name="trash-outline" size={20} color="#EF4444" style={{ marginRight: 6 }} />
-                <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>Видалити слот</Text>
+                <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>
+                  {t('schedule.picker_screen.delete_slot', lang)}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
         )}
       />
 
-      {hasFooter && (
+      {/* Футер тепер відображається ТІЛЬКИ якщо це мульти-вибір */}
+      {multiSelect && (
         <View style={[styles.footer, { backgroundColor: themeColors.backgroundColor, borderTopColor: themeColors.borderColor }]}>
-          {onReset && (
-            <TouchableOpacity 
-                style={[styles.resetBtn, { borderColor: themeColors.borderColor }]} 
-                onPress={onReset}
-            >
-                <Text style={[styles.resetText, { color: themeColors.accentColor }]}>
-                    ↩ Скинути до стандартних
-                </Text>
-            </TouchableOpacity>
-          )}
-
-          {multiSelect && (
-            <TouchableOpacity 
-                style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} 
-                onPress={() => onSave && onSave(tempSelected)}
-            >
-                <Text style={[styles.saveBtnText, { color: '#fff' }]}>Зберегти</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity 
+              style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} 
+              onPress={() => onSave && onSave(tempSelected)}
+              activeOpacity={0.8}
+          >
+              <Text style={[styles.saveBtnText, { color: '#fff' }]}>
+                {t('common.save', lang)}
+              </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -172,11 +167,9 @@ const styles = StyleSheet.create({
   editButton: { padding: 4, borderRadius: 8 },
   columnWrapper: { gap: GRID_SPACING, marginBottom: GRID_SPACING },
   gridItem: { width: ITEM_SIZE, height: ITEM_SIZE, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  
-  // Стилі для кнопок у футері списку
   actionButtonsContainer: {
     marginTop: 10,
-    gap: 12, // Відстань між кнопками (працює в нових версіях RN)
+    gap: 12, 
   },
   actionButton: { 
     padding: 14, 
@@ -190,10 +183,28 @@ const styles = StyleSheet.create({
     fontWeight: "600", 
     fontSize: 16 
   },
-  
-  footer: { padding: 16, borderTopWidth: StyleSheet.hairlineWidth, position: 'absolute', bottom: 0, left: 0, right: 0, gap: 12 },
-  resetBtn: { width: '100%', paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 12 },
-  resetText: { fontSize: 15, fontWeight: '600' },
-  saveBtn: { width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  saveBtnText: { fontWeight: '700', fontSize: 16 },
+  footer: { 
+    padding: 16, 
+    borderTopWidth: StyleSheet.hairlineWidth, 
+    position: 'absolute', 
+    bottom: 0, 
+    left: 0, 
+    right: 0 
+  },
+  saveBtn: { 
+    width: '100%', 
+    paddingVertical: 14, 
+    borderRadius: 14, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  saveBtnText: { 
+    fontWeight: '700', 
+    fontSize: 16 
+  },
 });

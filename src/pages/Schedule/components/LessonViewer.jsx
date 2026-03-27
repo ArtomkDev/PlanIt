@@ -15,6 +15,7 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
+import { t } from "../../../utils/i18n";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -25,46 +26,34 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
-  // 1. Отримуємо глобальний предмет
   const subjectId = lesson.subjectId;
   const fullSubject = schedule.subjects.find(s => s.id === subjectId) || {};
 
-  // 2. Отримуємо локальні дані (якщо є)
   const instanceData = lesson.data || {};
 
-  // --- ЛОГІКА "НАСЛІДУВАННЯ" (Fallback Logic) ---
-
-  // ТИП
   const displayType = instanceData.type || fullSubject.type;
 
-  // МІСЦЕ (Аудиторія / Корпус)
   const displayRoom = instanceData.room || fullSubject.room;
   const displayBuilding = instanceData.building || fullSubject.building;
 
-  // ВЧИТЕЛІ
-  // Якщо в instanceData є масив teachers (навіть пустий, якщо ми видалили всіх), беремо його.
-  // Інакше беремо глобальних.
   const hasLocalTeachers = instanceData.teachers !== undefined;
   const rawTeacherIds = hasLocalTeachers 
       ? instanceData.teachers 
       : (fullSubject.teachers || (fullSubject.teacher ? [fullSubject.teacher] : []));
   
-  // Фільтруємо ID (прибираємо 0/null) і знаходимо об'єкти
   const validTeacherIds = Array.isArray(rawTeacherIds) 
       ? rawTeacherIds.filter(id => id && id !== 0 && id !== "0") 
       : [];
   const displayTeachers = schedule.teachers.filter(t => validTeacherIds.includes(t.id));
 
-  // ПОСИЛАННЯ
   const hasLocalLinks = instanceData.links !== undefined;
   const rawLinkIds = hasLocalLinks ? instanceData.links : (fullSubject.links || []);
   
   const validLinkIds = Array.isArray(rawLinkIds) ? rawLinkIds : [];
   const displayLinks = schedule.links.filter(l => validLinkIds.includes(l.id));
 
-
-  // --- ВІЗУАЛ ---
   const getHeaderBackground = () => {
     if (fullSubject.typeColor === "gradient" && fullSubject.colorGradient) {
       const grad = schedule.gradients.find(g => g.id === fullSubject.colorGradient);
@@ -80,7 +69,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
     if (!url) return;
     const supported = await Linking.canOpenURL(url);
     if (supported) Linking.openURL(url);
-    else alert(`Не вдалося відкрити посилання: ${url}`);
+    else alert(`${t('schedule.lesson_viewer.link_error', lang)}${url}`);
   };
 
   return (
@@ -96,7 +85,6 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
         <View style={[styles.modalContainer, { backgroundColor: themeColors.backgroundColor }]}>
           
-          {/* Хедер */}
           <View style={styles.headerContainer}>
             {getHeaderBackground()}
             
@@ -112,7 +100,6 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
           <ScrollView style={styles.contentScroll} contentContainerStyle={{paddingBottom: 40}}>
             
-            {/* Назва та Тип */}
             <View style={styles.titleSection}>
               {!!displayType && (
                 <View style={[styles.typeBadge, { borderColor: themeColors.accentColor }]}>
@@ -122,7 +109,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                 </View>
               )}
               <Text style={[styles.subjectName, { color: themeColors.textColor }]}>
-                {fullSubject.name || "Без назви"}
+                {fullSubject.name || t('schedule.lesson_viewer.untitled', lang)}
               </Text>
               {!!fullSubject.fullName && (
                 <Text style={[styles.subjectFullName, { color: themeColors.textColor2 }]}>
@@ -133,12 +120,13 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
             <View style={[styles.separator, { backgroundColor: themeColors.borderColor }]} />
 
-            {/* Час та Місце */}
             <View style={styles.gridRow}>
               <View style={[styles.gridItem, { backgroundColor: themeColors.backgroundColor2 }]}>
                 <Ionicons name="time-outline" size={22} color={themeColors.accentColor} />
                 <View style={styles.gridTextContainer}>
-                  <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>Час</Text>
+                  <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>
+                    {t('schedule.lesson_viewer.time', lang)}
+                  </Text>
                   <Text style={[styles.gridValue, { color: themeColors.textColor }]}>
                     {lesson.timeInfo?.start} - {lesson.timeInfo?.end}
                   </Text>
@@ -148,7 +136,9 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
               <View style={[styles.gridItem, { backgroundColor: themeColors.backgroundColor2 }]}>
                 <Ionicons name="location-outline" size={22} color={themeColors.accentColor} />
                 <View style={styles.gridTextContainer}>
-                  <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>Аудиторія</Text>
+                  <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>
+                    {t('schedule.lesson_viewer.room', lang)}
+                  </Text>
                   <Text style={[styles.gridValue, { color: themeColors.textColor }]} numberOfLines={1}>
                     {displayBuilding ? `${displayBuilding}, ` : ""}{displayRoom || "—"}
                   </Text>
@@ -156,10 +146,11 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
               </View>
             </View>
 
-            {/* Викладачі */}
             {displayTeachers.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>ВИКЛАДАЧІ</Text>
+                <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
+                  {t('schedule.lesson_viewer.teachers', lang)}
+                </Text>
                 {displayTeachers.map((teacher, index) => (
                   <View key={index} style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}>
                     <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
@@ -179,10 +170,11 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
               </View>
             )}
 
-            {/* Посилання */}
             {displayLinks.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>МАТЕРІАЛИ</Text>
+                <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
+                  {t('schedule.lesson_viewer.materials', lang)}
+                </Text>
                 {displayLinks.map((link, index) => (
                   <TouchableOpacity 
                     key={index} 
@@ -194,7 +186,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.rowTitle, { color: themeColors.accentColor, textDecorationLine: 'underline' }]}>
-                        {link.name || "Посилання"}
+                        {link.name || t('schedule.lesson_viewer.default_link', lang)}
                       </Text>
                       <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
                         {link.url}
@@ -208,18 +200,16 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
           </ScrollView>
 
-          {/* Кнопки знизу */}
           <View style={[styles.footer, { borderTopColor: themeColors.borderColor }]}>
             <TouchableOpacity 
                 style={[styles.editButton, { backgroundColor: themeColors.accentColor }]}
                 onPress={() => {
                     onClose();
-                    // Передаємо всі дані, щоб редактор знав про локальні зміни
                     onEdit({ ...lesson, subject: fullSubject, data: instanceData });
                 }}
             >
                 <Ionicons name="create-outline" size={20} color="#fff" style={{marginRight: 8}} />
-                <Text style={styles.editButtonText}>Редагувати</Text>
+                <Text style={styles.editButtonText}>{t('common.edit', lang)}</Text>
             </TouchableOpacity>
           </View>
 

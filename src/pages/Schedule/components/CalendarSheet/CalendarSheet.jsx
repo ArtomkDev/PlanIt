@@ -9,12 +9,14 @@ import { useSchedule } from '../../../../context/ScheduleProvider';
 import themes from '../../../../config/themes';
 import { useCalendarLogic } from './useCalendarLogic';
 import CalendarGrid from './CalendarGrid';
+import { t } from '../../../../utils/i18n';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CONTENT_HEIGHT = 380; 
 
 export default function CalendarSheet({ visible, onClose, onDateSelect, currentDate }) {
   const { global, schedule } = useSchedule();
+  const lang = global?.language || 'uk';
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -62,8 +64,10 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
   if (!visible) return null;
 
   const monthNames = [
-    "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
-    "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+    t('common.months.jan', lang), t('common.months.feb', lang), t('common.months.mar', lang),
+    t('common.months.apr', lang), t('common.months.may', lang), t('common.months.jun', lang),
+    t('common.months.jul', lang), t('common.months.aug', lang), t('common.months.sep', lang),
+    t('common.months.oct', lang), t('common.months.nov', lang), t('common.months.dec', lang)
   ];
 
   const years = Array.from({ length: 11 }, (_, i) => viewDate.getFullYear() - 5 + i);
@@ -207,7 +211,6 @@ const styles = StyleSheet.create({
       default: { shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10 }
     })
   },
-  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -220,7 +223,6 @@ const styles = StyleSheet.create({
       alignItems: 'center'
   },
   arrowBtn: { padding: 10 },
-
   titleButton: {
     flex: 1,
     flexDirection: 'row',
@@ -231,10 +233,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   title: { fontSize: 18, fontWeight: 'bold' },
-
   pickerContainer: { flex: 1, paddingHorizontal: 15 },
   yearsWrapper: { height: 50, marginBottom: 15 },
-  
   yearChip: {
     width: 72, 
     height: 36,
@@ -244,7 +244,6 @@ const styles = StyleSheet.create({
     marginTop: 7, 
   },
   yearText: { fontWeight: 'bold', fontSize: 15 },
-  
   monthsGrid: {
     flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between',
   },

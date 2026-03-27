@@ -28,6 +28,8 @@ import TeacherEditor from "./LessonEditor/forms/TeacherForm";
 import LinkEditor from "./LessonEditor/forms/LinkForm";
 import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
 
+import { t } from "../../../utils/i18n";
+
 const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
 const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 
@@ -37,6 +39,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
   const dataSource = scheduleDraft || schedule;
 
@@ -168,23 +171,23 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const getHeaderTitle = () => {
     switch (currentScreen) {
-        case "main": return Number.isInteger(lesson?.index) ? "Редагування" : "Нове заняття";
-        case "subjectColor": return "Колір картки";
-        case "gradientEdit": return "Налаштування градієнта";
+        case "main": return Number.isInteger(lesson?.index) ? t('schedule.lesson_editor.edit', lang) : t('schedule.lesson_editor.new_lesson', lang);
+        case "subjectColor": return t('schedule.lesson_editor.card_color', lang);
+        case "gradientEdit": return t('schedule.lesson_editor.gradient_settings', lang);
         case "picker": 
-            if (pickerType === 'teacher') return "Викладачі";
-            if (pickerType === 'link') return "Посилання";
-            if (pickerType === 'subject') return "Предмети";
-            if (pickerType === 'type') return "Тип заняття";
-            if (pickerType === 'icon') return "Оберіть іконку";
-            return "Вибір";
+            if (pickerType === 'teacher') return t('schedule.lesson_editor.teachers', lang);
+            if (pickerType === 'link') return t('schedule.lesson_editor.links', lang);
+            if (pickerType === 'subject') return t('schedule.lesson_editor.subjects', lang);
+            if (pickerType === 'type') return t('schedule.lesson_editor.lesson_type', lang);
+            if (pickerType === 'icon') return t('schedule.lesson_editor.choose_icon', lang);
+            return t('schedule.lesson_editor.selection', lang);
         case "input":
-            if (inputType === 'building') return "Корпус";
-            if (inputType === 'room') return "Аудиторія";
-            if (inputType === 'subject_rename') return "Змінити назву";
-            return "Введення";
-        case "teacherEditor": return "Редагування викладача";
-        case "linkEditor": return "Редагування посилання";
+            if (inputType === 'building') return t('schedule.lesson_editor.building', lang);
+            if (inputType === 'room') return t('schedule.lesson_editor.room', lang);
+            if (inputType === 'subject_rename') return t('schedule.lesson_editor.change_name', lang);
+            return t('schedule.lesson_editor.input', lang);
+        case "teacherEditor": return t('schedule.lesson_editor.edit_teacher', lang);
+        case "linkEditor": return t('schedule.lesson_editor.edit_link', lang);
         default: return "";
     }
   };
@@ -367,7 +370,7 @@ export default function LessonEditor({ lesson, onClose }) {
         const alreadySelected = cleanSelected.filter((_, i) => i !== editingSlotIndex);
 
         const options = localData.teachers.map((t) => ({ key: t.id, label: t.name }));
-        options.unshift({ key: 'none', label: '❌ Видалити слот' });
+        options.unshift({ key: 'none', label: t('schedule.lesson_editor.delete_slot', lang) });
 
         return {
             options,
@@ -400,7 +403,7 @@ export default function LessonEditor({ lesson, onClose }) {
         const alreadySelected = cleanSelected.filter((_, i) => i !== editingSlotIndex);
 
         const options = localData.links.map((l) => ({ key: l.id, label: l.name }));
-        options.unshift({ key: 'none', label: '❌ Видалити слот' });
+        options.unshift({ key: 'none', label: t('schedule.lesson_editor.delete_slot', lang) });
 
         return {
             options,
@@ -428,13 +431,18 @@ export default function LessonEditor({ lesson, onClose }) {
     }
 
     if (pickerType === "type") {
-        const types = ["Лекція", "Практика", "Лабораторна", "Семінар"];
+        const types = [
+            { key: "Лекція", label: t('schedule.lesson_types.lecture', lang) },
+            { key: "Практика", label: t('schedule.lesson_types.practice', lang) },
+            { key: "Лабораторна", label: t('schedule.lesson_types.lab', lang) },
+            { key: "Семінар", label: t('schedule.lesson_types.seminar', lang) }
+        ];
         const scope = scopes.type;
         const hasLocal = instanceData.type !== undefined;
         const currentType = scope === 'local' ? (hasLocal ? instanceData.type : null) : currentSubject.type;
 
         return {
-            options: types.map(t => ({ key: t, label: t })),
+            options: types,
             selected: currentType ? [currentType] : [],
             multi: false,
             onSave: (key) => handleGenericSave("type", key, 'type'),
@@ -489,7 +497,7 @@ export default function LessonEditor({ lesson, onClose }) {
           
           return { 
             val: currentBuilding || "", 
-            ph: "Наприклад: Головний",
+            ph: t('schedule.lesson_editor.placeholder_building', lang),
             onSave: (val) => handleGenericSave("building", val, 'location'),
             onReset: scope === 'local' && hasLocal ? () => handleResetLocal("building") : null
           };
@@ -501,7 +509,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
           return { 
             val: currentRoom || "",
-            ph: "Наприклад: 204",
+            ph: t('schedule.lesson_editor.placeholder_room', lang),
             onSave: (val) => handleGenericSave("room", val, 'location'),
             onReset: scope === 'local' && hasLocal ? () => handleResetLocal("room") : null
           };
@@ -510,7 +518,7 @@ export default function LessonEditor({ lesson, onClose }) {
           const subj = localData.subjects.find(s => s.id === editingItemData);
           return {
               val: subj?.name || "", 
-              ph: "Назва предмету",
+              ph: t('schedule.lesson_editor.placeholder_subject', lang),
               onSave: handleRenameSubject
           };
       }
@@ -523,12 +531,23 @@ export default function LessonEditor({ lesson, onClose }) {
     if (type === "subject") return localData.subjects.find((s) => s.id === value)?.name;
     if (type === "link" || type === "teacher") {
         const list = sanitizeArray(Array.isArray(value) ? value : [value]);
-        if (list.length === 0) return "Не обрано";
+        if (list.length === 0) return t('schedule.lesson_editor.not_selected', lang);
         const source = type === "link" ? localData.links : localData.teachers;
         const names = list.map(id => source.find(item => item.id === id)?.name).filter(Boolean);
-        if (names.length === 0) return "Не обрано";
+        if (names.length === 0) return t('schedule.lesson_editor.not_selected', lang);
         return names.join(", ");
     }
+    
+    if (type === "type") {
+        switch (value) {
+            case "Лекція": return t('schedule.lesson_types.lecture', lang);
+            case "Практика": return t('schedule.lesson_types.practice', lang);
+            case "Лабораторна": return t('schedule.lesson_types.lab', lang);
+            case "Семінар": return t('schedule.lesson_types.seminar', lang);
+            default: return value;
+        }
+    }
+    
     return value;
   };
 
@@ -541,27 +560,29 @@ export default function LessonEditor({ lesson, onClose }) {
           val = instanceData[field] !== undefined ? instanceData[field] : null;
       }
       const labelStr = getLabel(type, val);
-      const isEmpty = !labelStr || labelStr === "Не обрано";
-      return isEmpty ? "Не вказано" : labelStr;
+      const isEmpty = !labelStr || labelStr === t('schedule.lesson_editor.not_selected', lang);
+      return isEmpty ? t('schedule.lesson_editor.not_specified', lang) : labelStr;
   };
 
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
       {currentScreen === "main" ? (
         <TouchableOpacity onPress={() => sheetRef.current?.close()} hitSlop={15}>
-          <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>Скасувати</Text>
+          <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t('common.cancel', lang)}</Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={15}>
           <Ionicons name="chevron-back" size={24} color={themeColors.accentColor} />
-          <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>Назад</Text>
+          <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t('common.back', lang)}</Text>
         </TouchableOpacity>
       )}
       <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>{getHeaderTitle()}</Text>
       <View style={{ minWidth: 60, alignItems: "flex-end" }}>
         {currentScreen === "main" && (
           <TouchableOpacity onPress={handleSave} disabled={!selectedSubjectId} hitSlop={15}>
-            <Text style={{ color: selectedSubjectId ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>Готово</Text>
+            <Text style={{ color: selectedSubjectId ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
+              {t('common.done', lang)}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -609,10 +630,10 @@ export default function LessonEditor({ lesson, onClose }) {
               </View>
               <View style={{ flex: 1, paddingRight: 5 }}>
                 <Text style={[styles.minimizedTitle, { color: themeColors.textColor }]} numberOfLines={1}>
-                  {Number.isInteger(lesson?.index) ? "Редагування..." : "Нове заняття..."}
+                  {Number.isInteger(lesson?.index) ? t('schedule.lesson_editor.editing', lang) : t('schedule.lesson_editor.new_lesson_ellipsis', lang)}
                 </Text>
                 <Text style={[styles.minimizedSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
-                  {currentSubject.name || "Предмет не обрано"}
+                  {currentSubject.name || t('schedule.lesson_editor.subject_not_selected', lang)}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -848,4 +869,4 @@ const styles = StyleSheet.create({
   minimizedActionBtn: {
     padding: 2,
   },
-});   
+});

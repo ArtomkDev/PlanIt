@@ -19,7 +19,7 @@ export default function SettingRow({
       style={styles.row} 
       onPress={onPress} 
       onLongPress={onLongPress}
-      delayLongPress={250} // Швидше реагування на затискання (250мс замість 500мс)
+      delayLongPress={250}
       activeOpacity={0.7}
     >
       <View style={styles.left}>

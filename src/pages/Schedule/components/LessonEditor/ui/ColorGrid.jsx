@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   colorTile: {
-    width: "16%", // 16% width + 2% margins = evenly distributed 5 columns
+    width: "16%",
     aspectRatio: 1,
     borderRadius: 14,
     margin: "2%",

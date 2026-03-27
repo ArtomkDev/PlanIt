@@ -5,6 +5,8 @@ import Group from "../ui/Group";
 import GradientBackground from "../../../../../components/GradientBackground";
 import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons"; 
+import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { t } from "../../../../../utils/i18n";
 
 export default function LessonEditorMainScreen({
   themeColors,
@@ -20,17 +22,20 @@ export default function LessonEditorMainScreen({
   getValueLabel,
   getArrayData
 }) {
-  const safeGetLabel = getLabel || ((type, val) => "Не визначено");
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
+
+  const safeGetLabel = getLabel || ((type, val) => t('schedule.main_screen.not_defined', lang));
 
   const renderIconValue = () => {
     if (!currentSubject.icon) {
-      return <Text style={{ color: themeColors.textColor2, fontSize: 16 }}>Немає</Text>;
+      return <Text style={{ color: themeColors.textColor2, fontSize: 16 }}>{t('schedule.main_screen.none', lang)}</Text>;
     }
     const IconCmp = getIconComponent(currentSubject.icon);
     return IconCmp ? (
       <IconCmp size={20} color={themeColors.textColor2} />
     ) : (
-      <Text style={{ color: themeColors.textColor2, fontSize: 16 }}>Немає</Text>
+      <Text style={{ color: themeColors.textColor2, fontSize: 16 }}>{t('schedule.main_screen.none', lang)}</Text>
     );
   };
 
@@ -46,10 +51,10 @@ export default function LessonEditorMainScreen({
   if (!selectedSubjectId) {
     return (
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        <Group themeColors={themeColors} title="Предмет" showScopeToggle={false}>
+        <Group themeColors={themeColors} title={t('schedule.main_screen.subject', lang)} showScopeToggle={false}>
           <SettingRow
-            label="Назва предмету"
-            value={safeGetLabel("subject", selectedSubjectId) || "Не обрано"}
+            label={t('schedule.main_screen.subject_name', lang)}
+            value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
             onPress={() => setActivePicker("subject")}
             themeColors={themeColors}
             icon="book-outline"
@@ -65,10 +70,10 @@ export default function LessonEditorMainScreen({
   return (
     <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
       
-      <Group themeColors={themeColors} title="Предмет" showScopeToggle={false}>
+      <Group themeColors={themeColors} title={t('schedule.main_screen.subject', lang)} showScopeToggle={false}>
         <SettingRow
-          label="Назва предмету"
-          value={safeGetLabel("subject", selectedSubjectId) || "Не обрано"}
+          label={t('schedule.main_screen.subject_name', lang)}
+          value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
           onPress={() => setActivePicker("subject")}
           themeColors={themeColors}
           icon="book-outline"
@@ -77,13 +82,13 @@ export default function LessonEditorMainScreen({
 
       <Group 
         themeColors={themeColors} 
-        title="Тип заняття"
+        title={t('schedule.main_screen.lesson_type_group', lang)}
         showScopeToggle={true}
         scope={scopes.type}
         onScopeChange={(newScope) => onScopeChange('type', newScope)}
       >
         <SettingRow
-          label="Тип заняття"
+          label={t('schedule.main_screen.lesson_type_label', lang)}
           value={getValueLabel("type", "type", "type")}
           onPress={() => setActivePicker("type")}
           themeColors={themeColors}
@@ -93,20 +98,20 @@ export default function LessonEditorMainScreen({
 
       <Group 
         themeColors={themeColors} 
-        title="Місце проведення"
+        title={t('schedule.main_screen.location', lang)}
         showScopeToggle={true}
         scope={scopes.location}
         onScopeChange={(newScope) => onScopeChange('location', newScope)}
       >
         <SettingRow
-          label="Корпус"
+          label={t('schedule.main_screen.building', lang)}
           value={getValueLabel("building", "text", "location")}
           onPress={() => setActivePicker("building")}
           themeColors={themeColors}
           icon="business-outline"
         />
         <SettingRow
-          label="Аудиторія"
+          label={t('schedule.main_screen.room', lang)}
           value={getValueLabel("room", "text", "location")}
           onPress={() => setActivePicker("room")}
           themeColors={themeColors}
@@ -116,7 +121,7 @@ export default function LessonEditorMainScreen({
 
       <Group 
         themeColors={themeColors} 
-        title="Люди"
+        title={t('schedule.main_screen.people', lang)}
         showScopeToggle={true}
         scope={scopes.people}
         onScopeChange={(newScope) => onScopeChange('people', newScope)}
@@ -125,17 +130,17 @@ export default function LessonEditorMainScreen({
         {teachersArr.length === 0 ? (
            <View style={styles.emptyContainer}>
                <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
-                   Немає викладачів. Натисніть + щоб додати
+                   {t('schedule.main_screen.no_teachers', lang)}
                </Text>
            </View>
         ) : (
             teachersArr.map((id, index) => (
                 <SettingRow
                     key={`teacher-${id}`}
-                    label={`Викладач ${index + 1}`}
+                    label={`${t('schedule.main_screen.teacher', lang)} ${index + 1}`}
                     value={safeGetLabel("teacher", id)}
                     onPress={() => setActivePicker("teacher", index)}
-                    onLongPress={() => onDirectEdit("teacher", id, index)} // Передаємо index
+                    onLongPress={() => onDirectEdit("teacher", id, index)} 
                     themeColors={themeColors}
                     icon="person-outline"
                 />
@@ -145,7 +150,7 @@ export default function LessonEditorMainScreen({
 
       <Group 
         themeColors={themeColors} 
-        title="Матеріали"
+        title={t('schedule.main_screen.materials', lang)}
         showScopeToggle={true}
         scope={scopes.materials}
         onScopeChange={(newScope) => onScopeChange('materials', newScope)}
@@ -154,17 +159,17 @@ export default function LessonEditorMainScreen({
         {linksArr.length === 0 ? (
            <View style={styles.emptyContainer}>
                <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
-                   Немає посилань. Натисніть + щоб додати
+                   {t('schedule.main_screen.no_links', lang)}
                </Text>
            </View>
         ) : (
             linksArr.map((id, index) => (
                 <SettingRow
                     key={`link-${id}`}
-                    label={`Посилання ${index + 1}`}
+                    label={`${t('schedule.main_screen.link', lang)} ${index + 1}`}
                     value={safeGetLabel("link", id)}
                     onPress={() => setActivePicker("link", index)}
-                    onLongPress={() => onDirectEdit("link", id, index)} // Передаємо index
+                    onLongPress={() => onDirectEdit("link", id, index)} 
                     themeColors={themeColors}
                     icon="link-outline"
                 />
@@ -172,16 +177,16 @@ export default function LessonEditorMainScreen({
         )}
       </Group>
 
-      <Group themeColors={themeColors} title="Оформлення" showScopeToggle={false}>
+      <Group themeColors={themeColors} title={t('schedule.main_screen.appearance', lang)} showScopeToggle={false}>
         <SettingRow
-          label="Колір картки"
+          label={t('schedule.main_screen.card_color', lang)}
           rightContent={renderColorPreview()}
           onPress={onEditSubjectColor} 
           themeColors={themeColors}
           icon="color-palette-outline"
         />
         <SettingRow
-          label="Іконка предмету"
+          label={t('schedule.main_screen.subject_icon', lang)}
           rightContent={renderIconValue()}
           onPress={() => setActivePicker("icon")}
           themeColors={themeColors}

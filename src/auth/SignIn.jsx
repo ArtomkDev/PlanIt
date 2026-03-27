@@ -5,8 +5,10 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase'; 
 import AuthLayout from '../components/AuthLayout';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
+import { useSchedule } from '../context/ScheduleProvider';
+import { t } from '../utils/i18n';
 
-const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, setIsPasswordVisible, isPasswordVisible, colors }) => (
+const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, setIsPasswordVisible, isPasswordVisible, colors, keyboardType }) => (
   <View style={[styles.inputContainer, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
     <Ionicons name={icon} size={20} color={colors.textColor2} style={styles.inputIcon} />
     <TextInput
@@ -17,7 +19,7 @@ const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, i
       value={value}
       onChangeText={onChangeText}
       autoCapitalize="none"
-      keyboardType={placeholder.includes('email') ? 'email-address' : 'default'}
+      keyboardType={keyboardType || 'default'}
     />
     {isPasswordButton && (
       <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeButton}>
@@ -28,6 +30,8 @@ const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, i
 );
 
 const SignIn = ({ navigation }) => {
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
   const { colors } = useSystemThemeColors('blue');
   
   const [email, setEmail] = useState('');
@@ -37,7 +41,7 @@ const SignIn = ({ navigation }) => {
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      Alert.alert('Помилка', 'Будь ласка, заповніть всі поля');
+      Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
       return;
     }
 
@@ -45,12 +49,12 @@ const SignIn = ({ navigation }) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-      let msg = "Невірний email або пароль";
-      if (error.code === 'auth/invalid-email') msg = "Некоректний формат email";
-      if (error.code === 'auth/invalid-credential') msg = "Невірний email або пароль";
-      if (error.code === 'auth/too-many-requests') msg = "Забагато спроб. Спробуйте пізніше.";
+      let msg = t('auth.errors.wrong_credentials', lang);
+      if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
+      if (error.code === 'auth/invalid-credential') msg = t('auth.errors.wrong_credentials', lang);
+      if (error.code === 'auth/too-many-requests') msg = t('auth.errors.too_many_requests', lang);
       
-      Alert.alert('Помилка входу', msg);
+      Alert.alert(t('auth.errors.signin_failed', lang), msg);
     } finally {
       setIsLoading(false);
     }
@@ -58,22 +62,23 @@ const SignIn = ({ navigation }) => {
 
   return (
     <AuthLayout
-      title="З поверненням!"
-      subtitle="Увійдіть, щоб синхронізувати розклад."
+      title={t('auth.signin.title', lang)}
+      subtitle={t('auth.signin.subtitle', lang)}
       showBackButton
       onBack={() => navigation.goBack()}
     >
       <View style={styles.form}>
         <InputField
           icon="mail-outline"
-          placeholder="Email пошта"
+          placeholder={t('auth.fields.email', lang)}
           value={email}
           onChangeText={setEmail}
           colors={colors}
+          keyboardType="email-address"
         />
         <InputField
           icon="lock-closed-outline"
-          placeholder="Пароль"
+          placeholder={t('auth.fields.password', lang)}
           secureTextEntry={!isPasswordVisible}
           value={password}
           onChangeText={setPassword}
@@ -84,7 +89,9 @@ const SignIn = ({ navigation }) => {
         />
 
         <TouchableOpacity style={styles.forgotPassword}>
-          <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>Забули пароль?</Text>
+          <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>
+            {t('auth.signin.forgot_password', lang)}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -95,14 +102,18 @@ const SignIn = ({ navigation }) => {
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.loginButtonText}>Увійти</Text>
+            <Text style={styles.loginButtonText}>{t('auth.signin.submit', lang)}</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.textColor2 }]}>Ще не маєте акаунту? </Text>
+          <Text style={[styles.footerText, { color: colors.textColor2 }]}>
+            {t('auth.signin.no_account', lang)}
+          </Text>
           <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-            <Text style={[styles.footerLink, { color: colors.accentColor }]}>Зареєструватись</Text>
+            <Text style={[styles.footerLink, { color: colors.accentColor }]}>
+              {t('auth.signin.signup_link', lang)}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -3,14 +3,17 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
+import { useSchedule } from '../context/ScheduleProvider';
+import { t } from '../utils/i18n';
 
 const WelcomeScreen = ({ navigation, onGuestLogin }) => {
   const insets = useSafeAreaInsets();
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
   const { colors, isDark } = useSystemThemeColors('blue'); 
 
   return (
     <View style={[styles.container, { backgroundColor: colors.backgroundColor }]}>
-       {/* Фон */}
        <View style={styles.backgroundIcon}>
         <Ionicons 
           name="calendar-outline" 
@@ -21,25 +24,23 @@ const WelcomeScreen = ({ navigation, onGuestLogin }) => {
 
       <View style={[styles.content, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 20 }]}>
         
-        {/* Логотип */}
         <View style={styles.header}>
           <View style={[styles.logoContainer, { backgroundColor: colors.accentColor }]}>
              <Ionicons name="school" size={60} color="#fff" />
           </View>
           <Text style={[styles.title, { color: colors.textColor }]}>PlanIt</Text>
           <Text style={[styles.subtitle, { color: colors.textColor2 }]}>
-            Ваш ідеальний розклад занять завжди під рукою.
+            {t('auth.welcome.subtitle', lang)}
           </Text>
         </View>
 
-        {/* Кнопки */}
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: colors.accentColor }]}
             onPress={() => navigation.navigate('SignIn')}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryButtonText}>Увійти</Text>
+            <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -47,7 +48,9 @@ const WelcomeScreen = ({ navigation, onGuestLogin }) => {
             onPress={() => navigation.navigate('SignUp')} 
             activeOpacity={0.8}
           >
-            <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>Створити акаунт</Text>
+            <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>
+              {t('auth.signup.submit', lang)}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -56,7 +59,7 @@ const WelcomeScreen = ({ navigation, onGuestLogin }) => {
             activeOpacity={0.7}
           >
             <Text style={[styles.secondaryButtonText, { color: colors.textColor2, fontSize: 16 }]}>
-              Продовжити як гість
+              {t('auth.welcome.guest_btn', lang)}
             </Text>
           </TouchableOpacity>
         </View>

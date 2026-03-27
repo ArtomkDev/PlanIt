@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
+import { t } from "../../../utils/i18n";
 
 export default function Header({ currentDate, onDateChange, onTodayPress, onTitlePress }) {
   const { global, schedule } = useSchedule();
@@ -13,6 +14,7 @@ export default function Header({ currentDate, onDateChange, onTodayPress, onTitl
 
   const [mode, accent] = global.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const lang = global?.language || 'uk';
 
   const handleNativeDateChange = (event, selectedDate) => {
     setShowNativePicker(false);
@@ -23,25 +25,29 @@ export default function Header({ currentDate, onDateChange, onTodayPress, onTitl
 
   const handleTitlePress = () => {
     if (onTitlePress) {
-      // Якщо батьківський компонент передав обробник (відкрити CalendarSheet) - викликаємо його
       onTitlePress();
     } else {
-      // Інакше відкриваємо старий нативний пікер
       setShowNativePicker(true);
     }
   };
 
-  // Форматуємо місяць і рік
-  const monthYearString = currentDate.toLocaleDateString("uk-UA", { month: 'long', year: 'numeric' });
+  const localeMap = {
+    uk: 'uk-UA',
+    en: 'en-US',
+    pl: 'pl-PL',
+    de: 'de-DE'
+  };
+  const currentLocale = localeMap[lang] || 'uk-UA';
+
+  const monthYearString = currentDate.toLocaleDateString(currentLocale, { month: 'long', year: 'numeric' });
   const formattedDate = monthYearString.charAt(0).toUpperCase() + monthYearString.slice(1);
 
   return (
     <View style={styles.headerWrapper}>
       <View style={styles.headerContent}>
-        {/* Ліва частина */}
         <View style={styles.leftSection}>
            <Text style={[styles.scheduleName, { color: themeColors.textColor2 }]}>
-             {schedule?.name || "Розклад"}
+             {schedule?.name || t('common.schedule', lang)}
            </Text>
            
            <TouchableOpacity 
@@ -56,16 +62,16 @@ export default function Header({ currentDate, onDateChange, onTodayPress, onTitl
            </TouchableOpacity>
         </View>
 
-        {/* Права частина */}
         <TouchableOpacity 
             style={[styles.todayButton, { backgroundColor: themeColors.accentColor }]} 
             onPress={onTodayPress}
         >
-            <Text style={[styles.todayText, { color: themeColors.textColor }]}>Сьогодні</Text>
+            <Text style={[styles.todayText, { color: themeColors.textColor }]}>
+              {t('schedule.header.today', lang)}
+            </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Старий пікер рендериться, тільки якщо ми явно його викликали (через fallback) */}
       {showNativePicker && (
         <DateTimePicker
           value={currentDate}

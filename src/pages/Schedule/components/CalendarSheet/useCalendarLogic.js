@@ -1,17 +1,17 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useSchedule } from '../../../../context/ScheduleProvider';
 
 export function useCalendarLogic(initialDate, schedule) {
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
   const [viewDate, setViewDate] = useState(new Date(initialDate));
 
-  // Налаштування з розкладу
   const startingWeekDateStr = schedule?.starting_week || new Date().toISOString().split('T')[0];
   const totalWeeks = schedule?.repeat || 1;
 
-  // Визначаємо перший день тижня
   const startSemesterDate = useMemo(() => new Date(startingWeekDateStr), [startingWeekDateStr]);
   const firstDayOfWeek = startSemesterDate.getDay(); 
 
-  // Генерація днів
   const calendarDays = useMemo(() => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
@@ -29,8 +29,6 @@ export function useCalendarLogic(initialDate, schedule) {
       days.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
     
-    // 🔥 ВАЖЛИВО: Завжди додаємо дні до 6 тижнів (42 клітинки), 
-    // щоб висота календаря була стабільною
     const TOTAL_CELLS = 42; 
     let nextMonthDay = 1;
     while (days.length < TOTAL_CELLS) {
@@ -40,7 +38,6 @@ export function useCalendarLogic(initialDate, schedule) {
     return days;
   }, [viewDate, firstDayOfWeek]);
 
-  // Розрахунок тижня
   const getWeekNumber = useCallback((date) => {
     if (totalWeeks <= 1) return null;
     const d1 = new Date(startSemesterDate); d1.setHours(0,0,0,0);
@@ -59,18 +56,27 @@ export function useCalendarLogic(initialDate, schedule) {
     return cycleNum + 1;
   }, [startSemesterDate, firstDayOfWeek, totalWeeks]);
 
-  // Навігація
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   
-  // 🔥 НОВІ МЕТОДИ
   const setMonth = (monthIndex) => setViewDate(new Date(viewDate.getFullYear(), monthIndex, 1));
   const setYear = (year) => setViewDate(new Date(year, viewDate.getMonth(), 1));
 
   const weekDayNames = useMemo(() => {
-    const names = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    const localeMap = { uk: 'uk-UA', en: 'en-US', pl: 'pl-PL', de: 'de-DE' };
+    const locale = localeMap[lang] || 'uk-UA';
+    
+    const names = [];
+    const baseDate = new Date(2023, 0, 1); 
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(baseDate);
+      date.setDate(baseDate.getDate() + i);
+      const dayStr = date.toLocaleDateString(locale, { weekday: 'short' });
+      names.push(dayStr.charAt(0).toUpperCase() + dayStr.slice(1));
+    }
+
     return [...names.slice(firstDayOfWeek), ...names.slice(0, firstDayOfWeek)];
-  }, [firstDayOfWeek]);
+  }, [firstDayOfWeek, lang]);
 
   return {
     viewDate,
@@ -79,8 +85,8 @@ export function useCalendarLogic(initialDate, schedule) {
     getWeekNumber,
     nextMonth,
     prevMonth,
-    setMonth, // New
-    setYear,  // New
+    setMonth,
+    setYear,
     firstDayOfWeek
   };
 }

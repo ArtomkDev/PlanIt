@@ -10,8 +10,13 @@ import {
   Platform 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { t } from "../../../../../utils/i18n";
 
 export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal, onBack, themeColors }) {
+  const { global } = useSchedule();
+  const lang = global?.language || 'uk';
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -26,7 +31,7 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
     onSaveLocal({
       ...localTeacherData,
       id: teacherId,
-      name: name.trim() || "Без імені",
+      name: name.trim() || t('schedule.lesson_editor.teacher_name_default', lang),
       phone: phone.trim()
     });
   };
@@ -35,22 +40,23 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      // Додаємо відступ, щоб компенсувати висоту BottomSheet та Header
       keyboardVerticalOffset={Platform.OS === "ios" ? 110 : 0} 
     >
       <ScrollView 
         contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled" // Ховає клавіатуру при натисканні на фон
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
         <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: themeColors.textColor2 }]}>Ім'я викладача</Text>
+          <Text style={[styles.label, { color: themeColors.textColor2 }]}>
+            {t('schedule.lesson_editor.teacher_name_label', lang)}
+          </Text>
           <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
             <Ionicons name="person-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: themeColors.textColor }]}
-              placeholder="Введіть ПІБ"
+              placeholder={t('schedule.lesson_editor.teacher_name_placeholder', lang)}
               placeholderTextColor={themeColors.textColor2 + '80'}
               value={name}
               onChangeText={setName}
@@ -60,7 +66,9 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: themeColors.textColor2 }]}>Контакт / Телефон</Text>
+          <Text style={[styles.label, { color: themeColors.textColor2 }]}>
+            {t('schedule.lesson_editor.teacher_phone_label', lang)}
+          </Text>
           <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
             <Ionicons name="call-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
             <TextInput
@@ -74,7 +82,6 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
           </View>
         </View>
 
-        {/* Пустий блок, який виштовхує кнопки донизу */}
         <View style={{ flex: 1, minHeight: 40 }} />
 
         <View style={styles.buttonRow}>
@@ -82,14 +89,18 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
               style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 
               onPress={onBack}
           >
-            <Text style={[styles.buttonText, { color: themeColors.textColor }]}>Скасувати</Text>
+            <Text style={[styles.buttonText, { color: themeColors.textColor }]}>
+              {t('common.cancel', lang)}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
               style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]} 
               onPress={handleSave}
           >
-            <Text style={styles.saveButtonText}>Зберегти зміни</Text>
+            <Text style={styles.saveButtonText}>
+              {t('common.save_changes', lang)}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -98,7 +109,6 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
 }
 
 const styles = StyleSheet.create({
-  // Замінено flex: 1 на flexGrow: 1 для правильної роботи зі ScrollView
   container: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 30 },
   formGroup: { marginBottom: 24 },
   label: { fontSize: 14, fontWeight: "500", marginBottom: 8, marginLeft: 4, textTransform: "uppercase", letterSpacing: 0.5 },
