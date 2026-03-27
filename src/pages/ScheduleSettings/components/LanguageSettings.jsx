@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, FlatList, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSchedule } from "../../../context/ScheduleProvider";
@@ -7,19 +7,46 @@ import SettingsScreenLayout from "../SettingsScreenLayout";
 import { t, SUPPORTED_LANGUAGES } from "../../../utils/i18n";
 
 const LanguageSettings = () => {
-  const { global, setGlobalDraft } = useSchedule();
+  const { global, setGlobalDraft, saveNow, isDirty } = useSchedule();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   const currentAppLang = global?.language || 'uk';
 
+  const isFirstMount = useRef(true);
+
   const handleSelect = (code) => {
-    setGlobalDraft(prev => ({ ...prev, language: code }));
+    if (code !== currentAppLang) {
+      setGlobalDraft(prev => ({ ...prev, language: code }));
+    }
   };
+
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    if (isDirty) {
+      saveNow();
+    }
+  }, [currentAppLang, isDirty, saveNow]);
 
   const renderItem = ({ item }) => {
     const isSelected = currentAppLang === item.code;
     const translatedName = t(`languages.${item.code}`, currentAppLang);
+
+    const renderFlagIcon = () => {
+      if (Platform.OS === 'web') {
+        return (
+          <View style={[styles.webFlagCircle, { backgroundColor: isSelected ? themeColors.accentColor : themeColors.borderColor }]}>
+             <Text style={[styles.webFlagText, { color: isSelected ? '#fff' : themeColors.textColor }]}>
+               {item.code.toUpperCase()}
+             </Text>
+          </View>
+        );
+      }
+      return <Text style={styles.flag}>{item.flag}</Text>;
+    };
 
     return (
       <TouchableOpacity
@@ -35,7 +62,9 @@ const LanguageSettings = () => {
         activeOpacity={0.7}
       >
         <View style={styles.leftSection}>
-          <Text style={styles.flag}>{item.flag}</Text>
+          <View style={styles.flagContainer}>
+             {renderFlagIcon()}
+          </View>
           <View style={styles.textContainer}>
             <Text style={[styles.nativeLabel, { color: themeColors.textColor }]}>
               {item.label}
@@ -92,8 +121,30 @@ const styles = StyleSheet.create({
     })
   },
   leftSection: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+  flagContainer: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  flag: { 
+    fontSize: 28,
+    textAlign: 'center',
+    lineHeight: 34,
+  },
+  webFlagCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  webFlagText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   textContainer: { justifyContent: 'center' },
-  flag: { fontSize: 28 },
   nativeLabel: { fontSize: 17, fontWeight: '600' },
   translatedLabel: { fontSize: 13, marginTop: 2 },
 });
