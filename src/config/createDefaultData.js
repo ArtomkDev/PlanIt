@@ -10,18 +10,17 @@ export default function createDefaultData() {
     theme: ['dark', 'red'],
     auto_save: 8,
     lastModified: now, 
-    lastSynced: now, // ДОДАНО
+    lastSynced: 0, 
   };
 
   const newSchedule = {
     ...defaultSchedule,
     id: scheduleId,
     name: 'Основний розклад',
-    // НОВІ ПОЛЯ ДЛЯ СИНХРОНІЗАЦІЇ (ВИПРАВЛЕНО):
-    version: 1,           // Було cloudVersion, стало version
-    baseVersion: 1,       // Версія, на базі якої робляться локальні зміни
-    lastModified: now,    // Час останньої локальної зміни
-    lastSynced: now,      // ДОДАНО: Час останньої успішної відправки
+    version: 1,           
+    baseVersion: 1,       
+    lastModified: now,    
+    lastSynced: 0, 
   };
 
   return { 

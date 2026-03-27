@@ -133,8 +133,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         setIsLoading(false);
       } else if (user) {
         const local = await getLocalSchedule(user.uid);
-        if (local) setData(local);
-        else setData(createDefaultData());
+        if (local) {
+            setData(local);
+        } else {
+            const defaultData = createDefaultData();
+            setData(defaultData);
+            await saveLocalSchedule(defaultData, user.uid);
+        }
         setIsLoading(false);
       } else {
         setData(null);
@@ -222,8 +227,12 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
           setData(mergedData);
           await saveLocalSchedule(mergedData, user.uid);
 
-          if (needsPushToCloud) setIsDirty(true);
-          else setIsDirty(false);
+          if (needsPushToCloud) {
+             setIsDirty(true);
+             setPendingImmediateSave(true);
+          } else {
+             setIsDirty(false);
+          }
 
           if (!isFromCache) {
              setCloudSyncState('synced');

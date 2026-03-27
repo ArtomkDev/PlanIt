@@ -12,19 +12,6 @@ import { linkGoogleAccount, linkAppleAccount } from '../authServices';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
-let GoogleSignin = null;
-let AppleAuthentication = null;
-
-if (Platform.OS !== 'web' && !isExpoGo) {
-  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
-  AppleAuthentication = require('expo-apple-authentication');
-
-  GoogleSignin.configure({
-    webClientId: '66089248812-is6urdiplc47uc3s323n4546vpip7aoe.apps.googleusercontent.com',
-    offlineAccess: true,
-  });
-}
-
 const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) => {
   const { colors, isDark } = useSystemThemeColors('blue');
   const { lang } = useAppLanguage();
@@ -32,7 +19,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
 
   const handleGoogleAuth = async () => {
     if (isExpoGo && Platform.OS !== 'web') {
-      Alert.alert("Expo Go", "Вхід через Google недоступний в Expo Go. Використовуйте Web-версію або скомпілюйте додаток (Development Build).");
+      Alert.alert("Expo Go", "Вхід через Google недоступний в Expo Go. Використовуйте Web-версію або скомпілюйте додаток.");
       return;
     }
 
@@ -46,14 +33,26 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
           await signInWithPopup(auth, provider);
         }
       } else {
-        await GoogleSignin.hasPlayServices();
-        const userInfo = await GoogleSignin.signIn();
+        const { GoogleSignin } = require('@react-native-google-signin/google-signin');
         
-        if (isLinking) {
-          await linkGoogleAccount(userInfo.idToken);
+        GoogleSignin.configure({
+          webClientId: '66089248812-is6urdiplc47uc3s323n4546vpip7aoe.apps.googleusercontent.com',
+          offlineAccess: true,
+        });
+
+        await GoogleSignin.hasPlayServices();
+        const response = await GoogleSignin.signIn();
+        
+        if (response.type === 'success') {
+          if (isLinking) {
+            await linkGoogleAccount(response.data.idToken);
+          } else {
+            const credential = GoogleAuthProvider.credential(response.data.idToken);
+            await signInWithCredential(auth, credential);
+          }
         } else {
-          const credential = GoogleAuthProvider.credential(userInfo.idToken);
-          await signInWithCredential(auth, credential);
+          setLoadingProvider(null);
+          return;
         }
       }
       onAuthSuccess?.();
@@ -66,7 +65,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
 
   const handleAppleAuth = async () => {
     if (isExpoGo && Platform.OS !== 'web') {
-      Alert.alert("Expo Go", "Вхід через Apple недоступний в Expo Go. Використовуйте Web-версію або скомпілюйте додаток (Development Build).");
+      Alert.alert("Expo Go", "Вхід через Apple недоступний в Expo Go. Використовуйте Web-версію або скомпілюйте додаток.");
       return;
     }
 
@@ -80,6 +79,8 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
           await signInWithPopup(auth, provider);
         }
       } else {
+        const AppleAuthentication = require('expo-apple-authentication');
+        
         const credential = await AppleAuthentication.signInAsync({
           requestedScopes: [
             AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
