@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase'; 
 import AuthLayout from '../components/AuthLayout';
+import SocialAuthButtons from './components/SocialAuthButtons';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
 import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
@@ -112,6 +113,10 @@ const SignIn = ({ navigation }) => {
             <Text style={styles.loginButtonText}>{t('auth.signin.submit', lang)}</Text>
           )}
         </TouchableOpacity>
+
+        <SocialAuthButtons 
+          onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} 
+        />
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.textColor2 }]}>
