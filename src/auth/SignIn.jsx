@@ -5,7 +5,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase'; 
 import AuthLayout from '../components/AuthLayout';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
-import { useSchedule } from '../context/ScheduleProvider';
+import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 
 const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, setIsPasswordVisible, isPasswordVisible, colors, keyboardType }) => (
@@ -30,14 +30,21 @@ const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, i
 );
 
 const SignIn = ({ navigation }) => {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { lang, isLangLoading } = useAppLanguage();
   const { colors } = useSystemThemeColors('blue');
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  if (isLangLoading) {
+    return (
+      <View style={[styles.loadingWrapper, { backgroundColor: colors.backgroundColor }]}>
+        <ActivityIndicator size="large" color={colors.accentColor} />
+      </View>
+    );
+  }
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -122,27 +129,15 @@ const SignIn = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  loadingWrapper: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   form: { gap: 16 },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 56,
-  },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 56 },
   inputIcon: { marginRight: 12 },
   input: { flex: 1, height: '100%', fontSize: 16 },
   eyeButton: { padding: 10, marginRight: -10 },
   forgotPassword: { alignSelf: 'flex-end', marginTop: -6, marginBottom: 10 },
   forgotPasswordText: { fontSize: 14, fontWeight: '500' },
-  loginButton: {
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
+  loginButton: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   loginButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
   footerText: { fontSize: 15 },

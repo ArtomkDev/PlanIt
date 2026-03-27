@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { AppState, useColorScheme } from "react-native";
-import * as Localization from 'expo-localization';
 import NetInfo from "@react-native-community/netinfo";
 import { v4 as uuidv4 } from 'uuid';
 import { db } from "../../firebase"; 
@@ -8,6 +7,7 @@ import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromS
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import SyncConflictScreen from "../components/SyncConflictScreen";
+import useAppLanguage from "../hooks/useAppLanguage";
 
 const ScheduleContext = createContext(null);
 
@@ -114,6 +114,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [cloudSyncState, setCloudSyncState] = useState('syncing');
   const [pendingImmediateSave, setPendingImmediateSave] = useState(false);
 
+  const { lang, isLangLoading } = useAppLanguage(data?.global?.language);
+
   const dataRef = useRef(data);
   useEffect(() => { dataRef.current = data; }, [data]);
 
@@ -154,15 +156,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             const defaultMode = systemColorScheme === 'light' ? 'light' : 'dark';
             newPrefs.theme = data.global?.theme || [defaultMode, 'blue'];
             prefsNeedSave = true;
-        }
-
-        if (!newPrefs.language) {
-          const rawLocale = Localization.locale || 'uk'; 
-          const deviceLang = rawLocale.split('-')[0];
-
-          const supported = ['uk', 'en', 'pl', 'de'];
-          newPrefs.language = data.global?.language || (supported.includes(deviceLang) ? deviceLang : 'uk');
-          prefsNeedSave = true;
         }
 
         const activeSchedules = (data.schedules || []).filter(s => !s.isDeleted);
@@ -255,13 +248,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const mergedGlobal = useMemo(() => {
     if (!data?.global) return null;
+
     return {
       ...data.global,
       theme: devicePrefs.theme || data.global.theme,
       currentScheduleId: devicePrefs.currentScheduleId || data.global.currentScheduleId,
-      language: devicePrefs.language || data.global.language || 'uk'
+      language: lang 
     };
-  }, [data?.global, devicePrefs]);
+  }, [data?.global, devicePrefs, lang]);
 
   const currentScheduleId = mergedGlobal?.currentScheduleId || null;
 
@@ -636,7 +630,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     reloadAllSchedules, resetApplication, isDirty, isSaving, isCloudSaving,
     isLoading, error, isOnline,
     conflictQueue, handleResolveConflict,
-    cloudSyncState
+    cloudSyncState,
+    lang, isLangLoading
   };
 
   return (

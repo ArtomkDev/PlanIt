@@ -5,7 +5,7 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../../firebase'; 
 import AuthLayout from '../components/AuthLayout';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
-import { useSchedule } from '../context/ScheduleProvider';
+import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 
 const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, setIsPasswordVisible, isPasswordVisible, autoCapitalize="none", colors }) => (
@@ -29,8 +29,7 @@ const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, i
 );
 
 const SignUp = ({ navigation }) => {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { lang, isLangLoading } = useAppLanguage();
   const { colors } = useSystemThemeColors('blue');
   
   const [name, setName] = useState('');
@@ -38,6 +37,14 @@ const SignUp = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  if (isLangLoading) {
+    return (
+      <View style={[styles.loadingWrapper, { backgroundColor: colors.backgroundColor }]}>
+        <ActivityIndicator size="large" color={colors.accentColor} />
+      </View>
+    );
+  }
 
   const handleSignUp = async () => {
     if (!name || !email || !password) {
@@ -126,25 +133,13 @@ const SignUp = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  loadingWrapper: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   form: { gap: 16, marginTop: 10 },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 56,
-  },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 56 },
   inputIcon: { marginRight: 12 },
   input: { flex: 1, height: '100%', fontSize: 16 },
   eyeButton: { padding: 10, marginRight: -10 },
-  registerButton: {
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
+  registerButton: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
   registerButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
   footerText: { fontSize: 15 },
