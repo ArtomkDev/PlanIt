@@ -1,6 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState, useCallback } from "react";
-import { View } from "react-native";
+import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -12,9 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { auth } from "./firebase";
-import SignIn from "./src/auth/SignIn";
-import SignUp from "./src/auth/SignUp";
-import WelcomeScreen from "./src/auth/WelcomeScreen";
+import AuthScreen from "./src/auth/AuthScreen"; 
 import MainLayout from "./src/pages/MainLayout";
 import { ScheduleProvider } from "./src/context/ScheduleProvider";
 import { EditorProvider } from "./src/context/EditorProvider";
@@ -99,10 +96,8 @@ export default function App() {
 
   const appIsReady = fontsLoaded && authResolved;
 
-  // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ №1: Примусово прибираємо Splash Screen через useEffect
   useEffect(() => {
     if (appIsReady) {
-      // Даємо React Native мілісекунду на рендер і зносимо Splash Screen
       setTimeout(() => {
         SplashScreen.hideAsync().catch(() => {});
       }, 100);
@@ -117,7 +112,6 @@ export default function App() {
     setGuest(false);
   };
 
-  // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ №2: Забираємо проблемний onLayout і використовуємо onReady
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
       <ScheduleProvider guest={guest} user={user}>
@@ -136,18 +130,14 @@ export default function App() {
                 )}
               </Stack.Screen>
             ) : (
-              <>
-                <Stack.Screen name="Welcome">
-                  {(props) => (
-                    <WelcomeScreen
-                      {...props}
-                      onGuestLogin={() => setGuest(true)}
-                    />
-                  )}
-                </Stack.Screen>
-                <Stack.Screen name="SignIn" component={SignIn} />
-                <Stack.Screen name="SignUp" component={SignUp} />
-              </>
+              <Stack.Screen name="Auth">
+                {(props) => (
+                  <AuthScreen 
+                    {...props} 
+                    onGuestLogin={() => setGuest(true)} 
+                  />
+                )}
+              </Stack.Screen>
             )}
           </Stack.Navigator>
         </NavigationContainer>

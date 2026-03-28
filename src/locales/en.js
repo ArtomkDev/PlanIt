@@ -31,6 +31,12 @@ export default {
   },
 
   auth: {
+    common: {
+      continue_with: "Continue with",
+    },
+    settings: {
+      link_with: "Link with",
+    },
     signin: {
       title: "Welcome back!",
       subtitle: "Sign in to sync your schedule.",
@@ -45,6 +51,8 @@ export default {
       submit: "Create account",
       already_have_account: "Already have an account? ",
       login_link: "Sign In",
+      accept_terms_prefix: "I accept the ",
+      accept_terms_link: "Terms of Service",
     },
     fields: {
       email: "Email address",
@@ -60,6 +68,7 @@ export default {
       too_many_requests: "Too many requests. Try again later.",
       email_already_in_use: "This email is already in use",
       weak_password: "Password is too weak (min 6 characters)",
+      accept_terms: "Please accept the Terms of Service and Privacy Policy.",
     },
     welcome: {
       subtitle: "Your perfect class schedule is always at hand.",

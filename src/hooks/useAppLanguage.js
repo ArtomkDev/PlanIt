@@ -1,47 +1,49 @@
 import { useState, useEffect } from 'react';
-import { Platform, NativeModules } from 'react-native';
 import { getDevicePrefs } from '../utils/storage';
+import * as Localization from 'expo-localization';
+import { SUPPORTED_LANGUAGES } from '../utils/i18n';
 
 export default function useAppLanguage(globalLanguage) {
-  const [lang, setLang] = useState('uk');
+  const [lang, setLang] = useState('en');
   const [isLangLoading, setIsLangLoading] = useState(true);
-
+  
   useEffect(() => {
     let isMounted = true;
 
     const determineLanguage = async () => {
       try {
-        if (globalLanguage) {
-          if (isMounted) { setLang(globalLanguage); setIsLangLoading(false); }
-          return;
-        }
-
         const prefs = await getDevicePrefs();
         if (prefs?.language) {
-          if (isMounted) { setLang(prefs.language); setIsLangLoading(false); }
+          if (isMounted) { 
+            setLang(prefs.language); 
+            setIsLangLoading(false); 
+          }
           return;
         }
 
-        let deviceLang = '';
-        if (Platform.OS === 'web') {
-          deviceLang = window.navigator?.language || '';
-        } else if (Platform.OS === 'ios') {
-          deviceLang = NativeModules.SettingsManager?.settings?.AppleLocale ||
-                       NativeModules.SettingsManager?.settings?.AppleLanguages?.[0] || '';
-        } else {
-          deviceLang = NativeModules.I18nManager?.localeIdentifier || '';
-        }
-
-        const shortCode = deviceLang.split(/[-_]/)[0].toLowerCase();
-        
-        if (shortCode === 'uk' || shortCode === 'en') {
-          if (isMounted) { setLang(shortCode); setIsLangLoading(false); }
+        if (globalLanguage) {
+          if (isMounted) { 
+            setLang(globalLanguage); 
+            setIsLangLoading(false); 
+          }
           return;
         }
 
-        if (isMounted) { setLang('en'); setIsLangLoading(false); }
+        const locales = Localization.getLocales();
+        const deviceLang = locales?.[0]?.languageCode?.toLowerCase() || '';
+
+        const isSupported = SUPPORTED_LANGUAGES.some(l => l.code === deviceLang);
+
+        if (isMounted) {
+          setLang(isSupported ? deviceLang : 'en');
+          setIsLangLoading(false);
+        }
       } catch (error) {
-        if (isMounted) { setLang('uk'); setIsLangLoading(false); }
+        console.error("Language detection failed, falling back to English:", error);
+        if (isMounted) { 
+          setLang('en'); 
+          setIsLangLoading(false); 
+        }
       }
     };
 

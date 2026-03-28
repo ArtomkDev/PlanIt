@@ -31,6 +31,12 @@ export default {
   },
 
   auth: {
+    common: {
+      continue_with: "Продовжити через",
+    },
+    settings: {
+      link_with: "Прив'язати до",
+    },
     signin: {
       title: "З поверненням!",
       subtitle: "Увійдіть, щоб синхронізувати розклад.",
@@ -45,6 +51,8 @@ export default {
       submit: "Створити акаунт",
       already_have_account: "Вже є акаунт? ",
       login_link: "Увійти",
+      accept_terms_prefix: "Я приймаю ",
+      accept_terms_link: "Умови використання",
     },
     fields: {
       email: "Email пошта",
@@ -60,6 +68,7 @@ export default {
       too_many_requests: "Забагато спроб. Спробуйте пізніше.",
       email_already_in_use: "Цей email вже використовується",
       weak_password: "Пароль занадто слабкий (мінімум 6 символів)",
+      accept_terms: "Будь ласка, прийміть Умови використання та Політику.",
     },
     welcome: {
       subtitle: "Ваш ідеальний розклад занять завжди під рукою.",
