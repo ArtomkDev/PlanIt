@@ -26,6 +26,7 @@ import ScheduleEditorScreen from '../pages/ScheduleSettings/components/ScheduleE
 import LanguageSettings from '../pages/ScheduleSettings/components/LanguageSettings';
 import AccountSettings from '../pages/ScheduleSettings/components/AccountSettings';
 import DeleteAccountScreen from '../pages/ScheduleSettings/components/AccountSettings/DeleteAccountScreen';
+import ChangeNameScreen from '../pages/ScheduleSettings/components/AccountSettings/ChangeNameScreen';
 import ChangeEmailScreen from '../pages/ScheduleSettings/components/AccountSettings/ChangeEmailScreen';
 
 const Tab = createBottomTabNavigator();
@@ -58,6 +59,7 @@ function ScheduleSettingsStack({ screenProps }) {
       <Stack.Screen name="DeviceService" component={DeviceManager} />
       <Stack.Screen name="AccountSettings" component={AccountSettings} />
       <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+      <Stack.Screen name="ChangeName" component={ChangeNameScreen} />
       <Stack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
     </Stack.Navigator>
   );

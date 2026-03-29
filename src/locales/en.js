@@ -249,6 +249,14 @@ export default {
       management_section: "ACCOUNT MANAGEMENT",
       delete_account: "Delete Account",
       not_specified: "Not specified",
+      change_name: {
+        title: "Change Name",
+        desc: "Enter a new name that will be displayed in your profile and visible to others.",
+        input_label: "Username",
+        req_empty: "Name cannot be empty.",
+        req_same: "Enter a new name that is different from your current one.",
+        success_msg: "Your name has been successfully updated."
+      },
       delete_screen: {
         title: "Delete Account",
         alert_title: "Delete Account?",

@@ -1,20 +1,24 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 
+import { auth } from '../../../../firebase';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 import SettingsScreenLayout from '../SettingsScreenLayout';
 
 export default function AccountSettings() {
-  const { global, user, lang} = useSchedule();
-  const navigation = useNavigation(); 
+  const { global, user: contextUser, lang } = useSchedule();
+  const navigation = useNavigation();
+  const isFocused = useIsFocused();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
   const styles = getStyles(themeColors);
+
+  const activeUser = isFocused ? auth.currentUser : contextUser;
 
   const SettingsRow = ({ icon, title, value, rightElement, isLast, isDestructive, onPress }) => {
     const Component = onPress ? TouchableOpacity : View;
@@ -42,9 +46,9 @@ export default function AccountSettings() {
     );
   };
 
-  const userName = user?.displayName || t('settings.account_settings.not_specified', lang);
-  const userEmail = user?.email || t('settings.account_settings.not_specified', lang);
-  const userPhone = user?.phoneNumber || t('settings.account_settings.not_specified', lang);
+  const userName = activeUser?.displayName || t('settings.account_settings.not_specified', lang);
+  const userEmail = activeUser?.email || t('settings.account_settings.not_specified', lang);
+  const userPhone = activeUser?.phoneNumber || t('settings.account_settings.not_specified', lang);
   
   const initial = userName !== t('settings.account_settings.not_specified', lang) 
     ? userName.charAt(0).toUpperCase() 
@@ -62,7 +66,13 @@ export default function AccountSettings() {
 
       <Text style={styles.sectionTitle}>{t('settings.account_settings.info_section', lang)}</Text>
       <View style={styles.section}>
-        <SettingsRow icon="person-outline" title={t('settings.account_settings.name', lang)} value={userName} />
+        <SettingsRow 
+          icon="person-outline" 
+          title={t('settings.account_settings.name', lang)} 
+          value={userName} 
+          rightElement={<Ionicons name="chevron-forward" size={20} color={themeColors.textColor2} />}
+          onPress={() => navigation.navigate('ChangeName')}
+        />
         
         <SettingsRow 
           icon="mail-outline" 
