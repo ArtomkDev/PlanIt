@@ -85,8 +85,8 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
 };
 
 export default function LessonEditorGradientEditScreen({ themeColors, gradientToEdit, onSave }) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
 
   const getInitialColor = (index, fallback) => {
     if (gradientToEdit && gradientToEdit.colors && gradientToEdit.colors[index]) {

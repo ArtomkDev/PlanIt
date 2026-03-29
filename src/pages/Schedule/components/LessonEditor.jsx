@@ -34,12 +34,12 @@ const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
 const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 
 export default function LessonEditor({ lesson, onClose }) {
-  const { global, schedule, scheduleDraft, setScheduleDraft } = useSchedule();
+  const { global, schedule, scheduleDraft, setScheduleDraft , lang} = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+
 
   const dataSource = scheduleDraft || schedule;
 

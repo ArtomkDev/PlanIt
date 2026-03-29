@@ -14,7 +14,7 @@ import SettingsScreenLayout from "../SettingsScreenLayout";
 import useUniqueId from "../../../hooks/useUniqueId";
 
 export default function TeachersManager() {
-  const { global, schedule, setScheduleDraft } = useSchedule();
+  const { global, schedule, setScheduleDraft , lang} = useSchedule();
   const teachers = schedule?.teachers || [];
   
   const [mode, accent] = global?.theme || ["light", "blue"];

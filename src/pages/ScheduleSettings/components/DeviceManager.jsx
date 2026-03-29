@@ -27,7 +27,7 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 
 export default function DeviceManager() {
-  const { user, global } = useSchedule();
+  const { user, global , lang} = useSchedule();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDeviceId, setCurrentDeviceId] = useState(null);
@@ -36,7 +36,7 @@ export default function DeviceManager() {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+
 
   useEffect(() => {
     if (!user) return;

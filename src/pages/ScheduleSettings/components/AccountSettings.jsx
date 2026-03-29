@@ -9,7 +9,7 @@ import { t } from '../../../utils/i18n';
 import SettingsScreenLayout from '../SettingsScreenLayout';
 
 export default function AccountSettings() {
-  const { global, user, lang } = useSchedule();
+  const { global, user, lang} = useSchedule();
   const navigation = useNavigation(); 
   
   const [mode, accent] = global?.theme || ['light', 'blue'];

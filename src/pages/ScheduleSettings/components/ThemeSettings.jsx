@@ -8,11 +8,11 @@ import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
 import { t } from "../../../utils/i18n";
 
 const ThemeSettings = () => {
-  const { global, setGlobalDraft } = useSchedule();
+  const { global, setGlobalDraft , lang} = useSchedule();
   
   const [currentMode, currentAccent] = global?.theme || ["light", "blue"];
   const currentBlur = global?.blur ?? true;
-  const lang = global?.language || 'uk'; 
+ 
   
   const [selectedMode, setSelectedMode] = useState(currentMode);
   const [selectedColor, setSelectedColor] = useState(currentAccent);

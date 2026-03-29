@@ -20,8 +20,8 @@ export default function LessonEditorPickerScreen({
   themeColors,
   layout = 'list',
 }) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
   const [tempSelected, setTempSelected] = useState([]);
 
   useEffect(() => {

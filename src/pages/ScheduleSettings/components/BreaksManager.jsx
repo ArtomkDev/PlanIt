@@ -26,11 +26,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function BreaksManager() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { global, schedule, setScheduleDraft } = useSchedule();
+  const { global, schedule, setScheduleDraft , lang} = useSchedule();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+
 
   const [tempBreaks, setTempBreaks] = useState(() => schedule.breaks.map(String));
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);

@@ -16,7 +16,7 @@ import SettingsScreenLayout from "../SettingsScreenLayout";
 import useUniqueId from "../../../hooks/useUniqueId"; // ⬅️ новий хук
 
 export default function SubjectsManager() {
-  const { global, schedule, setScheduleDraft, isLoading } = useSchedule();
+  const { global, schedule, setScheduleDraft, isLoading , lang} = useSchedule();
   const generateId = useUniqueId(); // ⬅️ використовуємо хук
 
   if (isLoading || !schedule) {

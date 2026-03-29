@@ -13,7 +13,7 @@ import { t } from '../../utils/i18n';
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
-  const { user, global, schedule } = useSchedule();
+  const { user, global, schedule , lang} = useSchedule();
   const insets = useSafeAreaInsets();
 
   const headerHeight = 50 + insets.top;
@@ -23,7 +23,7 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
 
-  const lang = global?.language || 'uk';
+
 
   const autoSaveVal = global?.auto_save; 
   const autoSaveEnabled = typeof autoSaveVal === 'number' && autoSaveVal > 0;

@@ -7,14 +7,14 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 
 export default function Header({ currentDate, onDateChange, onTodayPress, onTitlePress }) {
-  const { global, schedule } = useSchedule();
+  const { global, schedule , lang} = useSchedule();
   const [showNativePicker, setShowNativePicker] = useState(false);
 
   if (!schedule) return null;
 
   const [mode, accent] = global.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+
 
   const handleNativeDateChange = (event, selectedDate) => {
     setShowNativePicker(false);

@@ -105,11 +105,11 @@ const WeekPage = React.memo(({
 });
 
 const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
-  const { global } = useSchedule();
+  const { global , lang} = useSchedule();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
   const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const lang = global?.language || 'uk';
+
 
   const DAYS = useMemo(() => {
     const localeMap = { uk: 'uk-UA', en: 'en-US', pl: 'pl-PL', de: 'de-DE' };

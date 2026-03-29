@@ -42,7 +42,7 @@ const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handl
 });
 
 export default function Schedule() {
-  const { global, schedule } = useSchedule();
+  const { global, schedule , lang} = useSchedule();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   
   const [anchorDate, setAnchorDate] = useState(() => {
@@ -63,7 +63,7 @@ export default function Schedule() {
   const [editingLesson, setEditingLesson] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);
 
-  const lang = global?.language || 'uk';
+
 
   if (!schedule) return <View style={styles.loading}><Text>{t('schedule.loading', lang)}</Text></View>;
 

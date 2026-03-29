@@ -15,8 +15,8 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CONTENT_HEIGHT = 380; 
 
 export default function CalendarSheet({ visible, onClose, onDateSelect, currentDate }) {
-  const { global, schedule } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global, schedule , lang} = useSchedule();
+
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 

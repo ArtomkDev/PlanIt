@@ -13,10 +13,9 @@ export default function MainLayout({ guest, onExitGuest }) {
     global,
     schedule,
     isLoading,
-    error
+    error,
+    lang
   } = useSchedule();
-
-  const lang = global?.language || 'uk';
 
   if (isLoading && !schedule) {
     return (

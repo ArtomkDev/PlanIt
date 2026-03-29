@@ -6,9 +6,9 @@ import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 
 export default function ResetDB() {
-  const { resetApplication, global, isLoading } = useSchedule();
+  const { resetApplication, global, isLoading , lang} = useSchedule();
   const [isResetting, setIsResetting] = useState(false);
-  const lang = global?.language || 'uk';
+
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);

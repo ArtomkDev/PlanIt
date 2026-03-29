@@ -22,8 +22,8 @@ export default function LessonEditorMainScreen({
   getValueLabel,
   getArrayData
 }) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
 
   const safeGetLabel = getLabel || ((type, val) => t('schedule.main_screen.not_defined', lang));
 

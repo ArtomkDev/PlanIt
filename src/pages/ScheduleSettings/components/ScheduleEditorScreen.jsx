@@ -31,12 +31,12 @@ const ScheduleEditorScreen = () => {
   const insets = useSafeAreaInsets();
   const { isNew, scheduleId } = route.params || {};
   
-  const { global, schedules, addSchedule, setData, setGlobalDraft } = useSchedule();
+  const { global, schedules, addSchedule, setData, setGlobalDraft , lang} = useSchedule();
   const generateId = useUniqueId();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+
 
   const [name, setName] = useState("");
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);

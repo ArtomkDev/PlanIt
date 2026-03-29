@@ -3,7 +3,7 @@ import { Animated, StyleSheet, Pressable } from "react-native";
 import { useSchedule } from "../context/ScheduleProvider";
 
 export default function AutoSaveManager() {
-  const { saveNow, isCloudSaving, isDirty, user, global, isOnline, conflictQueue, cloudSyncState } = useSchedule();
+  const { saveNow, isCloudSaving, isDirty, user, global, isOnline, conflictQueue, cloudSyncState , lang} = useSchedule();
   const autoSaveInterval = global?.auto_save || 60;
 
   const [timeLeft, setTimeLeft] = useState(autoSaveInterval);

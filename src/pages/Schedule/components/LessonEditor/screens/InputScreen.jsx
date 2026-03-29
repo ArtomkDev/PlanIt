@@ -11,8 +11,8 @@ export default function LessonEditorInputScreen({
   onSave,
   themeColors,
 }) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
   const [value, setValue] = useState(initialValue || "");
 
   useEffect(() => {

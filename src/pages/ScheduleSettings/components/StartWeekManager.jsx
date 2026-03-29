@@ -9,8 +9,8 @@ import SettingsScreenLayout from '../SettingsScreenLayout';
 import { t } from '../../../utils/i18n';
 
 export default function StartWeekScreen() {
-  const { global, schedule, setScheduleDraft } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global, schedule, setScheduleDraft , lang} = useSchedule();
+
 
   const [showPicker, setShowPicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());

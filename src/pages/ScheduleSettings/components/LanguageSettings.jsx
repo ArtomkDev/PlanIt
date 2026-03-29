@@ -7,7 +7,7 @@ import SettingsScreenLayout from "../SettingsScreenLayout";
 import { t, SUPPORTED_LANGUAGES } from "../../../utils/i18n";
 
 const LanguageSettings = () => {
-  const { global, setGlobalDraft, saveNow, isDirty } = useSchedule();
+  const { global, setGlobalDraft, saveNow, isDirty , lang} = useSchedule();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);

@@ -14,8 +14,8 @@ import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack, themeColors }) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");

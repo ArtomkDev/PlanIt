@@ -11,7 +11,7 @@ import SettingsScreenLayout from '../../SettingsScreenLayout';
 import { t } from '../../../../utils/i18n';
 
 export default function ChangeEmailScreen() {
-  const { global, lang } = useSchedule();
+  const { global, lang} = useSchedule();
   const navigation = useNavigation();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];

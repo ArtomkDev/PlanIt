@@ -6,8 +6,8 @@ import SettingsScreenLayout from '../SettingsScreenLayout';
 import { t } from '../../../utils/i18n';
 
 export default function WeekManager() {
-  const { global, schedule, setScheduleDraft } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global, schedule, setScheduleDraft , lang} = useSchedule();
+
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 

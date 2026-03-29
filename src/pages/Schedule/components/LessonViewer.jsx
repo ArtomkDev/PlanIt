@@ -20,13 +20,13 @@ import { t } from "../../../utils/i18n";
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
-  const { schedule, global } = useSchedule();
+  const { schedule, global , lang} = useSchedule();
   
   if (!visible || !lesson) return null;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+
 
   const subjectId = lesson.subjectId;
   const fullSubject = schedule.subjects.find(s => s.id === subjectId) || {};

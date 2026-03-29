@@ -12,8 +12,8 @@ const customLayoutTransition = isWeb
   : LinearTransition.duration(200).easing(Easing.out(Easing.quad));
 
 export default function Group({ title, children, onAdd, themeColors, showScopeToggle, scope, onScopeChange }) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
   
   const handleScopeChange = () => {
     onScopeChange(scope === "local" ? "global" : "local");

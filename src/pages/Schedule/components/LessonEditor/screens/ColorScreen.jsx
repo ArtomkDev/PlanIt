@@ -14,8 +14,8 @@ export default function LessonEditorSubjectColorScreen({
   onEditGradient,
   onAddGradient,
 }) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
 
   const [activeTab, setActiveTab] = useState(
     currentSubject?.typeColor === "gradient" ? "gradient" : "color"

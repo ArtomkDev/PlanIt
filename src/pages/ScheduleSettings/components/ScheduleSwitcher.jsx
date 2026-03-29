@@ -21,12 +21,12 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 
 const ScheduleSwitcher = () => {
-  const { global, setGlobalDraft, schedules, removeSchedule } = useSchedule();
+  const { global, setGlobalDraft, schedules, removeSchedule , lang} = useSchedule();
   const navigation = useNavigation();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+
 
   if (!global) return null;
 

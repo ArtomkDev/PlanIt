@@ -2,8 +2,8 @@ import { useState, useMemo, useCallback } from 'react';
 import { useSchedule } from '../../../../context/ScheduleProvider';
 
 export function useCalendarLogic(initialDate, schedule) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
   const [viewDate, setViewDate] = useState(new Date(initialDate));
 
   const startingWeekDateStr = schedule?.starting_week || new Date().toISOString().split('T')[0];

@@ -38,11 +38,11 @@ export default function DaySchedule({
   scrollY
 }) {
   const { getDaySchedule } = useDaySchedule();
-  const { schedule, global } = useSchedule();
+  const { schedule, global , lang} = useSchedule();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+
 
   const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
   

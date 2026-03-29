@@ -12,7 +12,7 @@ import { t } from '../../../../utils/i18n';
 import SettingsScreenLayout from '../../SettingsScreenLayout';
 
 export default function DeleteAccountScreen() {
-  const { global, lang } = useSchedule();
+  const { global, lang} = useSchedule();
   const navigation = useNavigation();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];

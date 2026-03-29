@@ -12,8 +12,8 @@ import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 
 const AutoSaveIntervalSettings = () => {
-  const { global, setGlobalDraft } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global, setGlobalDraft , lang} = useSchedule();
+
 
   const currentInterval = global?.auto_save ?? 60;
   

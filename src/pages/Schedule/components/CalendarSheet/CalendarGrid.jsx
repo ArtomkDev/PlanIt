@@ -14,8 +14,8 @@ export default function CalendarGrid({
   getWeekNumber, 
   weekDayNames 
 }) {
-  const { global } = useSchedule();
-  const lang = global?.language || 'uk';
+  const { global , lang} = useSchedule();
+
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 

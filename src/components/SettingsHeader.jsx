@@ -10,7 +10,7 @@ import { useSchedule } from '../context/ScheduleProvider';
 export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY, showBackButton = true }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { global } = useSchedule();
+  const { global , lang} = useSchedule();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);

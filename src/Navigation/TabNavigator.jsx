@@ -64,11 +64,11 @@ function ScheduleSettingsStack({ screenProps }) {
 }
 
 export default function TabNavigator({ screenProps }) {
-  const { global } = useSchedule();
+  const { global , lang} = useSchedule();
   const insets = useSafeAreaInsets();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
-  const lang = global?.language || 'uk';
+
   const themeColors = themes.getColors(mode, accent);
 
   return (

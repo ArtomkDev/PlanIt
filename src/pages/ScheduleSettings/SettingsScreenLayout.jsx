@@ -8,13 +8,13 @@ import SettingsHeader from '../../components/SettingsHeader';
 import { t } from '../../utils/i18n';
 
 export default function SettingsScreenLayout({ children, contentContainerStyle }) {
-  const { global } = useSchedule();
+  const { global , lang} = useSchedule();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language;
+
 
   const routeTitles = {
     'Breaks': t('settings.menu.breaks.title', lang),
