@@ -83,3 +83,5 @@ ios/.xcode.env.local
 # Якщо ви не хочете світити конфіги у відкритому репозиторії:
 # google-services.json
 # GoogleService-Info.plist
+
+google-services.json

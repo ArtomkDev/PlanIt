@@ -14,6 +14,9 @@ import {
 import { db } from "./firebase";
 import createDefaultData from './src/config/createDefaultData';
 
+// Глобальний прапорець для блокування автозбереження під час видалення акаунту
+let isAccountBeingDeleted = false;
+
 const parseTimestamp = (ts) => {
   if (!ts) return null;
   if (typeof ts === 'number') return ts;
@@ -37,10 +40,8 @@ const ensureVersioning = (data) => {
 export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   let globalData = null;
   let schedulesList = null;
-  
   let globalFromCache = true;
   let schedulesFromCache = true;
-
   let globalSnapshotCount = 0;
 
   const checkAndEmit = () => {
@@ -63,7 +64,6 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
       checkAndEmit();
     } else {
       const userDocRef = doc(db, "users", userId);
-      
       getDoc(userDocRef).then((userDocSnap) => {
         if (currentCount !== globalSnapshotCount) return;
 
@@ -89,7 +89,6 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   
   const unsubSchedules = onSnapshot(schedulesRef, { includeMetadataChanges: true }, (querySnapshot) => {
     schedulesFromCache = querySnapshot.metadata.fromCache; 
-    
     schedulesList = querySnapshot.docs.map(docSnap => ({
       id: docSnap.id,
       ...ensureVersioning(docSnap.data()) 
@@ -143,7 +142,6 @@ export const getSchedule = async (userId) => {
     }
 
     return { global: globalData, schedules: schedulesList };
-
   } catch (error) {
     throw error;
   }
@@ -187,13 +185,14 @@ export const getScheduleFromServer = async (userId) => {
     }
 
     return { global: globalData, schedules: schedulesList };
-
   } catch (error) {
     throw error;
   }
 };
 
 export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
+  if (isAccountBeingDeleted) return; // 🔥 АБСОЛЮТНИЙ БЛОК: Ніяких записів, якщо йде видалення
+
   const batch = writeBatch(db);
 
   if (data.global) {
@@ -210,7 +209,6 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
 
       snapshot.docs.forEach(docSnap => {
         if (!activeIds.includes(docSnap.id)) {
-          // 🔥 ВИПРАВЛЕННЯ: БЕЗ merge: true для повного затирання старих полів
           batch.set(docSnap.ref, { 
             id: docSnap.id,
             isDeleted: true, 
@@ -227,10 +225,8 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
         const scheduleDocRef = doc(db, 'users', userId, 'schedules', schedule.id);
         
         if (schedule.isDeleted) {
-          // 🔥 БЕЗ merge: true, якщо це розклад-надгробок (tombstone)
           batch.set(scheduleDocRef, { ...schedule, lastModified: serverTimestamp() });
         } else {
-          // 🔥 З merge: true для звичайного оновлення існуючого розкладу
           batch.set(scheduleDocRef, { ...schedule, lastModified: serverTimestamp() }, { merge: true });
         }
       }
@@ -241,11 +237,12 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
 };
 
 export const deleteUserSchedule = async (userId, scheduleId) => {
+  if (isAccountBeingDeleted) return; // Блок
+
   const scheduleRef = doc(db, 'users', userId, 'schedules', scheduleId);
   const docSnap = await getDoc(scheduleRef);
   const data = docSnap.exists() ? docSnap.data() : {};
   
-  // 🔥 Повне затирання документа для конкретного розкладу (БЕЗ merge: true)
   await setDoc(scheduleRef, { 
     id: scheduleId,
     isDeleted: true, 
@@ -256,6 +253,8 @@ export const deleteUserSchedule = async (userId, scheduleId) => {
 };
 
 export const resetUserSchedules = async (userId) => {
+  if (isAccountBeingDeleted) return; // Блок
+
   const batch = writeBatch(db);
   const schedulesRef = collection(db, 'users', userId, 'schedules');
   const snapshot = await getDocs(schedulesRef);
@@ -263,7 +262,6 @@ export const resetUserSchedules = async (userId) => {
   if (snapshot.empty) return;
 
   snapshot.docs.forEach((docSnap) => {
-    // 🔥 Повне затирання всіх документів при скиданні (БЕЗ merge: true)
     batch.set(docSnap.ref, { 
       id: docSnap.id,
       isDeleted: true, 
@@ -274,4 +272,50 @@ export const resetUserSchedules = async (userId) => {
   });
 
   await batch.commit();
+};
+
+export const deleteAllUserData = async (userId) => {
+  isAccountBeingDeleted = true; // 🔥 АКТИВУЄМО ЗАХИСНИЙ БЛОК ВІД АВТОЗБЕРЕЖЕННЯ
+  try {
+    const batch = writeBatch(db);
+
+    // 1. Очищуємо розклади
+    try {
+      const schedulesRef = collection(db, 'users', userId, 'schedules');
+      const snapshot = await getDocs(schedulesRef);
+      snapshot.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+      });
+    } catch (e) {
+      console.warn("Schedules clear error:", e);
+    }
+
+    // 2. Очищуємо підключені пристрої
+    try {
+      const devicesRef = collection(db, 'users', userId, 'devices');
+      const snapshot = await getDocs(devicesRef);
+      snapshot.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+      });
+    } catch (e) {
+      console.warn("Devices clear error:", e);
+    }
+
+    // 3. Видаляємо глобальні налаштування
+    const globalSettingsRef = doc(db, 'users', userId, 'global', 'settings');
+    batch.delete(globalSettingsRef);
+
+    // 4. Видаляємо самого користувача
+    const userDocRef = doc(db, 'users', userId);
+    batch.delete(userDocRef);
+
+    // Комітимо ВСІ операції видалення за один раз
+    await batch.commit();
+    
+    // isAccountBeingDeleted залишається true до кінця сесії додатку, 
+    // щоб 100% заблокувати будь-які посмертні виклики автосейву.
+  } catch (error) {
+    isAccountBeingDeleted = false; // Знімаємо блок тільки якщо сталась фатальна помилка
+    throw error;
+  }
 };

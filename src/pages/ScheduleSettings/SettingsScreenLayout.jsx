@@ -14,7 +14,7 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
-  const lang = global?.language || 'uk';
+  const lang = global?.language;
 
   const routeTitles = {
     'Breaks': t('settings.menu.breaks.title', lang),
@@ -29,6 +29,9 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
     'Language': t('settings.menu.language.title', lang),
     'ResetDB': t('settings.menu.reset_db.title', lang),
     'DeviceService': t('settings.menu.devices.title', lang),
+    'AccountSettings': t('settings.menu.account_settings.title', lang),
+    'ChangeEmail': t('settings.account_settings.change_email_screen.title', lang),
+    'DeleteAccount': t('settings.account_settings.delete_screen.title', lang),
   };
   
   const title = routeTitles[route.name] || route.name;

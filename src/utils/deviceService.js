@@ -5,6 +5,9 @@ import {
   collection,
   deleteDoc,
   onSnapshot,
+  getDoc,
+  writeBatch,
+  deleteField
 } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import * as Device from "expo-device";
@@ -12,7 +15,12 @@ import { Platform } from "react-native";
 import * as Crypto from "expo-crypto";
 import { signOut } from "firebase/auth";
 
-// Generates a stable, unique ID for the device.
+let isAccountBeingDeleted = false;
+
+export function setIgnoreDeviceRemoval(status) {
+  isAccountBeingDeleted = status;
+}
+
 export async function getDeviceId(userId) {
   let rawDeviceId;
   if (Platform.OS === "web") {
@@ -24,7 +32,6 @@ export async function getDeviceId(userId) {
   return await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, input);
 }
 
-// Gathers information about the current device.
 export function getDeviceInfo() {
   if (Platform.OS === "web") {
     return { name: navigator.userAgent || "Web Browser", platform: "Web" };
@@ -37,34 +44,126 @@ export function getDeviceInfo() {
   };
 }
 
-// Registers the device in Firestore on login.
 export async function registerDevice(userId) {
   if (!userId) return;
+
+  // 1. ШВИДКА РЕЄСТРАЦІЯ ПОТОЧНОГО ПРИСТРОЮ
   const deviceId = await getDeviceId(userId);
   const ref = doc(db, "users", userId, "devices", deviceId);
   const deviceInfo = { ...getDeviceInfo(), lastLogin: new Date().toISOString() };
   await setDoc(ref, deviceInfo, { merge: true });
   console.log(`✅ Device [${deviceInfo.name}] registered/updated.`);
+
+  // 2. ОЧИЩЕННЯ БАЗИ (Відбувається ТІЛЬКИ при першому вході після зміни пошти)
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    try {
+      const userRef = doc(db, "users", userId);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+
+        if (userData.pendingEmail && userData.pendingEmail === currentUser.email.toLowerCase()) {
+          console.log("🔒 Перший вхід після зміни пошти. Очищення бази від старих сесій...");
+          const batch = writeBatch(db);
+
+          const devicesRef = collection(db, "users", userId, "devices");
+          const devicesSnap = await getDocs(devicesRef);
+          
+          // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ: Видаляємо всі пристрої, ОКРІМ ТОГО З ЯКОГО ЩОЙНО УВІЙШЛИ
+          devicesSnap.forEach(d => {
+            if (d.id !== deviceId) {
+              batch.delete(d.ref);
+            }
+          });
+
+          // Видаляємо прапорець, бо ми вже все зробили
+          batch.update(userRef, { pendingEmail: deleteField() });
+
+          await batch.commit();
+          console.log("✅ Старі сесії та pendingEmail успішно видалено.");
+        }
+      }
+    } catch (error) {
+      console.warn("Security check warning:", error);
+    }
+  }
 }
 
-// Listens for changes to the current device's document in Firestore.
 export async function listenForDeviceRemoval(userId, onRemoved) {
   if (!userId) return () => {};
   const deviceId = await getDeviceId(userId);
   const ref = doc(db, "users", userId, "devices", deviceId);
 
-  const unsubscribe = onSnapshot(ref, (docSnap) => {
-    // If the document does not exist, it means the device was removed.
+  // Слухач 1: Якщо наш пристрій видалили з бази (наприклад, з іншого телефону)
+  const unsubscribeDevice = onSnapshot(ref, (docSnap) => {
     if (!docSnap.exists()) {
+      if (isAccountBeingDeleted) return;
       console.log("Device was removed from another location. Forcing logout.");
       onRemoved();
     }
   });
 
-  return unsubscribe;
+  // Слухач 2: Відстеження підтвердження зміни пошти (у фоні)
+  const userRef = doc(db, "users", userId);
+  let checkInterval = null;
+  let isChecking = false;
+
+  const unsubscribeSecurity = onSnapshot(userRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const userData = docSnap.data();
+
+      // Якщо є заявка на зміну пошти, починаємо пінгувати Firebase
+      if (userData.pendingEmail) {
+        if (!checkInterval) {
+          checkInterval = setInterval(async () => {
+            if (isChecking) return;
+            isChecking = true;
+
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+              try {
+                // Запитуємо свіжі дані з сервера
+                await currentUser.reload();
+                
+                // Якщо пошта вже оновилася локально (користувач підтвердив)
+                if (currentUser.email && currentUser.email.toLowerCase() === userData.pendingEmail.toLowerCase()) {
+                  clearInterval(checkInterval);
+                  checkInterval = null;
+                  console.log("Пошту змінено, виходимо...");
+                  signOut(auth); // Просто виходимо (а базу почистить registerDevice при новому вході)
+                }
+              } catch (error) {
+                // Якщо Firebase сам анулював токен через зміну даних
+                clearInterval(checkInterval);
+                checkInterval = null;
+                console.log("Токен анульовано сервером, виходимо...");
+                signOut(auth);
+              } finally {
+                isChecking = false;
+              }
+            } else {
+               isChecking = false;
+            }
+          }, 4000);
+        }
+      } else {
+        if (checkInterval) {
+          clearInterval(checkInterval);
+          checkInterval = null;
+        }
+      }
+    }
+  });
+
+  return () => {
+    unsubscribeDevice();
+    unsubscribeSecurity();
+    if (checkInterval) clearInterval(checkInterval);
+  };
 }
 
-// Fetches the list of all devices for a user.
 export async function getDevices(userId) {
   if (!userId) return [];
   const devicesRef = collection(db, "users", userId, "devices");
@@ -72,15 +171,12 @@ export async function getDevices(userId) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-// Removes a specific device.
 export async function removeDevice(userId, deviceId) {
   if (!userId || !deviceId) return;
   const ref = doc(db, "users", userId, "devices", deviceId);
   await deleteDoc(ref);
-  console.log(`🗑️ Device with ID: ${deviceId} has been removed.`);
 }
 
-// Removes all devices except the current one.
 export async function removeAllOtherDevices(userId) {
   if (!userId) return;
   const currentId = await getDeviceId(userId);

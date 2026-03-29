@@ -24,6 +24,9 @@ import ScheduleSwitcher from '../pages/ScheduleSettings/components/ScheduleSwitc
 import DeviceManager from '../pages/ScheduleSettings/components/DeviceManager';
 import ScheduleEditorScreen from '../pages/ScheduleSettings/components/ScheduleEditorScreen';
 import LanguageSettings from '../pages/ScheduleSettings/components/LanguageSettings';
+import AccountSettings from '../pages/ScheduleSettings/components/AccountSettings';
+import DeleteAccountScreen from '../pages/ScheduleSettings/components/AccountSettings/DeleteAccountScreen';
+import ChangeEmailScreen from '../pages/ScheduleSettings/components/AccountSettings/ChangeEmailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -53,6 +56,9 @@ function ScheduleSettingsStack({ screenProps }) {
       <Stack.Screen name="Language" component={LanguageSettings} />
       <Stack.Screen name="ResetDB" component={ResetDB} />
       <Stack.Screen name="DeviceService" component={DeviceManager} />
+      <Stack.Screen name="AccountSettings" component={AccountSettings} />
+      <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+      <Stack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
     </Stack.Navigator>
   );
 }

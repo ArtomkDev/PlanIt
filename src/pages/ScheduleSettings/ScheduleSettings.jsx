@@ -109,7 +109,8 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
       data: !user ? [
         { label: t('settings.menu.login.title', lang), action: handleAuthAction, icon: 'log-in-outline', desc: t('settings.menu.login.desc', lang) },
       ] : [
-        { label: t('settings.menu.devices.title', lang), screen: 'DeviceService', icon: 'layers-outline', desc: t('settings.menu.devices.desc', lang) },
+        { label: t('settings.menu.account_settings.title', lang), screen: 'AccountSettings', icon: 'person-circle-outline', desc: t('settings.menu.account_settings.desc', lang) },
+        { label: t('settings.menu.devices.title', lang), screen: 'DeviceService', icon: 'hardware-chip-outline', desc: t('settings.menu.devices.desc', lang) },
         { label: t('settings.menu.logout.title', lang), action: handleSignOut, icon: 'log-out-outline', desc: t('settings.menu.logout.desc', lang), danger: true },
       ],
     },

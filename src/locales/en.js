@@ -200,6 +200,7 @@ export default {
       every_sec: "every {val} sec",
       
       login: { title: "Log In or Create Account", desc: "Sync your data to the cloud" },
+      account_settings: { title: "Account Settings", desc: "Profile management, security, email" },
       devices: { title: "Devices", desc: "Authorized devices settings" },
       logout: { title: "Log Out", desc: "End current session" },
       
@@ -231,6 +232,60 @@ export default {
         mode_label: "Mode:",
         button: "Button",
       }
+    },
+
+    account_settings: {
+      title: "Account Settings",
+      info_section: "ACCOUNT INFORMATION",
+      name: "Username",
+      email: "Email Address",
+      phone: "Phone Number",
+      linked_accounts_section: "LINKED ACCOUNTS",
+      linked: "Linked",
+      link_btn: "Link",
+      security_section: "SECURITY",
+      password: "Password",
+      forgot_password: "Forgot password?",
+      management_section: "ACCOUNT MANAGEMENT",
+      delete_account: "Delete Account",
+      not_specified: "Not specified",
+      delete_screen: {
+        title: "Delete Account",
+        alert_title: "Delete Account?",
+        alert_msg: "This action is irreversible. Once confirmed, all your account data will be permanently deleted.",
+        confirm_btn: "Delete Permanently",
+        requires_recent_login: "For security reasons, please log out and log in again before deleting your account.",
+        danger_zone_title: "Danger Zone",
+        warning_desc: "Deleting your account will permanently erase all your data, schedules, and settings. This cannot be undone.",
+        confirm_password: "Enter your password to confirm:",
+        enter_password_req: "Please enter your password.",
+        wrong_password: "Incorrect password. Please try again.",
+      },
+      change_email_screen: {
+        title: "Change Email Address",
+        social_login_title: "Email Change Unavailable",
+        social_login_desc: "You are signed in using a Google or Apple account. Your email address is linked to this service and cannot be changed directly within the app.",
+        current_email_info: "Your current address:",
+        confirmation_title: "Confirm Address Change",
+        confirmation_desc: "To change your email, please confirm your identity by entering your password. We will send a link to your new address, and after confirmation, we will end your active sessions to protect your data.",
+        current_password_label: "Current Password",
+        current_password_placeholder: "Enter your password",
+        new_email_label: "New Email Address",
+        new_email_placeholder: "new.email@example.com",
+        send_btn: "Send Confirmation Email",
+        
+        req_password: "Please enter your current password.",
+        req_valid_email: "Please enter a valid new email address.",
+        req_different_email: "The new address cannot be the same as your current one.",
+        wrong_password: "Wrong password. Please try again.",
+        invalid_email_format: "Invalid format for the new email address.",
+        email_in_use: "This email address is already in use by another account.",
+        req_recent_login: "For security reasons, please log out and log in again before changing your email.",
+        
+        alert_title: "Email Sent",
+        alert_msg: "A confirmation email has been sent to {newEmail}.\n\nOnce you confirm the change via the email link, our security system will automatically end all active sessions on your devices so you can log in safely with your new credentials.",
+        understood: "Got it"
+      },
     },
 
     device_screen: {
