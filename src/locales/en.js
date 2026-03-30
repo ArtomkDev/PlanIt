@@ -376,9 +376,10 @@ export default {
     },
 
     alerts: {
-      logout_title: "Log Out",
+      logout_title: "Logout",
       logout_confirm: "Are you sure you want to log out?",
       logout_error: "Failed to log out",
+      cloud_saving_warning: "Please wait, data is being saved to the cloud...",
     }
   }
 };

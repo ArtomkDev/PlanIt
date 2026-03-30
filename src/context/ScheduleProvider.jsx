@@ -2,7 +2,10 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { AppState, useColorScheme } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { v4 as uuidv4 } from 'uuid';
-import { db } from "../../firebase"; 
+import { signOut } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { db, auth } from "../../firebase"; 
 import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer } from "../../firestore";
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
@@ -103,11 +106,21 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
   const [isDirty, setIsDirty] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isCloudSaving, setIsCloudSaving] = useState(false);
-  const [conflictQueue, setConflictQueue] = useState([]);
+  const isDirtyRef = useRef(false);
+  const updateIsDirty = useCallback((val) => {
+    setIsDirty(val);
+    isDirtyRef.current = val;
+  }, []);
 
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
+
+  const [isCloudSaving, setIsCloudSaving] = useState(false);
+  const isCloudSavingRef = useRef(false);
+
+  const [conflictQueue, setConflictQueue] = useState([]);
   const [isOnline, setIsOnline] = useState(true);
   const prevOnlineRef = useRef(isOnline);
 
@@ -228,10 +241,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
           await saveLocalSchedule(mergedData, user.uid);
 
           if (needsPushToCloud) {
-             setIsDirty(true);
+             updateIsDirty(true);
              setPendingImmediateSave(true);
           } else {
-             setIsDirty(false);
+             updateIsDirty(false);
           }
 
           if (!isFromCache) {
@@ -245,7 +258,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     return () => {
       if (unsubscribeCloud) unsubscribeCloud();
     };
-  }, [guest, user]);
+  }, [guest, user, updateIsDirty]);
 
   useEffect(() => {
     if (!data || isLoading) return;
@@ -294,8 +307,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       });
       return { ...prev, schedules: nextSchedules };
     });
-    if (!guest) setIsDirty(true);
-  }, [guest]);
+    if (!guest) updateIsDirty(true);
+  }, [guest, updateIsDirty]);
 
   const setGlobalDraft = useCallback((updater) => {
     setData((prev) => {
@@ -334,8 +347,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       return { ...prev, global: { ...prev.global, ...nextGlobal, lastModified: Date.now() } };
     });
 
-    if (!guest) setIsDirty(true);
-  }, [guest, user]);
+    if (!guest) updateIsDirty(true);
+  }, [guest, updateIsDirty]);
 
   const addSchedule = useCallback((scheduleObj) => {
     setData((prev) => {
@@ -349,8 +362,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       };
       return { ...prev, schedules: [...(prev.schedules || []), newSchedule] };
     });
-    if (!guest) setIsDirty(true);
-  }, [guest]);
+    if (!guest) updateIsDirty(true);
+  }, [guest, updateIsDirty]);
 
   const removeSchedule = useCallback(async (scheduleId) => {
     let fallbackId = null;
@@ -396,15 +409,17 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       saveDevicePrefs(newPrefs);
     }
 
-    if (!guest) setIsDirty(true);
-  }, [guest, user]);
+    if (!guest) updateIsDirty(true);
+  }, [guest, updateIsDirty]);
 
   const saveNow = useCallback(async (force = false) => {
-    if (guest || !dataRef.current || isSaving || conflictQueue.length > 0) return;
-    if (!isDirty && force !== true) return;
+    if (guest || !dataRef.current || isSavingRef.current || conflictQueueRef.current.length > 0) return;
+    if (!isDirtyRef.current && force !== true) return;
 
     setIsSaving(true);
+    isSavingRef.current = true;
     setIsCloudSaving(true);
+    isCloudSavingRef.current = true;
 
     try {
       const now = Date.now();
@@ -414,9 +429,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const dirtySchedules = prev.schedules.filter(s => force || (s.lastModified || 0) > (s.lastSynced || 0));
 
       if (!isGlobalDirty && dirtySchedules.length === 0 && !force) {
-        setIsDirty(false);
-        setIsSaving(false);
-        setIsCloudSaving(false);
+        updateIsDirty(false);
         return;
       }
 
@@ -456,7 +469,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setData(optimisticData);
       dataRef.current = optimisticData;
       await saveLocalSchedule(optimisticData, user.uid);
-      setIsDirty(false);
+      
+      updateIsDirty(false);
 
       await saveSchedule(user.uid, dataToSave, true);
 
@@ -464,9 +478,38 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setError(e?.message || "Error saving");
     } finally {
       setIsSaving(false);
+      isSavingRef.current = false;
       setIsCloudSaving(false);
+      isCloudSavingRef.current = false;
     }
-  }, [user, isSaving, isDirty, guest, conflictQueue.length]);
+  }, [user, guest, updateIsDirty]);
+
+  const safeLogout = useCallback(async () => {
+    if (guest || !user) {
+      await AsyncStorage.setItem("manual_logout", "true");
+      await signOut(auth);
+      return;
+    }
+
+    let attempts = 0;
+    while ((isSavingRef.current || isCloudSavingRef.current) && attempts < 50) {
+      await new Promise(r => setTimeout(r, 200));
+      attempts++;
+    }
+
+    if (isDirtyRef.current) {
+      await saveNow(true);
+      
+      attempts = 0;
+      while ((isSavingRef.current || isCloudSavingRef.current) && attempts < 50) {
+        await new Promise(r => setTimeout(r, 200));
+        attempts++;
+      }
+    }
+
+    await AsyncStorage.setItem("manual_logout", "true");
+    await signOut(auth);
+  }, [guest, user, saveNow]);
 
   const reloadAllSchedules = useCallback(async () => {
     if (guest || !user) return;
@@ -481,8 +524,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
           } else {
             setData(mergedData);
             await saveLocalSchedule(mergedData, user.uid);
-            if (needsPushToCloud) setIsDirty(true);
-            else setIsDirty(false);
+            updateIsDirty(needsPushToCloud);
           }
       }
       setCloudSyncState('synced');
@@ -490,7 +532,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setCloudSyncState('synced');
       setError(e?.message || "Error");
     }
-  }, [guest, user]);
+  }, [guest, user, updateIsDirty]);
 
   useEffect(() => {
     if (pendingImmediateSave && conflictQueue.length === 0) {
@@ -502,13 +544,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "background" || nextAppState === "inactive") {
-        if (isDirty && isOnline && cloudSyncState === 'synced') {
+        if (isDirtyRef.current && isOnline && cloudSyncState === 'synced') {
           saveNow();
         }
       }
     });
     return () => subscription.remove();
-  }, [isDirty, isOnline, cloudSyncState, saveNow]);
+  }, [isOnline, cloudSyncState, saveNow]);
 
   const resetApplication = useCallback(async () => {
     setIsLoading(true);
@@ -546,13 +588,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       } else {
         await saveLocalSchedule(newData, null);
       }
-      setIsDirty(false);
+      updateIsDirty(false);
     } catch (e) {
       setError("Error");
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, updateIsDirty]);
 
   const handleResolveConflict = (conflictId, action) => {
     const conflictIndex = conflictQueue.findIndex(c => c.local?.id === conflictId);
@@ -620,12 +662,12 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         const isGlobalDirty = (updatedData.global?.lastModified || 0) > (updatedData.global?.lastSynced || 0);
 
         if (hasDirtySchedules || isGlobalDirty) {
-          setIsDirty(true);
+          updateIsDirty(true);
           if (action !== 'cloud') {
               setPendingImmediateSave(true);
           }
         } else {
-          setIsDirty(false);
+          updateIsDirty(false);
         }
       }
     }
@@ -636,6 +678,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     global: mergedGlobal,
     schedules: activeSchedules, 
     setData, setScheduleDraft, setGlobalDraft, addSchedule, removeSchedule, saveNow,
+    safeLogout,
     reloadAllSchedules, resetApplication, isDirty, isSaving, isCloudSaving,
     isLoading, error, isOnline,
     conflictQueue, handleResolveConflict,

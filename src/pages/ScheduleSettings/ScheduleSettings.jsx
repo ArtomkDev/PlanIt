@@ -1,21 +1,20 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { signOut } from 'firebase/auth';
 
-import { auth } from '../../../firebase';
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/SettingsHeader';
 import { t } from '../../utils/i18n';
-import { forceSaveToCloud } from '../../utils/storage';
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
-  const { user, global, schedule, lang } = useSchedule();
+  const { user, global, schedule, lang, safeLogout } = useSchedule();
   const insets = useSafeAreaInsets();
+
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const headerHeight = 50 + insets.top;
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -49,12 +48,11 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
           style: "destructive", 
           onPress: async () => {
             try {
-              if (user && schedule?.id) {
-                await forceSaveToCloud(user.uid, schedule.id, { schedule, global });
-              }
-              await signOut(auth);
+              setIsLoggingOut(true);
+              await safeLogout(); 
             } catch (error) {
               console.error("Logout error:", error);
+              setIsLoggingOut(false);
               Alert.alert(t('common.error', lang), t('settings.alerts.logout_error', lang));
             }
           } 
@@ -186,6 +184,15 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
+      {isLoggingOut && (
+        <View style={[StyleSheet.absoluteFill, styles.loadingOverlay]}>
+          <ActivityIndicator size="large" color={themeColors.accentColor || '#fff'} />
+          <Text style={styles.loadingText}>
+            {t('settings.alerts.cloud_saving_warning', lang) || "Зачекайте, дані зберігаються у хмару..."}
+          </Text>
+        </View>
+      )}
+
       <SettingsHeader 
         title={t('common.settings', lang)} 
         subTitle={sections[activeSectionIndex]?.title || ""} 
@@ -239,6 +246,18 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
 }
 
 const styles = StyleSheet.create({
+  loadingOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.7)', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    zIndex: 9999
+  },
+  loadingText: {
+    color: '#fff', 
+    marginTop: 16, 
+    fontSize: 16, 
+    fontWeight: '600'
+  },
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 80,

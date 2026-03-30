@@ -380,6 +380,7 @@ export default {
       logout_title: "Вихід",
       logout_confirm: "Ви впевнені, що хочете вийти з акаунту?",
       logout_error: "Не вдалося вийти з акаунту",
+      cloud_saving_warning: "Зачекайте, дані зберігаються у хмару...",
     }
   }
 };

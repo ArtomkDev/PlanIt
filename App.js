@@ -110,11 +110,16 @@ export default function App() {
             console.warn(e);
           }
           
-          Alert.alert(
-            t('auth.session.expired_title', lang),
-            t('auth.session.expired_message', lang),
-            [{ text: t('common.done', lang), style: "default" }]
-          );
+          const isManualLogout = await AsyncStorage.getItem("manual_logout");
+          if (isManualLogout === "true") {
+            await AsyncStorage.removeItem("manual_logout");
+          } else {
+            Alert.alert(
+              t('auth.session.expired_title', lang),
+              t('auth.session.expired_message', lang),
+              [{ text: t('common.done', lang), style: "default" }]
+            );
+          }
         } else {
           try {
             const localSchedule = await AsyncStorage.getItem("guest_schedule");
