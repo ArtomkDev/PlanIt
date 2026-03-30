@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { AppState, Alert } from 'react-native';
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -17,6 +18,8 @@ import { ScheduleProvider } from "./src/context/ScheduleProvider";
 import { EditorProvider } from "./src/context/EditorProvider";
 import { registerDevice, listenForDeviceRemoval } from "./src/utils/deviceService";
 import { setManualLogin } from "./src/utils/authFlags";
+import useAppLanguage from './src/hooks/useAppLanguage';
+import { t } from './src/utils/i18n';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,26 +28,37 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   const [user, setUser] = useState(null);
   const [guest, setGuest] = useState(false);
-
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
+  const { lang, isLangLoading } = useAppLanguage();
+
+  const wasLoggedIn = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
-
     async function loadFonts() {
       try {
         await Font.loadAsync(Ionicons.font);
       } catch (e) {
-        console.warn("Font loading failed, starting offline mode...", e);
+        console.warn(e);
       } finally {
         if (isMounted) setFontsLoaded(true);
       }
     }
-
     loadFonts();
     return () => { isMounted = false; };
   }, []);
+
+  const verifySession = async (currentUser) => {
+    if (!currentUser) return;
+    try {
+      await currentUser.getIdToken(true);
+    } catch (error) {
+      if (error.code !== 'auth/network-request-failed') {
+        await signOut(auth);
+      }
+    }
+  };
 
   useEffect(() => {
     let deviceListenerUnsubscribe = () => {};
@@ -58,12 +72,14 @@ export default function App() {
       deviceListenerUnsubscribe();
       
       if (firebaseUser) {
+        wasLoggedIn.current = true;
         currentUid = firebaseUser.uid;
         setUser(firebaseUser);
         setGuest(false);
         setManualLogin(false);
-        
         setAuthResolved(true); 
+
+        verifySession(firebaseUser);
         
         try {
           await registerDevice(firebaseUser.uid);
@@ -71,30 +87,61 @@ export default function App() {
             deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
           }
         } catch (error) {
-          console.error("Помилка реєстрації пристрою:", error);
+          console.error(error);
         }
       } else {
         currentUid = null;
         setUser(null);
         
-        try {
-          const localSchedule = await AsyncStorage.getItem("guest_schedule");
-          setGuest(!!localSchedule);
-        } catch (e) {
-          console.warn(e);
-        } finally {
+        if (wasLoggedIn.current) {
+          setGuest(false);
+          wasLoggedIn.current = false;
           setAuthResolved(true);
+          
+          try {
+            const keys = await AsyncStorage.getAllKeys();
+            const keysToRemove = keys.filter(key => 
+              key.toLowerCase().includes('schedule') && key !== 'guest_schedule'
+            );
+            if (keysToRemove.length > 0) {
+              await AsyncStorage.multiRemove(keysToRemove);
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+          
+          Alert.alert(
+            t('auth.session.expired_title', lang),
+            t('auth.session.expired_message', lang),
+            [{ text: t('common.done', lang), style: "default" }]
+          );
+        } else {
+          try {
+            const localSchedule = await AsyncStorage.getItem("guest_schedule");
+            setGuest(!!localSchedule);
+          } catch (e) {
+            console.warn(e);
+          } finally {
+            setAuthResolved(true);
+          }
         }
+      }
+    });
+
+    const appStateSubscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'active' && auth.currentUser) {
+        verifySession(auth.currentUser);
       }
     });
 
     return () => {
       authUnsubscribe();
       deviceListenerUnsubscribe();
+      appStateSubscription.remove();
     };
-  }, []);
+  }, [lang]);
 
-  const appIsReady = fontsLoaded && authResolved;
+  const appIsReady = fontsLoaded && authResolved && !isLangLoading;
 
   useEffect(() => {
     if (appIsReady) {

@@ -10,10 +10,11 @@ import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/SettingsHeader';
 import { t } from '../../utils/i18n';
+import { forceSaveToCloud } from '../../utils/storage';
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
-  const { user, global, schedule , lang} = useSchedule();
+  const { user, global, schedule, lang } = useSchedule();
   const insets = useSafeAreaInsets();
 
   const headerHeight = 50 + insets.top;
@@ -22,8 +23,6 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
-
-
 
   const autoSaveVal = global?.auto_save; 
   const autoSaveEnabled = typeof autoSaveVal === 'number' && autoSaveVal > 0;
@@ -50,6 +49,9 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
           style: "destructive", 
           onPress: async () => {
             try {
+              if (user && schedule?.id) {
+                await forceSaveToCloud(user.uid, schedule.id, { schedule, global });
+              }
               await signOut(auth);
             } catch (error) {
               console.error("Logout error:", error);

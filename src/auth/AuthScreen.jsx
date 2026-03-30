@@ -6,7 +6,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile,
+  sendPasswordResetEmail
+} from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { auth } from '../../firebase'; 
@@ -176,6 +181,39 @@ const SignInContent = ({ onNavigate, colors, lang, insets }) => {
     finally { setIsLoading(false); }
   };
 
+  const handleForgotPassword = async () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      Alert.alert(
+        t('common.error', lang),
+        t('auth.forgot_password.req_email', lang)
+      );
+      return;
+    }
+  
+    try {
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      
+      Alert.alert(
+        t('common.success', lang),
+        t('auth.forgot_password.success_msg', lang)
+      );
+    } catch (error) {
+      if (error.code === 'auth/invalid-email') {
+        Alert.alert(
+          t('common.error', lang), 
+          t('auth.forgot_password.invalid_email', lang)
+        );
+      } else {
+        Alert.alert(
+          t('common.error', lang), 
+          error.message
+        );
+      }
+    }
+  };
+
   return (
     <View style={[styles.formBlock, { paddingTop: insets.top + 40 }]}>
       <View style={styles.formHeader}>
@@ -188,7 +226,7 @@ const SignInContent = ({ onNavigate, colors, lang, insets }) => {
       <View style={styles.formGroup}>
         <InputField icon="mail-outline" placeholder={t('auth.fields.email', lang)} value={email} onChangeText={setEmail} keyboardType="email-address" colors={colors} />
         <InputField icon="lock-closed-outline" placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={setPassword} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} />
-        <TouchableOpacity style={styles.forgotPassword}>
+        <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
           <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>{t('auth.signin.forgot_password', lang)}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: isLoading ? 0.7 : 1 }]} onPress={handleSignIn} disabled={isLoading}>

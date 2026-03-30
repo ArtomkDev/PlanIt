@@ -45,6 +45,15 @@ export default {
       no_account: "Don't have an account? ",
       signup_link: "Sign Up",
     },
+    forgot_password: {
+      req_email: "Please enter your email address in the field above so we can send you a password reset link.",
+      success_msg: "Password reset instructions have been sent to your email. Please check your inbox (and Spam folder).",
+      invalid_email: "Invalid email format.",
+    },
+    session: {
+      expired_title: "Session Expired",
+      expired_message: "You have been logged out or the session was closed from another device.",
+    },
     signup: {
       title: "Create account",
       subtitle: "Sign up to keep your schedule in the cloud.",
