@@ -111,10 +111,8 @@ export default function AccountSettings() {
           title={t('settings.account_settings.password', lang)} 
           value="••••••••" 
           rightElement={<Ionicons name="chevron-forward" size={20} color={themeColors.textColor2} />}
+          onPress={() => navigation.navigate('ChangePassword')}
         />
-        <TouchableOpacity style={[styles.row, styles.centerRow]}>
-          <Text style={styles.actionText}>{t('settings.account_settings.forgot_password', lang)}</Text>
-        </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionTitle}>{t('settings.account_settings.management_section', lang)}</Text>

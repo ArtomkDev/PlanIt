@@ -28,6 +28,7 @@ import AccountSettings from '../pages/ScheduleSettings/components/AccountSetting
 import DeleteAccountScreen from '../pages/ScheduleSettings/components/AccountSettings/DeleteAccountScreen';
 import ChangeNameScreen from '../pages/ScheduleSettings/components/AccountSettings/ChangeNameScreen';
 import ChangeEmailScreen from '../pages/ScheduleSettings/components/AccountSettings/ChangeEmailScreen';
+import ChangePasswordScreen from '../pages/ScheduleSettings/components/AccountSettings/ChangePasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -61,6 +62,7 @@ function ScheduleSettingsStack({ screenProps }) {
       <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
       <Stack.Screen name="ChangeName" component={ChangeNameScreen} />
       <Stack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
     </Stack.Navigator>
   );
 }

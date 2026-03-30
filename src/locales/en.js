@@ -294,6 +294,21 @@ export default {
         alert_msg: "A confirmation email has been sent to {newEmail}.\n\nOnce you confirm the change via the email link, our security system will automatically end all active sessions on your devices so you can log in safely with your new credentials.",
         understood: "Got it"
       },
+      change_password: {
+        title: "Change Password",
+        desc: "For your security, please enter your current password before setting a new one.",
+        social_login_title: "Password Change Unavailable",
+        social_login_desc: "You signed in using a Google or Apple account, so you do not have a password to change.",
+        current_password_label: "Current Password",
+        current_password_placeholder: "Enter current password",
+        new_password_label: "New Password",
+        new_password_placeholder: "Enter new password",
+        req_empty: "Please fill in both fields.",
+        req_length: "The new password must be at least 6 characters long.",
+        wrong_password: "Incorrect current password.",
+        weak_password: "Password is too weak.",
+        success_msg: "Your password has been successfully changed."
+      }
     },
 
     device_screen: {
