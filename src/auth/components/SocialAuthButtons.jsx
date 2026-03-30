@@ -19,7 +19,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
 
   const handleGoogleAuth = async () => {
     if (isExpoGo && Platform.OS !== 'web') {
-      Alert.alert("Expo Go", "Вхід через Google недоступний в Expo Go. Використовуйте Web-версію або скомпілюйте додаток.");
+      Alert.alert(
+        t('auth.errors.expo_go_title', lang), 
+        t('auth.errors.expo_go_google_msg', lang)
+      );
       return;
     }
 
@@ -36,7 +39,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
         const { GoogleSignin } = require('@react-native-google-signin/google-signin');
         
         GoogleSignin.configure({
-          webClientId: '66089248812-is6urdiplc47uc3s323n4546vpip7aoe.apps.googleusercontent.com',
+          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
           offlineAccess: true,
         });
 
@@ -65,7 +68,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
 
   const handleAppleAuth = async () => {
     if (isExpoGo && Platform.OS !== 'web') {
-      Alert.alert("Expo Go", "Вхід через Apple недоступний в Expo Go. Використовуйте Web-версію або скомпілюйте додаток.");
+      Alert.alert(
+        t('auth.errors.expo_go_title', lang), 
+        t('auth.errors.expo_go_apple_msg', lang)
+      );
       return;
     }
 

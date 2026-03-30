@@ -1,13 +1,18 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth';
+import Constants from 'expo-constants';
 
 import { auth } from '../../../../firebase';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 import SettingsScreenLayout from '../SettingsScreenLayout';
+import { getLinkedProviders, unlinkProvider, linkGoogleAccount, linkAppleAccount } from '../../../auth/authServices';
+
+const isExpoGo = Constants.appOwnership === 'expo';
 
 export default function AccountSettings() {
   const { global, user: contextUser, lang } = useSchedule();
@@ -19,6 +24,103 @@ export default function AccountSettings() {
   const styles = getStyles(themeColors);
 
   const activeUser = isFocused ? auth.currentUser : contextUser;
+
+  const [linkedProviders, setLinkedProviders] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(null);
+
+  const isNativeDisabled = isExpoGo && Platform.OS !== 'web';
+
+  useEffect(() => {
+    if (activeUser) {
+      setLinkedProviders(getLinkedProviders());
+    }
+  }, [activeUser, isFocused]);
+
+  const handleLinkGoogle = async () => {
+    if (isNativeDisabled) {
+      Alert.alert(
+        t('auth.errors.expo_go_title', lang), 
+        t('auth.errors.expo_go_google_msg', lang)
+      );
+      return;
+    }
+
+    setIsProcessing('google.com');
+    try {
+      if (Platform.OS === 'web') {
+        const provider = new GoogleAuthProvider();
+        await linkWithPopup(activeUser, provider);
+      } else {
+        const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+        
+        GoogleSignin.configure({
+          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+          offlineAccess: true,
+        });
+
+        const response = await GoogleSignin.signIn();
+        if (response.type === 'success') {
+          await linkGoogleAccount(response.data.idToken);
+        }
+      }
+      setLinkedProviders(getLinkedProviders());
+    } catch (error) {
+      Alert.alert(t('common.error', lang), error.message);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleLinkApple = async () => {
+    if (isNativeDisabled) {
+      Alert.alert(
+        t('auth.errors.expo_go_title', lang), 
+        t('auth.errors.expo_go_apple_msg', lang)
+      );
+      return;
+    }
+
+    setIsProcessing('apple.com');
+    try {
+      if (Platform.OS === 'web') {
+        const provider = new OAuthProvider('apple.com');
+        await linkWithPopup(activeUser, provider);
+      } else {
+        const AppleAuthentication = require('expo-apple-authentication');
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+        await linkAppleAccount(credential.identityToken);
+      }
+      setLinkedProviders(getLinkedProviders());
+    } catch (error) {
+      if (error.code !== 'ERR_REQUEST_CANCELED') {
+        Alert.alert(t('common.error', lang), error.message);
+      }
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleUnlink = async (providerId) => {
+    if (activeUser.providerData.length === 1 && !activeUser.email) {
+      Alert.alert(t('common.error', lang), t('auth.errors.cannot_unlink_only_provider', lang));
+      return;
+    }
+
+    setIsProcessing(providerId);
+    try {
+      await unlinkProvider(providerId);
+      setLinkedProviders(getLinkedProviders());
+    } catch (error) {
+      Alert.alert(t('common.error', lang), error.message);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
 
   const SettingsRow = ({ icon, title, value, rightElement, isLast, isDestructive, onPress }) => {
     const Component = onPress ? TouchableOpacity : View;
@@ -46,6 +148,30 @@ export default function AccountSettings() {
     );
   };
 
+  const renderProviderStatus = (isLinked, providerId, onLink) => {
+    if (isProcessing === providerId) {
+      return <ActivityIndicator size="small" color={themeColors.accentColor} />;
+    }
+
+    if (isLinked) {
+      return (
+        <TouchableOpacity onPress={() => handleUnlink(providerId)} style={styles.unlinkButton}>
+          <Text style={styles.unlinkButtonText}>{t('settings.account_settings.unlink_btn', lang)}</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity 
+        onPress={onLink} 
+        style={[styles.linkButton, isNativeDisabled && { opacity: 0.5 }]}
+        activeOpacity={isNativeDisabled ? 1 : 0.7}
+      >
+        <Text style={styles.linkButtonText}>{t('settings.account_settings.link_btn', lang)}</Text>
+      </TouchableOpacity>
+    );
+  };
+
   const userName = activeUser?.displayName || t('settings.account_settings.not_specified', lang);
   const userEmail = activeUser?.email || t('settings.account_settings.not_specified', lang);
   const userPhone = activeUser?.phoneNumber || t('settings.account_settings.not_specified', lang);
@@ -53,6 +179,9 @@ export default function AccountSettings() {
   const initial = userName !== t('settings.account_settings.not_specified', lang) 
     ? userName.charAt(0).toUpperCase() 
     : '?';
+
+  const isGoogleLinked = linkedProviders.includes('google.com');
+  const isAppleLinked = linkedProviders.includes('apple.com');
 
   return (
     <SettingsScreenLayout contentContainerStyle={styles.contentContainer}>
@@ -90,18 +219,16 @@ export default function AccountSettings() {
         <SettingsRow 
           icon="logo-google" 
           title="Google" 
-          rightElement={<Text style={styles.linkedStatus}>{t('settings.account_settings.linked', lang)}</Text>}
+          rightElement={renderProviderStatus(isGoogleLinked, 'google.com', handleLinkGoogle)}
         />
-        <SettingsRow 
-          icon="logo-apple" 
-          title="Apple" 
-          rightElement={
-            <TouchableOpacity style={styles.linkButton}>
-              <Text style={styles.linkButtonText}>{t('settings.account_settings.link_btn', lang)}</Text>
-            </TouchableOpacity>
-          }
-          isLast
-        />
+        {Platform.OS !== 'android' && (
+          <SettingsRow 
+            icon="logo-apple" 
+            title="Apple" 
+            rightElement={renderProviderStatus(isAppleLinked, 'apple.com', handleLinkApple)}
+            isLast
+          />
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>{t('settings.account_settings.security_section', lang)}</Text>
@@ -162,6 +289,8 @@ const getStyles = (themeColors) => StyleSheet.create({
   linkedStatus: { fontSize: 14, color: themeColors.textColor2, fontWeight: '500' },
   linkButton: { backgroundColor: themeColors.accentColor, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16 },
   linkButtonText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
+  unlinkButton: { backgroundColor: 'transparent', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: '#FF3B30' },
+  unlinkButtonText: { fontSize: 12, color: '#FF3B30', fontWeight: '600' },
   centerRow: { justifyContent: 'center' },
   actionText: { fontSize: 16, color: themeColors.accentColor, fontWeight: '500' },
   destructiveText: { color: '#FF3B30' },

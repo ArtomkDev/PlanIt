@@ -78,6 +78,9 @@ export default {
       email_already_in_use: "This email is already in use",
       weak_password: "Password is too weak (min 6 characters)",
       accept_terms: "Please accept the Terms of Service and Privacy Policy.",
+      expo_go_title: "Expo Go",
+      expo_go_google_msg: "Google account sign-in is not available in Expo Go. Please use the web version or build the app.",
+      expo_go_apple_msg: "Apple account sign-in is not available in Expo Go. Please use the web version or build the app.",
     },
     welcome: {
       subtitle: "Your perfect class schedule is always at hand.",
