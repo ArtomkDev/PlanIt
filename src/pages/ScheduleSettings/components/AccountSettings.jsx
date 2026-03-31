@@ -29,6 +29,7 @@ export default function AccountSettings() {
   const [isProcessing, setIsProcessing] = useState(null);
 
   const isNativeDisabled = isExpoGo && Platform.OS !== 'web';
+  const isSocialOnly = activeUser?.providerData?.every(p => p.providerId !== 'password');
 
   useEffect(() => {
     if (activeUser) {
@@ -106,7 +107,7 @@ export default function AccountSettings() {
   };
 
   const handleUnlink = async (providerId) => {
-    if (activeUser.providerData.length === 1 && !activeUser.email) {
+    if (activeUser.providerData.length <= 1) {
       Alert.alert(t('common.error', lang), t('auth.errors.cannot_unlink_only_provider', lang));
       return;
     }
@@ -141,7 +142,7 @@ export default function AccountSettings() {
         </View>
         
         <View style={styles.rowRight}>
-          {value && <Text style={styles.rowValue}>{value}</Text>}
+          {value && <Text style={styles.rowValue} numberOfLines={1} ellipsizeMode="tail">{value}</Text>}
           {rightElement}
         </View>
       </Component>
@@ -174,7 +175,6 @@ export default function AccountSettings() {
 
   const userName = activeUser?.displayName || t('settings.account_settings.not_specified', lang);
   const userEmail = activeUser?.email || t('settings.account_settings.not_specified', lang);
-  const userPhone = activeUser?.phoneNumber || t('settings.account_settings.not_specified', lang);
   
   const initial = userName !== t('settings.account_settings.not_specified', lang) 
     ? userName.charAt(0).toUpperCase() 
@@ -189,8 +189,8 @@ export default function AccountSettings() {
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initial}</Text>
         </View>
-        <Text style={styles.userName}>{userName}</Text>
-        <Text style={styles.userEmail}>{userEmail}</Text>
+        <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">{userName}</Text>
+        <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">{userEmail}</Text>
       </View>
 
       <Text style={styles.sectionTitle}>{t('settings.account_settings.info_section', lang)}</Text>
@@ -208,10 +208,18 @@ export default function AccountSettings() {
           title={t('settings.account_settings.email', lang)} 
           value={userEmail} 
           rightElement={<Ionicons name="chevron-forward" size={20} color={themeColors.textColor2} />}
-          onPress={() => navigation.navigate('ChangeEmail')}
+          isLast
+          onPress={() => {
+            if (isSocialOnly) {
+              Alert.alert(
+                t('settings.account_settings.change_email_screen.social_login_title', lang),
+                t('settings.account_settings.change_email_screen.social_login_desc', lang)
+              );
+            } else {
+              navigation.navigate('ChangeEmail');
+            }
+          }}
         />
-
-        <SettingsRow icon="call-outline" title={t('settings.account_settings.phone', lang)} value={userPhone} isLast />
       </View>
 
       <Text style={styles.sectionTitle}>{t('settings.account_settings.linked_accounts_section', lang)}</Text>
@@ -238,7 +246,16 @@ export default function AccountSettings() {
           title={t('settings.account_settings.password', lang)} 
           value="••••••••" 
           rightElement={<Ionicons name="chevron-forward" size={20} color={themeColors.textColor2} />}
-          onPress={() => navigation.navigate('ChangePassword')}
+          onPress={() => {
+            if (isSocialOnly) {
+              Alert.alert(
+                t('settings.account_settings.change_password.social_login_title', lang),
+                t('settings.account_settings.change_password.social_login_desc', lang)
+              );
+            } else {
+              navigation.navigate('ChangePassword');
+            }
+          }}
         />
       </View>
 
@@ -261,7 +278,7 @@ const getStyles = (themeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
   },
-  header: { alignItems: 'center', marginBottom: 32 },
+  header: { alignItems: 'center', marginBottom: 32, paddingHorizontal: 20 },
   avatar: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: themeColors.accentColor,
@@ -271,8 +288,8 @@ const getStyles = (themeColors) => StyleSheet.create({
     shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
   avatarText: { fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' },
-  userName: { fontSize: 22, fontWeight: '700', color: themeColors.textColor, marginBottom: 4 },
-  userEmail: { fontSize: 14, color: themeColors.textColor2 },
+  userName: { fontSize: 22, fontWeight: '700', color: themeColors.textColor, marginBottom: 4, textAlign: 'center', width: '100%' },
+  userEmail: { fontSize: 14, color: themeColors.textColor2, textAlign: 'center', width: '100%' },
   sectionTitle: { fontSize: 12, fontWeight: '600', color: themeColors.textColor2, marginLeft: 16, marginBottom: 8, marginTop: 24, letterSpacing: 0.5 },
   section: {
     backgroundColor: themeColors.backgroundColor2,
@@ -280,12 +297,12 @@ const getStyles = (themeColors) => StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 16, minHeight: 56 },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: themeColors.borderColor },
-  rowLeft: { flexDirection: 'row', alignItems: 'center' },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', flexShrink: 0, marginRight: 16 },
   iconContainer: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(150, 150, 150, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   destructiveIconContainer: { backgroundColor: 'rgba(255, 59, 48, 0.1)' },
   rowTitle: { fontSize: 16, color: themeColors.textColor, fontWeight: '500' },
-  rowRight: { flexDirection: 'row', alignItems: 'center' },
-  rowValue: { fontSize: 16, color: themeColors.textColor2, marginRight: 8 },
+  rowRight: { flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'flex-end' },
+  rowValue: { fontSize: 16, color: themeColors.textColor2, marginRight: 8, flexShrink: 1, textAlign: 'right' },
   linkedStatus: { fontSize: 14, color: themeColors.textColor2, fontWeight: '500' },
   linkButton: { backgroundColor: themeColors.accentColor, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16 },
   linkButtonText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
