@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
-import { triggerLightHaptic } from "../../../../../utils/haptics";
+import { triggerLightHaptic } from "../utils/haptics";
 
 export default function TabSwitcher({
   tabs,
@@ -9,6 +9,7 @@ export default function TabSwitcher({
   themeColors,
   containerBackgroundColor,
   activeTabBackgroundColor,
+  activeTextColor, 
   withShadow = false,
 }) {
   const [tabLayouts, setTabLayouts] = useState({});
@@ -50,7 +51,10 @@ export default function TabSwitcher({
   };
 
   const bgColorContainer = containerBackgroundColor || themeColors.backgroundColor2;
-  const bgColorActive = activeTabBackgroundColor || themeColors.backgroundColor;
+  
+  const bgColorActive = activeTabBackgroundColor || themeColors.accentColor;
+  
+  const finalActiveTextColor = activeTextColor || (activeTabBackgroundColor ? themeColors.textColor : "#fff");
 
   return (
     <View style={[styles.container, { backgroundColor: bgColorContainer, padding: containerPadding }]}>
@@ -87,7 +91,7 @@ export default function TabSwitcher({
               <Text
                 style={[
                   styles.tabText,
-                  { color: isActive ? themeColors.textColor : themeColors.textColor2 },
+                  { color: isActive ? finalActiveTextColor : themeColors.textColor },
                 ]}
               >
                 {tab.label}

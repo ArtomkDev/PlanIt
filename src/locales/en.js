@@ -92,6 +92,14 @@ export default {
     no_schedule_data: "No schedule data",
   },
 
+  migration_modal: {
+    title: "Local schedules found",
+    subtitle: "You likely used PlanIt without an account and decided to log in. We noticed local schedules, would you like to move them to your account? This will allow saving them in the cloud. You can change this ANYTIME!",
+    skip: "Skip",
+    migrate: "Move",
+    untitled: "Untitled"
+  },
+
   schedule: {
     loading: "Loading...",
     day_schedule: {
@@ -367,6 +375,14 @@ export default {
       untitled: "Untitled",
       your_schedules: "Your schedules",
       add_new: "Add new",
+      description_account: "Schedules synchronized with your account and saved in the cloud.",
+      description_guest: "Local schedules on this device. They are not saved in the cloud.",
+      tab_account: "Account",
+      tab_guest: "Guest",
+      move_alert_title: "Warning",
+      move_alert_msg: "Move this schedule to Account to make it active.",
+      no_local: "No local schedules",
+      delete_guest_msg: "Do you really want to delete guest schedule \"{name}\"? This action cannot be undone."
     },
 
     schedule_editor: {

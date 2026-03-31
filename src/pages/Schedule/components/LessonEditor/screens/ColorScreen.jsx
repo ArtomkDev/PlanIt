@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import ColorGrid from "../ui/ColorGrid";
 import GradientGrid from "../ui/GradientGrid";
-import TabSwitcher from "../ui/TabSwitcher";
+import TabSwitcher from "../../../../../components/TabSwitcher";
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
@@ -15,7 +15,6 @@ export default function LessonEditorSubjectColorScreen({
   onAddGradient,
 }) {
   const { global , lang} = useSchedule();
-
 
   const [activeTab, setActiveTab] = useState(
     currentSubject?.typeColor === "gradient" ? "gradient" : "color"
@@ -43,7 +42,6 @@ export default function LessonEditorSubjectColorScreen({
           onTabPress={setActiveTab}
           themeColors={themeColors}
           containerBackgroundColor={themeColors.backgroundColor2}
-          activeTabBackgroundColor={themeColors.backgroundColor}
         />
       </View>
 

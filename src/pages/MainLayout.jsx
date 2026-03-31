@@ -7,9 +7,11 @@ import TabNavigator from '../Navigation/TabNavigator';
 import { useSchedule } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import { t } from '../utils/i18n';
+import MigrationModal from '../components/MigrationModal';
 
 export default function MainLayout({ guest, onExitGuest }) {
   const {
+    user,
     global,
     schedule,
     isLoading,
@@ -57,6 +59,10 @@ export default function MainLayout({ guest, onExitGuest }) {
       </View>
 
       <AutoSaveManager />
+      
+      {!guest && user?.uid && (
+        <MigrationModal userId={user.uid} />
+      )}
     </View>
   );
 }

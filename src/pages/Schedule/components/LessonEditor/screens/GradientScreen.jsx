@@ -4,7 +4,7 @@ import Slider from "@react-native-assets/slider";
 import { LinearGradient } from "expo-linear-gradient";
 import tinycolor from "tinycolor2";
 import GradientBackground from "../../../../../components/GradientBackground";
-import TabSwitcher from "../ui/TabSwitcher";
+import TabSwitcher from "../../../../../components/TabSwitcher";
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
@@ -86,7 +86,6 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
 
 export default function LessonEditorGradientEditScreen({ themeColors, gradientToEdit, onSave }) {
   const { global , lang} = useSchedule();
-
 
   const getInitialColor = (index, fallback) => {
     if (gradientToEdit && gradientToEdit.colors && gradientToEdit.colors[index]) {
