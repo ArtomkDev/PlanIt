@@ -42,7 +42,7 @@ const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handl
 });
 
 export default function Schedule() {
-  const { global, schedule , lang} = useSchedule();
+  const { global, schedule, lang } = useSchedule();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   
   const [anchorDate, setAnchorDate] = useState(() => {
@@ -62,10 +62,6 @@ export default function Schedule() {
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);
-
-
-
-  if (!schedule) return <View style={styles.loading}><Text>{t('schedule.loading', lang)}</Text></View>;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
@@ -130,39 +126,44 @@ export default function Schedule() {
         <Animated.View style={{ height: 1, backgroundColor: themeColors.borderColor, width: '100%' }} />
       </View>
 
-      <FlatList
-        key={`list-${anchorDate.toISOString()}`}
-        ref={flatListRef}
-        data={DAYS_INDICES}
-        renderItem={renderItem}
-        keyExtractor={item => item.toString()}
-        horizontal
-        pagingEnabled
-        initialScrollIndex={HALF_SIZE}
-        getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
-        onScrollBeginDrag={() => { isUserInteraction.current = true; }} 
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        onMomentumScrollEnd={() => { isUserInteraction.current = false; }}
-        windowSize={3}
-        showsHorizontalScrollIndicator={false}
-      />
+      {schedule && (
+        <FlatList
+          key={`list-${anchorDate.toISOString()}`}
+          ref={flatListRef}
+          data={DAYS_INDICES}
+          renderItem={renderItem}
+          keyExtractor={item => item.toString()}
+          horizontal
+          pagingEnabled
+          initialScrollIndex={HALF_SIZE}
+          getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+          onScrollBeginDrag={() => { isUserInteraction.current = true; }} 
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={() => { isUserInteraction.current = false; }}
+          windowSize={3}
+          showsHorizontalScrollIndicator={false}
+        />
+      )}
 
-      <TouchableOpacity 
-        style={[styles.fab, { backgroundColor: themeColors.accentColor }]}
-        onPress={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={32} color="#fff" />
-      </TouchableOpacity>
+      {schedule && (
+        <TouchableOpacity 
+          style={[styles.fab, { backgroundColor: themeColors.accentColor }]}
+          onPress={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={32} color="#fff" />
+        </TouchableOpacity>
+      )}
 
-      {editorVisible && (
+      {editorVisible && schedule && (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
            <DayScheduleProvider date={currentDate}>
               <LessonEditor lesson={editingLesson} onClose={() => setEditorVisible(false)} />
            </DayScheduleProvider>
         </View>
       )}
+      
       <LessonViewer visible={viewerVisible} lesson={viewingLesson} onClose={() => setViewerVisible(false)} onEdit={openEditor} />
       <CalendarSheet visible={calendarVisible} currentDate={currentDate} onClose={() => setCalendarVisible(false)} onDateSelect={date => goToDate(date, true)} />
     </View>

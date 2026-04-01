@@ -1,4 +1,5 @@
 export default {
+  locale: "en-US",
   languages: {
     uk: "Ukrainian",
     en: "English",
@@ -90,6 +91,9 @@ export default {
 
   main_layout: {
     no_schedule_data: "No schedule data",
+    fatal_title: "Oops, something went wrong",
+    fatal_desc: "The schedule could not be loaded or is missing. We can create a new default schedule for you.",
+    force_create_btn: "Force create schedule"
   },
 
   migration_modal: {

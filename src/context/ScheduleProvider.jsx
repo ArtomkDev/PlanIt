@@ -177,20 +177,36 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         }
 
         const activeSchedules = (data.schedules || []).filter(s => !s.isDeleted);
-        const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
 
-        if (!hasValidScheduleId) {
-            if (activeSchedules.length > 0) {
+        if (activeSchedules.length === 0) {
+            const defaultData = createDefaultData();
+            const newSchedule = defaultData.schedules[0];
+            
+            newSchedule.version = 1;
+            newSchedule.baseVersion = 1;
+            newSchedule.lastModified = Date.now();
+            newSchedule.lastSynced = 0;
+            newSchedule.isCloud = !guest;
+
+            setData(prev => ({
+                ...prev,
+                schedules: [...(prev.schedules || []), newSchedule]
+            }));
+
+            newPrefs.currentScheduleId = newSchedule.id;
+            prefsNeedSave = true;
+
+            if (!guest) updateIsDirty(true);
+        } else {
+            const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
+
+            if (!hasValidScheduleId) {
                 const sorted = [...activeSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
                 newPrefs.currentScheduleId = sorted[0].id;
-            } else if (data.global?.currentScheduleId) {
-                newPrefs.currentScheduleId = data.global.currentScheduleId;
-            } else {
-                newPrefs.currentScheduleId = null;
-            }
-
-            if (newPrefs.currentScheduleId !== currentPrefs.currentScheduleId) {
-                prefsNeedSave = true;
+                
+                if (newPrefs.currentScheduleId !== currentPrefs.currentScheduleId) {
+                    prefsNeedSave = true;
+                }
             }
         }
 
@@ -199,7 +215,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             saveDevicePrefs(newPrefs);
         }
     }
-  }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme]);
+  }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme, updateIsDirty]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {

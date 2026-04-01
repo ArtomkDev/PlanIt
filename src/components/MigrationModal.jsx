@@ -70,14 +70,30 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
     setSelectedIds(newSelected);
   };
 
-  const handleSkip = () => {
-    setIsVisible(false);
-    onComplete();
+  const handleSkip = async () => {
+    try {
+      if (localDataFull) {
+        const updatedLocalSchedules = (localDataFull.schedules || []).map(s => ({
+          ...s,
+          isCloud: true
+        }));
+        
+        await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify({
+          ...localDataFull,
+          schedules: updatedLocalSchedules
+        }));
+      }
+    } catch (error) {
+      console.warn('Skip migration error:', error);
+    } finally {
+      setIsVisible(false);
+      onComplete();
+    }
   };
 
   const handleMigrate = async () => {
     if (selectedIds.size === 0) {
-      handleSkip();
+      await handleSkip();
       return;
     }
 
@@ -128,10 +144,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
       await batch.commit();
 
       const updatedLocalSchedules = (localDataFull.schedules || []).map(s => {
-         if (selectedIds.has(s.id)) {
-            return { ...s, isCloud: true };
-         }
-         return s;
+         return { ...s, isCloud: true };
       });
 
       await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify({

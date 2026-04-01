@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -34,12 +35,17 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function ScheduleSettingsStack({ screenProps }) {
+  const { global } = useSchedule();
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
         gestureEnabled: true,
+        contentStyle: { backgroundColor: themeColors.backgroundColor },
       }}
     >
       <Stack.Screen name="ScheduleSettingsMain">
@@ -68,16 +74,24 @@ function ScheduleSettingsStack({ screenProps }) {
 }
 
 export default function TabNavigator({ screenProps }) {
-  const { global , lang} = useSchedule();
+  const { global, lang, isLoading } = useSchedule();
   const insets = useSafeAreaInsets();
   
-  const [mode, accent] = global?.theme || ["light", "blue"];
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#32D74B" />
+      </View>
+    );
+  }
 
+  const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   return (
     <Tab.Navigator
       screenOptions={{
+        sceneContainerStyle: { backgroundColor: themeColors.backgroundColor },
         tabBarStyle: {
           position: 'absolute',
           height: 50 + insets.bottom,

@@ -7,14 +7,11 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 
 export default function Header({ currentDate, onDateChange, onTodayPress, onTitlePress }) {
-  const { global, schedule , lang} = useSchedule();
+  const { global, schedule, lang } = useSchedule();
   const [showNativePicker, setShowNativePicker] = useState(false);
 
-  if (!schedule) return null;
-
-  const [mode, accent] = global.theme || ["light", "blue"];
+  const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-
 
   const handleNativeDateChange = (event, selectedDate) => {
     setShowNativePicker(false);
@@ -31,13 +28,7 @@ export default function Header({ currentDate, onDateChange, onTodayPress, onTitl
     }
   };
 
-  const localeMap = {
-    uk: 'uk-UA',
-    en: 'en-US',
-    pl: 'pl-PL',
-    de: 'de-DE'
-  };
-  const currentLocale = localeMap[lang] || 'uk-UA';
+  const currentLocale = t('locale', lang);
 
   const monthYearString = currentDate.toLocaleDateString(currentLocale, { month: 'long', year: 'numeric' });
   const formattedDate = monthYearString.charAt(0).toUpperCase() + monthYearString.slice(1);
@@ -90,11 +81,13 @@ const styles = StyleSheet.create({
     paddingTop: 50, 
     paddingBottom: 5, 
     paddingHorizontal: 20,
+    minHeight: 100,
   },
   headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
+    minHeight: 45,
   },
   leftSection: {
     flexDirection: 'column',
@@ -106,6 +99,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     opacity: 0.7,
+    minHeight: 15,
   },
   dateSelector: {
     flexDirection: 'row',

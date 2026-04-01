@@ -1,4 +1,5 @@
 export default {
+  locale: "uk-UA",
   languages: {
     uk: "Українська",
     en: "English",
@@ -90,6 +91,9 @@ export default {
 
   main_layout: {
     no_schedule_data: "Немає даних розкладу",
+    fatal_title: "Упс, щось пішло не так",
+    fatal_desc: "Розклад не вдалося завантажити або він відсутній. Ми можемо створити новий стандартний розклад для вас.",
+    force_create_btn: "Створити розклад примусово"
   },
 
   migration_modal: {
