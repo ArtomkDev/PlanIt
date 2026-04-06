@@ -8,10 +8,12 @@ import {
   ScrollView,
   Linking,
   Platform,
-  Dimensions
+  Dimensions,
+  Alert
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSchedule } from "../../../context/ScheduleProvider";
+import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
@@ -20,13 +22,13 @@ import { t } from "../../../utils/i18n";
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
-  const { schedule, global , lang} = useSchedule();
+  const { schedule, setScheduleDraft, global , lang} = useSchedule();
+  const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
   
   if (!visible || !lesson) return null;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-
 
   const subjectId = lesson.subjectId;
   const fullSubject = schedule.subjects.find(s => s.id === subjectId) || {};
@@ -70,6 +72,37 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
     const supported = await Linking.canOpenURL(url);
     if (supported) Linking.openURL(url);
     else alert(`${t('schedule.lesson_viewer.link_error', lang)}${url}`);
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      t('common.warning', lang),
+      (t('common.delete', lang)) + "?",
+      [
+        { text: t('common.cancel', lang), style: 'cancel' },
+        { 
+          text: t('common.delete', lang), 
+          style: 'destructive',
+          onPress: () => {
+            setScheduleDraft((prev) => {
+              const next = { ...prev };
+              const dayIndex = getDayIndex(currentDate);
+              const weekKey = `week${calculateCurrentWeek(currentDate)}`;
+
+              if (next.schedule && next.schedule[dayIndex] && next.schedule[dayIndex][weekKey]) {
+                 const weekArr = [...next.schedule[dayIndex][weekKey]];
+                 if (Number.isInteger(lesson.index)) {
+                   weekArr.splice(lesson.index, 1);
+                 }
+                 next.schedule[dayIndex][weekKey] = weekArr;
+              }
+              return next;
+            });
+            onClose();
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -202,14 +235,22 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
           <View style={[styles.footer, { borderTopColor: themeColors.borderColor }]}>
             <TouchableOpacity 
-                style={[styles.editButton, { backgroundColor: themeColors.accentColor }]}
+                style={[styles.actionButton, { backgroundColor: 'rgba(255, 68, 68, 0.1)' }]}
+                onPress={handleDelete}
+            >
+                <Ionicons name="trash-outline" size={20} color="#ff4444" style={{marginRight: 8}} />
+                <Text style={[styles.actionButtonText, { color: '#ff4444' }]}>{t('common.delete', lang)}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={[styles.actionButton, styles.primaryButton, { backgroundColor: themeColors.accentColor }]}
                 onPress={() => {
                     onClose();
                     onEdit({ ...lesson, subject: fullSubject, data: instanceData });
                 }}
             >
                 <Ionicons name="create-outline" size={20} color="#fff" style={{marginRight: 8}} />
-                <Text style={styles.editButtonText}>{t('common.edit', lang)}</Text>
+                <Text style={[styles.actionButtonText, { color: '#fff' }]}>{t('common.edit', lang)}</Text>
             </TouchableOpacity>
           </View>
 
@@ -374,25 +415,29 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   footer: {
+    flexDirection: 'row',
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     borderTopWidth: 1,
+    gap: 12,
   },
-  editButton: {
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 16,
     borderRadius: 16,
+  },
+  primaryButton: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 4,
   },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 18,
+  actionButtonText: {
+    fontSize: 16,
     fontWeight: 'bold',
   }
 });

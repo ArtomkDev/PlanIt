@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -33,13 +33,70 @@ import { t } from "../../../utils/i18n";
 const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
 const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 
+const getDurationMinutes = (start, end) => {
+    if (!start || !end) return null;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null;
+    let diff = (eh * 60 + em) - (sh * 60 + sm);
+    if (diff < 0) diff += 24 * 60;
+    return diff;
+};
+
+const addMinutes = (timeStr, minsToAdd) => {
+    if (!timeStr || typeof timeStr !== 'string') return null;
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    let totalMinutes = hours * 60 + minutes + (Number(minsToAdd) || 0);
+    totalMinutes = (totalMinutes + 24 * 60) % (24 * 60);
+
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+const timeToMins = (timeStr) => {
+    if (!timeStr || typeof timeStr !== 'string') return 999999; 
+    const [h, m] = timeStr.split(":").map(Number);
+    if (isNaN(h) || isNaN(m)) return 999999;
+    return h * 60 + m;
+};
+
+const getBreakDuration = (breaksArray, index) => {
+    if (!Array.isArray(breaksArray) || breaksArray.length === 0) return 0;
+    return Number(breaksArray[index % breaksArray.length]) || 0;
+};
+
+const buildLessonTimes = (startTime, duration, breaks, daySchedule) => {
+    if (!startTime || !duration || !Array.isArray(daySchedule)) return [];
+    let times = [];
+    let currentStart = startTime;
+
+    for (let i = 0; i < daySchedule.length; i++) {
+        const item = daySchedule[i];
+        const isInstance = typeof item === 'object' && item !== null;
+
+        const customStart = isInstance ? item.startTime : null;
+        const customEnd = isInstance ? item.endTime : null;
+
+        const actualStart = customStart ? customStart : currentStart;
+        const actualEnd = customEnd ? customEnd : addMinutes(actualStart, duration);
+
+        times.push({ start: actualStart, end: actualEnd });
+
+        const currentBreak = getBreakDuration(breaks, i);
+        currentStart = addMinutes(actualEnd, currentBreak);
+    }
+    return times;
+};
+
 export default function LessonEditor({ lesson, onClose }) {
   const { global, schedule, scheduleDraft, setScheduleDraft , lang} = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-
 
   const dataSource = scheduleDraft || schedule;
 
@@ -60,7 +117,44 @@ export default function LessonEditor({ lesson, onClose }) {
   const [instanceData, setInstanceData] = useState(
     lesson?.data ? getCleanInstanceData(lesson.data) : {}
   );
+
+  const dayIndex = getDayIndex(currentDate);
+  const weekKey = `week${calculateCurrentWeek(currentDate)}`;
+  const currentDaySchedule = dataSource?.schedule?.[dayIndex]?.[weekKey] || [];
   
+  const start_time_global = dataSource?.start_time || "08:30";
+  const duration_global = Number(dataSource?.duration) || 45;
+  const breaks_global = dataSource?.breaks || [];
+
+  const computedLessonTimes = useMemo(() => {
+      return buildLessonTimes(start_time_global, duration_global, breaks_global, currentDaySchedule);
+  }, [start_time_global, duration_global, breaks_global, currentDaySchedule]);
+
+  const autoTimeForThisSlot = useMemo(() => {
+    const targetIdx = Number.isInteger(lesson?.index) ? lesson.index : currentDaySchedule.length;
+
+    if (targetIdx === 0) {
+        return { start: start_time_global, end: addMinutes(start_time_global, duration_global) };
+    }
+
+    if (targetIdx > 0 && computedLessonTimes[targetIdx - 1]) {
+        const prevTime = computedLessonTimes[targetIdx - 1]; 
+        const currentBreak = getBreakDuration(breaks_global, targetIdx - 1);
+        const newStart = addMinutes(prevTime.end, currentBreak);
+        const newEnd = addMinutes(newStart, duration_global);
+        return { start: newStart, end: newEnd };
+    }
+    
+    return { start: start_time_global, end: addMinutes(start_time_global, duration_global) };
+  }, [lesson, computedLessonTimes, currentDaySchedule, start_time_global, duration_global, breaks_global]);
+  
+  const storedDefaultTime = useMemo(() => {
+      if (instanceData.defaultStartTime && instanceData.defaultEndTime) {
+          return { start: instanceData.defaultStartTime, end: instanceData.defaultEndTime };
+      }
+      return autoTimeForThisSlot;
+  }, [instanceData.defaultStartTime, instanceData.defaultEndTime, autoTimeForThisSlot]);
+
   const [scopes, setScopes] = useState({
     people: 'global',
     type: 'global',
@@ -161,7 +255,8 @@ export default function LessonEditor({ lesson, onClose }) {
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
     if (currentScreen === "teacherEditor") return goToScreen(pickerType ? "picker" : "main"); 
     if (currentScreen === "linkEditor") return goToScreen(pickerType ? "picker" : "main");    
-    if (currentScreen === "input" && pickerType === "subject") return goToScreen("picker");
+    
+    if (currentScreen === "input" && inputType === "subject_rename") return goToScreen("picker");
     
     if (["picker", "input", "subjectColor"].includes(currentScreen)) {
         return goToScreen("main");
@@ -178,12 +273,12 @@ export default function LessonEditor({ lesson, onClose }) {
             if (pickerType === 'teacher') return t('schedule.lesson_editor.teachers', lang);
             if (pickerType === 'link') return t('schedule.lesson_editor.links', lang);
             if (pickerType === 'subject') return t('schedule.lesson_editor.subjects', lang);
-            if (pickerType === 'type') return t('schedule.lesson_editor.lesson_type', lang);
             if (pickerType === 'icon') return t('schedule.lesson_editor.choose_icon', lang);
             return t('schedule.lesson_editor.selection', lang);
         case "input":
             if (inputType === 'building') return t('schedule.lesson_editor.building', lang);
             if (inputType === 'room') return t('schedule.lesson_editor.room', lang);
+            if (inputType === 'type') return t('schedule.lesson_editor.lesson_type', lang);
             if (inputType === 'subject_rename') return t('schedule.lesson_editor.change_name', lang);
             return t('schedule.lesson_editor.input', lang);
         case "teacherEditor": return t('schedule.lesson_editor.edit_teacher', lang);
@@ -193,7 +288,6 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const handleSave = () => {
-    if (!selectedSubjectId) return;
     setScheduleDraft((prev) => {
       const next = { ...prev };
       
@@ -210,6 +304,14 @@ export default function LessonEditor({ lesson, onClose }) {
       
       const weekArr = next.schedule[dayIndex][weekKey] ? [...next.schedule[dayIndex][weekKey]] : [];
       
+      if (!selectedSubjectId) {
+          if (Number.isInteger(lesson?.index)) {
+              weekArr.splice(lesson.index, 1);
+          }
+          next.schedule[dayIndex][weekKey] = weekArr;
+          return next;
+      }
+
       const lessonObject = {
         ...instanceData,
         subjectId: selectedSubjectId, 
@@ -229,14 +331,61 @@ export default function LessonEditor({ lesson, onClose }) {
           }
       });
 
-      if (Number.isInteger(lesson?.index)) {
-        while (weekArr.length <= lesson.index) weekArr.push(null);
-        weekArr[lesson.index] = lessonObject;
-      } else {
-        weekArr.push(lessonObject);
-      }
+      const defStart = instanceData.defaultStartTime || autoTimeForThisSlot.start;
+      const defEnd = instanceData.defaultEndTime || autoTimeForThisSlot.end;
       
-      next.schedule[dayIndex][weekKey] = weekArr;
+      lessonObject.defaultStartTime = defStart;
+      lessonObject.defaultEndTime = defEnd;
+
+      const duration_global = Number(next.duration) || 45;
+      let tempArr = [];
+
+      for (let i = 0; i < weekArr.length; i++) {
+          if (Number.isInteger(lesson?.index) && i === lesson.index) continue;
+          if (!weekArr[i]) continue;
+
+          const item = weekArr[i];
+          const effectiveStart = item.startTime || computedLessonTimes[i]?.start || "08:00";
+          const effectiveEnd = item.endTime || computedLessonTimes[i]?.end || addMinutes(effectiveStart, duration_global);
+
+          const itemDefStart = item.defaultStartTime || computedLessonTimes[i]?.start || "08:00";
+          const itemDefEnd = item.defaultEndTime || computedLessonTimes[i]?.end || addMinutes(itemDefStart, duration_global);
+
+          tempArr.push({
+              lesson: { 
+                  ...item, 
+                  startTime: effectiveStart, 
+                  endTime: effectiveEnd,
+                  defaultStartTime: itemDefStart,
+                  defaultEndTime: itemDefEnd
+              },
+              effectiveStart: effectiveStart,
+              originalIndex: i 
+          });
+      }
+
+      const newLessonStart = lessonObject.startTime || defStart;
+      const newLessonEnd = lessonObject.endTime || defEnd;
+
+      lessonObject.startTime = newLessonStart;
+      lessonObject.endTime = newLessonEnd;
+
+      tempArr.push({
+          lesson: lessonObject,
+          effectiveStart: newLessonStart,
+          originalIndex: Number.isInteger(lesson?.index) ? lesson.index : 9999 
+      });
+
+      tempArr.sort((a, b) => {
+          const timeDiff = timeToMins(a.effectiveStart) - timeToMins(b.effectiveStart);
+          if (timeDiff === 0) {
+              return a.originalIndex - b.originalIndex;
+          }
+          return timeDiff;
+      });
+
+      next.schedule[dayIndex][weekKey] = tempArr.map(item => item.lesson);
+
       return next;
     });
     
@@ -291,6 +440,37 @@ export default function LessonEditor({ lesson, onClose }) {
       goToScreen("main");
   };
 
+  const handleTimeChange = (field, value) => {
+    if (!value) {
+        setInstanceData(prev => {
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+        return;
+    }
+
+    if (field === "startTime") {
+        const currentStart = instanceData.startTime !== undefined ? instanceData.startTime : storedDefaultTime.start;
+        const currentEnd = instanceData.endTime !== undefined ? instanceData.endTime : storedDefaultTime.end;
+        
+        const duration = getDurationMinutes(currentStart, currentEnd);
+        
+        setInstanceData(prev => {
+            const updates = { startTime: value };
+            if (duration !== null) {
+                const newEndTime = addMinutes(value, duration);
+                if (newEndTime) {
+                    updates.endTime = newEndTime;
+                }
+            }
+            return { ...prev, ...updates };
+        });
+    } else {
+        handleUpdateInstance({ [field]: value });
+    }
+  };
+
   const handleRenameSubject = (newName) => {
     if (editingItemData) { 
        setLocalData((prev) => {
@@ -328,11 +508,13 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const handleOpenPicker = (type, index = null) => {
-    if (["building", "room"].includes(type)) {
+    if (["building", "room", "type"].includes(type)) {
         setInputType(type);
+        setPickerType(null);
         goToScreen("input");
     } else {
         setPickerType(type);
+        setInputType(null);
         setEditingSlotIndex(index);
         goToScreen("picker");
     }
@@ -430,26 +612,6 @@ export default function LessonEditor({ lesson, onClose }) {
         };
     }
 
-    if (pickerType === "type") {
-        const types = [
-            { key: "Лекція", label: t('schedule.lesson_types.lecture', lang) },
-            { key: "Практика", label: t('schedule.lesson_types.practice', lang) },
-            { key: "Лабораторна", label: t('schedule.lesson_types.lab', lang) },
-            { key: "Семінар", label: t('schedule.lesson_types.seminar', lang) }
-        ];
-        const scope = scopes.type;
-        const hasLocal = instanceData.type !== undefined;
-        const currentType = scope === 'local' ? (hasLocal ? instanceData.type : null) : currentSubject.type;
-
-        return {
-            options: types,
-            selected: currentType ? [currentType] : [],
-            multi: false,
-            onSave: (key) => handleGenericSave("type", key, 'type'),
-            onReset: scope === 'local' && hasLocal ? () => handleResetLocal("type") : null
-        };
-    }
-
     if (pickerType === "subject") {
         return {
             options: localData.subjects.map((s) => ({ key: s.id, label: s.name })),
@@ -514,6 +676,18 @@ export default function LessonEditor({ lesson, onClose }) {
             onReset: scope === 'local' && hasLocal ? () => handleResetLocal("room") : null
           };
       }
+      if (inputType === "type") {
+          const scope = scopes.type;
+          const hasLocal = instanceData.type !== undefined;
+          const currentType = scope === 'local' ? (hasLocal ? instanceData.type : "") : currentSubject.type;
+
+          return { 
+            val: currentType || "",
+            ph: t('schedule.lesson_editor.lesson_type', lang),
+            onSave: (val) => handleGenericSave("type", val, 'type'),
+            onReset: scope === 'local' && hasLocal ? () => handleResetLocal("type") : null
+          };
+      }
       if (inputType === "subject_rename") {
           const subj = localData.subjects.find(s => s.id === editingItemData);
           return {
@@ -564,6 +738,8 @@ export default function LessonEditor({ lesson, onClose }) {
       return isEmpty ? t('schedule.lesson_editor.not_specified', lang) : labelStr;
   };
 
+  const canSave = selectedSubjectId !== null || Number.isInteger(lesson?.index);
+
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
       {currentScreen === "main" ? (
@@ -579,8 +755,8 @@ export default function LessonEditor({ lesson, onClose }) {
       <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>{getHeaderTitle()}</Text>
       <View style={{ minWidth: 60, alignItems: "flex-end" }}>
         {currentScreen === "main" && (
-          <TouchableOpacity onPress={handleSave} disabled={!selectedSubjectId} hitSlop={15}>
-            <Text style={{ color: selectedSubjectId ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
+          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15}>
+            <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
               {t('common.done', lang)}
             </Text>
           </TouchableOpacity>
@@ -639,7 +815,7 @@ export default function LessonEditor({ lesson, onClose }) {
             </TouchableOpacity>
 
             <View style={styles.minimizedActions}>
-              {selectedSubjectId && (
+              {canSave && (
                 <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn}>
                   <Ionicons name="checkmark-circle" size={28} color={themeColors.accentColor} />
                 </TouchableOpacity>
@@ -681,6 +857,10 @@ export default function LessonEditor({ lesson, onClose }) {
                 onScopeChange={(group, newScope) => setScopes(prev => ({ ...prev, [group]: newScope }))}
                 getValueLabel={getValueLabel} 
                 getArrayData={getArrayData}
+                instanceData={instanceData}
+                defaultTime={storedDefaultTime}
+                onTimeChange={handleTimeChange}
+                onClearSubject={() => setSelectedSubjectId(null)}
               />
             )}
 

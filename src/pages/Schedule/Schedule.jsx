@@ -19,6 +19,11 @@ const HALF_SIZE = 300;
 const TOTAL_SIZE = HALF_SIZE * 2 + 1;
 const DAYS_INDICES = Array.from({ length: TOTAL_SIZE }, (_, i) => i - HALF_SIZE);
 
+const getLocalISODate = (date = new Date()) => {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().split('T')[0];
+};
+
 const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handleAddLesson, scrollY }) => {
     const targetDate = useMemo(() => {
         const d = new Date(anchorDate);
@@ -46,11 +51,11 @@ export default function Schedule() {
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   
   const [anchorDate, setAnchorDate] = useState(() => {
-    const d = new Date();
+    const d = new Date(getLocalISODate());
     d.setHours(0,0,0,0);
     return d;
   });
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date(getLocalISODate()));
   
   const flatListRef = useRef(null);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -81,7 +86,14 @@ export default function Schedule() {
     }
   }, [SCREEN_WIDTH, anchorDate, currentDate]);
 
-  const goToDate = useCallback((targetDate, animated = true) => {
+  const goToDate = useCallback((targetDateInput, animated = true) => {
+    let targetDate;
+    if (typeof targetDateInput === 'string') {
+       targetDate = new Date(targetDateInput);
+    } else {
+       targetDate = targetDateInput;
+    }
+
     const diffDays = Math.round((targetDate.getTime() - anchorDate.getTime()) / (1000 * 3600 * 24));
     
     if (Math.abs(diffDays) < HALF_SIZE - 10) {
@@ -96,6 +108,10 @@ export default function Schedule() {
         setCurrentDate(new Date(targetDate));
     }
   }, [anchorDate]);
+
+  const goToToday = () => {
+    goToDate(new Date(getLocalISODate()), true);
+  };
 
   const openViewer = useCallback((lesson) => { setViewingLesson(lesson); setViewerVisible(true); }, []);
   const openEditor = useCallback((lesson) => { 
@@ -119,7 +135,7 @@ export default function Schedule() {
         <Header 
             currentDate={currentDate} 
             onDateChange={(d) => goToDate(d, false)} 
-            onTodayPress={() => goToDate(new Date(), true)} 
+            onTodayPress={goToToday} 
             onTitlePress={() => setCalendarVisible(true)} 
         />
         <WeekStrip currentDate={currentDate} onSelectDate={(d) => goToDate(d, true)} />
@@ -164,7 +180,10 @@ export default function Schedule() {
         </View>
       )}
       
-      <LessonViewer visible={viewerVisible} lesson={viewingLesson} onClose={() => setViewerVisible(false)} onEdit={openEditor} />
+      <DayScheduleProvider date={currentDate}>
+        <LessonViewer visible={viewerVisible} lesson={viewingLesson} onClose={() => setViewerVisible(false)} onEdit={openEditor} />
+      </DayScheduleProvider>
+      
       <CalendarSheet visible={calendarVisible} currentDate={currentDate} onClose={() => setCalendarVisible(false)} onDateSelect={date => goToDate(date, true)} />
     </View>
   );

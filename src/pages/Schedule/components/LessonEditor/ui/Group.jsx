@@ -11,10 +11,9 @@ const customLayoutTransition = isWeb
   ? undefined 
   : LinearTransition.duration(200).easing(Easing.out(Easing.quad));
 
-export default function Group({ title, children, onAdd, themeColors, showScopeToggle, scope, onScopeChange }) {
+export default function Group({ title, children, onAdd, onReset, themeColors, showScopeToggle, scope, onScopeChange }) {
   const { global , lang} = useSchedule();
 
-  
   const handleScopeChange = () => {
     onScopeChange(scope === "local" ? "global" : "local");
   };
@@ -52,6 +51,14 @@ export default function Group({ title, children, onAdd, themeColors, showScopeTo
               activeOpacity={0.7}
             >
               <Ionicons name="add" size={18} color={themeColors.textColor} />
+            </TouchableOpacity>
+          ) : onReset ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.iconButton, { backgroundColor: themeColors.backgroundColor2 }]}
+              onPress={onReset}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh" size={18} color={themeColors.textColor} />
             </TouchableOpacity>
           ) : showScopeToggle ? (
             <View style={[styles.actionButton, styles.iconButton, { opacity: 0 }]} pointerEvents="none" />
@@ -93,6 +100,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
     paddingHorizontal: 4,
+    minHeight: 30,
   },
   headerRight: {
     flexDirection: "row",

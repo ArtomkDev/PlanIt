@@ -1,5 +1,6 @@
-import React from "react";
-import { ScrollView, StyleSheet, View, Text } from "react-native";
+import React, { useState, useRef } from "react";
+import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManager } from "react-native";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import SettingRow from "../ui/SettingRow"; 
 import Group from "../ui/Group";
 import GradientBackground from "../../../../../components/GradientBackground";
@@ -7,6 +8,10 @@ import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons"; 
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function LessonEditorMainScreen({
   themeColors,
@@ -20,12 +25,121 @@ export default function LessonEditorMainScreen({
   scopes,
   onScopeChange,
   getValueLabel,
-  getArrayData
+  getArrayData,
+  instanceData,
+  defaultTime,
+  onTimeChange,
+  onClearSubject
 }) {
   const { global , lang} = useSchedule();
-
+  const [expandedField, setExpandedField] = useState(null);
+  const scrollViewRef = useRef(null);
 
   const safeGetLabel = getLabel || ((type, val) => t('schedule.main_screen.not_defined', lang));
+
+  const isCustomStart = instanceData?.startTime !== undefined;
+  const isCustomEnd = instanceData?.endTime !== undefined;
+
+  const currentStart = isCustomStart ? instanceData.startTime : defaultTime?.start;
+  const currentEnd = isCustomEnd ? instanceData.endTime : defaultTime?.end;
+  
+  const isTimeModified = currentStart !== defaultTime?.start || currentEnd !== defaultTime?.end;
+
+  const getDurationMinutes = (start, end) => {
+    if (!start || !end) return null;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null;
+    let diff = (eh * 60 + em) - (sh * 60 + sm);
+    if (diff < 0) diff += 24 * 60;
+    return diff;
+  };
+  
+  const duration = getDurationMinutes(currentStart, currentEnd);
+
+  const toggleExpand = (field) => {
+    if (Platform.OS === 'android') {
+        setExpandedField(field);
+    } else {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpandedField(prev => {
+            const nextField = prev === field ? null : field;
+            if (nextField) {
+                setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 250);
+            }
+            return nextField;
+        });
+    }
+  };
+
+  const renderTimeValue = (val, isHighlight) => (
+    <Text style={{
+        fontSize: 16,
+        color: isHighlight ? themeColors.textColor : themeColors.textColor2,
+        fontWeight: isHighlight ? '600' : '400'
+    }}>
+        {val || "—"}
+    </Text>
+  );
+
+  const renderTimePicker = (field, currentValue) => {
+    const timeValue = currentValue || "08:00";
+    const [hours, minutes] = timeValue.split(":").map(Number);
+    const date = new Date();
+    date.setHours(isNaN(hours) ? 8 : hours, isNaN(minutes) ? 0 : minutes, 0, 0);
+
+    if (Platform.OS === 'android') {
+        return (
+            <DateTimePicker
+                value={date}
+                mode="time"
+                is24Hour={true}
+                display="default"
+                onChange={(event, selectedDate) => {
+                    setExpandedField(null);
+                    if (event.type === 'set' && selectedDate) {
+                        const hh = String(selectedDate.getHours()).padStart(2, '0');
+                        const mm = String(selectedDate.getMinutes()).padStart(2, '0');
+                        onTimeChange(field, `${hh}:${mm}`);
+                    }
+                }}
+            />
+        );
+    }
+
+    return (
+        <View style={[styles.timePickerContainer, { backgroundColor: themeColors.backgroundColor2, borderTopColor: themeColors.borderColor }]}>
+            {Platform.OS !== 'web' ? (
+                <DateTimePicker
+                    value={date}
+                    mode="time"
+                    is24Hour={true}
+                    display="spinner"
+                    onChange={(event, selectedDate) => {
+                        if (selectedDate) {
+                            const hh = String(selectedDate.getHours()).padStart(2, '0');
+                            const mm = String(selectedDate.getMinutes()).padStart(2, '0');
+                            onTimeChange(field, `${hh}:${mm}`);
+                        }
+                    }}
+                    textColor={themeColors.textColor}
+                    style={{ height: 160, width: '100%' }}
+                />
+            ) : (
+                <View style={{ padding: 20 }}>
+                    {React.createElement('input', {
+                        type: 'time',
+                        value: timeValue,
+                        onChange: (e) => onTimeChange(field, e.target.value),
+                        style: { fontSize: 18, padding: 8, borderRadius: 8, border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor }
+                    })}
+                </View>
+            )}
+        </View>
+    );
+  };
 
   const renderIconValue = () => {
     if (!currentSubject.icon) {
@@ -68,9 +182,14 @@ export default function LessonEditorMainScreen({
   const { array: linksArr } = getArrayData("links", "materials");
 
   return (
-    <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+    <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={styles.scrollContent}>
       
-      <Group themeColors={themeColors} title={t('schedule.main_screen.subject', lang)} showScopeToggle={false}>
+      <Group 
+        themeColors={themeColors} 
+        title={t('schedule.main_screen.subject', lang)} 
+        showScopeToggle={false}
+        onReset={onClearSubject}
+      >
         <SettingRow
           label={t('schedule.main_screen.subject_name', lang)}
           value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
@@ -194,6 +313,40 @@ export default function LessonEditorMainScreen({
         />
       </Group>
 
+      <Group 
+        themeColors={themeColors} 
+        title={t('schedule.main_screen.time', lang) || "Час заняття"} 
+        showScopeToggle={false}
+        onReset={isTimeModified ? () => {
+            onTimeChange("startTime", null);
+            onTimeChange("endTime", null);
+        } : null}
+      >
+        <SettingRow
+          label={t('schedule.main_screen.start_time', lang) || "Початок"}
+          rightContent={renderTimeValue(currentStart, isTimeModified)}
+          onPress={() => toggleExpand("startTime")}
+          themeColors={themeColors}
+          icon="time-outline"
+        />
+        {expandedField === "startTime" && renderTimePicker("startTime", currentStart)}
+
+        <SettingRow
+          label={t('schedule.main_screen.end_time', lang) || "Кінець"}
+          rightContent={renderTimeValue(currentEnd, isTimeModified)}
+          onPress={() => toggleExpand("endTime")}
+          themeColors={themeColors}
+          icon="time-outline"
+        />
+        {expandedField === "endTime" && renderTimePicker("endTime", currentEnd)}
+
+        <View style={styles.durationContainer}>
+          <Text style={[styles.durationText, { color: themeColors.textColor }]}>
+            {duration ? `${duration} ${t('schedule.main_screen.minutes', lang)}` : "—"}
+          </Text>
+        </View>
+      </Group>
+
     </ScrollView>
   );
 }
@@ -201,6 +354,21 @@ export default function LessonEditorMainScreen({
 const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
   scrollContent: { paddingBottom: 40 },
+  timePickerContainer: {
+    overflow: 'hidden',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    paddingBottom: 16,
+  },
+  durationContainer: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
   colorPreview: {
     width: 34,
     height: 34,

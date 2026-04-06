@@ -24,6 +24,10 @@ export default {
     edit: "Редагувати",
     done: "Готово",
     save_changes: "Зберегти зміни",
+    auto: "Авто",
+    custom: "Кастомно",
+    reset_to_auto: "Скинути на Авто",
+    left: "Залишилось",
     months: {
       jan: "Січень", feb: "Лютий", mar: "Березень", apr: "Квітень",
       may: "Травень", jun: "Червень", jul: "Липень", aug: "Серпень",
@@ -109,6 +113,7 @@ export default {
     day_schedule: {
       no_classes: "Пар немає",
       add_hint: "Затисніть екран, щоб додати",
+      break: "Перерва",
     },
     header: {
       today: "Сьогодні",
@@ -162,6 +167,8 @@ export default {
       teacher_phone_label: "Контакт / Телефон",
       scope_local: "Ця пара",
       scope_global: "Всі пари",
+      start_time: "Початок заняття",
+      end_time: "Кінець заняття",
     },
     lesson_types: {
       lecture: "Лекція",
@@ -194,6 +201,11 @@ export default {
       appearance: "Оформлення",
       card_color: "Колір картки",
       subject_icon: "Іконка предмету",
+      time: "Час заняття",
+      start_time: "Початок",
+      end_time: "Кінець",
+      duration: "Тривалість",
+      minutes: "хв",
     }
   },
 

@@ -77,40 +77,55 @@ const isLightColor = (color) => {
   return yiq > 160;
 };
 
-const parseTime = (timeStr) => {
-  if (!timeStr) return new Date();
-  const [h, m] = timeStr.split(":").map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d;
-};
-
-const getTimerState = (startStr, endStr, isToday) => {
-  if (!isToday || !startStr || !endStr) return { isActive: false, timeLeft: null };
-  const now = new Date();
-  const startDate = parseTime(startStr);
-  const endDate = parseTime(endStr);
+function getTimerState(startStr, endStr, targetDate) {
+  if (!startStr || !endStr || !targetDate) return { isActive: false, timeLeft: null };
   
-  if (now >= startDate && now < endDate) {
-    const diffMs = endDate - now;
-    const totalSeconds = Math.floor(diffMs / 1000);
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return { isActive: true, timeLeft: `${m}:${s < 10 ? '0' : ''}${s}` };
+  const now = new Date();
+  const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  
+  const diffDays = Math.round((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays !== 0 && diffDays !== 1) return { isActive: false, timeLeft: null };
+  
+  const [sH, sM] = startStr.split(":").map(Number);
+  const [eH, eM] = endStr.split(":").map(Number);
+  
+  let startMins = sH * 60 + sM;
+  let endMins = eH * 60 + eM;
+  if (endMins < startMins) endMins += 24 * 60;
+  
+  let currentMins = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  
+  if (diffDays === 1) {
+     if (startMins >= 12 * 60 && currentMins < 12 * 60) {
+         currentMins += 24 * 60;
+     } else {
+         return { isActive: false, timeLeft: null };
+     }
+  }
+  
+  if (currentMins >= startMins && currentMins < endMins) {
+     const diff = endMins - currentMins;
+     const m = Math.floor(diff);
+     const s = Math.floor((diff - m) * 60);
+     return { isActive: true, timeLeft: `${m}:${s < 10 ? '0' : ''}${s}` };
   }
   return { isActive: false, timeLeft: null };
-};
+}
 
-function useLessonTimer(startStr, endStr, isToday) {
-  const [timerState, setTimerState] = useState(() => getTimerState(startStr, endStr, isToday));
+function useLessonTimer(startStr, endStr, targetDate) {
+  const [timerState, setTimerState] = useState(() => getTimerState(startStr, endStr, targetDate));
   
   useEffect(() => {
-    if (!isToday || !startStr || !endStr) return;
+    if (!startStr || !endStr || !targetDate) return;
     const intervalId = setInterval(() => {
-      setTimerState(getTimerState(startStr, endStr, isToday));
+      setTimerState(getTimerState(startStr, endStr, targetDate));
     }, 1000);
     return () => clearInterval(intervalId);
-  }, [startStr, endStr, isToday]);
+  }, [startStr, endStr, targetDate]);
   
   return timerState;
 }
@@ -264,12 +279,12 @@ const BackgroundPattern = React.memo(({ MainIcon }) => {
   );
 });
 
-const LessonCardPure = React.memo(({ lesson, schedule, isToday, isDark, onPress, onLongPress }) => {
+const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPress, onLongPress }) => {
   const { 
     subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad, subjectColor, activePillText
   } = useLessonData(lesson, schedule, isDark);
 
-  const { timeLeft, isActive } = useLessonTimer(lesson?.timeInfo?.start, lesson?.timeInfo?.end, isToday);
+  const { timeLeft, isActive } = useLessonTimer(lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate);
 
   const handlePress = () => onPress?.({ ...lesson, subject, teacher, displayType, displayRoom, displayBuilding });
   const handleLongPress = () => onLongPress?.({ ...lesson, subject, teacher });
@@ -346,10 +361,10 @@ const LessonCardPure = React.memo(({ lesson, schedule, isToday, isDark, onPress,
 
 export default function LessonCard(props) {
   const { schedule } = useSchedule();
-  const { isToday } = useDaySchedule();
+  const { currentDate } = useDaySchedule(); 
   const { isDark } = useSystemThemeColors();
 
-  return <LessonCardPure {...props} schedule={schedule} isToday={isToday} isDark={isDark} />;
+  return <LessonCardPure {...props} schedule={schedule} targetDate={currentDate} isDark={isDark} />;
 }
 
 const styles = StyleSheet.create({

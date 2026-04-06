@@ -24,6 +24,10 @@ export default {
     edit: "Edit",
     done: "Done",
     save_changes: "Save changes",
+    auto: "Auto",
+    custom: "Custom",
+    reset_to_auto: "Reset to Auto",
+    left: "Left",
     months: {
       jan: "January", feb: "February", mar: "March", apr: "April",
       may: "May", jun: "June", jul: "July", aug: "August",
@@ -109,6 +113,7 @@ export default {
     day_schedule: {
       no_classes: "No classes",
       add_hint: "Long press to add",
+      break: "Break",
     },
     header: {
       today: "Today",
@@ -162,6 +167,8 @@ export default {
       teacher_phone_label: "Contact / Phone",
       scope_local: "This lesson",
       scope_global: "All lessons",
+      start_time: "Start Time",
+      end_time: "End Time",
     },
     lesson_types: {
       lecture: "Lecture",
@@ -194,6 +201,11 @@ export default {
       appearance: "Appearance",
       card_color: "Card Color",
       subject_icon: "Subject Icon",
+      time: "Lesson Time",
+      start_time: "Start",
+      end_time: "End",
+      duration: "Duration",
+      minutes: "min",
     }
   },
 
