@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, 
+  View, Text, TextInput, TouchableOpacity, StyleSheet, 
   Alert, KeyboardAvoidingView, Platform, ScrollView, LayoutAnimation, UIManager,
   Animated, Easing, useWindowDimensions, BackHandler, PanResponder
 } from 'react-native';
@@ -19,6 +19,7 @@ import SocialAuthButtons from './components/SocialAuthButtons';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
 import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
+import MorphingLoader from '../components/MorphingLoader';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -229,9 +230,17 @@ const SignInContent = ({ onNavigate, colors, lang, insets }) => {
         <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
           <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>{t('auth.signin.forgot_password', lang)}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: isLoading ? 0.7 : 1 }]} onPress={handleSignIn} disabled={isLoading}>
-          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>}
-        </TouchableOpacity>
+        
+        {isLoading ? (
+          <View style={{ height: 56, justifyContent: 'center', alignItems: 'center' }}>
+            <MorphingLoader size={40} />
+          </View>
+        ) : (
+          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor }]} onPress={handleSignIn}>
+            <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>
+          </TouchableOpacity>
+        )}
+
         <SocialAuthButtons onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} />
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.textColor2 }]}>{t('auth.signin.no_account', lang)}</Text>
@@ -281,9 +290,17 @@ const SignUpContent = ({ onNavigate, colors, lang, insets }) => {
             <Text style={{ color: colors.accentColor }}>{t('auth.signup.accept_terms_link', lang)}</Text>
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: (isLoading || !acceptedTerms) ? 0.6 : 1 }]} onPress={handleSignUp} disabled={isLoading || !acceptedTerms}>
-          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{t('auth.signup.submit', lang)}</Text>}
-        </TouchableOpacity>
+        
+        {isLoading ? (
+          <View style={{ height: 56, justifyContent: 'center', alignItems: 'center' }}>
+            <MorphingLoader size={40} />
+          </View>
+        ) : (
+          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms ? 0.6 : 1 }]} onPress={handleSignUp} disabled={!acceptedTerms}>
+            <Text style={styles.primaryButtonText}>{t('auth.signup.submit', lang)}</Text>
+          </TouchableOpacity>
+        )}
+
         <SocialAuthButtons onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} />
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.textColor2 }]}>{t('auth.signup.already_have_account', lang)}</Text>
@@ -343,7 +360,7 @@ const AuthScreen = ({ onGuestLogin }) => {
   if (isLangLoading) {
     return (
       <View style={[styles.loadingWrapper, { backgroundColor: colors.backgroundColor }]}>
-        <ActivityIndicator size="large" color={colors.accentColor} />
+        <MorphingLoader size={70} />
       </View>
     );
   }

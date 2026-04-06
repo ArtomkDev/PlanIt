@@ -8,6 +8,7 @@ import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/SettingsHeader';
 import { t } from '../../utils/i18n';
+import MorphingLoader from '../../components/MorphingLoader';
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
@@ -186,7 +187,7 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       {isLoggingOut && (
         <View style={[StyleSheet.absoluteFill, styles.loadingOverlay]}>
-          <ActivityIndicator size="large" color={themeColors.accentColor || '#fff'} />
+          <MorphingLoader size={60} />
           <Text style={styles.loadingText}>
             {t('settings.alerts.cloud_saving_warning', lang) || "Зачекайте, дані зберігаються у хмару..."}
           </Text>

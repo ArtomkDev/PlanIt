@@ -13,6 +13,7 @@ import { generateId } from '../utils/idGenerator';
 import { useSchedule } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import { t } from '../utils/i18n';
+import MorphingLoader from './MorphingLoader';
 
 const LOCAL_KEY = 'guest_schedule';
 
@@ -228,7 +229,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
               disabled={isMigrating || selectedIds.size === 0}
             >
               {isMigrating ? (
-                <ActivityIndicator color="#fff" />
+                <MorphingLoader size={24} />
               ) : (
                 <Text style={styles.migrateButtonText}>
                   {t('migration_modal.migrate', lang)}

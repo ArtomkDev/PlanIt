@@ -9,6 +9,7 @@ import themes from '../config/themes';
 import { t } from '../utils/i18n';
 import MigrationModal from '../components/MigrationModal';
 import AppBlur from '../components/AppBlur';
+import MorphingLoader from '../components/MorphingLoader';
 
 export default function MainLayout({ guest, onExitGuest }) {
   const {
@@ -65,7 +66,7 @@ export default function MainLayout({ guest, onExitGuest }) {
                 
                 {!isFatalTimeout ? (
                   <>
-                    <ActivityIndicator size="large" color={themeColors.accentColor} style={{ marginBottom: 16 }} />
+                    <MorphingLoader size={50} style={{ marginBottom: 16 }} />
                     <Text style={[styles.statusText, { color: themeColors.textColor }]}>
                       {`${t('common.error', lang)}: ${error}`}
                     </Text>
@@ -93,7 +94,7 @@ export default function MainLayout({ guest, onExitGuest }) {
               </View>
             </>
           ) : (
-            <ActivityIndicator size="large" color={themeColors.accentColor} />
+            <MorphingLoader size={80} />
           )}
         </View>
       )}

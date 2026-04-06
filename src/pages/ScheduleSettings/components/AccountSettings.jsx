@@ -9,6 +9,7 @@ import { auth } from '../../../../firebase';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
+import MorphingLoader from '../../../components/MorphingLoader';
 import SettingsScreenLayout from '../SettingsScreenLayout';
 import { getLinkedProviders, unlinkProvider, linkGoogleAccount, linkAppleAccount } from '../../../auth/authServices';
 
@@ -151,7 +152,7 @@ export default function AccountSettings() {
 
   const renderProviderStatus = (isLinked, providerId, onLink) => {
     if (isProcessing === providerId) {
-      return <ActivityIndicator size="small" color={themeColors.accentColor} />;
+      return <MorphingLoader size={24} />;
     }
 
     if (isLinked) {
