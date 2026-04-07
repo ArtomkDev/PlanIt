@@ -9,7 +9,6 @@ import { db, auth } from "../../firebase";
 import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer } from "../../firestore";
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
-import SyncConflictScreen from "../components/SyncConflictScreen";
 import useAppLanguage from "../hooks/useAppLanguage";
 
 const ScheduleContext = createContext(null);
@@ -705,10 +704,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   return (
     <ScheduleContext.Provider value={value}>
       {children}
-      <SyncConflictScreen 
-        conflictQueue={conflictQueue} 
-        handleResolveConflict={handleResolveConflict} 
-      />
     </ScheduleContext.Provider>
   );
 };

@@ -100,6 +100,18 @@ export default {
     force_create_btn: "Force create schedule"
   },
 
+  sync_conflict: {
+    title: "Data Conflict",
+    subtitle: "Different schedule versions found. Choose an option to sync.",
+    untitled: "Untitled",
+    this_device: "This device",
+    overwrite_cloud: "Overwrite cloud",
+    cloud_copy: "Cloud copy",
+    delete_local: "Delete local changes",
+    keep_both: "Keep both",
+    create_duplicate: "Create a duplicate schedule",
+  },
+
   migration_modal: {
     title: "Local schedules found",
     subtitle: "You likely used PlanIt without an account and decided to log in. We noticed local schedules, would you like to move them to your account? This will allow saving them in the cloud. You can change this ANYTIME!",

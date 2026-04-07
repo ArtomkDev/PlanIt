@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 
 import AutoSaveManager from '../components/AutoSaveManager';
 import TabNavigator from '../Navigation/TabNavigator';
@@ -11,6 +11,8 @@ import MigrationModal from '../components/MigrationModal';
 import AppBlur from '../components/AppBlur';
 import MorphingLoader from '../components/MorphingLoader';
 
+import SyncConflictScreen from '../components/SyncConflictScreen';
+
 export default function MainLayout({ guest, onExitGuest }) {
   const {
     user,
@@ -19,7 +21,9 @@ export default function MainLayout({ guest, onExitGuest }) {
     isLoading,
     error,
     lang,
-    resetApplication
+    resetApplication,
+    conflictQueue,
+    handleResolveConflict
   } = useSchedule();
 
   const [isFatalTimeout, setIsFatalTimeout] = useState(false);
@@ -104,6 +108,12 @@ export default function MainLayout({ guest, onExitGuest }) {
       {!guest && user?.uid && (
         <MigrationModal userId={user.uid} />
       )}
+
+      <SyncConflictScreen 
+        conflictQueue={conflictQueue}
+        handleResolveConflict={handleResolveConflict}
+        lang={lang}
+      />
     </View>
   );
 }
