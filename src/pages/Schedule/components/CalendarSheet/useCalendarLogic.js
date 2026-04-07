@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSchedule } from '../../../../context/ScheduleProvider';
+import { t } from '../../../../utils/i18n';
 
 export function useCalendarLogic(initialDate, schedule) {
   const { global , lang} = useSchedule();
@@ -40,19 +41,23 @@ export function useCalendarLogic(initialDate, schedule) {
 
   const getWeekNumber = useCallback((date) => {
     if (totalWeeks <= 1) return null;
-    const d1 = new Date(startSemesterDate); d1.setHours(0,0,0,0);
-    const d2 = new Date(date); d2.setHours(0,0,0,0);
     
-    let dayDiff = d2.getDay() - firstDayOfWeek;
+    const startWeekD = new Date(startSemesterDate); 
+    startWeekD.setHours(12, 0, 0, 0);
+    
+    const targetD = new Date(date); 
+    targetD.setHours(12, 0, 0, 0);
+    
+    let dayDiff = targetD.getDay() - firstDayOfWeek;
     if (dayDiff < 0) dayDiff += 7;
-    d2.setDate(d2.getDate() - dayDiff);
+    targetD.setDate(targetD.getDate() - dayDiff);
 
-    const diffTime = d2.getTime() - d1.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    const absoluteWeekNum = Math.floor(diffDays / 7);
+    const diffTime = targetD.getTime() - startWeekD.getTime();
+    const absoluteWeekNum = Math.round(diffTime / (1000 * 60 * 60 * 24 * 7));
 
     let cycleNum = (absoluteWeekNum % totalWeeks);
     if (cycleNum < 0) cycleNum += totalWeeks;
+    
     return cycleNum + 1;
   }, [startSemesterDate, firstDayOfWeek, totalWeeks]);
 
@@ -63,8 +68,7 @@ export function useCalendarLogic(initialDate, schedule) {
   const setYear = (year) => setViewDate(new Date(year, viewDate.getMonth(), 1));
 
   const weekDayNames = useMemo(() => {
-    const localeMap = { uk: 'uk-UA', en: 'en-US', pl: 'pl-PL', de: 'de-DE' };
-    const locale = localeMap[lang] || 'uk-UA';
+    const locale = t('locale', lang);
     
     const names = [];
     const baseDate = new Date(2023, 0, 1); 

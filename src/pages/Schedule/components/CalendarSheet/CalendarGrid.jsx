@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import themes from '../../../../config/themes';
 import { useSchedule } from '../../../../context/ScheduleProvider';
-import { t } from '../../../../utils/i18n';
 
 const CELL_SIZE = 40;
 const GAP = 8;
@@ -14,7 +13,7 @@ export default function CalendarGrid({
   getWeekNumber, 
   weekDayNames 
 }) {
-  const { global , lang} = useSchedule();
+  const { global } = useSchedule();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -59,10 +58,11 @@ export default function CalendarGrid({
               let textColor = dayObj.isCurrentMonth ? themeColors.textColor : themeColors.textColor2;
               let borderWidth = 0;
 
-              if (isToday) {
+              if (isSelected) {
                 bg = themeColors.accentColor;
                 textColor = '#fff';
-              } else if (isSelected) {
+              }
+              else if (isToday) {
                 borderWidth = 1.5;
               }
 
@@ -76,7 +76,7 @@ export default function CalendarGrid({
                   onPress={() => onSelectDate(dayObj.date)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.dayText, { color: textColor, fontWeight: isToday ? 'bold' : 'normal' }]}>
+                  <Text style={[styles.dayText, { color: textColor, fontWeight: (isToday || isSelected) ? 'bold' : 'normal' }]}>
                     {dayObj.date.getDate()}
                   </Text>
                 </TouchableOpacity>

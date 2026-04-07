@@ -1,119 +1,17 @@
-import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, useWindowDimensions, Platform, Animated, Easing } from 'react-native';
+import React, { useMemo, useRef, useLayoutEffect, useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Animated, Easing, PanResponder } from 'react-native';
 import themes from '../../../config/themes';
 import { useSchedule } from '../../../context/ScheduleProvider';
-
-const WEEKS_HALF_SIZE = 50; 
-const TOTAL_WEEKS = WEEKS_HALF_SIZE * 2 + 1;
-const WEEKS_INDICES = Array.from({ length: TOTAL_WEEKS }, (_, i) => i - WEEKS_HALF_SIZE);
-
-const WeekPage = React.memo(({ 
-  offsetWeeks, baseWeekStart, currentDateString, handleDayPress, 
-  orderedDayNames, SCREEN_WIDTH, themeColors, jumpDirection
-}) => {
-  const weekStart = new Date(baseWeekStart);
-  weekStart.setDate(baseWeekStart.getDate() + offsetWeeks * 7);
-
-  const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
-    return d;
-  }), [weekStart]);
-
-  const selectedIndex = weekDates.findIndex(d => d.toDateString() === currentDateString);
-  const isSelected = selectedIndex !== -1;
-  const prevSelectedIndex = useRef(selectedIndex);
-  
-  const animatedIndex = useRef(new Animated.Value(
-    isSelected ? selectedIndex : (jumpDirection === 1 ? -1 : 7)
-  )).current;
-
-  useEffect(() => {
-    animatedIndex.stopAnimation();
-    if (isSelected) {
-      if (prevSelectedIndex.current === -1) {
-        animatedIndex.setValue(jumpDirection === 1 ? -1 : 7);
-      }
-      Animated.spring(animatedIndex, {
-        toValue: selectedIndex,
-        stiffness: 450,    
-        damping: 30,    
-        mass: 1,
-        useNativeDriver: true,
-      }).start();
-      prevSelectedIndex.current = selectedIndex;
-    } else {
-      if (prevSelectedIndex.current !== -1) {
-        Animated.timing(animatedIndex, {
-          toValue: jumpDirection === 1 ? 7 : -1,
-          duration: 150, 
-          useNativeDriver: true,
-          easing: Easing.out(Easing.quad)
-        }).start();
-        prevSelectedIndex.current = -1;
-      }
-    }
-  }, [selectedIndex, isSelected, jumpDirection]); 
-
-  const gap = (SCREEN_WIDTH - 32 - 7 * 40) / 6;
-  const translateX = animatedIndex.interpolate({
-    inputRange: [-1, 0, 1, 2, 3, 4, 5, 6, 7],
-    outputRange: [-1, 0, 1, 2, 3, 4, 5, 6, 7].map(i => i * (40 + gap) + 2)
-  });
-
-  return (
-    <View style={[styles.weekContainer, { width: SCREEN_WIDTH }]}>
-      <Animated.View style={[
-        styles.selectionIndicator,
-        { 
-          backgroundColor: themeColors.accentColor,
-          transform: [{ translateX }]
-        }
-      ]} />
-      {weekDates.map((date, index) => {
-        const isCurrentlySelected = date.toDateString() === currentDateString;
-        const isToday = date.toDateString() === new Date().toDateString();
-        return (
-          <TouchableOpacity
-            key={index}
-            style={styles.dayContainer}
-            onPress={() => handleDayPress(date)}
-            activeOpacity={0.7}
-          >
-            <Text style={[
-              styles.dayName, 
-              { color: isCurrentlySelected ? themeColors.accentColor : themeColors.textColor2 }
-            ]}>
-              {orderedDayNames[index]}
-            </Text>
-            <View style={[
-              styles.dateCircle,
-              !isCurrentlySelected && isToday && { borderWidth: 1, borderColor: themeColors.accentColor }
-            ]}>
-              <Text style={[
-                styles.dayNumber, 
-                { color: isCurrentlySelected ? '#fff' : themeColors.textColor }
-              ]}>
-                {date.getDate()}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-});
+import { t } from '../../../utils/i18n';
 
 const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
-  const { global , lang} = useSchedule();
+  const { global, lang } = useSchedule();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
   const { width: SCREEN_WIDTH } = useWindowDimensions();
 
-
   const DAYS = useMemo(() => {
-    const localeMap = { uk: 'uk-UA', en: 'en-US', pl: 'pl-PL', de: 'de-DE' };
-    const locale = localeMap[lang] || 'uk-UA';
+    const locale = t('locale', lang);
     const days = [];
     const baseDate = new Date(2023, 0, 1); 
     for (let i = 0; i < 7; i++) {
@@ -145,74 +43,156 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
     return d;
   }, [startDayOfWeek]);
 
-  const flatListRef = useRef(null);
-  const isUserInteraction = useRef(false);
-  const [baseWeekStart, setBaseWeekStart] = useState(() => getWeekStart(currentDate));
-  const prevDateRef = useRef(currentDate);
-  const [jumpDirection, setJumpDirection] = useState(1);
+  const getDayIndex = useCallback((date) => {
+    const d = new Date(date);
+    return (d.getDay() - startDayOfWeek + 7) % 7;
+  }, [startDayOfWeek]);
 
-  useEffect(() => {
-    if (currentDate.getTime() !== prevDateRef.current.getTime()) {
-      setJumpDirection(currentDate.getTime() > prevDateRef.current.getTime() ? 1 : -1);
-      prevDateRef.current = currentDate;
-    }
+  const todayString = useMemo(() => new Date().toDateString(), []);
 
-    const newWeekStart = getWeekStart(currentDate);
-    const weekDiff = Math.round((newWeekStart.getTime() - baseWeekStart.getTime()) / (1000 * 60 * 60 * 24 * 7));
+  const [displayWeekStart, setDisplayWeekStart] = useState(() => getWeekStart(currentDate));
+  const displayWeekStartRef = useRef(displayWeekStart);
 
-    if (Math.abs(weekDiff) > WEEKS_HALF_SIZE - 2) {
-      setBaseWeekStart(newWeekStart);
-    } else if (!isUserInteraction.current) {
-      flatListRef.current?.scrollToIndex({ 
-        index: WEEKS_HALF_SIZE + weekDiff, 
-        animated: true 
+  const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(displayWeekStart);
+    d.setDate(displayWeekStart.getDate() + i);
+    return d;
+  }), [displayWeekStart]);
+
+  const currentRef = useRef(currentDate);
+  currentRef.current = currentDate;
+
+  const animatedIndex = useRef(new Animated.Value(getDayIndex(currentDate))).current;
+  const weekOpacity = useRef(new Animated.Value(1)).current;
+  const weekTranslateX = useRef(new Animated.Value(0)).current;
+
+  const changeWeek = useCallback((offset) => {
+    const newDate = new Date(currentRef.current);
+    newDate.setDate(currentRef.current.getDate() + offset * 7);
+    onSelectDate(newDate);
+  }, [onSelectDate]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (gestureState.dx > 40) changeWeek(-1);
+        else if (gestureState.dx < -40) changeWeek(1);
+      },
+    })
+  ).current;
+
+  useLayoutEffect(() => {
+    const targetWeekTime = getWeekStart(currentDate).getTime();
+    const currentDisplayWeekTime = displayWeekStartRef.current.getTime();
+    const targetIndex = getDayIndex(currentDate);
+
+    if (currentDisplayWeekTime === targetWeekTime) {
+      Animated.parallel([
+        Animated.spring(animatedIndex, { toValue: targetIndex, stiffness: 500, damping: 35, mass: 1, useNativeDriver: true }),
+        Animated.spring(weekOpacity, { toValue: 1, stiffness: 400, damping: 30, useNativeDriver: true }),
+        Animated.spring(weekTranslateX, { toValue: 0, stiffness: 400, damping: 30, useNativeDriver: true })
+      ]).start();
+
+    } else {
+      weekOpacity.stopAnimation();
+      weekTranslateX.stopAnimation();
+
+      const direction = targetWeekTime > currentDisplayWeekTime ? 1 : -1;
+
+      Animated.parallel([
+        Animated.timing(weekOpacity, { toValue: 0, duration: 120, useNativeDriver: true }),
+        Animated.timing(weekTranslateX, { toValue: direction * -30, duration: 150, easing: Easing.in(Easing.quad), useNativeDriver: true })
+      ]).start(({ finished }) => {
+        if (!finished) return;
+
+        const latestDate = currentRef.current;
+        const freshTargetWeek = getWeekStart(latestDate);
+        const freshTargetIndex = getDayIndex(latestDate);
+
+        setDisplayWeekStart(freshTargetWeek);
+        displayWeekStartRef.current = freshTargetWeek;
+
+        weekTranslateX.setValue(direction * 30);
+        animatedIndex.setValue(freshTargetIndex);
+
+        Animated.parallel([
+          Animated.timing(weekOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+          Animated.spring(weekTranslateX, { toValue: 0, stiffness: 450, damping: 30, useNativeDriver: true })
+        ]).start();
       });
     }
-  }, [currentDate, baseWeekStart, getWeekStart]);
-
-  const getItemLayout = useCallback((data, index) => ({
-    length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index,
-  }), [SCREEN_WIDTH]);
+  }, [currentDate.getTime(), getWeekStart, getDayIndex, animatedIndex, weekOpacity, weekTranslateX]);
 
   const handleDayPress = useCallback((date) => {
     const targetDate = new Date(date);
-    targetDate.setHours(currentDate.getHours(), currentDate.getMinutes());
+    targetDate.setHours(currentRef.current.getHours(), currentRef.current.getMinutes());
     onSelectDate(targetDate);
-  }, [currentDate, onSelectDate]);
+  }, [onSelectDate]);
 
-  const renderItem = useCallback(({ item: offsetWeeks }) => (
-    <WeekPage 
-      offsetWeeks={offsetWeeks}
-      baseWeekStart={baseWeekStart}
-      currentDateString={currentDate.toDateString()} 
-      handleDayPress={handleDayPress}
-      orderedDayNames={orderedDayNames}
-      SCREEN_WIDTH={SCREEN_WIDTH}
-      themeColors={themeColors}
-      jumpDirection={jumpDirection}
-    />
-  ), [baseWeekStart, currentDate.toDateString(), handleDayPress, orderedDayNames, SCREEN_WIDTH, themeColors, jumpDirection]);
+  const gap = (SCREEN_WIDTH - 32 - 7 * 40) / 6;
+  const circleTranslateX = animatedIndex.interpolate({
+    inputRange: [0, 1, 2, 3, 4, 5, 6],
+    outputRange: [0, 1, 2, 3, 4, 5, 6].map(i => i * (40 + gap))
+  });
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        key={`weeks-${baseWeekStart.getFullYear()}-${baseWeekStart.getMonth()}`}
-        ref={flatListRef}
-        data={WEEKS_INDICES}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.toString()}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        initialScrollIndex={WEEKS_HALF_SIZE}
-        getItemLayout={getItemLayout}
-        onScrollBeginDrag={() => { isUserInteraction.current = true; }}
-        onMomentumScrollEnd={() => { isUserInteraction.current = false; }}
-        windowSize={3}
-        initialNumToRender={1}
-        maxToRenderPerBatch={1}
-        removeClippedSubviews={Platform.OS !== 'web'}
-      />
+    <View style={styles.container} {...panResponder.panHandlers}>
+      <View style={[styles.weekContainer, { width: SCREEN_WIDTH }]}>
+        
+        <Animated.View style={[
+          styles.daysWrapper,
+          {
+            opacity: weekOpacity,
+            transform: [{ translateX: weekTranslateX }]
+          }
+        ]}>
+          
+          <Animated.View style={[
+            styles.selectionIndicator,
+            { 
+              backgroundColor: themeColors.accentColor,
+              transform: [{ translateX: circleTranslateX }]
+            }
+          ]} />
+
+          {weekDates.map((date, index) => {
+            const isCurrentlySelected = date.toDateString() === currentDate.toDateString();
+            const isToday = date.toDateString() === todayString;
+            
+            return (
+              <TouchableOpacity
+                key={index}
+                style={styles.dayContainer}
+                onPress={() => handleDayPress(date)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.dayName, 
+                  { color: isCurrentlySelected ? themeColors.accentColor : themeColors.textColor2 }
+                ]}>
+                  {orderedDayNames[index]}
+                </Text>
+                <View style={[
+                  styles.dateCircle,
+                  !isCurrentlySelected && isToday && { borderWidth: 1, borderColor: themeColors.accentColor }
+                ]}>
+                  <Text style={[
+                    styles.dayNumber, 
+                    { color: isCurrentlySelected ? '#fff' : themeColors.textColor }
+                  ]}>
+                    {date.getDate()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </Animated.View>
+
+      </View>
     </View>
   );
 });
@@ -222,17 +202,29 @@ export default WeekStrip;
 const styles = StyleSheet.create({
   container: {},
   weekContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     overflow: 'hidden', 
+    justifyContent: 'center',
+  },
+  daysWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    position: 'relative', 
+  },
+  selectionIndicator: {
+    position: 'absolute',
+    bottom: 0, 
+    left: 2,   
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   dayContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     width: 40,
-    zIndex: 2, 
   },
   dayName: {
     fontSize: 11,
@@ -250,14 +242,5 @@ const styles = StyleSheet.create({
   dayNumber: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  selectionIndicator: {
-    position: 'absolute',
-    bottom: 12, 
-    left: 16,   
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    zIndex: 1,  
   }
 });
