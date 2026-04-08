@@ -10,7 +10,9 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   updateProfile,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  signOut
 } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -25,29 +27,40 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const getIconConfig = (vw, vh) => ({
-  welcome: [
-    { id: 0, icon: 'calendar', x: -vw * 0.05, y: vh * 0.05, scale: 1, rotate: 15, opacity: 0.05 },
-    { id: 1, icon: 'time', x: vw * 0.7, y: vh * 0.15, scale: 0.7, rotate: -15, opacity: 0.03 },
-    { id: 2, icon: 'star', x: vw * 0.2, y: vh * 0.75, scale: 0.8, rotate: 10, opacity: 0.04 },
-  ],
-  signin: [
-    { id: 0, icon: 'log-in', x: vw * 0.6, y: -vh * 0.05, scale: 0.85, rotate: 0, opacity: 0.06 },
-    { id: 1, icon: 'lock-closed', x: vw * 0.75, y: vh * 0.6, scale: 1.1, rotate: -25, opacity: 0.04 },
-    { id: 2, icon: 'key', x: -vw * 0.05, y: vh * 0.5, scale: 0.7, rotate: 30, opacity: 0.03 },
-  ],
-  signup: [
-    { id: 0, icon: 'person-add', x: vw * 0.5, y: -vh * 0.05, scale: 1.1, rotate: 20, opacity: 0.06 },
-    { id: 1, icon: 'mail', x: -vw * 0.1, y: vh * 0.3, scale: 0.8, rotate: -10, opacity: 0.04 },
-    { id: 2, icon: 'shield-checkmark', x: vw * 0.4, y: vh * 0.8, scale: 0.9, rotate: 5, opacity: 0.05 },
-  ],
-});
+const getIconConfig = (vw, vh) => {
+  const cx = (pct) => vw * pct - 140; 
+  const cy = (pct) => vh * pct - 140;
+
+  return {
+    welcome: [
+      { id: 0, icon: 'planet', x: cx(0.1), y: cy(0.15), scale: 1.1, rotate: -15, opacity: 0.05 },
+      { id: 1, icon: 'rocket', x: cx(0.85), y: cy(0.85), scale: 0.9, rotate: 45, opacity: 0.06 },
+      { id: 2, icon: 'compass', x: cx(0.8), y: cy(0.2), scale: 0.7, rotate: 10, opacity: 0.04 },
+    ],
+    signin: [
+      { id: 0, icon: 'finger-print', x: cx(0.85), y: cy(0.15), scale: 1.2, rotate: 0, opacity: 0.05 },
+      { id: 1, icon: 'id-card', x: cx(0.15), y: cy(0.8), scale: 0.85, rotate: -20, opacity: 0.04 },
+      { id: 2, icon: 'shield-checkmark', x: cx(0.7), y: cy(0.85), scale: 0.75, rotate: 15, opacity: 0.06 },
+    ],
+    signup: [
+      { id: 0, icon: 'person-add', x: cx(0.25), y: cy(0.15), scale: 1.1, rotate: 15, opacity: 0.06 },
+      { id: 1, icon: 'calendar-clear', x: cx(0.85), y: cy(0.5), scale: 0.9, rotate: -15, opacity: 0.05 },
+      { id: 2, icon: 'pencil', x: cx(0.15), y: cy(0.85), scale: 0.85, rotate: 35, opacity: 0.04 },
+    ],
+    verify: [
+      { id: 0, icon: 'mail-unread', x: cx(0.15), y: cy(0.15), scale: 1.15, rotate: -15, opacity: 0.06 },
+      { id: 1, icon: 'paper-plane', x: cx(0.85), y: cy(0.25), scale: 0.9, rotate: 25, opacity: 0.05 },
+      { id: 2, icon: 'checkmark-circle', x: cx(0.5), y: cy(0.85), scale: 0.95, rotate: 10, opacity: 0.04 },
+    ]
+  };
+};
 
 const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
   const breathAnim = useRef(new Animated.Value(0)).current;
-  const welcomeOpacity = useRef(new Animated.Value(1)).current;
-  const signinOpacity = useRef(new Animated.Value(0)).current;
-  const signupOpacity = useRef(new Animated.Value(0)).current;
+  const welcomeOpacity = useRef(new Animated.Value(currentView === 'welcome' ? 1 : 0)).current;
+  const signinOpacity = useRef(new Animated.Value(currentView === 'signin' ? 1 : 0)).current;
+  const signupOpacity = useRef(new Animated.Value(currentView === 'signup' ? 1 : 0)).current;
+  const verifyOpacity = useRef(new Animated.Value(currentView === 'verify' ? 1 : 0)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -63,22 +76,24 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
       Animated.timing(welcomeOpacity, { toValue: currentView === 'welcome' ? 1 : 0, duration: 800, useNativeDriver: true }),
       Animated.timing(signinOpacity, { toValue: currentView === 'signin' ? 1 : 0, duration: 800, useNativeDriver: true }),
       Animated.timing(signupOpacity, { toValue: currentView === 'signup' ? 1 : 0, duration: 800, useNativeDriver: true }),
+      Animated.timing(verifyOpacity, { toValue: currentView === 'verify' ? 1 : 0, duration: 800, useNativeDriver: true }),
     ]).start();
   }, [currentView]);
 
   const baseColor = colors.backgroundColor;
   
   const palettes = {
-    welcome: { secondary: isDark ? '#1a1b3b' : '#dbeafe', accent: colors.accentColor },
-    signin: { secondary: isDark ? '#2b1b42' : '#e0e7ff', accent: isDark ? '#818cf8' : '#4f46e5' },
-    signup: { secondary: isDark ? '#0d362a' : '#ccfbf1', accent: isDark ? '#2dd4bf' : '#0d9488' }
+    welcome: { secondary: isDark ? '#4c1d95' : '#e0e7ff', accent: isDark ? '#8b5cf6' : '#6366f1' },
+    signin: { secondary: isDark ? '#0f172a' : '#e0f2fe', accent: isDark ? '#0284c7' : '#0369a1' },
+    signup: { secondary: isDark ? '#064e3b' : '#dcfce7', accent: isDark ? '#10b981' : '#16a34a' },
+    verify: { secondary: isDark ? '#7c2d12' : '#ffedd5', accent: isDark ? '#ea580c' : '#f97316' }
   };
 
   const renderLayer = (opacityAnim, palette) => (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="none">
       <LinearGradient colors={[baseColor, palette.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: breathAnim }]}>
-        <LinearGradient colors={['transparent', palette.accent]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.18 : 0.12 }]} />
+        <LinearGradient colors={['transparent', palette.accent]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.25 : 0.15 }]} />
       </Animated.View>
     </Animated.View>
   );
@@ -89,6 +104,7 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
       {renderLayer(welcomeOpacity, palettes.welcome)}
       {renderLayer(signinOpacity, palettes.signin)}
       {renderLayer(signupOpacity, palettes.signup)}
+      {renderLayer(verifyOpacity, palettes.verify)}
     </View>
   );
 };
@@ -125,7 +141,7 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
   return (
     <Animated.View style={[styles.backgroundIconWrapper, { transform: [{ translateX: animX }, { translateY: animY }, { scale: animScale }, { rotate: spin }], opacity: animOpacity }]}>
       <Animated.View style={{ opacity: fadeAnim }}>
-        <Ionicons name={`${iconName}-outline`} size={280} color={isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)'} />
+        <Ionicons name={`${iconName}-outline`} size={280} color={isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)'} />
       </Animated.View>
     </Animated.View>
   );
@@ -168,155 +184,24 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin }) => (
   </View>
 );
 
-const SignInContent = ({ onNavigate, colors, lang, insets }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSignIn = async () => {
-    if (!email || !password) return Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
-    setIsLoading(true);
-    try { await signInWithEmailAndPassword(auth, email, password); } 
-    catch (error) { Alert.alert(t('auth.errors.signin_failed', lang), t('auth.errors.wrong_credentials', lang)); } 
-    finally { setIsLoading(false); }
-  };
-
-  const handleForgotPassword = async () => {
-    const trimmedEmail = email.trim();
-
-    if (!trimmedEmail) {
-      Alert.alert(
-        t('common.error', lang),
-        t('auth.forgot_password.req_email', lang)
-      );
-      return;
-    }
-  
-    try {
-      await sendPasswordResetEmail(auth, trimmedEmail);
-      
-      Alert.alert(
-        t('common.success', lang),
-        t('auth.forgot_password.success_msg', lang)
-      );
-    } catch (error) {
-      if (error.code === 'auth/invalid-email') {
-        Alert.alert(
-          t('common.error', lang), 
-          t('auth.forgot_password.invalid_email', lang)
-        );
-      } else {
-        Alert.alert(
-          t('common.error', lang), 
-          error.message
-        );
-      }
-    }
-  };
-
-  return (
-    <View style={[styles.formBlock, { paddingTop: insets.top + 40 }]}>
-      <View style={styles.formHeader}>
-        <TouchableOpacity onPress={() => onNavigate('welcome')} style={[styles.backBtn, { backgroundColor: colors.backgroundColor2 }]}>
-          <Ionicons name="arrow-back" size={24} color={colors.textColor} />
-        </TouchableOpacity>
-        <Text style={[styles.formTitle, { color: colors.textColor }]}>{t('auth.signin.title', lang)}</Text>
-        <Text style={[styles.formSubtitle, { color: colors.textColor2 }]}>{t('auth.signin.subtitle', lang)}</Text>
-      </View>
-      <View style={styles.formGroup}>
-        <InputField icon="mail-outline" placeholder={t('auth.fields.email', lang)} value={email} onChangeText={setEmail} keyboardType="email-address" colors={colors} />
-        <InputField icon="lock-closed-outline" placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={setPassword} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} />
-        <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
-          <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>{t('auth.signin.forgot_password', lang)}</Text>
-        </TouchableOpacity>
-        
-        {isLoading ? (
-          <View style={{ height: 56, justifyContent: 'center', alignItems: 'center' }}>
-            <MorphingLoader size={40} />
-          </View>
-        ) : (
-          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor }]} onPress={handleSignIn}>
-            <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>
-          </TouchableOpacity>
-        )}
-
-        <SocialAuthButtons onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} />
-        <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.textColor2 }]}>{t('auth.signin.no_account', lang)}</Text>
-          <TouchableOpacity onPress={() => onNavigate('signup')}><Text style={[styles.footerLink, { color: colors.accentColor }]}> {t('auth.signin.signup_link', lang)}</Text></TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-};
-
-const SignUpContent = ({ onNavigate, colors, lang, insets }) => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSignUp = async () => {
-    if (!name || !email || !password) return Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
-    if (!acceptedTerms) return Alert.alert(t('common.error', lang), t('auth.errors.accept_terms', lang));
-    setIsLoading(true);
-    try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(cred.user, { displayName: name });
-    } catch (error) { Alert.alert(t('common.error', lang), t('auth.errors.signup_failed', lang)); } 
-    finally { setIsLoading(false); }
-  };
-
-  return (
-    <View style={[styles.formBlock, { paddingTop: insets.top + 40 }]}>
-      <View style={styles.formHeader}>
-        <TouchableOpacity onPress={() => onNavigate('welcome')} style={[styles.backBtn, { backgroundColor: colors.backgroundColor2 }]}>
-          <Ionicons name="arrow-back" size={24} color={colors.textColor} />
-        </TouchableOpacity>
-        <Text style={[styles.formTitle, { color: colors.textColor }]}>{t('auth.signup.title', lang)}</Text>
-        <Text style={[styles.formSubtitle, { color: colors.textColor2 }]}>{t('auth.signup.subtitle', lang)}</Text>
-      </View>
-      <View style={styles.formGroup}>
-        <InputField icon="person-outline" placeholder={t('auth.fields.name', lang)} value={name} onChangeText={setName} autoCapitalize="words" colors={colors} />
-        <InputField icon="mail-outline" placeholder={t('auth.fields.email', lang)} value={email} onChangeText={setEmail} keyboardType="email-address" colors={colors} />
-        <InputField icon="lock-closed-outline" placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={setPassword} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} />
-        <TouchableOpacity style={styles.checkboxContainer} onPress={() => setAcceptedTerms(!acceptedTerms)} activeOpacity={0.7}>
-          <Ionicons name={acceptedTerms ? "checkbox" : "square-outline"} size={24} color={acceptedTerms ? colors.accentColor : colors.textColor2} />
-          <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
-            {t('auth.signup.accept_terms_prefix', lang)}
-            <Text style={{ color: colors.accentColor }}>{t('auth.signup.accept_terms_link', lang)}</Text>
-          </Text>
-        </TouchableOpacity>
-        
-        {isLoading ? (
-          <View style={{ height: 56, justifyContent: 'center', alignItems: 'center' }}>
-            <MorphingLoader size={40} />
-          </View>
-        ) : (
-          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms ? 0.6 : 1 }]} onPress={handleSignUp} disabled={!acceptedTerms}>
-            <Text style={styles.primaryButtonText}>{t('auth.signup.submit', lang)}</Text>
-          </TouchableOpacity>
-        )}
-
-        <SocialAuthButtons onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} />
-        <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.textColor2 }]}>{t('auth.signup.already_have_account', lang)}</Text>
-          <TouchableOpacity onPress={() => onNavigate('signin')}><Text style={[styles.footerLink, { color: colors.accentColor }]}> {t('auth.signup.login_link', lang)}</Text></TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-};
-
 const AuthScreen = ({ onGuestLogin }) => {
   const insets = useSafeAreaInsets();
   const { width: vw, height: vh } = useWindowDimensions(); 
   const { lang, isLangLoading } = useAppLanguage();
   const { colors, isDark } = useSystemThemeColors('blue');
-  const [currentView, setCurrentView] = useState('welcome'); 
+  
+  const [currentView, setCurrentView] = useState(() => {
+    if (auth.currentUser && !auth.currentUser.emailVerified) return 'verify';
+    return 'welcome';
+  }); 
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   
   const handleNavigate = (view) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -325,6 +210,7 @@ const AuthScreen = ({ onGuestLogin }) => {
 
   useEffect(() => {
     const backAction = () => {
+      if (currentView === 'verify') return true;
       if (currentView !== 'welcome') {
         handleNavigate('welcome');
         return true; 
@@ -335,27 +221,237 @@ const AuthScreen = ({ onGuestLogin }) => {
     return () => backHandler.remove();
   }, [currentView]);
 
+  useEffect(() => {
+    let interval;
+    if (currentView === 'verify') {
+      interval = setInterval(async () => {
+        if (auth.currentUser) {
+          await auth.currentUser.reload();
+          if (auth.currentUser.emailVerified) {
+            clearInterval(interval);
+            await auth.currentUser.getIdToken(true);
+          }
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [currentView]);
+
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
-      
       onPanResponderRelease: (evt, gestureState) => {
         if (gestureState.dx > 40 || gestureState.vx > 0.5) {
-          handleNavigate('welcome');
+          if (currentView !== 'verify') handleNavigate('welcome');
         }
       },
       onPanResponderTerminate: (evt, gestureState) => {
         if (gestureState.dx > 40 || gestureState.vx > 0.5) {
-          handleNavigate('welcome');
+          if (currentView !== 'verify') handleNavigate('welcome');
         }
       }
     })
   ).current;
 
+  const handleSignIn = async () => {
+    if (!email || !password) return Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
+    setIsLoading(true);
+    try { 
+      const cred = await signInWithEmailAndPassword(auth, email, password); 
+      if (!cred.user.emailVerified) {
+        handleNavigate('verify');
+      }
+    } 
+    catch (error) { 
+      Alert.alert(t('auth.errors.signin_failed', lang), t('auth.errors.wrong_credentials', lang)); 
+    } 
+    finally { 
+      setIsLoading(false); 
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!name || !email || !password) return Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
+    if (!acceptedTerms) return Alert.alert(t('common.error', lang), t('auth.errors.accept_terms', lang));
+    setIsLoading(true);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name });
+      await sendEmailVerification(cred.user);
+      handleNavigate('verify');
+    } catch (error) { 
+      Alert.alert(t('common.error', lang), error.message || t('auth.errors.signup_failed', lang)); 
+    } 
+    finally { 
+      setIsLoading(false); 
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) return Alert.alert(t('common.error', lang), t('auth.forgot_password.req_email', lang));
+    try {
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      Alert.alert(t('common.success', lang), t('auth.forgot_password.success_msg', lang));
+    } catch (error) {
+      if (error.code === 'auth/invalid-email') {
+        Alert.alert(t('common.error', lang), t('auth.forgot_password.invalid_email', lang));
+      } else {
+        Alert.alert(t('common.error', lang), error.message);
+      }
+    }
+  };
+
+  const handleCancelVerification = async () => {
+    if (auth.currentUser) {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    handleNavigate('welcome');
+  };
+
+  const handleResendEmail = async () => {
+    if (resendCooldown > 0) return;
+    if (auth.currentUser) {
+      try {
+        await sendEmailVerification(auth.currentUser);
+        setResendCooldown(60);
+      } catch (error) {
+        if (error.code === 'auth/too-many-requests') {
+          setResendCooldown(60);
+        }
+      }
+    }
+  };
+
   const currentConfigs = getIconConfig(vw, vh)[currentView] || getIconConfig(vw, vh).welcome;
+
+  const renderFormElements = () => {
+    const elements = [];
+
+    if (currentView === 'verify') {
+      elements.push(
+        <View key="loader" style={styles.verifyLoaderContainer}>
+          <MorphingLoader size={70} />
+        </View>
+      );
+      elements.push(
+        <View key="verifyText" style={styles.verifyTextContainer}>
+          <Text style={[styles.formTitle, { color: colors.textColor, textAlign: 'center', fontSize: 24 }]}>
+            {t('auth.verify.title', lang)}
+          </Text>
+          <Text style={[styles.formSubtitle, { color: colors.textColor2, textAlign: 'center', marginTop: 16, lineHeight: 24 }]}>
+            {t('auth.verify.subtitle', lang).replace('{email}', email || auth.currentUser?.email || '')}
+          </Text>
+          <TouchableOpacity 
+            style={[styles.primaryButton, { backgroundColor: colors.accentColor, marginTop: 40, opacity: resendCooldown > 0 ? 0.6 : 1 }]} 
+            onPress={handleResendEmail}
+            disabled={resendCooldown > 0}
+          >
+            <Text style={styles.primaryButtonText}>
+              {resendCooldown > 0 ? t('auth.verify.resend_wait', lang).replace('{time}', resendCooldown) : t('auth.verify.resend_btn', lang)}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={{ marginTop: 20, padding: 10 }} 
+            onPress={handleCancelVerification}
+          >
+            <Text style={{ color: colors.textColor2, fontSize: 16, fontWeight: '600' }}>
+              {t('common.cancel', lang)}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    } else {
+      elements.push(
+        <View key="header" style={styles.formHeader}>
+          <TouchableOpacity onPress={() => handleNavigate('welcome')} style={[styles.backBtn, { backgroundColor: colors.backgroundColor2 }]}>
+            <Ionicons name="arrow-back" size={24} color={colors.textColor} />
+          </TouchableOpacity>
+          <Text style={[styles.formTitle, { color: colors.textColor }]}>
+            {currentView === 'signin' ? t('auth.signin.title', lang) : t('auth.signup.title', lang)}
+          </Text>
+          <Text style={[styles.formSubtitle, { color: colors.textColor2 }]}>
+            {currentView === 'signin' ? t('auth.signin.subtitle', lang) : t('auth.signup.subtitle', lang)}
+          </Text>
+        </View>
+      );
+
+      elements.push(
+        <View key="inputs" style={styles.formGroup}>
+          {currentView === 'signup' && (
+            <InputField icon="person-outline" placeholder={t('auth.fields.name', lang)} value={name} onChangeText={setName} autoCapitalize="words" colors={colors} />
+          )}
+          <InputField icon="mail-outline" placeholder={t('auth.fields.email', lang)} value={email} onChangeText={setEmail} keyboardType="email-address" colors={colors} />
+          <InputField icon="lock-closed-outline" placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={setPassword} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} />
+          
+          {currentView === 'signin' ? (
+            <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
+              <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>{t('auth.signin.forgot_password', lang)}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.checkboxContainer} onPress={() => setAcceptedTerms(!acceptedTerms)} activeOpacity={0.7}>
+              <Ionicons name={acceptedTerms ? "checkbox" : "square-outline"} size={24} color={acceptedTerms ? colors.accentColor : colors.textColor2} />
+              <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
+                {t('auth.signup.accept_terms_prefix', lang)}
+                <Text style={{ color: colors.accentColor }}>{t('auth.signup.accept_terms_link', lang)}</Text>
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+
+      elements.push(
+        <View key="loader" style={[styles.buttonLoaderContainer, !isLoading && { alignItems: 'stretch' }]}>
+          {isLoading ? (
+            <MorphingLoader size={40} />
+          ) : (
+            <TouchableOpacity 
+              style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: (currentView === 'signup' && !acceptedTerms) ? 0.6 : 1 }]} 
+              onPress={currentView === 'signin' ? handleSignIn : handleSignUp} 
+              disabled={currentView === 'signup' && !acceptedTerms}
+            >
+              <Text style={styles.primaryButtonText}>
+                {currentView === 'signin' ? t('auth.signin.submit', lang) : t('auth.signup.submit', lang)}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+
+      elements.push(
+        <View key="social" style={styles.socialGroup}>
+          <SocialAuthButtons onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} />
+          <View style={styles.footer}>
+            <Text style={[styles.footerText, { color: colors.textColor2 }]}>
+              {currentView === 'signin' ? t('auth.signin.no_account', lang) : t('auth.signup.already_have_account', lang)}
+            </Text>
+            <TouchableOpacity onPress={() => handleNavigate(currentView === 'signin' ? 'signup' : 'signin')}>
+              <Text style={[styles.footerLink, { color: colors.accentColor }]}>
+                {' '}{currentView === 'signin' ? t('auth.signin.signup_link', lang) : t('auth.signup.login_link', lang)}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return elements;
+  };
 
   if (isLangLoading) {
     return (
@@ -377,15 +473,30 @@ const AuthScreen = ({ onGuestLogin }) => {
           ))}
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]} keyboardShouldPersistTaps="handled">
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={[
+            styles.scrollContent, 
+            { paddingBottom: insets.bottom + 20 },
+            currentView === 'verify' && { flexGrow: 1, justifyContent: 'center' }
+          ]} 
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.responsiveContainer}>
             {currentView === 'welcome' && <WelcomeContent onNavigate={handleNavigate} colors={colors} lang={lang} insets={insets} onGuestLogin={onGuestLogin} />}
-            {currentView === 'signin' && <SignInContent onNavigate={handleNavigate} colors={colors} lang={lang} insets={insets} />}
-            {currentView === 'signup' && <SignUpContent onNavigate={handleNavigate} colors={colors} lang={lang} insets={insets} />}
+            
+            {currentView !== 'welcome' && (
+              <View style={[
+                styles.formBlock, 
+                currentView === 'verify' ? styles.verifyFormBlock : { paddingTop: insets.top + 40 }
+              ]}>
+                {renderFormElements()}
+              </View>
+            )}
           </View>
         </ScrollView>
         
-        {currentView !== 'welcome' && (
+        {currentView !== 'welcome' && currentView !== 'verify' && (
           <View 
             style={styles.edgeSwipeArea} 
             {...panResponder.panHandlers} 
@@ -406,6 +517,7 @@ const styles = StyleSheet.create({
   responsiveContainer: { width: '100%', maxWidth: 440, flex: 1 },
   contentBlock: { flex: 1, justifyContent: 'space-between', paddingBottom: 20 },
   formBlock: { flex: 1, width: '100%', paddingBottom: 20 },
+  verifyFormBlock: { flex: 1, width: '100%', justifyContent: 'center', paddingBottom: 40 },
   welcomeHeader: { alignItems: 'center', marginTop: '10%' },
   logoContainer: { width: 90, height: 90, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 20, elevation: 8, ...Platform.select({ web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.1)' }, default: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 } }) },
   welcomeTitle: { fontSize: 36, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
@@ -433,6 +545,10 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
   footerText: { fontSize: 15 },
   footerLink: { fontSize: 15, fontWeight: '600' },
+  verifyLoaderContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 30 },
+  verifyTextContainer: { alignItems: 'center' },
+  buttonLoaderContainer: { height: 56, justifyContent: 'center', marginTop: 16 },
+  socialGroup: { marginTop: 16 }
 });
 
 export default AuthScreen;

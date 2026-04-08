@@ -34,7 +34,10 @@ export default {
       sep: "September", oct: "October", nov: "November", dec: "December"
     },
   },
-
+  verify: {
+    title: "Email Verification",
+    subtitle: "An email has been sent to {email}.\nPlease verify it to continue."
+  },
   auth: {
     common: {
       continue_with: "Continue with",
@@ -55,10 +58,6 @@ export default {
       success_msg: "Password reset instructions have been sent to your email. Please check your inbox (and Spam folder).",
       invalid_email: "Invalid email format.",
     },
-    session: {
-      expired_title: "Session Expired",
-      expired_message: "You have been logged out or the session was closed from another device.",
-    },
     signup: {
       title: "Create account",
       subtitle: "Sign up to keep your schedule in the cloud.",
@@ -67,6 +66,12 @@ export default {
       login_link: "Sign In",
       accept_terms_prefix: "I accept the ",
       accept_terms_link: "Terms of Service",
+    },
+    verify: {
+      title: "Email Verification",
+      subtitle: "An email has been sent to {email}.\nPlease verify it to continue (also check your Spam folder).",
+      resend_btn: "Resend email",
+      resend_wait: "Wait {time}s"
     },
     fields: {
       email: "Email address",

@@ -47,14 +47,12 @@ export function getDeviceInfo() {
 export async function registerDevice(userId) {
   if (!userId) return;
 
-  // 1. ШВИДКА РЕЄСТРАЦІЯ ПОТОЧНОГО ПРИСТРОЮ
   const deviceId = await getDeviceId(userId);
   const ref = doc(db, "users", userId, "devices", deviceId);
   const deviceInfo = { ...getDeviceInfo(), lastLogin: new Date().toISOString() };
   await setDoc(ref, deviceInfo, { merge: true });
   console.log(`✅ Device [${deviceInfo.name}] registered/updated.`);
 
-  // 2. ОЧИЩЕННЯ БАЗИ (Відбувається ТІЛЬКИ при першому вході після зміни пошти)
   const currentUser = auth.currentUser;
   if (currentUser) {
     try {
@@ -71,14 +69,12 @@ export async function registerDevice(userId) {
           const devicesRef = collection(db, "users", userId, "devices");
           const devicesSnap = await getDocs(devicesRef);
           
-          // 🔥 ГОЛОВНЕ ВИПРАВЛЕННЯ: Видаляємо всі пристрої, ОКРІМ ТОГО З ЯКОГО ЩОЙНО УВІЙШЛИ
           devicesSnap.forEach(d => {
             if (d.id !== deviceId) {
               batch.delete(d.ref);
             }
           });
 
-          // Видаляємо прапорець, бо ми вже все зробили
           batch.update(userRef, { pendingEmail: deleteField() });
 
           await batch.commit();
@@ -96,25 +92,29 @@ export async function listenForDeviceRemoval(userId, onRemoved) {
   const deviceId = await getDeviceId(userId);
   const ref = doc(db, "users", userId, "devices", deviceId);
 
-  // Слухач 1: Якщо наш пристрій видалили з бази (наприклад, з іншого телефону)
   const unsubscribeDevice = onSnapshot(ref, (docSnap) => {
+    if (!auth.currentUser) return;
+
     if (!docSnap.exists()) {
       if (isAccountBeingDeleted) return;
       console.log("Device was removed from another location. Forcing logout.");
       onRemoved();
     }
+  }, (error) => {
+    if (error.code === 'permission-denied') return;
+    console.warn("Device listener error:", error);
   });
 
-  // Слухач 2: Відстеження підтвердження зміни пошти (у фоні)
   const userRef = doc(db, "users", userId);
   let checkInterval = null;
   let isChecking = false;
 
   const unsubscribeSecurity = onSnapshot(userRef, (docSnap) => {
+    if (!auth.currentUser) return;
+
     if (docSnap.exists()) {
       const userData = docSnap.data();
 
-      // Якщо є заявка на зміну пошти, починаємо пінгувати Firebase
       if (userData.pendingEmail) {
         if (!checkInterval) {
           checkInterval = setInterval(async () => {
@@ -124,18 +124,15 @@ export async function listenForDeviceRemoval(userId, onRemoved) {
             const currentUser = auth.currentUser;
             if (currentUser) {
               try {
-                // Запитуємо свіжі дані з сервера
                 await currentUser.reload();
                 
-                // Якщо пошта вже оновилася локально (користувач підтвердив)
                 if (currentUser.email && currentUser.email.toLowerCase() === userData.pendingEmail.toLowerCase()) {
                   clearInterval(checkInterval);
                   checkInterval = null;
                   console.log("Пошту змінено, виходимо...");
-                  signOut(auth); // Просто виходимо (а базу почистить registerDevice при новому вході)
+                  signOut(auth);
                 }
               } catch (error) {
-                // Якщо Firebase сам анулював токен через зміну даних
                 clearInterval(checkInterval);
                 checkInterval = null;
                 console.log("Токен анульовано сервером, виходимо...");
@@ -155,6 +152,9 @@ export async function listenForDeviceRemoval(userId, onRemoved) {
         }
       }
     }
+  }, (error) => {
+    if (error.code === 'permission-denied') return;
+    console.warn("Security listener error:", error);
   });
 
   return () => {

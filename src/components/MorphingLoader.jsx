@@ -109,7 +109,7 @@ const MorphingLoader = ({ size = 60, style }) => {
       delay: 300,
       friction: 6,
       tension: 40,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
 
     return () => { isMounted.current = false; };
@@ -156,8 +156,8 @@ const MorphingLoader = ({ size = 60, style }) => {
   const rot1 = progress.interpolate({ inputRange: [0, 1], outputRange: [`${data.slot0.baseRot + data.slot0.shape.r1}deg`, `${data.slot1.baseRot + data.slot1.shape.r1}deg`] });
   const rot2 = progress.interpolate({ inputRange: [0, 1], outputRange: [`${data.slot0.baseRot + data.slot0.shape.r2}deg`, `${data.slot1.baseRot + data.slot1.shape.r2}deg`] });
 
-  const negRot1 = progress.interpolate({ inputRange: [0, 1], outputRange: [`-${data.slot0.baseRot + data.slot0.shape.r1}deg`, `-${data.slot1.baseRot + data.slot1.shape.r1}deg`] });
-  const negRot2 = progress.interpolate({ inputRange: [0, 1], outputRange: [`-${data.slot0.baseRot + data.slot0.shape.r2}deg`, `-${data.slot1.baseRot + data.slot1.shape.r2}deg`] });
+  const negRot1 = progress.interpolate({ inputRange: [0, 1], outputRange: [`${-(data.slot0.baseRot + data.slot0.shape.r1)}deg`, `${-(data.slot1.baseRot + data.slot1.shape.r1)}deg`] });
+  const negRot2 = progress.interpolate({ inputRange: [0, 1], outputRange: [`${-(data.slot0.baseRot + data.slot0.shape.r2)}deg`, `${-(data.slot1.baseRot + data.slot1.shape.r2)}deg`] });
 
   const scale = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.65, 1] });
 

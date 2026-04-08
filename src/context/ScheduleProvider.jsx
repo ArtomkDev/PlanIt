@@ -23,7 +23,7 @@ function resolveSyncConflict(localData, cloudData) {
 
   const mergedDeletedMap = new Map();
   const localDeleted = localData.deletedSchedules || [];
-  const cloudDeleted = cloudData.deletedSchedules || [];
+  const cloudDeleted = cloudData.deletedSchedules || cloudData.global?.deletedSchedules || [];
 
   localDeleted.forEach(ld => mergedDeletedMap.set(ld.id, ld));
   cloudDeleted.forEach(cd => {
@@ -38,7 +38,16 @@ function resolveSyncConflict(localData, cloudData) {
 
   const cloudMap = new Map();
   (cloudData.schedules || []).forEach(s => {
-    if (s && s.id) cloudMap.set(s.id, s);
+    if (s && s.id) {
+      cloudMap.set(s.id, s);
+      if (s.isDeleted && !mergedDeletedMap.has(s.id)) {
+        mergedDeletedMap.set(s.id, {
+          id: s.id,
+          deletedAt: s.lastModified || Date.now(),
+          lastSynced: s.lastModified || Date.now()
+        });
+      }
+    }
   });
 
   (localData.schedules || []).forEach(localSch => {
@@ -62,6 +71,8 @@ function resolveSyncConflict(localData, cloudData) {
         needsPushToCloud = true;
       }
     } else {
+      if (cloudSch.isDeleted) return;
+
       const localBase = Number(localSch.baseVersion) || 1;
       const cloudVer = Number(cloudSch.version) || 1;
       const isLocalDirty = (localSch.lastModified || 0) > (localSch.lastSynced || 0);
@@ -80,7 +91,7 @@ function resolveSyncConflict(localData, cloudData) {
 
   (cloudData.schedules || []).forEach(cloudSch => {
     if (cloudSch && cloudSch.id && !mergedSchedulesMap.has(cloudSch.id)) {
-      if (!mergedDeletedMap.has(cloudSch.id)) {
+      if (!mergedDeletedMap.has(cloudSch.id) && !cloudSch.isDeleted) {
         mergedSchedulesMap.set(cloudSch.id, cloudSch);
       }
     }
@@ -444,8 +455,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       saveDevicePrefs(newPrefs);
     }
 
-    if (!guest) setIsDirty(true);
-  }, [guest, user]);
+    if (!guest) updateIsDirty(true);
+  }, [guest, updateIsDirty]);
 
   const saveNow = useCallback(async (force = false) => {
     if (guest || !dataRef.current || isSavingRef.current || conflictQueueRef.current.length > 0) return;

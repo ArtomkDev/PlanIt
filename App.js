@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { AppState, Alert } from 'react-native';
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onIdTokenChanged, signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import { Ionicons } from "@expo/vector-icons";
@@ -68,26 +68,33 @@ export default function App() {
       signOut(auth).catch(console.error);
     };
 
-    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const authUnsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       deviceListenerUnsubscribe();
       
       if (firebaseUser) {
-        wasLoggedIn.current = true;
-        currentUid = firebaseUser.uid;
-        setUser(firebaseUser);
-        setGuest(false);
-        setManualLogin(false);
-        setAuthResolved(true); 
+        if (firebaseUser.emailVerified) {
+          wasLoggedIn.current = true;
+          currentUid = firebaseUser.uid;
+          setUser(firebaseUser);
+          setGuest(false);
+          setManualLogin(false);
+          setAuthResolved(true); 
 
-        verifySession(firebaseUser);
-        
-        try {
-          await registerDevice(firebaseUser.uid);
-          if (currentUid === firebaseUser.uid) {
-            deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+          verifySession(firebaseUser);
+          
+          try {
+            await registerDevice(firebaseUser.uid);
+            if (currentUid === firebaseUser.uid) {
+              deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+            }
+          } catch (error) {
+            console.error(error);
           }
-        } catch (error) {
-          console.error(error);
+        } else {
+          currentUid = null;
+          setUser(null);
+          setGuest(false); 
+          setAuthResolved(true);
         }
       } else {
         currentUid = null;
@@ -108,17 +115,6 @@ export default function App() {
             }
           } catch (e) {
             console.warn(e);
-          }
-          
-          const isManualLogout = await AsyncStorage.getItem("manual_logout");
-          if (isManualLogout === "true") {
-            await AsyncStorage.removeItem("manual_logout");
-          } else {
-            Alert.alert(
-              t('auth.session.expired_title', lang),
-              t('auth.session.expired_message', lang),
-              [{ text: t('common.done', lang), style: "default" }]
-            );
           }
         } else {
           try {
