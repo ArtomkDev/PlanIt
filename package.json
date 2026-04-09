@@ -8,7 +8,8 @@
     "ios": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start --ios",
     "web": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start --web",
     "emu": "D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin",
-    "dev": "start /MIN D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin && cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start"
+    "dev": "start /MIN D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin && cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start",
+    "eas-build-pre-install": "cp $GOOGLE_SERVICES_JSON ./google-services.json"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
