@@ -171,12 +171,15 @@ export default function Schedule() {
           <Ionicons name="add" size={32} color="#fff" />
         </TouchableOpacity>
       )}
-
+      
       {editorVisible && schedule && (
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-           <DayScheduleProvider date={currentDate}>
-              <LessonEditor lesson={editingLesson} onClose={() => setEditorVisible(false)} />
-           </DayScheduleProvider>
+        <View 
+          style={[StyleSheet.absoluteFill, { bottom: 90 }]}
+          pointerEvents="box-none"
+        >
+          <DayScheduleProvider date={currentDate}>
+            <LessonEditor lesson={editingLesson} onClose={() => setEditorVisible(false)} />
+          </DayScheduleProvider>
         </View>
       )}
       
@@ -193,5 +196,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerContainer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  fab: { position: 'absolute', bottom: 90, right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 8, zIndex: 50 }
+  fab: { position: 'absolute', bottom: 180, right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 8, zIndex: 50 }
 });

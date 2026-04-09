@@ -12,6 +12,7 @@ import AppBlur from '../components/AppBlur';
 import MorphingLoader from '../components/MorphingLoader';
 
 import SyncConflictScreen from '../components/SyncConflictScreen';
+import AdBanner from '../components/AdBanner';
 
 export default function MainLayout({ guest, onExitGuest }) {
   const {
@@ -58,7 +59,9 @@ export default function MainLayout({ guest, onExitGuest }) {
       <StatusBar translucent style={isLightMode ? 'dark' : 'light'} />
 
       <View style={styles.container}>
-        <TabNavigator screenProps={{ guest, onExitGuest }} />
+        <View style={{ flex: 1 }}>
+          <TabNavigator screenProps={{ guest, onExitGuest }} />
+        </View>
       </View>
 
       {isBlocking && (

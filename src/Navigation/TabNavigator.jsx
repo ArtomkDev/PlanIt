@@ -1,13 +1,14 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import themes from '../config/themes';
 import { useSchedule } from '../context/ScheduleProvider';
 import AppBlur from '../components/AppBlur';
+import AdBanner from '../components/AdBanner';
 import { t } from '../utils/i18n';
 
 import Schedule from '../pages/Schedule/Schedule';
@@ -90,19 +91,28 @@ export default function TabNavigator({ screenProps }) {
 
   return (
     <Tab.Navigator
+      tabBar={(props) => (
+        <View style={styles.customTabBarContainer}>
+          <AppBlur style={StyleSheet.absoluteFill} intensity={80} />
+          <View style={styles.adWrapper}>
+            <AdBanner />
+          </View>
+          <BottomTabBar {...props} />
+        </View>
+      )}
       screenOptions={{
-        sceneContainerStyle: { backgroundColor: themeColors.backgroundColor },
+        sceneContainerStyle: { 
+          backgroundColor: themeColors.backgroundColor,
+          paddingBottom: 110 + insets.bottom
+        },
         tabBarStyle: {
-          position: 'absolute',
-          height: 50 + insets.bottom,
-          paddingBottom: 10 + insets.bottom,
-          paddingTop: 0,
           backgroundColor: 'transparent',
           elevation: 0,
           shadowOpacity: 0,
           borderTopWidth: 0,
+          height: 50 + insets.bottom,
+          paddingBottom: 10 + insets.bottom,
         },
-        tabBarBackground: () => <AppBlur style={{ flex: 1, overflow: 'hidden' }} />,
         tabBarLabelStyle: { fontSize: 12, fontWeight: 'bold' },
         tabBarActiveTintColor: themeColors.accentColor,
         tabBarInactiveTintColor: themeColors.textColor2,
@@ -129,3 +139,21 @@ export default function TabNavigator({ screenProps }) {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  customTabBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    overflow: 'hidden',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(150,150,150,0.2)',
+  },
+  adWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 6,
+    width: '100%',
+  }
+});

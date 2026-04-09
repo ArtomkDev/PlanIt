@@ -2,7 +2,7 @@
   "expo": {
     "name": "PlanIt",
     "slug": "PlanIt",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -46,7 +46,14 @@
       "expo-localization",
       "@react-native-google-signin/google-signin",
       "expo-apple-authentication",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-7165910523854581~9152797441",
+          "iosAppId": "ca-app-pub-7165910523854581~9152797441"
+        }
+      ]
     ]
   }
 }
