@@ -7,7 +7,7 @@ const GOOGLE_TEST_BANNER_ID = Platform.select({
 });
 
 const ANDROID_BANNER_ID = 'ca-app-pub-7165910523854581/2920026625';
-const IOS_BANNER_ID = ''; 
+const IOS_BANNER_ID = '';
 
 export const AD_UNITS = {
   BANNER: __DEV__

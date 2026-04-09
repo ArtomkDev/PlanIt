@@ -10,8 +10,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import mobileAds from 'react-native-google-mobile-ads';
-
 import { auth } from "./firebase";
 import AuthScreen from "./src/auth/AuthScreen"; 
 import MainLayout from "./src/pages/MainLayout";
@@ -22,16 +20,13 @@ import { setManualLogin } from "./src/utils/authFlags";
 import useAppLanguage from './src/hooks/useAppLanguage';
 import { t } from './src/utils/i18n';
 
+// Імпортуємо нашу функцію. Бандлер сам обере .web.js або .native.js
+import { initAds } from './src/utils/adInit';
+
 SplashScreen.preventAutoHideAsync();
 
-mobileAds()
-  .initialize()
-  .then(adapterStatuses => {
-    console.log('AdMob successfully initialized', adapterStatuses);
-  })
-  .catch(error => {
-    console.warn('AdMob initialization failed', error);
-  });
+// Запускаємо ініціалізацію
+initAds();
 
 const Stack = createNativeStackNavigator();
 

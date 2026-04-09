@@ -1,54 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
-import { AD_UNITS } from '../config/ads';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
-let BannerAd = null;
-let BannerAdSize = null;
-
-if (!isExpoGo) {
-  try {
-    const Ads = require('react-native-google-mobile-ads');
-    BannerAd = Ads.BannerAd;
-    BannerAdSize = Ads.BannerAdSize;
-  } catch (e) {
-    console.warn("Ads module not found", e);
-  }
-}
-
 export default function AdBanner() {
-  if (isExpoGo || !BannerAd) {
+  const [RealAdComponent, setRealAdComponent] = useState(null);
+
+  useEffect(() => {
+    // Асинхронний імпорт ховає нативний код від Expo Go
+    if (!isExpoGo) {
+      import('./AdBannerImpl')
+        .then((module) => {
+          setRealAdComponent(() => module.default);
+        })
+        .catch((err) => console.warn('Failed to load Ad module:', err));
+    }
+  }, []);
+
+  if (isExpoGo || !RealAdComponent) {
     return (
       <View style={styles.placeholderContainer}>
         <View style={styles.placeholderBox}>
-          <Text style={styles.placeholderText}>AdMob (EXPO GO PLATFORM)</Text>
+          <Text style={styles.placeholderText}>
+            {isExpoGo ? 'AdMob Placeholder (Expo Go)' : 'Loading Ad...'}
+          </Text>
         </View>
       </View>
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <BannerAd
-        unitId={AD_UNITS.BANNER}
-        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-        requestOptions={{ 
-          requestNonPersonalizedAdsOnly: true 
-        }}
-      />
-    </View>
-  );
+  return <RealAdComponent />;
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    width: '100%',
-    backgroundColor: 'transparent'
-  },
   placeholderContainer: { 
     width: '100%', 
     alignItems: 'center', 
