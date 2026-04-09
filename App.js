@@ -8,8 +8,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import { Ionicons } from "@expo/vector-icons";
 import * as SplashScreen from "expo-splash-screen";
-
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+import mobileAds from 'react-native-google-mobile-ads';
 
 import { auth } from "./firebase";
 import AuthScreen from "./src/auth/AuthScreen"; 
@@ -22,6 +23,15 @@ import useAppLanguage from './src/hooks/useAppLanguage';
 import { t } from './src/utils/i18n';
 
 SplashScreen.preventAutoHideAsync();
+
+mobileAds()
+  .initialize()
+  .then(adapterStatuses => {
+    console.log('AdMob successfully initialized', adapterStatuses);
+  })
+  .catch(error => {
+    console.warn('AdMob initialization failed', error);
+  });
 
 const Stack = createNativeStackNavigator();
 
