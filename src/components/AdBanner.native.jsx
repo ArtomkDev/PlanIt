@@ -8,7 +8,6 @@ export default function AdBanner() {
   const [RealAdComponent, setRealAdComponent] = useState(null);
 
   useEffect(() => {
-    // Асинхронний імпорт ховає нативний код від Expo Go
     if (!isExpoGo) {
       import('./AdBannerImpl')
         .then((module) => {
