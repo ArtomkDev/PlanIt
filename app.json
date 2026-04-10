@@ -2,7 +2,7 @@
   "expo": {
     "name": "PlanIt",
     "slug": "PlanIt",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -51,7 +51,8 @@
           "androidAppId": "ca-app-pub-7165910523854581~9152797441",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
-      ]
+      ],
+      "@react-native-firebase/app"
     ]
   }
 }

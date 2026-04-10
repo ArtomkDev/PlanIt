@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { 
     initializeFirestore, 
-    memoryLocalCache, // 🔥 ВИПРАВЛЕНО: Використовуємо memoryLocalCache замість persistentLocalCache
+    memoryLocalCache,
     doc, 
     getDoc, 
     onSnapshot, 
@@ -28,7 +28,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// 🔥 ВИПРАВЛЕНО: Це дозволить Android швидко ініціалізувати базу та запустити додаток
 const db = initializeFirestore(app, {
   localCache: memoryLocalCache() 
 });

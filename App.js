@@ -11,6 +11,8 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { auth } from "./firebase";
+import { trackScreenView } from "./src/utils/analytics";
+
 import AuthScreen from "./src/auth/AuthScreen"; 
 import MainLayout from "./src/pages/MainLayout";
 import { ScheduleProvider } from "./src/context/ScheduleProvider";
@@ -34,6 +36,8 @@ export default function App() {
   const { lang, isLangLoading } = useAppLanguage();
 
   const wasLoggedIn = useRef(false);
+  const navigationRef = useRef();
+  const routeNameRef = useRef();
 
   useEffect(() => {
     let isMounted = true;
@@ -155,7 +159,24 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
       <ScheduleProvider guest={guest} user={user}>
-        <NavigationContainer onReady={() => SplashScreen.hideAsync().catch(() => {})}>
+        <NavigationContainer 
+          ref={navigationRef}
+          onReady={() => {
+            if (navigationRef.current) {
+              routeNameRef.current = navigationRef.current.getCurrentRoute().name;
+            }
+            SplashScreen.hideAsync().catch(() => {});
+          }}
+          onStateChange={async () => {
+            const previousRouteName = routeNameRef.current;
+            const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+
+            if (previousRouteName !== currentRouteName && currentRouteName) {
+              trackScreenView(currentRouteName);
+            }
+            routeNameRef.current = currentRouteName;
+          }}
+        >
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             {user || guest ? (
               <Stack.Screen name="MainLayout">
