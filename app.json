@@ -36,9 +36,7 @@
       }
     },
     "owner": "artomk",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/c405e09d-0c69-44bd-859a-d6123086964f"
     },
@@ -51,7 +49,7 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-7165910523854581~9152797441",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511" 
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ]
     ]
