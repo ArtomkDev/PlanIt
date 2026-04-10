@@ -2,7 +2,7 @@
   "expo": {
     "name": "PlanIt",
     "slug": "PlanIt",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -10,7 +10,11 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#ffffff",
+      "dark": {
+        "image": "./assets/splash-icon.png",
+        "backgroundColor": "#121214" 
+      }
     },
     "ios": {
       "supportsTablet": true,

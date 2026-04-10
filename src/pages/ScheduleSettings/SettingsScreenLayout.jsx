@@ -15,7 +15,6 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
 
-
   const routeTitles = {
     'Breaks': t('settings.menu.breaks.title', lang),
     'Weeks': t('settings.menu.weeks.title', lang),
@@ -38,6 +37,7 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = 50 + insets.top;
+  const bottomPadding = 146 + insets.bottom;
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
@@ -45,9 +45,11 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
 
       <Animated.ScrollView
         contentContainerStyle={[
-          styles.content,
           contentContainerStyle,
-          { paddingTop: headerHeight + 20 }
+          { 
+            paddingTop: headerHeight + 20,
+            paddingBottom: bottomPadding
+          }
         ]}
         keyboardShouldPersistTaps="handled"
         onScroll={Animated.event(
@@ -64,7 +66,4 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: {
-    paddingBottom: 80,
-  },
 });

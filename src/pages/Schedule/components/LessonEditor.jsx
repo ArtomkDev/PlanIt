@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
   },
   minimizedOverlay: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 16,
     left: 16,
     right: 88, 
     zIndex: 999,

@@ -1,7 +1,7 @@
 import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import React from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
+import React, { useCallback, useRef, useEffect } from 'react';
+import { View, StyleSheet, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,6 +9,7 @@ import themes from '../config/themes';
 import { useSchedule } from '../context/ScheduleProvider';
 import AppBlur from '../components/AppBlur';
 import AdBanner from '../components/AdBanner';
+import MorphingLoader from '../components/MorphingLoader';
 import { t } from '../utils/i18n';
 
 import Schedule from '../pages/Schedule/Schedule';
@@ -33,7 +34,7 @@ import ChangeEmailScreen from '../pages/ScheduleSettings/components/AccountSetti
 import ChangePasswordScreen from '../pages/ScheduleSettings/components/AccountSettings/ChangePasswordScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator(); 
 
 function ScheduleSettingsStack({ screenProps }) {
   const { global } = useSchedule();
@@ -41,36 +42,39 @@ function ScheduleSettingsStack({ screenProps }) {
   const themeColors = themes.getColors(mode, accent);
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-        gestureEnabled: true,
-        contentStyle: { backgroundColor: themeColors.backgroundColor },
-      }}
-    >
-      <Stack.Screen name="ScheduleSettingsMain">
-        {props => <ScheduleSettings {...props} {...screenProps} />}
-      </Stack.Screen>
-      <Stack.Screen name="Breaks" component={BreaksManager} />
-      <Stack.Screen name="Weeks" component={WeekManager} />
-      <Stack.Screen name="StartWeek" component={StartWeekManager} />
-      <Stack.Screen name="Subjects" component={SubjectsManager} />
-      <Stack.Screen name="Teachers" component={TeachersManager} />
-      <Stack.Screen name="Schedule" component={ScheduleManager} />
-      <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
-      <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
-      <Stack.Screen name="AutoSave" component={AutoSaveManager} />
-      <Stack.Screen name="Theme" component={ThemeSettings} />
-      <Stack.Screen name="Language" component={LanguageSettings} />
-      <Stack.Screen name="ResetDB" component={ResetDB} />
-      <Stack.Screen name="DeviceService" component={DeviceManager} />
-      <Stack.Screen name="AccountSettings" component={AccountSettings} />
-      <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
-      <Stack.Screen name="ChangeName" component={ChangeNameScreen} />
-      <Stack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
-      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
-    </Stack.Navigator>
+    <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
+      <Stack.Navigator
+        detachInactiveScreens={false}
+        screenOptions={{
+          headerShown: false,
+          gestureEnabled: true,
+          cardStyle: { backgroundColor: themeColors.backgroundColor },
+          ...TransitionPresets.SlideFromRightIOS,
+        }}
+      >
+        <Stack.Screen name="ScheduleSettingsMain">
+          {props => <ScheduleSettings {...props} {...screenProps} />}
+        </Stack.Screen>
+        <Stack.Screen name="Breaks" component={BreaksManager} />
+        <Stack.Screen name="Weeks" component={WeekManager} />
+        <Stack.Screen name="StartWeek" component={StartWeekManager} />
+        <Stack.Screen name="Subjects" component={SubjectsManager} />
+        <Stack.Screen name="Teachers" component={TeachersManager} />
+        <Stack.Screen name="Schedule" component={ScheduleManager} />
+        <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
+        <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
+        <Stack.Screen name="AutoSave" component={AutoSaveManager} />
+        <Stack.Screen name="Theme" component={ThemeSettings} />
+        <Stack.Screen name="Language" component={LanguageSettings} />
+        <Stack.Screen name="ResetDB" component={ResetDB} />
+        <Stack.Screen name="DeviceService" component={DeviceManager} />
+        <Stack.Screen name="AccountSettings" component={AccountSettings} />
+        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+        <Stack.Screen name="ChangeName" component={ChangeNameScreen} />
+        <Stack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      </Stack.Navigator>
+    </View>
   );
 }
 
@@ -78,16 +82,25 @@ export default function TabNavigator({ screenProps }) {
   const { global, lang, isLoading } = useSchedule();
   const insets = useSafeAreaInsets();
   
+  const [mode, accent] = global?.theme || ["light", "blue"];
+  const themeColors = themes.getColors(mode, accent);
+
+  const screenPropsRef = useRef(screenProps);
+  useEffect(() => {
+    screenPropsRef.current = screenProps;
+  }, [screenProps]);
+
+  const SettingsStackWrapper = useCallback((props) => (
+    <ScheduleSettingsStack {...props} screenProps={screenPropsRef.current} />
+  ), []);
+
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#32D74B" />
+      <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor, justifyContent: 'center', alignItems: 'center' }}>
+        <MorphingLoader size={80} />
       </View>
     );
   }
-
-  const [mode, accent] = global?.theme || ["light", "blue"];
-  const themeColors = themes.getColors(mode, accent);
 
   return (
     <Tab.Navigator
@@ -129,13 +142,12 @@ export default function TabNavigator({ screenProps }) {
       />
       <Tab.Screen
         name="Home3_2"
+        component={SettingsStackWrapper}
         options={{
           tabBarLabel: t('common.settings', lang),
           tabBarIcon: ({ color, size }) => <Icon name="settings" size={size} color={color} />,
         }}
-      >
-        {() => <ScheduleSettingsStack screenProps={screenProps} />}
-      </Tab.Screen>
+      />
     </Tab.Navigator>
   );
 }

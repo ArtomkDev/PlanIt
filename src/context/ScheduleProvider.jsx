@@ -316,15 +316,16 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   }, [data, isLoading, user]);
 
   const mergedGlobal = useMemo(() => {
-    if (!data?.global) return null;
+    const baseGlobal = data?.global || {};
+    const fallbackMode = systemColorScheme === 'dark' ? 'dark' : 'light';
 
     return {
-      ...data.global,
-      theme: devicePrefs.theme || data.global.theme,
-      currentScheduleId: devicePrefs.currentScheduleId || data.global.currentScheduleId,
+      ...baseGlobal,
+      theme: devicePrefs.theme || baseGlobal.theme || [fallbackMode, "blue"],
+      currentScheduleId: devicePrefs.currentScheduleId || baseGlobal.currentScheduleId,
       language: lang 
     };
-  }, [data?.global, devicePrefs, lang]);
+  }, [data?.global, devicePrefs, lang, systemColorScheme]);
 
   const currentScheduleId = mergedGlobal?.currentScheduleId || null;
 

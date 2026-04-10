@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -18,6 +18,7 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const headerHeight = 50 + insets.top;
+  const bottomPadding = 135 + insets.bottom; 
   const scrollY = useRef(new Animated.Value(0)).current;
   
   const theme = global?.theme || ['light', 'blue'];
@@ -206,7 +207,10 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
         style={{ flex: 1 }}
         contentContainerStyle={[
           styles.scrollContent, 
-          { paddingTop: headerHeight + 20 } 
+          { 
+            paddingTop: headerHeight + 20,
+            paddingBottom: bottomPadding
+          } 
         ]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -261,7 +265,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 80,
   },
   sectionHeader: {
     fontSize: 13,

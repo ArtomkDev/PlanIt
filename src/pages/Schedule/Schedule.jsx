@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo, memo } from "react";
-import { StyleSheet, View, Text, FlatList, Platform, useWindowDimensions, Animated, TouchableOpacity } from "react-native";
+import { StyleSheet, View, FlatList, Platform, useWindowDimensions, Animated, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons"; 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Header from "./components/Header";
 import WeekStrip from "./components/WeekStrip";
@@ -13,7 +14,6 @@ import AppBlur from "../../components/AppBlur";
 import { DayScheduleProvider } from "../../context/DayScheduleProvider";
 import { useSchedule } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
-import { t } from "../../utils/i18n";
 
 const HALF_SIZE = 300; 
 const TOTAL_SIZE = HALF_SIZE * 2 + 1;
@@ -49,6 +49,10 @@ const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handl
 export default function Schedule() {
   const { global, schedule, lang } = useSchedule();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  
+  const tabBarHeight = 130 + insets.bottom;
+  const dynamicBottomOffset = tabBarHeight + 16;
   
   const [anchorDate, setAnchorDate] = useState(() => {
     const d = new Date(getLocalISODate());
@@ -164,7 +168,7 @@ export default function Schedule() {
 
       {schedule && (
         <TouchableOpacity 
-          style={[styles.fab, { backgroundColor: themeColors.accentColor }]}
+          style={[styles.fab, { backgroundColor: themeColors.accentColor, bottom: dynamicBottomOffset }]}
           onPress={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }}
           activeOpacity={0.8}
         >
@@ -174,7 +178,7 @@ export default function Schedule() {
       
       {editorVisible && schedule && (
         <View 
-          style={[StyleSheet.absoluteFill, { bottom: 90 }]}
+          style={[StyleSheet.absoluteFill, { bottom: tabBarHeight }]}
           pointerEvents="box-none"
         >
           <DayScheduleProvider date={currentDate}>
@@ -196,5 +200,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerContainer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  fab: { position: 'absolute', bottom: 180, right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 8, zIndex: 50 }
+  fab: { position: 'absolute', right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 8, zIndex: 50 }
 });
