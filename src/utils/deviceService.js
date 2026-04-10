@@ -50,8 +50,8 @@ export async function registerDevice(userId) {
   const deviceId = await getDeviceId(userId);
   const ref = doc(db, "users", userId, "devices", deviceId);
   const deviceInfo = { ...getDeviceInfo(), lastLogin: new Date().toISOString() };
+  
   await setDoc(ref, deviceInfo, { merge: true });
-  console.log(`✅ Device [${deviceInfo.name}] registered/updated.`);
 
   const currentUser = auth.currentUser;
   if (currentUser) {
@@ -63,9 +63,7 @@ export async function registerDevice(userId) {
         const userData = userSnap.data();
 
         if (userData.pendingEmail && userData.pendingEmail === currentUser.email.toLowerCase()) {
-          console.log("🔒 Перший вхід після зміни пошти. Очищення бази від старих сесій...");
           const batch = writeBatch(db);
-
           const devicesRef = collection(db, "users", userId, "devices");
           const devicesSnap = await getDocs(devicesRef);
           
@@ -76,19 +74,18 @@ export async function registerDevice(userId) {
           });
 
           batch.update(userRef, { pendingEmail: deleteField() });
-
           await batch.commit();
-          console.log("✅ Старі сесії та pendingEmail успішно видалено.");
         }
       }
     } catch (error) {
-      console.warn("Security check warning:", error);
+      console.error(error);
     }
   }
 }
 
 export async function listenForDeviceRemoval(userId, onRemoved) {
   if (!userId) return () => {};
+  
   const deviceId = await getDeviceId(userId);
   const ref = doc(db, "users", userId, "devices", deviceId);
 
@@ -97,12 +94,12 @@ export async function listenForDeviceRemoval(userId, onRemoved) {
 
     if (!docSnap.exists()) {
       if (isAccountBeingDeleted) return;
-      console.log("Device was removed from another location. Forcing logout.");
       onRemoved();
     }
   }, (error) => {
-    if (error.code === 'permission-denied') return;
-    console.warn("Device listener error:", error);
+    if (error.code !== 'permission-denied') {
+      console.error(error);
+    }
   });
 
   const userRef = doc(db, "users", userId);
@@ -129,13 +126,11 @@ export async function listenForDeviceRemoval(userId, onRemoved) {
                 if (currentUser.email && currentUser.email.toLowerCase() === userData.pendingEmail.toLowerCase()) {
                   clearInterval(checkInterval);
                   checkInterval = null;
-                  console.log("Пошту змінено, виходимо...");
                   signOut(auth);
                 }
               } catch (error) {
                 clearInterval(checkInterval);
                 checkInterval = null;
-                console.log("Токен анульовано сервером, виходимо...");
                 signOut(auth);
               } finally {
                 isChecking = false;
@@ -153,8 +148,9 @@ export async function listenForDeviceRemoval(userId, onRemoved) {
       }
     }
   }, (error) => {
-    if (error.code === 'permission-denied') return;
-    console.warn("Security listener error:", error);
+    if (error.code !== 'permission-denied') {
+      console.error(error);
+    }
   });
 
   return () => {

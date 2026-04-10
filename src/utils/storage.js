@@ -13,7 +13,7 @@ export async function getLocalSchedule(userId = null) {
     const raw = await AsyncStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
-    console.warn(`Помилка читання локального розкладу для ключа ${key}`, e);
+    console.error(`Failed to read local schedule for key: ${key}`, e);
     return null;
   }
 }
@@ -23,7 +23,7 @@ export async function saveLocalSchedule(data, userId = null) {
   try {
     await AsyncStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
-    console.warn(`Помилка збереження локального розкладу для ключа ${key}`, e);
+    console.error(`Failed to save local schedule for key: ${key}`, e);
   }
 }
 
@@ -32,7 +32,7 @@ export async function clearLocalSchedule(userId = null) {
   try {
     await AsyncStorage.removeItem(key);
   } catch (e) {
-    console.warn(`Помилка видалення локального розкладу для ключа ${key}`, e);
+    console.error(`Failed to clear local schedule for key: ${key}`, e);
   }
 }
 
@@ -49,6 +49,6 @@ export async function saveDevicePrefs(prefs) {
   try {
     await AsyncStorage.setItem(DEVICE_SETTINGS_KEY, JSON.stringify(prefs));
   } catch (e) {
-    console.warn(`Помилка збереження налаштувань пристрою`, e);
+    console.error('Failed to save device settings', e);
   }
 }

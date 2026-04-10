@@ -8,7 +8,6 @@ import {
   getDocFromServer,
   getDocsFromServer,
   deleteDoc,
-  serverTimestamp,
   setDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -52,10 +51,10 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
 
   const globalRef = doc(db, 'users', userId, 'global', 'settings');
   
-  const unsubGlobal = onSnapshot(globalRef, { includeMetadataChanges: true }, (docSnap) => {
+  const unsubGlobal = onSnapshot(globalRef, (docSnap) => {
     const currentCount = ++globalSnapshotCount;
     globalFromCache = docSnap.metadata.fromCache; 
-    
+
     if (docSnap.exists()) {
       const data = docSnap.data();
       const lastMod = parseTimestamp(data.lastModified) || Date.now();
@@ -74,7 +73,7 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
           globalData = createDefaultData().global;
         }
         checkAndEmit();
-      }).catch((e) => {
+      }).catch(() => {
         if (currentCount !== globalSnapshotCount) return;
         globalData = createDefaultData().global;
         checkAndEmit();
@@ -86,8 +85,9 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
 
   const schedulesRef = collection(db, 'users', userId, 'schedules');
   
-  const unsubSchedules = onSnapshot(schedulesRef, { includeMetadataChanges: true }, (querySnapshot) => {
+  const unsubSchedules = onSnapshot(schedulesRef, (querySnapshot) => {
     schedulesFromCache = querySnapshot.metadata.fromCache; 
+    
     schedulesList = querySnapshot.docs.map(docSnap => ({
       id: docSnap.id,
       ...ensureVersioning(docSnap.data()) 
@@ -194,13 +194,17 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
 
   const batch = writeBatch(db);
 
-  let globalUpdateData = { lastModified: serverTimestamp() };
+  let hasGlobalUpdates = false;
+  let globalUpdateData = {};
+
   if (data.global) {
-    globalUpdateData = { ...data.global, ...globalUpdateData };
+    globalUpdateData = { ...data.global };
+    hasGlobalUpdates = true;
   }
 
-  if (data.deletedSchedules && Array.isArray(data.deletedSchedules)) {
+  if (data.deletedSchedules && Array.isArray(data.deletedSchedules) && data.deletedSchedules.length > 0) {
     globalUpdateData.deletedSchedules = data.deletedSchedules;
+    hasGlobalUpdates = true;
     
     data.deletedSchedules.forEach((item) => {
       const scheduleId = item && typeof item === 'object' ? item.id : item;
@@ -210,15 +214,16 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
         batch.set(scheduleDocRef, {
           id: scheduleId,
           isDeleted: true,
-          deletedAt: item?.deletedAt || Date.now(),
-          lastModified: serverTimestamp()
+          deletedAt: item?.deletedAt || Date.now()
         }, { merge: true });
       }
     });
   }
 
-  const globalRef = doc(db, 'users', userId, 'global', 'settings');
-  batch.set(globalRef, globalUpdateData, { merge: true });
+  if (hasGlobalUpdates) {
+    const globalRef = doc(db, 'users', userId, 'global', 'settings');
+    batch.set(globalRef, globalUpdateData, { merge: true });
+  }
 
   if (data.schedules && Array.isArray(data.schedules)) {
     if (!isPartialUpdate) {
@@ -233,8 +238,7 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
             id: docSnap.id,
             isDeleted: true, 
             version: (docSnap.data().version || 1) + 1,
-            baseVersion: (docSnap.data().baseVersion || 1) + 1,
-            lastModified: serverTimestamp() 
+            baseVersion: (docSnap.data().baseVersion || 1) + 1
           }, { merge: true });
         }
       });
@@ -243,76 +247,82 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
     data.schedules.forEach((schedule) => {
       if (schedule && schedule.id) {
         const scheduleDocRef = doc(db, 'users', userId, 'schedules', schedule.id);
-        
-        if (schedule.isDeleted) {
-          batch.set(scheduleDocRef, { ...schedule, lastModified: serverTimestamp() }, { merge: true });
-        } else {
-          batch.set(scheduleDocRef, { ...schedule, lastModified: serverTimestamp() }, { merge: true });
-        }
+        batch.set(scheduleDocRef, schedule, { merge: true });
       }
     });
   }
 
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 export const deleteUserSchedule = async (userId, scheduleId) => {
   if (isAccountBeingDeleted) return;
 
-  const scheduleRef = doc(db, 'users', userId, 'schedules', scheduleId);
-  const docSnap = await getDoc(scheduleRef);
-  const data = docSnap.exists() ? docSnap.data() : {};
-  
-  await setDoc(scheduleRef, { 
-    id: scheduleId,
-    isDeleted: true, 
-    version: (data.version || 1) + 1,
-    baseVersion: (data.baseVersion || 1) + 1,
-    lastModified: serverTimestamp() 
-  }, { merge: true });
+  try {
+    const scheduleRef = doc(db, 'users', userId, 'schedules', scheduleId);
+    const docSnap = await getDoc(scheduleRef);
+    const data = docSnap.exists() ? docSnap.data() : {};
+    
+    await setDoc(scheduleRef, { 
+      id: scheduleId,
+      isDeleted: true, 
+      version: (data.version || 1) + 1,
+      baseVersion: (data.baseVersion || 1) + 1,
+      lastModified: Date.now()
+    }, { merge: true });
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 export const resetUserSchedules = async (userId) => {
   if (isAccountBeingDeleted) return;
 
-  const batch = writeBatch(db);
-  const schedulesRef = collection(db, 'users', userId, 'schedules');
-  const snapshot = await getDocs(schedulesRef);
+  try {
+    const batch = writeBatch(db);
+    const schedulesRef = collection(db, 'users', userId, 'schedules');
+    const snapshot = await getDocs(schedulesRef);
 
-  if (snapshot.empty) return;
+    if (snapshot.empty) return;
 
-  snapshot.docs.forEach((docSnap) => {
-    batch.set(docSnap.ref, { 
-      id: docSnap.id,
-      isDeleted: true, 
-      version: (docSnap.data().version || 1) + 1,
-      baseVersion: (docSnap.data().baseVersion || 1) + 1,
-      lastModified: serverTimestamp() 
-    }, { merge: true });
-  });
+    const now = Date.now();
 
-  await batch.commit();
+    snapshot.docs.forEach((docSnap) => {
+      batch.set(docSnap.ref, { 
+        id: docSnap.id,
+        isDeleted: true, 
+        version: (docSnap.data().version || 1) + 1,
+        baseVersion: (docSnap.data().baseVersion || 1) + 1,
+        lastModified: now 
+      }, { merge: true });
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 export const deleteAllUserData = async (userId) => {
   isAccountBeingDeleted = true;
+  
   try {
     const batch = writeBatch(db);
 
     try {
       const schedulesRef = collection(db, 'users', userId, 'schedules');
       const snapshot = await getDocs(schedulesRef);
-      snapshot.docs.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
+      snapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
     } catch (e) {}
 
     try {
       const devicesRef = collection(db, 'users', userId, 'devices');
       const snapshot = await getDocs(devicesRef);
-      snapshot.docs.forEach((docSnap) => {
-        batch.delete(docSnap.ref);
-      });
+      snapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
     } catch (e) {}
 
     const globalSettingsRef = doc(db, 'users', userId, 'global', 'settings');

@@ -19,13 +19,9 @@ import { registerDevice, listenForDeviceRemoval } from "./src/utils/deviceServic
 import { setManualLogin } from "./src/utils/authFlags";
 import useAppLanguage from './src/hooks/useAppLanguage';
 import { t } from './src/utils/i18n';
-
-// Імпортуємо нашу функцію. Бандлер сам обере .web.js або .native.js
 import { initAds } from './src/utils/adInit';
 
 SplashScreen.preventAutoHideAsync();
-
-// Запускаємо ініціалізацію
 initAds();
 
 const Stack = createNativeStackNavigator();
@@ -84,8 +80,6 @@ export default function App() {
           setGuest(false);
           setManualLogin(false);
           setAuthResolved(true); 
-
-          verifySession(firebaseUser);
           
           try {
             await registerDevice(firebaseUser.uid);
@@ -134,18 +128,11 @@ export default function App() {
       }
     });
 
-    const appStateSubscription = AppState.addEventListener('change', async (nextAppState) => {
-      if (nextAppState === 'active' && auth.currentUser) {
-        verifySession(auth.currentUser);
-      }
-    });
-
     return () => {
       authUnsubscribe();
       deviceListenerUnsubscribe();
-      appStateSubscription.remove();
     };
-  }, [lang]);
+  }, []);
 
   const appIsReady = fontsLoaded && authResolved && !isLangLoading;
 

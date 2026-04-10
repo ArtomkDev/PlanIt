@@ -3,20 +3,15 @@ import en from '../locales/en';
 
 const translations = { uk, en };
 
-/**
- * Отримує переклад за ключем (напр. 'settings.language_title')
- * @param {string} key - шлях до ключа
- * @param {string} lang - код мови (uk, en)
- */
-export const t = (key, lang = 'uk') => {
+export const t = (key, lang = 'en') => {
   const keys = key.split('.');
-  let result = translations[lang] || translations['uk'];
+  let result = translations[lang] || translations['en'];
   
   for (const k of keys) {
     if (result[k]) {
       result = result[k];
     } else {
-      return key; // Повертаємо сам ключ, якщо переклад не знайдено
+      return key; 
     }
   }
   return result;

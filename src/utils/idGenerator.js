@@ -5,8 +5,7 @@ export function generateId() {
   try {
     return uuidv4();
   } catch (error) {
-    console.warn("⚠️ Не вдалося згенерувати UUID, використовуємо fallback:", error);
-    
+    console.warn("Failed to generate UUID, using fallback:", error);
     return `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
   }
 }
