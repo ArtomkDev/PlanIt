@@ -133,6 +133,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const [devicePrefs, setDevicePrefs] = useState({});
   const devicePrefsRef = useRef(devicePrefs);
+  
+  const syncDevicePrefsUpdate = useCallback((newPrefs) => {
+    devicePrefsRef.current = newPrefs;
+    setDevicePrefs(newPrefs);
+    saveDevicePrefs(newPrefs);
+  }, []);
+
   useEffect(() => { devicePrefsRef.current = devicePrefs; }, [devicePrefs]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -232,8 +239,17 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
 
             if (!hasValidScheduleId) {
-                const sorted = [...activeSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
-                newPrefs.currentScheduleId = sorted[0].id;
+                let fallbackId = null;
+
+                if (data.global?.currentScheduleId && activeSchedules.some(s => s.id === data.global.currentScheduleId)) {
+                    fallbackId = data.global.currentScheduleId;
+                }
+                else {
+                    const sorted = [...activeSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+                    fallbackId = sorted[0].id;
+                }
+                
+                newPrefs.currentScheduleId = fallbackId;
                 
                 if (newPrefs.currentScheduleId !== currentPrefs.currentScheduleId) {
                     prefsNeedSave = true;
@@ -242,11 +258,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         }
 
         if (prefsNeedSave) {
-            setDevicePrefs(newPrefs);
-            saveDevicePrefs(newPrefs);
+            syncDevicePrefsUpdate(newPrefs);
         }
     }
-  }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme, updateIsDirty]);
+  }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme, updateIsDirty, syncDevicePrefsUpdate]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -341,11 +356,12 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   }, [activeSchedules, currentScheduleId]);
 
   const setScheduleDraft = useCallback((updater) => {
+    const currentId = devicePrefsRef.current.currentScheduleId || dataRef.current?.global?.currentScheduleId;
+    if (!currentId) return;
+
     setData((prev) => {
       if (!prev) return prev;
-      const currentId = devicePrefsRef.current.currentScheduleId || prev?.global?.currentScheduleId;
-      if (!currentId) return prev;
-
+      
       const nextSchedules = prev.schedules.map((s) => {
         if (s.id === currentId) {
           const updated = typeof updater === "function" ? updater(s) : updater;
@@ -355,48 +371,50 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       });
       return { ...prev, schedules: nextSchedules };
     });
+    
     if (!guest) updateIsDirty(true);
   }, [guest, updateIsDirty]);
 
   const setGlobalDraft = useCallback((updater) => {
+    const currentPrev = dataRef.current;
+    if (!currentPrev) return;
+
+    const currentMerged = {
+      ...currentPrev.global,
+      theme: devicePrefsRef.current.theme,
+      currentScheduleId: devicePrefsRef.current.currentScheduleId,
+      language: devicePrefsRef.current.language
+    };
+
+    const nextGlobal = typeof updater === "function" ? updater(currentMerged) : updater;
+
+    let prefsChanged = false;
+    const newPrefs = { ...devicePrefsRef.current };
+
+    if (nextGlobal.theme && JSON.stringify(nextGlobal.theme) !== JSON.stringify(currentMerged.theme)) {
+      newPrefs.theme = nextGlobal.theme;
+      prefsChanged = true;
+    }
+    if (nextGlobal.currentScheduleId && nextGlobal.currentScheduleId !== currentMerged.currentScheduleId) {
+      newPrefs.currentScheduleId = nextGlobal.currentScheduleId;
+      prefsChanged = true;
+    }
+    if (nextGlobal.language && nextGlobal.language !== currentMerged.language) {
+      newPrefs.language = nextGlobal.language;
+      prefsChanged = true;
+    }
+
+    if (prefsChanged) {
+      syncDevicePrefsUpdate(newPrefs);
+    }
+
     setData((prev) => {
       if (!prev) return prev;
-
-      const currentMerged = {
-        ...prev.global,
-        theme: devicePrefsRef.current.theme,
-        currentScheduleId: devicePrefsRef.current.currentScheduleId,
-        language: devicePrefsRef.current.language
-      };
-
-      const nextGlobal = typeof updater === "function" ? updater(currentMerged) : updater;
-
-      const newPrefs = { ...devicePrefsRef.current };
-      let prefsChanged = false;
-
-      if (nextGlobal.theme && JSON.stringify(nextGlobal.theme) !== JSON.stringify(currentMerged.theme)) {
-        newPrefs.theme = nextGlobal.theme;
-        prefsChanged = true;
-      }
-      if (nextGlobal.currentScheduleId && nextGlobal.currentScheduleId !== currentMerged.currentScheduleId) {
-        newPrefs.currentScheduleId = nextGlobal.currentScheduleId;
-        prefsChanged = true;
-      }
-      if (nextGlobal.language && nextGlobal.language !== currentMerged.language) {
-        newPrefs.language = nextGlobal.language;
-        prefsChanged = true;
-      }
-
-      if (prefsChanged) {
-        setDevicePrefs(newPrefs);
-        saveDevicePrefs(newPrefs);
-      }
-
       return { ...prev, global: { ...prev.global, ...nextGlobal, lastModified: Date.now() } };
     });
 
     if (!guest) updateIsDirty(true);
-  }, [guest, updateIsDirty]);
+  }, [guest, updateIsDirty, syncDevicePrefsUpdate]);
 
   const addSchedule = useCallback((scheduleObj) => {
     setData((prev) => {
@@ -414,50 +432,45 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   }, [guest, updateIsDirty]);
 
   const removeSchedule = useCallback(async (scheduleId) => {
+    const prev = dataRef.current;
+    if (!prev) return;
+
+    const nextSchedules = prev.schedules.filter(s => s.id !== scheduleId);
     let fallbackId = null;
 
-    setData(prev => {
-      if (!prev) return prev;
+    const nextDeleted = [...(prev.deletedSchedules || [])];
+    if (!nextDeleted.some(d => d.id === scheduleId)) {
+      nextDeleted.push({ id: scheduleId, deletedAt: Date.now(), lastSynced: 0 });
+    }
 
-      const nextSchedules = prev.schedules.filter(s => s.id !== scheduleId);
+    let nextGlobal = { ...prev.global };
+    const currentId = devicePrefsRef.current.currentScheduleId || prev.global?.currentScheduleId;
 
-      const nextDeleted = [...(prev.deletedSchedules || [])];
-      if (!nextDeleted.some(d => d.id === scheduleId)) {
-        nextDeleted.push({
-          id: scheduleId,
-          deletedAt: Date.now(),
-          lastSynced: 0 
-        });
+    if (currentId === scheduleId) {
+      if (nextSchedules.length > 0) {
+        const sorted = [...nextSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+        fallbackId = sorted[0].id;
       }
+      nextGlobal.currentScheduleId = fallbackId;
+      nextGlobal.lastModified = Date.now();
+    }
 
-      let nextGlobal = { ...prev.global };
-      const currentId = devicePrefsRef.current.currentScheduleId || prev.global?.currentScheduleId;
+    if (fallbackId !== null) {
+      syncDevicePrefsUpdate({ ...devicePrefsRef.current, currentScheduleId: fallbackId });
+    }
 
-      if (currentId === scheduleId) {
-        if (nextSchedules.length > 0) {
-          const sorted = [...nextSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
-          fallbackId = sorted[0].id;
-        }
-        nextGlobal.currentScheduleId = fallbackId;
-        nextGlobal.lastModified = Date.now();
-      }
-
+    setData(current => {
+      if (!current) return current;
       return { 
-        ...prev, 
+        ...current, 
         global: nextGlobal, 
-        schedules: nextSchedules, 
+        schedules: current.schedules.filter(s => s.id !== scheduleId), 
         deletedSchedules: nextDeleted 
       };
     });
 
-    if (fallbackId !== null) {
-      const newPrefs = { ...devicePrefsRef.current, currentScheduleId: fallbackId };
-      setDevicePrefs(newPrefs);
-      saveDevicePrefs(newPrefs);
-    }
-
     if (!guest) updateIsDirty(true);
-  }, [guest, updateIsDirty]);
+  }, [guest, updateIsDirty, syncDevicePrefsUpdate]);
 
   const saveNow = useCallback(async (force = false) => {
     if (guest || !dataRef.current || isSavingRef.current || conflictQueueRef.current.length > 0) return;
@@ -635,8 +648,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         theme: devicePrefsRef.current.theme, 
         language: devicePrefsRef.current.language 
       };
-      setDevicePrefs(retainedPrefs);
-      await saveDevicePrefs(retainedPrefs);
+      syncDevicePrefsUpdate(retainedPrefs);
 
       setData(newData);
       
@@ -657,7 +669,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, updateIsDirty]);
+  }, [user, updateIsDirty, syncDevicePrefsUpdate]);
 
   const handleResolveConflict = (conflictId, action) => {
     const conflictIndex = conflictQueue.findIndex(c => c.local?.id === conflictId);

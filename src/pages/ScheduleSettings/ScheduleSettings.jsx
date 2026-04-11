@@ -1,8 +1,9 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
+import Constants from 'expo-constants';
 
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
@@ -32,6 +33,28 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
   const breaksCount = Array.isArray(schedule?.breaks) ? schedule.breaks.length : undefined;
   const subjectsCount = Array.isArray(schedule?.subjects) ? schedule.subjects.length : undefined;
   const teachersCount = Array.isArray(schedule?.teachers) ? schedule.teachers.length : undefined;
+
+  const appVersion = Constants.expoConfig?.version;
+  const buildNumber = Constants.nativeBuildVersion;
+  const appName = Constants.expoConfig?.name;
+
+  const platformLabel = Platform.select({
+    ios: 'iOS',
+    android: 'Android',
+    web: 'Web'
+  });
+
+  const versionParts = [];
+  if (appVersion) versionParts.push(appVersion);
+  if (buildNumber) versionParts.push(`(${buildNumber})`);
+  const versionString = versionParts.join(' ');
+
+  const infoParts = [];
+  if (appName) infoParts.push(appName);
+  if (versionString) infoParts.push(versionString);
+  infoParts.push(platformLabel);
+
+  const infoString = infoParts.join(' • ');
 
   const handleAuthAction = () => {
     if (guest && onExitGuest) {
@@ -214,7 +237,7 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
         ]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver: Platform.OS !== 'web' }
         )}
         scrollEventThrottle={16}
       >
@@ -245,6 +268,13 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
             <View style={{ height: 12 }} />
           </View>
         ))}
+
+        <View style={styles.appInfoFooter}>
+          <Text style={[styles.appInfoText, { color: themeColors.textColor2 }]}>
+            {infoString}
+          </Text>
+        </View>
+
       </Animated.ScrollView>
     </View>
   );
@@ -287,4 +317,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '600' },
   desc: { fontSize: 12, marginTop: 2 },
   meta: { fontSize: 12, marginRight: 6 },
+  appInfoFooter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 30,
+    paddingBottom: 10,
+  },
+  appInfoText: {
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+    opacity: 0.7,
+  }
 });
