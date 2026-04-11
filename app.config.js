@@ -1,10 +1,11 @@
 import 'dotenv/config';
+import pkg from './package.json';
 
 export default {
   expo: {
     name: "PlanIt",
     slug: "PlanIt",
-    version: "0.0.8",
+    version: pkg.version,
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
