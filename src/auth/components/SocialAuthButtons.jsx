@@ -12,6 +12,14 @@ import { linkGoogleAccount, linkAppleAccount } from '../authServices';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
+if (Platform.OS !== 'web' && !isExpoGo) {
+  const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+  GoogleSignin.configure({
+    webClientId: '66089248812-is6urdiplc47uc3s323n4546vpip7aoe.apps.googleusercontent.com',
+    offlineAccess: true,
+  });
+}
+
 const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) => {
   const { colors, isDark } = useSystemThemeColors('blue');
   const { lang } = useAppLanguage();
@@ -38,24 +46,21 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
       } else {
         const { GoogleSignin } = require('@react-native-google-signin/google-signin');
         
-        GoogleSignin.configure({
-          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-          offlineAccess: true,
-        });
-
-        await GoogleSignin.hasPlayServices();
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
         const response = await GoogleSignin.signIn();
         
-        if (response.type === 'success') {
-          if (isLinking) {
-            await linkGoogleAccount(response.data.idToken);
-          } else {
-            const credential = GoogleAuthProvider.credential(response.data.idToken);
-            await signInWithCredential(auth, credential);
-          }
-        } else {
+        const idToken = response?.data?.idToken || response?.idToken;
+        
+        if (!idToken) {
           setLoadingProvider(null);
           return;
+        }
+
+        if (isLinking) {
+          await linkGoogleAccount(idToken);
+        } else {
+          const credential = GoogleAuthProvider.credential(idToken);
+          await signInWithCredential(auth, credential);
         }
       }
       onAuthSuccess?.();

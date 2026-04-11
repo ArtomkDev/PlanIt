@@ -162,7 +162,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [isOnline, setIsOnline] = useState(true);
   const prevOnlineRef = useRef(isOnline);
 
-  const [cloudSyncState, setCloudSyncState] = useState('syncing');
+  const [cloudSyncState, setCloudSyncState] = useState('synced');
   const [pendingImmediateSave, setPendingImmediateSave] = useState(false);
 
   const { lang, isLangLoading } = useAppLanguage(data?.global?.language);
@@ -182,86 +182,122 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         const local = await getLocalSchedule(null);
         setData(local || createDefaultData());
         setIsLoading(false);
+        setCloudSyncState('synced');
       } else if (user) {
         const local = await getLocalSchedule(user.uid);
+        
         if (local) {
             setData(local);
+            setIsLoading(false);
+            setCloudSyncState('synced');
         } else {
-            const defaultData = createDefaultData();
-            setData(defaultData);
-            await saveLocalSchedule(defaultData, user.uid);
+            setCloudSyncState('syncing');
+            try {
+                const cloudData = await getScheduleFromServer(user.uid);
+                
+                if (cloudData && cloudData.schedules && cloudData.schedules.length > 0) {
+                    setData(cloudData);
+                    await saveLocalSchedule(cloudData, user.uid);
+                } else {
+                    const defaultData = createDefaultData();
+                    setData(defaultData);
+                    await saveLocalSchedule(defaultData, user.uid);
+                }
+            } catch (e) {
+                const defaultData = createDefaultData();
+                setData(defaultData);
+                await saveLocalSchedule(defaultData, user.uid);
+            } finally {
+                setIsLoading(false);
+                setCloudSyncState('synced');
+            }
         }
-        setIsLoading(false);
       } else {
         setData(null);
         setIsLoading(false);
       }
     };
+    
     loadLocal();
   }, [guest, user]);
 
   useEffect(() => {
     if (!data || isLoading) return;
 
-    if (guest || cloudSyncState === 'synced' || cloudSyncState === 'offline') {
-        const currentPrefs = devicePrefsRef.current;
-        let prefsNeedSave = false;
-        const newPrefs = { ...currentPrefs };
+    const currentPrefs = devicePrefsRef.current;
+    let prefsNeedSave = false;
+    const newPrefs = { ...currentPrefs };
 
-        if (!newPrefs.theme) {
-            const defaultMode = systemColorScheme === 'light' ? 'light' : 'dark';
-            newPrefs.theme = data.global?.theme || [defaultMode, 'blue'];
-            prefsNeedSave = true;
-        }
+    if (!newPrefs.language && lang && !isLangLoading) {
+        newPrefs.language = lang;
+        prefsNeedSave = true;
+    }
 
-        const activeSchedules = data.schedules || [];
+    if (!newPrefs.theme) {
+        const defaultMode = systemColorScheme === 'light' ? 'light' : 'dark';
+        newPrefs.theme = data.global?.theme || [defaultMode, 'blue'];
+        prefsNeedSave = true;
+    }
 
-        if (activeSchedules.length === 0) {
-            const defaultData = createDefaultData();
-            const newSchedule = defaultData.schedules[0];
+    if (data.global && data.global.language === undefined && lang && !isLangLoading) {
+         setData(prev => ({
+             ...prev,
+             global: {
+                 ...prev.global,
+                 language: lang,
+                 lastModified: Date.now()
+             }
+         }));
+         if (!guest) updateIsDirty(true);
+    }
+
+    const activeSchedules = data.schedules || [];
+
+    if (activeSchedules.length === 0) {
+        const defaultData = createDefaultData();
+        const newSchedule = defaultData.schedules[0];
+        
+        newSchedule.version = 1;
+        newSchedule.baseVersion = 1;
+        newSchedule.lastModified = Date.now();
+        newSchedule.lastSynced = 0;
+        newSchedule.isCloud = !guest;
+
+        setData(prev => ({
+            ...prev,
+            schedules: [...(prev.schedules || []), newSchedule]
+        }));
+
+        newPrefs.currentScheduleId = newSchedule.id;
+        prefsNeedSave = true;
+
+        if (!guest) updateIsDirty(true);
+    } else {
+        const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
+
+        if (!hasValidScheduleId) {
+            let fallbackId = null;
+
+            if (data.global?.currentScheduleId && activeSchedules.some(s => s.id === data.global.currentScheduleId)) {
+                fallbackId = data.global.currentScheduleId;
+            }
+            else {
+                const sorted = [...activeSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+                fallbackId = sorted[0].id;
+            }
             
-            newSchedule.version = 1;
-            newSchedule.baseVersion = 1;
-            newSchedule.lastModified = Date.now();
-            newSchedule.lastSynced = 0;
-            newSchedule.isCloud = !guest;
-
-            setData(prev => ({
-                ...prev,
-                schedules: [...(prev.schedules || []), newSchedule]
-            }));
-
-            newPrefs.currentScheduleId = newSchedule.id;
-            prefsNeedSave = true;
-
-            if (!guest) updateIsDirty(true);
-        } else {
-            const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
-
-            if (!hasValidScheduleId) {
-                let fallbackId = null;
-
-                if (data.global?.currentScheduleId && activeSchedules.some(s => s.id === data.global.currentScheduleId)) {
-                    fallbackId = data.global.currentScheduleId;
-                }
-                else {
-                    const sorted = [...activeSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
-                    fallbackId = sorted[0].id;
-                }
-                
-                newPrefs.currentScheduleId = fallbackId;
-                
-                if (newPrefs.currentScheduleId !== currentPrefs.currentScheduleId) {
-                    prefsNeedSave = true;
-                }
+            newPrefs.currentScheduleId = fallbackId;
+            
+            if (newPrefs.currentScheduleId !== currentPrefs.currentScheduleId) {
+                prefsNeedSave = true;
             }
         }
-
-        if (prefsNeedSave) {
-            syncDevicePrefsUpdate(newPrefs);
-        }
     }
-  }, [data, isLoading, guest, cloudSyncState, user, systemColorScheme, updateIsDirty, syncDevicePrefsUpdate]);
+
+    if (prefsNeedSave) {
+        syncDevicePrefsUpdate(newPrefs);
+    }
+  }, [data, isLoading, guest, user, systemColorScheme, updateIsDirty, syncDevicePrefsUpdate, lang, isLangLoading]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -286,6 +322,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       user.uid,
       async (fetchedCloudData, isFromCache) => {
         if (conflictQueueRef.current.length > 0) return;
+        
+        setCloudSyncState(isFromCache ? 'syncing' : 'synced');
 
         try {
           const currentLocal = dataRef.current || await getLocalSchedule(user.uid);
@@ -307,10 +345,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
              setPendingImmediateSave(true);
           } else {
              updateIsDirty(false);
-          }
-
-          if (!isFromCache) {
-             setCloudSyncState('synced');
           }
         } catch (e) {}
       },
@@ -501,7 +535,21 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       if (isGlobalDirty) {
         const nextGlobalVer = (prev.global?.version || 1) + 1;
-        const updatedGlobal = { ...prev.global, version: nextGlobalVer, baseVersion: nextGlobalVer, lastSynced: now };
+        
+        const updatedGlobal = { 
+          ...prev.global, 
+          language: prev.global?.language || lang || 'en',
+          version: nextGlobalVer, 
+          baseVersion: nextGlobalVer, 
+          lastSynced: now 
+        };
+
+        Object.keys(updatedGlobal).forEach(key => {
+          if (updatedGlobal[key] === undefined) {
+            delete updatedGlobal[key];
+          }
+        });
+
         dataToSave.global = updatedGlobal;
         nextGlobal = updatedGlobal;
       }
@@ -554,7 +602,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setIsCloudSaving(false);
       isCloudSavingRef.current = false;
     }
-  }, [user, guest, updateIsDirty]);
+  }, [user, guest, updateIsDirty, lang]);
 
   const safeLogout = useCallback(async () => {
     if (guest || !user) {

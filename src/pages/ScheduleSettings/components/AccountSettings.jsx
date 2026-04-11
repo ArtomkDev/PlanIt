@@ -15,6 +15,14 @@ import { getLinkedProviders, unlinkProvider, linkGoogleAccount, linkAppleAccount
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
+if (Platform.OS !== 'web' && !isExpoGo) {
+  const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+  GoogleSignin.configure({
+    webClientId: '66089248812-is6urdiplc47uc3s323n4546vpip7aoe.apps.googleusercontent.com',
+    offlineAccess: true,
+  });
+}
+
 export default function AccountSettings() {
   const { global, user: contextUser, lang } = useSchedule();
   const navigation = useNavigation();
@@ -55,19 +63,22 @@ export default function AccountSettings() {
       } else {
         const { GoogleSignin } = require('@react-native-google-signin/google-signin');
         
-        GoogleSignin.configure({
-          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-          offlineAccess: true,
-        });
-
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
         const response = await GoogleSignin.signIn();
-        if (response.type === 'success') {
-          await linkGoogleAccount(response.data.idToken);
+        
+        const idToken = response?.data?.idToken || response?.idToken;
+        
+        if (!idToken) {
+          throw new Error("No ID token returned");
         }
+        
+        await linkGoogleAccount(idToken);
       }
       setLinkedProviders(getLinkedProviders());
     } catch (error) {
-      Alert.alert(t('common.error', lang), error.message);
+      if (error.code !== 'ERR_REQUEST_CANCELED' && error.message !== 'Sign in action cancelled') {
+        Alert.alert(t('common.error', lang), error.message);
+      }
     } finally {
       setIsProcessing(null);
     }
