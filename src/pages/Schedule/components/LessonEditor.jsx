@@ -817,11 +817,11 @@ export default function LessonEditor({ lesson, onClose }) {
             <View style={styles.minimizedActions}>
               {canSave && (
                 <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn}>
-                  <Ionicons name="checkmark-circle" size={28} color={themeColors.accentColor} />
+                  <Ionicons name="checkmark-circle" size={30} color={themeColors.accentColor} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]}>
-                <Ionicons name="close-circle" size={28} color={themeColors.accentColor || "#ff4444"} />
+                <Ionicons name="close-circle" size={30} color={themeColors.accentColor || "#ff4444"} />
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -1004,9 +1004,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 6,
     paddingLeft: 8,
-    borderRadius: 28,
+    borderRadius: 30,
     borderWidth: 1,
-    height: 56,
+    height: 60,
     ...Platform.select({
       web: { boxShadow: "0px 4px 12px rgba(0,0,0,0.15)" },
       default: {
@@ -1025,9 +1025,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   minimizedIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,

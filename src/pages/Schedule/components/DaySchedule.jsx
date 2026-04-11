@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, Platform } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import LessonCard from "./LessonCard";
@@ -60,10 +61,14 @@ export default function DaySchedule({
   scrollY
 }) {
   const { getDaySchedule } = useDaySchedule();
-  const { schedule, global , lang} = useSchedule();
+  const { schedule, global, lang, tabBarHeight } = useSchedule();
+  const insets = useSafeAreaInsets();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+
+  const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
+  const BOTTOM_SPACER_HEIGHT = safeTabBarHeight + 65; 
 
   const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
   
@@ -147,7 +152,7 @@ export default function DaySchedule({
           </View>
         )}
         
-        <View style={{height: 120}} />
+        <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
       </TouchableOpacity>
     </Animated.ScrollView>
   );

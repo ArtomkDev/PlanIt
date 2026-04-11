@@ -1,6 +1,6 @@
 {
   "name": "planit",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "main": "index.js",
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start",

@@ -79,7 +79,7 @@ function ScheduleSettingsStack({ screenProps }) {
 }
 
 export default function TabNavigator({ screenProps }) {
-  const { global, lang, isLoading } = useSchedule();
+  const { global, lang, isLoading, tabBarHeight, setTabBarHeight } = useSchedule();
   const insets = useSafeAreaInsets();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
@@ -94,6 +94,13 @@ export default function TabNavigator({ screenProps }) {
     <ScheduleSettingsStack {...props} screenProps={screenPropsRef.current} />
   ), []);
 
+  const handleLayout = useCallback((event) => {
+    const { height } = event.nativeEvent.layout;
+    if (height > 0 && height !== tabBarHeight) {
+      setTabBarHeight(height);
+    }
+  }, [tabBarHeight, setTabBarHeight]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor, justifyContent: 'center', alignItems: 'center' }}>
@@ -105,7 +112,7 @@ export default function TabNavigator({ screenProps }) {
   return (
     <Tab.Navigator
       tabBar={(props) => (
-        <View style={styles.customTabBarContainer}>
+        <View style={styles.customTabBarContainer} onLayout={handleLayout}>
           <AppBlur style={StyleSheet.absoluteFill} intensity={80} />
           <View style={styles.adWrapper}>
             <AdBanner />
@@ -116,7 +123,7 @@ export default function TabNavigator({ screenProps }) {
       screenOptions={{
         sceneContainerStyle: { 
           backgroundColor: themeColors.backgroundColor,
-          paddingBottom: 110 + insets.bottom
+          paddingBottom: tabBarHeight || (110 + insets.bottom)
         },
         tabBarStyle: {
           backgroundColor: 'transparent',

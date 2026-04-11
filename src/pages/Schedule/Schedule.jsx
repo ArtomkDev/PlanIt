@@ -47,12 +47,12 @@ const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handl
 });
 
 export default function Schedule() {
-  const { global, schedule, lang } = useSchedule();
+  const { global, schedule, lang, tabBarHeight } = useSchedule();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   
-  const tabBarHeight = 130 + insets.bottom;
-  const dynamicBottomOffset = tabBarHeight + 16;
+  const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
+  const dynamicBottomOffset = safeTabBarHeight + 16;
   
   const [anchorDate, setAnchorDate] = useState(() => {
     const d = new Date(getLocalISODate());
@@ -178,7 +178,7 @@ export default function Schedule() {
       
       {editorVisible && schedule && (
         <View 
-          style={[StyleSheet.absoluteFill, { bottom: tabBarHeight }]}
+          style={[StyleSheet.absoluteFill, { bottom: safeTabBarHeight }]}
           pointerEvents="box-none"
         >
           <DayScheduleProvider date={currentDate}>
@@ -200,5 +200,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerContainer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  fab: { position: 'absolute', right: 17, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 8, zIndex: 50 }
+  fab: { position: 'absolute', right: 17, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, zIndex: 50 }
 });

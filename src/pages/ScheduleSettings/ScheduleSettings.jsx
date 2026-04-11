@@ -13,13 +13,15 @@ import MorphingLoader from '../../components/MorphingLoader';
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();
-  const { user, global, schedule, lang, safeLogout } = useSchedule();
+  const { user, global, schedule, lang, safeLogout, tabBarHeight } = useSchedule();
   const insets = useSafeAreaInsets();
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const headerHeight = 50 + insets.top;
-  const bottomPadding = 135 + insets.bottom; 
+  const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
+  const bottomPadding = safeTabBarHeight + 32; 
+  
   const scrollY = useRef(new Animated.Value(0)).current;
   
   const theme = global?.theme || ['light', 'blue'];

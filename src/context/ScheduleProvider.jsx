@@ -134,6 +134,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [devicePrefs, setDevicePrefs] = useState({});
   const devicePrefsRef = useRef(devicePrefs);
   
+  const [tabBarHeight, setTabBarHeight] = useState(0); 
+
   const syncDevicePrefsUpdate = useCallback((newPrefs) => {
     devicePrefsRef.current = newPrefs;
     setDevicePrefs(newPrefs);
@@ -806,7 +808,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     isLoading, error, isOnline,
     conflictQueue, handleResolveConflict,
     cloudSyncState,
-    lang, isLangLoading
+    lang, isLangLoading,
+    tabBarHeight, setTabBarHeight
   };
 
   return (

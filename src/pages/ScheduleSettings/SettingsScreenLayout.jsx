@@ -8,7 +8,7 @@ import SettingsHeader from '../../components/SettingsHeader';
 import { t } from '../../utils/i18n';
 
 export default function SettingsScreenLayout({ children, contentContainerStyle }) {
-  const { global , lang} = useSchedule();
+  const { global , lang, tabBarHeight } = useSchedule();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   
@@ -37,7 +37,9 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = 50 + insets.top;
-  const bottomPadding = 146 + insets.bottom;
+  
+  const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
+  const bottomPadding = safeTabBarHeight + 16;
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
