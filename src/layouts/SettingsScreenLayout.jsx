@@ -27,7 +27,7 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
     'Theme': t('settings.menu.themes.title', lang),
     'Language': t('settings.menu.language.title', lang),
     'ResetDB': t('settings.menu.reset_db.title', lang),
-    'DeviceService': t('settings.menu.devices.title', lang),
+    'DeviceManagement': t('settings.menu.devices.title', lang),
     'AccountSettings': t('settings.menu.account_settings.title', lang),
     'ChangeEmail': t('settings.account_settings.change_email_screen.title', lang),
     'DeleteAccount': t('settings.account_settings.delete_screen.title', lang),

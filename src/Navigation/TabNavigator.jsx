@@ -13,30 +13,30 @@ import MorphingLoader from '../components/ui/MorphingLoader';
 import { t } from '../utils/i18n';
 
 import Schedule from '../pages/Schedule/Schedule';
-import ScheduleSettings from '../pages/ScheduleSettings/ScheduleSettings';
-import BreaksManager from '../pages/ScheduleSettings/components/managers/BreaksManager';
-import WeekManager from '../pages/ScheduleSettings/components/managers/WeekManager';
-import StartWeekManager from '../pages/ScheduleSettings/components/managers/StartWeekManager';
-import SubjectsManager from '../pages/ScheduleSettings/components/managers/SubjectsManager';
-import TeachersManager from '../pages/ScheduleSettings/components/managers/TeachersManager';
-import ScheduleManager from '../pages/ScheduleSettings/components/ScheduleManager';
-import AutoSaveManager from '../pages/ScheduleSettings/components/preferences/AutoSaveIntervalSettings';
-import ThemeSettings from '../pages/ScheduleSettings/components/preferences/ThemeSettings';
-import ResetDB from '../pages/ScheduleSettings/components/ResetDB';
-import ScheduleSwitcher from '../pages/ScheduleSettings/components/ScheduleSwitcher';
-import DeviceManager from '../pages/ScheduleSettings/components/managers/DeviceManager';
-import ScheduleEditorScreen from '../pages/ScheduleSettings/components/ScheduleEditorScreen';
-import LanguageSettings from '../pages/ScheduleSettings/components/preferences/LanguageSettings';
-import AccountSettings from '../pages/ScheduleSettings/components/AccountSettings/AccountSettings';
-import DeleteAccountScreen from '../pages/ScheduleSettings/components/AccountSettings/components/DeleteAccountScreen';
-import ChangeNameScreen from '../pages/ScheduleSettings/components/AccountSettings/components/ChangeNameScreen';
-import ChangeEmailScreen from '../pages/ScheduleSettings/components/AccountSettings/components/ChangeEmailScreen';
-import ChangePasswordScreen from '../pages/ScheduleSettings/components/AccountSettings/components/ChangePasswordScreen';
+import Settings from '../pages/Settings/Settings';
+import BreaksManager from '../pages/Settings/components/managers/BreaksManager';
+import WeekManager from '../pages/Settings/components/managers/WeekManager';
+import StartWeekManager from '../pages/Settings/components/managers/StartWeekManager';
+import SubjectsManager from '../pages/Settings/components/managers/SubjectsManager';
+import TeachersManager from '../pages/Settings/components/managers/TeachersManager';
+import ScheduleManager from '../pages/Settings/components/ScheduleManager';
+import AutoSaveManager from '../pages/Settings/components/preferences/AutoSaveIntervalSettings';
+import ThemeSettings from '../pages/Settings/components/preferences/ThemeSettings';
+import ResetDB from '../pages/Settings/components/ResetDB';
+import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
+import DeviceManager from '../pages/Settings/components/managers/DeviceManagement';
+import ScheduleEditorScreen from '../pages/Settings/components/ScheduleEditorScreen';
+import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
+import AccountSettings from '../pages/Settings/components/AccountSettings/AccountSettings';
+import DeleteAccountScreen from '../pages/Settings/components/AccountSettings/components/DeleteAccountScreen';
+import ChangeNameScreen from '../pages/Settings/components/AccountSettings/components/ChangeNameScreen';
+import ChangeEmailScreen from '../pages/Settings/components/AccountSettings/components/ChangeEmailScreen';
+import ChangePasswordScreen from '../pages/Settings/components/AccountSettings/components/ChangePasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator(); 
 
-function ScheduleSettingsStack({ screenProps }) {
+function SettingsStack({ screenProps }) {
   const { global } = useSchedule();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -52,8 +52,8 @@ function ScheduleSettingsStack({ screenProps }) {
           ...TransitionPresets.SlideFromRightIOS,
         }}
       >
-        <Stack.Screen name="ScheduleSettingsMain">
-          {props => <ScheduleSettings {...props} {...screenProps} />}
+        <Stack.Screen name="SettingsOverview">
+          {props => <Settings {...props} {...screenProps} />}
         </Stack.Screen>
         <Stack.Screen name="Breaks" component={BreaksManager} />
         <Stack.Screen name="Weeks" component={WeekManager} />
@@ -67,7 +67,7 @@ function ScheduleSettingsStack({ screenProps }) {
         <Stack.Screen name="Theme" component={ThemeSettings} />
         <Stack.Screen name="Language" component={LanguageSettings} />
         <Stack.Screen name="ResetDB" component={ResetDB} />
-        <Stack.Screen name="DeviceService" component={DeviceManager} />
+        <Stack.Screen name="DeviceManagement" component={DeviceManager} />
         <Stack.Screen name="AccountSettings" component={AccountSettings} />
         <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
         <Stack.Screen name="ChangeName" component={ChangeNameScreen} />
@@ -91,7 +91,7 @@ export default function TabNavigator({ screenProps }) {
   }, [screenProps]);
 
   const SettingsStackWrapper = useCallback((props) => (
-    <ScheduleSettingsStack {...props} screenProps={screenPropsRef.current} />
+    <SettingsStack {...props} screenProps={screenPropsRef.current} />
   ), []);
 
   const handleLayout = useCallback((event) => {
@@ -140,7 +140,7 @@ export default function TabNavigator({ screenProps }) {
       }}
     >
       <Tab.Screen
-        name="Home3_1"
+        name="ScheduleTab"
         component={Schedule}
         options={{
           tabBarLabel: t('common.schedule', lang),
@@ -148,7 +148,7 @@ export default function TabNavigator({ screenProps }) {
         }}
       />
       <Tab.Screen
-        name="Home3_2"
+        name="SettingsTab"
         component={SettingsStackWrapper}
         options={{
           tabBarLabel: t('common.settings', lang),

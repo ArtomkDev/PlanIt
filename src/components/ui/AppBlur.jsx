@@ -16,7 +16,7 @@ export default function AppBlur({ style, intensity = 80, children }) {
   const navState = useNavigationState(state => state);
   const activeRouteName = navState?.routes?.[navState?.index]?.name || "Unknown";
 
-  const dynamicOpacity = activeRouteName === 'Home3_1' ? 0.7 : 0.1;
+  const dynamicOpacity = activeRouteName === 'ScheduleTab' ? 0.7 : 0.1;
 
   if (!blurEnabled || Platform.OS === "android") {
     const fallbackColor = !blurEnabled 

@@ -11,7 +11,7 @@ import SettingsHeader from '../../components/ui/SettingsHeader';
 import { t } from '../../utils/i18n';
 import MorphingLoader from '../../components/ui/MorphingLoader';
 
-export default function ScheduleSettings({ guest, onExitGuest }) {
+export default function Settings({ guest, onExitGuest }) {
   const navigation = useNavigation();
   const { user, global, schedule, lang, safeLogout, tabBarHeight } = useSchedule();
   const insets = useSafeAreaInsets();
@@ -137,7 +137,7 @@ export default function ScheduleSettings({ guest, onExitGuest }) {
         { label: t('settings.menu.login.title', lang), action: handleAuthAction, icon: 'log-in-outline', desc: t('settings.menu.login.desc', lang) },
       ] : [
         { label: t('settings.menu.account_settings.title', lang), screen: 'AccountSettings', icon: 'person-circle-outline', desc: t('settings.menu.account_settings.desc', lang) },
-        { label: t('settings.menu.devices.title', lang), screen: 'DeviceService', icon: 'hardware-chip-outline', desc: t('settings.menu.devices.desc', lang) },
+        { label: t('settings.menu.devices.title', lang), screen: 'DeviceManagement', icon: 'hardware-chip-outline', desc: t('settings.menu.devices.desc', lang) },
         { label: t('settings.menu.logout.title', lang), action: handleSignOut, icon: 'log-out-outline', desc: t('settings.menu.logout.desc', lang), danger: true },
       ],
     },
