@@ -11,7 +11,7 @@ import {
   setDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
-import createDefaultData from './src/config/createDefaultData';
+import createDefaultData from './createDefaultData';
 
 let isAccountBeingDeleted = false;
 

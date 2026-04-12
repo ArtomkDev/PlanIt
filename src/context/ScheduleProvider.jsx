@@ -5,8 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { db, auth } from "../../firebase"; 
-import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer } from "../../firestore";
+import { db, auth } from "../config/firebase"; 
+import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer } from "../config/firestore";
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import useAppLanguage from "../hooks/useAppLanguage";

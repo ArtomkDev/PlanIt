@@ -21,7 +21,7 @@ import {
 } from "../../../../utils/deviceService";
 import { useSchedule } from "../../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
-import { db } from "../../../../../firebase";
+import { db } from "../../../../config/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import themes from "../../../../config/themes";
 import { t } from "../../../../utils/i18n";

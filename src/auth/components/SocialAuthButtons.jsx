@@ -6,7 +6,7 @@ import useSystemThemeColors from '../../hooks/useSystemThemeColors';
 import useAppLanguage from '../../hooks/useAppLanguage';
 import { t } from '../../utils/i18n';
 
-import { auth } from '../../../firebase';
+import { auth } from '../../config/firebase';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup, OAuthProvider, linkWithPopup } from 'firebase/auth';
 import { linkGoogleAccount, linkAppleAccount } from '../authServices';
 

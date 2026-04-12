@@ -1,4 +1,4 @@
-import { auth } from '../../firebase';
+import { auth } from '../config/firebase';
 import { GoogleAuthProvider, OAuthProvider, linkWithCredential, unlink } from 'firebase/auth';
 
 export const linkGoogleAccount = async (idToken) => {

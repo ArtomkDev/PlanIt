@@ -5,7 +5,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth';
 import Constants from 'expo-constants';
 
-import { auth } from '../../../../../firebase';
+import { auth } from '../../../../config/firebase';
 import { useSchedule } from '../../../../context/ScheduleProvider';
 import themes from '../../../../config/themes';
 import { t } from '../../../../utils/i18n';

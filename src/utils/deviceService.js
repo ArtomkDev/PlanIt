@@ -9,7 +9,7 @@ import {
   writeBatch,
   deleteField
 } from "firebase/firestore";
-import { db, auth } from "../../firebase";
+import { db, auth } from "../config/firebase";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import * as Crypto from "expo-crypto";

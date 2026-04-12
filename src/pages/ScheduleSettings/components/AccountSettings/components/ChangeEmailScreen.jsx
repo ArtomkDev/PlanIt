@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { reauthenticateWithCredential, EmailAuthProvider, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
-import { db, auth } from '../../../../../../firebase';
+import { db, auth } from '../../../../../config/firebase';
 import { useSchedule } from '../../../../../context/ScheduleProvider';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';

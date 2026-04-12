@@ -16,7 +16,7 @@ import {
 } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { auth } from '../../firebase'; 
+import { auth } from '../config/firebase'; 
 import SocialAuthButtons from './components/SocialAuthButtons';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
 import useAppLanguage from '../hooks/useAppLanguage';

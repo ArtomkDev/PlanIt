@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useNavigation } from '@react-navigation/native';
 import { reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
 
-import { auth } from '../../../../../../firebase';
+import { auth } from '../../../../../config/firebase';
 import { useSchedule } from '../../../../../context/ScheduleProvider';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';

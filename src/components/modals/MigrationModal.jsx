@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 
-import { db } from '../../../firebase';
+import { db } from '../../config/firebase';
 import createDefaultData from '../../config/createDefaultData';
 import { generateId } from '../../utils/idGenerator';
 import { useSchedule } from '../../context/ScheduleProvider';
