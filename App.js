@@ -11,17 +11,17 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { auth } from "./firebase";
-import { trackScreenView } from "./src/utils/analytics";
+import { trackScreenView } from "./src/utils/analytics/analytics";
 
 import AuthScreen from "./src/auth/AuthScreen"; 
-import MainLayout from "./src/pages/MainLayout";
+import MainLayout from "./src/layouts/MainLayout";
 import { ScheduleProvider } from "./src/context/ScheduleProvider";
 import { EditorProvider } from "./src/context/EditorProvider";
 import { registerDevice, listenForDeviceRemoval } from "./src/utils/deviceService";
 import { setManualLogin } from "./src/utils/authFlags";
 import useAppLanguage from './src/hooks/useAppLanguage';
 import { t } from './src/utils/i18n';
-import { initAds } from './src/utils/adInit';
+import { initAds } from './src/utils/adInit/adInit';
 
 SplashScreen.preventAutoHideAsync();
 initAds();

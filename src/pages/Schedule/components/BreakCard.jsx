@@ -10,7 +10,7 @@ import Animated, {
     runOnJS 
 } from "react-native-reanimated";
 import { t } from "../../../utils/i18n";
-import GradientBackground from "../../../components/GradientBackground";
+import GradientBackground from "../../../components/ui/GradientBackground";
 
 function getDiffMinutes(start, end) {
     if (!start || !end) return 0;

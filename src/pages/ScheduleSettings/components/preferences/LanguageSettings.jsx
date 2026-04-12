@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, FlatList, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSchedule } from "../../../context/ScheduleProvider";
-import themes from "../../../config/themes";
-import SettingsScreenLayout from "../SettingsScreenLayout";
-import { t, SUPPORTED_LANGUAGES } from "../../../utils/i18n";
+import { useSchedule } from "../../../../context/ScheduleProvider";
+import themes from "../../../../config/themes";
+import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
+import { t, SUPPORTED_LANGUAGES } from "../../../../utils/i18n";
 
 const LanguageSettings = () => {
   const { global, setGlobalDraft, saveNow, isDirty , lang} = useSchedule();

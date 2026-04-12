@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import ColorGrid from "../ui/ColorGrid";
 import GradientGrid from "../ui/GradientGrid";
-import TabSwitcher from "../../../../../components/TabSwitcher";
+import TabSwitcher from "../../../../../components/ui/TabSwitcher";
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 

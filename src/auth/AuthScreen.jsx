@@ -21,7 +21,7 @@ import SocialAuthButtons from './components/SocialAuthButtons';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
 import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
-import MorphingLoader from '../components/MorphingLoader';
+import MorphingLoader from '../components/ui/MorphingLoader';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);

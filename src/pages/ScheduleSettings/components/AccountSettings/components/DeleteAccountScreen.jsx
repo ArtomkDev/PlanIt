@@ -3,13 +3,13 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useNavigation } from '@react-navigation/native';
 import { reauthenticateWithCredential, EmailAuthProvider, deleteUser } from 'firebase/auth';
 
-import { auth } from '../../../../../firebase';
-import { deleteAllUserData, setAccountBeingDeleted } from '../../../../../firestore';
-import { setIgnoreDeviceRemoval } from '../../../../utils/deviceService';
-import { useSchedule } from '../../../../context/ScheduleProvider';
-import themes from '../../../../config/themes';
-import { t } from '../../../../utils/i18n';
-import SettingsScreenLayout from '../../SettingsScreenLayout';
+import { auth } from '../../../../../../firebase';
+import { deleteAllUserData, setAccountBeingDeleted } from '../../../../../../firestore';
+import { setIgnoreDeviceRemoval } from '../../../../../utils/deviceService';
+import { useSchedule } from '../../../../../context/ScheduleProvider';
+import themes from '../../../../../config/themes';
+import { t } from '../../../../../utils/i18n';
+import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
 
 export default function DeleteAccountScreen() {
   const { global, lang} = useSchedule();

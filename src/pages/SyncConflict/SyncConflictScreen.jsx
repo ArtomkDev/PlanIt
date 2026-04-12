@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GitBranch, Smartphone, CloudDownload, CopyPlus, ChevronRight } from 'lucide-react-native';
-import useSystemThemeColors from '../hooks/useSystemThemeColors';
-import AppBlur from './AppBlur';
-import { t } from '../utils/i18n';
+import useSystemThemeColors from '../../hooks/useSystemThemeColors';
+import AppBlur from '../../components/ui/AppBlur';
+import { t } from '../../utils/i18n';
 
 export default function SyncConflictScreen({ 
   conflictQueue, 

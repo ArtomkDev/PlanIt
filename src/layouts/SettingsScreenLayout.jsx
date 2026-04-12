@@ -2,10 +2,10 @@ import React, { useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSchedule } from '../../context/ScheduleProvider';
-import themes from '../../config/themes';
-import SettingsHeader from '../../components/SettingsHeader';
-import { t } from '../../utils/i18n';
+import { useSchedule } from '../context/ScheduleProvider';
+import themes from '../config/themes';
+import SettingsHeader from '../components/ui/SettingsHeader';
+import { t } from '../utils/i18n';
 
 export default function SettingsScreenLayout({ children, contentContainerStyle }) {
   const { global , lang, tabBarHeight } = useSchedule();

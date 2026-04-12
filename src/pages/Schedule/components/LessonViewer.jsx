@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
-import GradientBackground from "../../../components/GradientBackground";
+import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { t } from "../../../utils/i18n";
 

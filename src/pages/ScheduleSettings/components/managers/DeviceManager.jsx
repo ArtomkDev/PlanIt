@@ -18,13 +18,13 @@ import {
   removeDevice,
   removeAllOtherDevices,
   getDeviceId,
-} from "../../../utils/deviceService";
-import { useSchedule } from "../../../context/ScheduleProvider";
-import SettingsScreenLayout from "../SettingsScreenLayout";
-import { db } from "../../../../firebase";
+} from "../../../../utils/deviceService";
+import { useSchedule } from "../../../../context/ScheduleProvider";
+import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
+import { db } from "../../../../../firebase";
 import { collection, onSnapshot } from "firebase/firestore";
-import themes from "../../../config/themes";
-import { t } from "../../../utils/i18n";
+import themes from "../../../../config/themes";
+import { t } from "../../../../utils/i18n";
 
 export default function DeviceManager() {
   const { user, global , lang} = useSchedule();

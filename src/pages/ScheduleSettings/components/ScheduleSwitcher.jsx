@@ -17,11 +17,11 @@ import Animated, {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useSchedule } from "../../../context/ScheduleProvider";
-import SettingsScreenLayout from "../SettingsScreenLayout";
+import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import themes from "../../../config/themes"; 
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
-import TabSwitcher from "../../../components/TabSwitcher"; // ОНОВЛЕНИЙ ШЛЯХ
+import TabSwitcher from "../../../components/ui/TabSwitcher"; // ОНОВЛЕНИЙ ШЛЯХ
 
 const ScheduleSwitcher = () => {
   const { 

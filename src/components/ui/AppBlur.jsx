@@ -2,8 +2,8 @@ import React from "react";
 import { View, Platform, StyleSheet } from "react-native";
 import { BlurView } from "expo-blur";
 import { useNavigationState } from "@react-navigation/native";
-import { useSchedule } from "../context/ScheduleProvider";
-import themes from "../config/themes";
+import { useSchedule } from "../../context/ScheduleProvider";
+import themes from "../../config/themes";
 
 export default function AppBlur({ style, intensity = 80, children }) {
   const { global , lang} = useSchedule();

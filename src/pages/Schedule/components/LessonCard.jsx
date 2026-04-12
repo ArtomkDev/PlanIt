@@ -5,7 +5,7 @@ import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
 import themes from "../../../config/themes";
-import GradientBackground from "../../../components/GradientBackground";
+import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 
 const CELL_SIZE = 38;

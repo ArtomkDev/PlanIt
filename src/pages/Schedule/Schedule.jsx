@@ -8,8 +8,8 @@ import WeekStrip from "./components/WeekStrip";
 import DaySchedule from "./components/DaySchedule";
 import LessonEditor from "./components/LessonEditor";
 import LessonViewer from "./components/LessonViewer";
-import CalendarSheet from "./components/CalendarSheet/CalendarSheet";
-import AppBlur from "../../components/AppBlur";
+import CalendarSheet from "../../components/CalendarSheet/CalendarSheet";
+import AppBlur from "../../components/ui/AppBlur";
 
 import { DayScheduleProvider } from "../../context/DayScheduleProvider";
 import { useSchedule } from "../../context/ScheduleProvider";

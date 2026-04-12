@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Keyboard } from
 import Slider from "@react-native-assets/slider";
 import { LinearGradient } from "expo-linear-gradient";
 import tinycolor from "tinycolor2";
-import GradientBackground from "../../../../../components/GradientBackground";
-import TabSwitcher from "../../../../../components/TabSwitcher";
+import GradientBackground from "../../../../../components/ui/GradientBackground";
+import TabSwitcher from "../../../../../components/ui/TabSwitcher";
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 

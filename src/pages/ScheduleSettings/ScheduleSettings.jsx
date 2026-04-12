@@ -7,9 +7,9 @@ import Constants from 'expo-constants';
 
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
-import SettingsHeader from '../../components/SettingsHeader';
+import SettingsHeader from '../../components/ui/SettingsHeader';
 import { t } from '../../utils/i18n';
-import MorphingLoader from '../../components/MorphingLoader';
+import MorphingLoader from '../../components/ui/MorphingLoader';
 
 export default function ScheduleSettings({ guest, onExitGuest }) {
   const navigation = useNavigation();

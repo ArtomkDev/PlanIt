@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManage
 import DateTimePicker from '@react-native-community/datetimepicker';
 import SettingRow from "../ui/SettingRow"; 
 import Group from "../ui/Group";
-import GradientBackground from "../../../../../components/GradientBackground";
+import GradientBackground from "../../../../../components/ui/GradientBackground";
 import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons"; 
 import { useSchedule } from "../../../../../context/ScheduleProvider";

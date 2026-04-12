@@ -10,7 +10,7 @@ import {
 import { Swipeable } from 'react-native-gesture-handler'
 import { useSchedule } from '../../../context/ScheduleProvider'
 import themes from '../../../config/themes'
-import SettingsScreenLayout from '../SettingsScreenLayout'
+import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout'
 import { Ionicons } from '@expo/vector-icons'
 
 export default function ScheduleManager() {

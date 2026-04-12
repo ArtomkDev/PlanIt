@@ -3,10 +3,10 @@ import { View, Button, Platform, StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { useSchedule } from '../../../context/ScheduleProvider';
-import themes from '../../../config/themes';
-import SettingsScreenLayout from '../SettingsScreenLayout';
-import { t } from '../../../utils/i18n';
+import { useSchedule } from '../../../../context/ScheduleProvider';
+import themes from '../../../../config/themes';
+import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
+import { t } from '../../../../utils/i18n';
 
 export default function StartWeekScreen() {
   const { global, schedule, setScheduleDraft , lang} = useSchedule();

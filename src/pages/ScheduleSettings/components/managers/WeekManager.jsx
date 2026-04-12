@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSchedule } from '../../../context/ScheduleProvider';
-import themes from '../../../config/themes';
-import SettingsScreenLayout from '../SettingsScreenLayout';
-import { t } from '../../../utils/i18n';
+import { useSchedule } from '../../../../context/ScheduleProvider';
+import themes from '../../../../config/themes';
+import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
+import { t } from '../../../../utils/i18n';
 
 export default function WeekManager() {
   const { global, schedule, setScheduleDraft , lang} = useSchedule();

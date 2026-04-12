@@ -15,8 +15,8 @@ import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
 import { SUBJECT_ICONS } from "../../../config/subjectIcons"; 
 
-import BottomSheet from "../../../components/BottomSheet";
-import AppBlur from "../../../components/AppBlur";
+import BottomSheet from "../../../components/ui/BottomSheet";
+import AppBlur from "../../../components/ui/AppBlur";
 
 import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
 import LessonEditorSubjectColorScreen from "./LessonEditor/screens/ColorScreen";
@@ -26,7 +26,7 @@ import LessonEditorInputScreen from "./LessonEditor/screens/InputScreen";
 
 import TeacherEditor from "./LessonEditor/forms/TeacherForm";
 import LinkEditor from "./LessonEditor/forms/LinkForm";
-import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
+import AdvancedColorPicker from "../../../components/ui/AdvancedColorPicker";
 
 import { t } from "../../../utils/i18n";
 

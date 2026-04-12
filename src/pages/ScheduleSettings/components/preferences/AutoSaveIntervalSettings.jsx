@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSchedule } from "../../../context/ScheduleProvider";
-import SettingsScreenLayout from "../SettingsScreenLayout";
-import themes from '../../../config/themes';
-import { t } from '../../../utils/i18n';
+import { useSchedule } from "../../../../context/ScheduleProvider";
+import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
+import themes from '../../../../config/themes';
+import { t } from '../../../../utils/i18n';
 
 const AutoSaveIntervalSettings = () => {
   const { global, setGlobalDraft , lang} = useSchedule();

@@ -20,11 +20,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
-import SettingsHeader from '../../../components/SettingsHeader';
-import TabSwitcher from '../../../components/TabSwitcher';
+import SettingsHeader from '../../../components/ui/SettingsHeader';
+import TabSwitcher from '../../../components/ui/TabSwitcher';
 import { generateId } from '../../../utils/idGenerator';
 import CalendarSheet from '../../../components/CalendarSheet/CalendarSheet';
-import ExpandableCard from '../../../components/ExpandableCard';
+import ExpandableCard from '../../../components/ui/ExpandableCard';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);

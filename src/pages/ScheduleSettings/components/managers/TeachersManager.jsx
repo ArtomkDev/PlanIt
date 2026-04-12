@@ -8,10 +8,10 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSchedule } from "../../../context/ScheduleProvider";
-import themes from "../../../config/themes";
-import SettingsScreenLayout from "../SettingsScreenLayout";
-import useUniqueId from "../../../hooks/useUniqueId";
+import { useSchedule } from "../../../../context/ScheduleProvider";
+import themes from "../../../../config/themes";
+import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
+import useUniqueId from "../../../../hooks/useUniqueId";
 
 export default function TeachersManager() {
   const { global, schedule, setScheduleDraft , lang} = useSchedule();

@@ -10,10 +10,10 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import themes from "../../../config/themes";
-import { useSchedule } from "../../../context/ScheduleProvider";
-import SettingsScreenLayout from "../SettingsScreenLayout";
-import useUniqueId from "../../../hooks/useUniqueId"; // ⬅️ новий хук
+import themes from "../../../../config/themes";
+import { useSchedule } from "../../../../context/ScheduleProvider";
+import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
+import useUniqueId from "../../../../hooks/useUniqueId"; // ⬅️ новий хук
 
 export default function SubjectsManager() {
   const { global, schedule, setScheduleDraft, isLoading , lang} = useSchedule();

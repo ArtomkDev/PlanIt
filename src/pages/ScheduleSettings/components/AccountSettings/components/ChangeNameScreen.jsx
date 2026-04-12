@@ -3,11 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useNavigation } from '@react-navigation/native';
 import { updateProfile } from 'firebase/auth';
 
-import { auth } from '../../../../../firebase';
-import { useSchedule } from '../../../../context/ScheduleProvider';
-import themes from '../../../../config/themes';
-import SettingsScreenLayout from '../../SettingsScreenLayout';
-import { t } from '../../../../utils/i18n';
+import { auth } from '../../../../../../firebase';
+import { useSchedule } from '../../../../../context/ScheduleProvider';
+import themes from '../../../../../config/themes';
+import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
+import { t } from '../../../../../utils/i18n';
 
 export default function ChangeNameScreen() {
   const { global, lang } = useSchedule();

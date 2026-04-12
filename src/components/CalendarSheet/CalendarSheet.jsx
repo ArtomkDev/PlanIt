@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 
-import AppBlur from '../AppBlur';
+import AppBlur from '../ui/AppBlur';
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import { useCalendarLogic } from './useCalendarLogic';

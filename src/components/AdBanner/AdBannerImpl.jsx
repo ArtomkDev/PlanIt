@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
-import { AD_UNITS } from '../config/ads';
+import { AD_UNITS } from '../../config/ads';
 
 export default function AdBannerImpl() {
   return (

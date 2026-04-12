@@ -2,17 +2,17 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 
-import AutoSaveManager from '../components/AutoSaveManager';
-import TabNavigator from '../Navigation/TabNavigator';
+import AutoSaveManager from '../services/AutoSaveManager';
+import TabNavigator from '../navigation/TabNavigator';
 import { useSchedule } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import { t } from '../utils/i18n';
-import MigrationModal from '../components/MigrationModal';
-import AppBlur from '../components/AppBlur';
-import MorphingLoader from '../components/MorphingLoader';
+import MigrationModal from '../components/modals/MigrationModal';
+import AppBlur from '../components/ui/AppBlur';
+import MorphingLoader from '../components/ui/MorphingLoader';
 
-import SyncConflictScreen from '../components/SyncConflictScreen';
-import AdBanner from '../components/AdBanner';
+import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
+import AdBanner from '../components/AdBanner/AdBanner';
 
 export default function MainLayout({ guest, onExitGuest }) {
   const {

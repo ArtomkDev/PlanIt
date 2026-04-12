@@ -7,13 +7,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 
-import { db } from '../../firebase';
-import createDefaultData from '../config/createDefaultData';
-import { generateId } from '../utils/idGenerator';
-import { useSchedule } from '../context/ScheduleProvider';
-import themes from '../config/themes';
-import { t } from '../utils/i18n';
-import MorphingLoader from './MorphingLoader';
+import { db } from '../../../firebase';
+import createDefaultData from '../../config/createDefaultData';
+import { generateId } from '../../utils/idGenerator';
+import { useSchedule } from '../../context/ScheduleProvider';
+import themes from '../../config/themes';
+import { t } from '../../utils/i18n';
+import MorphingLoader from '../ui/MorphingLoader';
 
 const LOCAL_KEY = 'guest_schedule';
 

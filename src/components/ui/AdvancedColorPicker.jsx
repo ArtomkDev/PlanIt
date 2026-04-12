@@ -7,7 +7,6 @@ const HUE_COLORS = [
   '#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000'
 ];
 
-// Розміри індикатора для Hue
 const HUE_INDICATOR_WIDTH = 40;
 const HUE_INDICATOR_HEIGHT = 32;
 
@@ -18,12 +17,10 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
   const [pickerSize, setPickerSize] = useState({ width: 0, height: 0 });
   const [hueSliderWidth, setHueSliderWidth] = useState(0);
 
-  // Refs для жестів та актуального стану (щоб не було лагів через ре-рендер)
   const satValStart = useRef({ x: 0, y: 0 });
   const hueStart = useRef(0);
   const hsvRef = useRef(hsv);
 
-  // Оновлюємо ref при зміні hsv, щоб PanResponder мав доступ до свіжих даних
   useEffect(() => {
     hsvRef.current = hsv;
   }, [hsv]);
@@ -53,7 +50,6 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
     onSave(tinycolor(hsv).toHexString());
   };
 
-  // --- Saturation / Value Logic ---
   const updateSatVal = (x, y) => {
     if (pickerSize.width <= 0 || pickerSize.height <= 0) return;
     const clampedX = Math.max(0, Math.min(x, pickerSize.width));
@@ -67,8 +63,6 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt) => {
-      // При натисканні беремо ПОТОЧНУ позицію з hsvRef, а не з події
-      // Це гарантує, що ми починаємо тягнути з того місця, де зараз крапка
       const { s, v } = hsvRef.current;
       const currentX = s * pickerSize.width;
       const currentY = (1 - v) * pickerSize.height;
@@ -76,15 +70,13 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
       satValStart.current = { x: currentX, y: currentY };
     },
     onPanResponderMove: (evt, gestureState) => {
-      // Додаємо зміщення до початкової точки
       const x = satValStart.current.x + gestureState.dx;
       const y = satValStart.current.y + gestureState.dy;
       updateSatVal(x, y);
     },
     onPanResponderTerminationRequest: () => false,
-  }), [pickerSize]); // Залежність тільки від розміру, а не від hsv!
+  }), [pickerSize]);
 
-  // --- Hue Logic ---
   const updateHue = (x) => {
     if (hueSliderWidth <= 0) return;
     const clampedX = Math.max(0, Math.min(x, hueSliderWidth));
@@ -96,7 +88,6 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt) => {
-      // Те саме для Hue: стартуємо з поточної позиції повзунка
       const { h } = hsvRef.current;
       const currentX = (h / 360) * hueSliderWidth;
       
@@ -107,9 +98,8 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
       updateHue(x);
     },
     onPanResponderTerminationRequest: () => false,
-  }), [hueSliderWidth]); // Залежність тільки від ширини
+  }), [hueSliderWidth]);
 
-  // Позиції індикаторів для рендеру
   const pickerIndicatorPosition = { 
     top: (1 - hsv.v) * pickerSize.height - 10, 
     left: hsv.s * pickerSize.width - 10 
@@ -165,7 +155,6 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
               )}
             </View>
 
-            {/* HUE SLIDER */}
             <View 
                 onLayout={(e) => setHueSliderWidth(e.nativeEvent.layout.width)} 
                 {...huePanResponder.panHandlers} 
@@ -253,8 +242,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2, 
     shadowOffset: { width: 0, height: 1 } 
   },
-  
-  // --- Стилі для Hue Slider ---
   hueSliderContainer: { 
     height: 50, 
     marginTop: 10, 

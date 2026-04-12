@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSchedule } from '../../../context/ScheduleProvider';
-import SettingsScreenLayout from '../SettingsScreenLayout';
+import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 

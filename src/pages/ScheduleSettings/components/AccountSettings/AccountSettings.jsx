@@ -5,13 +5,13 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth';
 import Constants from 'expo-constants';
 
-import { auth } from '../../../../firebase';
-import { useSchedule } from '../../../context/ScheduleProvider';
-import themes from '../../../config/themes';
-import { t } from '../../../utils/i18n';
-import MorphingLoader from '../../../components/MorphingLoader';
-import SettingsScreenLayout from '../SettingsScreenLayout';
-import { getLinkedProviders, unlinkProvider, linkGoogleAccount, linkAppleAccount } from '../../../auth/authServices';
+import { auth } from '../../../../../firebase';
+import { useSchedule } from '../../../../context/ScheduleProvider';
+import themes from '../../../../config/themes';
+import { t } from '../../../../utils/i18n';
+import MorphingLoader from '../../../../components/ui/MorphingLoader';
+import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
+import { getLinkedProviders, unlinkProvider, linkGoogleAccount, linkAppleAccount } from '../../../../auth/authServices';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 

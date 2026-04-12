@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
-import { triggerLightHaptic } from "../utils/haptics";
+import { triggerLightHaptic } from "../../utils/haptics";
 
 export default function TabSwitcher({
   tabs,

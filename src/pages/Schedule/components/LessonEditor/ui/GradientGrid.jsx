@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from "react-native";
-import GradientBackground from "../../../../../components/GradientBackground";
+import GradientBackground from "../../../../../components/ui/GradientBackground";
 
 export default function GradientGrid({ gradients, selected, onSelect, onEdit, onAddGradient, themeColors }) {
   return (

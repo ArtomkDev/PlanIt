@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Switch, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import themes from "../../../config/themes";
-import { useSchedule } from "../../../context/ScheduleProvider";
-import SettingsScreenLayout from "../SettingsScreenLayout";
-import AdvancedColorPicker from "../../../components/AdvancedColorPicker";
-import { t } from "../../../utils/i18n";
+import themes from "../../../../config/themes";
+import { useSchedule } from "../../../../context/ScheduleProvider";
+import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
+import AdvancedColorPicker from "../../../../components/ui/AdvancedColorPicker";
+import { t } from "../../../../utils/i18n";
 
 const ThemeSettings = () => {
   const { global, setGlobalDraft , lang} = useSchedule();
