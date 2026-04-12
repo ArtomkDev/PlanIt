@@ -1,269 +1,473 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   View, 
   Text, 
-  TextInput, 
+  StyleSheet, 
   TouchableOpacity, 
-  StyleSheet,
+  Animated, 
+  TextInput,
   KeyboardAvoidingView,
-  ScrollView,
   Platform,
-  Keyboard,
   LayoutAnimation,
-  UIManager
-} from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useSchedule } from "../../../context/ScheduleProvider";
-import useUniqueId from "../../../hooks/useUniqueId";
-import defaultSchedule from "../../../config/defaultSchedule";
-import themes from "../../../config/themes";
-import { t } from "../../../utils/i18n";
+  UIManager,
+  useWindowDimensions
+} from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+import { useSchedule } from '../../../context/ScheduleProvider';
+import themes from '../../../config/themes';
+import { t } from '../../../utils/i18n';
+import SettingsHeader from '../../../components/SettingsHeader';
+import TabSwitcher from '../../../components/TabSwitcher';
+import { generateId } from '../../../utils/idGenerator';
+import CalendarSheet from '../../../components/CalendarSheet/CalendarSheet';
+import ExpandableCard from '../../../components/ExpandableCard';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const ScheduleEditorScreen = () => {
+export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const { isNew, scheduleId } = route.params || {};
+  const { height: screenHeight } = useWindowDimensions();
   
-  const { global, schedules, addSchedule, setData, setGlobalDraft , lang} = useSchedule();
-  const generateId = useUniqueId();
+  const params = route.params || propsRoute?.params || {};
+  const { scheduleId, isInitialSetup, isNew } = params;
 
+  const { global, schedules, schedule: currentActiveSchedule, setData, setGlobalDraft, addSchedule, lang, tabBarHeight } = useSchedule();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
+  const targetSchedule = useMemo(() => {
+    if (isNew) return null;
+    return schedules.find(s => s.id === scheduleId) || currentActiveSchedule;
+  }, [schedules, scheduleId, currentActiveSchedule, isNew]);
 
-  const [name, setName] = useState("");
-  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [localData, setLocalData] = useState({
+    id: targetSchedule?.id || generateId(),
+    name: targetSchedule?.name || "",
+    repeat: String(targetSchedule?.repeat || 1),
+    start_time: targetSchedule?.start_time || "08:30",
+    duration: String(targetSchedule?.duration || "45"),
+    breaks: targetSchedule?.breaks?.map(String) || ["10", "10", "10", "10", "10"],
+    starting_week: targetSchedule?.starting_week || new Date().toISOString(),
+  });
 
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const currentScrollY = useRef(0);
+  const scrollViewRef = useRef(null);
+  const headerHeight = 60 + insets.top;
+  const baseBottomPadding = (tabBarHeight || 80) + insets.bottom + 16;
 
-    const showSub = Keyboard.addListener(showEvent, () => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setKeyboardVisible(true);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setKeyboardVisible(false);
-    });
+  const sectionYs = useRef({});
+  const cardYs = useRef({});
 
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const [isCalendarVisible, setCalendarVisible] = useState(false);
+  
+  const [isWeeksExpanded, setIsWeeksExpanded] = useState(false);
+  const [isDurationExpanded, setIsDurationExpanded] = useState(false);
+  const [isTimeExpanded, setIsTimeExpanded] = useState(false);
+  const [isBreaksExpanded, setIsBreaksExpanded] = useState(false);
 
-  useEffect(() => {
-    if (!isNew && scheduleId) {
-      const existing = schedules.find(s => s.id === scheduleId);
-      if (existing) setName(existing.name || "");
+  const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded;
+  const finalBottomPadding = baseBottomPadding + (isAnyExpanded ? screenHeight * 0.5 : 0);
+
+  const scrollToElement = (section, card, yOffset = 0, delay = 150) => {
+    setTimeout(() => {
+      const sY = sectionYs.current[section] || 0;
+      const cY = cardYs.current[card] || 0;
+      const targetY = sY + cY + yOffset - headerHeight - 100; 
+      
+      if (scrollViewRef.current) {
+        const scrollNode = scrollViewRef.current.scrollTo ? scrollViewRef.current : scrollViewRef.current.getNode?.();
+        scrollNode?.scrollTo({ y: Math.max(0, targetY), animated: true });
+      }
+    }, delay);
+  };
+
+  const toggleWeeksExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    const willExpand = !isWeeksExpanded;
+    setIsWeeksExpanded(willExpand);
+    if (willExpand) {
+      setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false);
+      scrollToElement('general', 'weeks', 0, 150);
     }
-  }, [isNew, scheduleId, schedules]);
+  };
 
-  const handleSave = () => {
-    const trimmedName = name.trim();
-    if (!trimmedName) return;
+  const toggleDurationExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    const willExpand = !isDurationExpanded;
+    setIsDurationExpanded(willExpand);
+    if (willExpand) {
+      setIsWeeksExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false);
+      scrollToElement('time', 'duration', 0, 150);
+    }
+  };
+
+  const toggleTimeExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    const willExpand = !isTimeExpanded;
+    setIsTimeExpanded(willExpand);
+    if (willExpand) {
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsBreaksExpanded(false);
+      scrollToElement('time', 'startTime', 0, 150);
+    }
+  };
+
+  const toggleBreaksExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    const willExpand = !isBreaksExpanded;
+    setIsBreaksExpanded(willExpand);
+    if (willExpand) {
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false);
+      scrollToElement('time', 'breaks', 0, 150);
+    }
+  };
+
+  const handleBreakChange = (text, index) => {
+    const numeric = text.replace(/[^0-9]/g, '');
+    setLocalData(prev => {
+      const newBreaks = [...prev.breaks];
+      newBreaks[index] = numeric;
+      return { ...prev, breaks: newBreaks };
+    });
+  };
+
+  const handleAddBreak = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    setLocalData(prev => {
+      const nextBreaks = [...prev.breaks, "10"];
+      
+      setTimeout(() => {
+        const sY = sectionYs.current['time'] || 0;
+        const cY = cardYs.current['breaks'] || 0;
+        const buttonBottomY = sY + cY + 60 + (nextBreaks.length * 60) + 80; 
+        const visibleBottom = currentScrollY.current + screenHeight - baseBottomPadding;
+        
+        if (buttonBottomY > visibleBottom) {
+          const scrollNode = scrollViewRef.current?.scrollTo ? scrollViewRef.current : scrollViewRef.current?.getNode?.();
+          scrollNode?.scrollTo({ y: currentScrollY.current + 80, animated: true });
+        }
+      }, 50);
+
+      return { ...prev, breaks: nextBreaks };
+    });
+  };
+
+  const handleRemoveBreak = (index) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    setLocalData(prev => ({ ...prev, breaks: prev.breaks.filter((_, i) => i !== index) }));
+  };
+
+  const handleFinalSave = () => {
+    const finalName = localData.name?.trim() || t('settings.schedule_editor.schedule_name', lang);
+    const finalRepeat = Math.max(1, Number(localData.repeat) || 1);
+    const finalBreaks = localData.breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b));
+
+    const scheduleData = { 
+      ...targetSchedule, 
+      ...localData, 
+      name: finalName, 
+      repeat: finalRepeat,
+      duration: Number(localData.duration) || 45,
+      breaks: finalBreaks
+    };
 
     if (isNew) {
-      const newId = generateId();
-      addSchedule({
-        ...defaultSchedule,
-        id: newId,
-        name: trimmedName,
-      });
-      setGlobalDraft((prev) => ({
-        ...prev,
-        currentScheduleId: newId,
-      }));
+      addSchedule(scheduleData);
+      setGlobalDraft(prev => ({ ...prev, currentScheduleId: scheduleData.id }));
     } else {
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
-        const nextSchedules = prev.schedules.map((s) => 
-          s.id === scheduleId ? { ...s, name: trimmedName, lastModified: Date.now() } : s
+        const nextSchedules = prev.schedules.map(s => 
+          s.id === scheduleData.id ? { ...s, ...scheduleData, lastModified: Date.now() } : s
         );
         return { ...prev, schedules: nextSchedules };
       });
-      
       setGlobalDraft(prev => prev);
     }
-
-    navigation.goBack();
+    
+    if (isInitialSetup && onFinish) onFinish();
+    else if (navigation.canGoBack()) navigation.goBack();
   };
 
-  const isFormValid = name.trim().length > 0;
+  const timeValue = localData.start_time || "08:30";
+  const [hours, minutes] = timeValue.split(":").map(Number);
+  const timeDate = new Date();
+  timeDate.setHours(isNaN(hours) ? 8 : hours, isNaN(minutes) ? 30 : minutes, 0, 0);
 
-  const tabBarHeightOffset = 50 + insets.bottom + 20;
-  const footerPaddingBottom = isKeyboardVisible ? (Platform.OS === 'ios' ? 12 : 20) : tabBarHeightOffset;
+  const displayTitle = isNew ? t('settings.schedule_switcher.add_new', lang) : (targetSchedule?.name || t('settings.schedule_editor.edit_schedule', lang));
+  const isCustomRepeat = !['1', '2', '3', '4'].includes(String(localData.repeat));
+  const isCustomDuration = !['45', '60', '80', '90'].includes(String(localData.duration));
+  const isSingleWeek = Number(localData.repeat) <= 1;
+
+  const startDateObj = new Date(localData.starting_week);
+  const dayOfWeek = startDateObj.toLocaleDateString(lang, { weekday: 'long' });
+  const formattedDate = startDateObj.toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' });
+  const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+
+  const saveButtonElement = (
+    <TouchableOpacity onPress={handleFinalSave} style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
+      <Text style={{ color: themeColors.accentColor, fontSize: 17, fontWeight: '600' }}>
+        {isInitialSetup ? t('common.done', lang) : t('common.save', lang)}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={[styles.mainContainer, { backgroundColor: themeColors.backgroundColor, paddingTop: insets.top }]}>
-      
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={15}>
-          <Ionicons name="chevron-back" size={28} color={themeColors.accentColor} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>
-          {isNew ? t('settings.schedule_editor.new_schedule', lang) : t('settings.schedule_editor.edit_schedule', lang)}
-        </Text>
-        <View style={styles.backButton} />
-      </View>
-
+    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
+        <SettingsHeader title={displayTitle} scrollY={scrollY} showBackButton={!isInitialSetup} rightButton={saveButtonElement} />
+        
+        <Animated.ScrollView 
+          ref={scrollViewRef}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 10, paddingBottom: finalBottomPadding }]} 
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }], 
+            { 
+              useNativeDriver: true,
+              listener: (event) => {
+                currentScrollY.current = event.nativeEvent.contentOffset.y;
+              }
+            }
+          )} 
+          scrollEventThrottle={16}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          bounces={false}
         >
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: themeColors.textColor2 }]}>
-              {t('settings.schedule_editor.schedule_name', lang)}
-            </Text>
-            <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
-              <Ionicons name="calendar-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, { color: themeColors.textColor }]}
-                placeholder={t('settings.schedule_editor.enter_name', lang)}
-                placeholderTextColor={themeColors.textColor2 + '80'}
-                value={name}
-                onChangeText={setName}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleSave}
+          <View style={styles.section} onLayout={e => sectionYs.current['general'] = e.nativeEvent.layout.y}>
+            <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>{t('settings.sections.general', lang)}</Text>
+            
+            <View 
+              style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor, marginBottom: 12 }]}
+              onLayout={e => cardYs.current['name'] = e.nativeEvent.layout.y}
+            >
+              <TextInput 
+                style={[styles.input, { color: themeColors.textColor }]} 
+                value={localData.name} 
+                onChangeText={(text) => setLocalData(prev => ({ ...prev, name: text }))} 
+                placeholder={t('settings.schedule_editor.enter_name', lang)} 
+                placeholderTextColor={themeColors.textColor2} 
+                returnKeyType="done" 
+                maxLength={40} 
+                onFocus={() => scrollToElement('general', 'name', 0, 300)}
               />
+            </View>
+
+            <View onLayout={e => cardYs.current['weeks'] = e.nativeEvent.layout.y}>
+              <ExpandableCard
+                title={t('settings.menu.weeks.title', lang)}
+                value={localData.repeat}
+                icon="layers-outline"
+                themeColors={themeColors}
+                isExpanded={isWeeksExpanded}
+                onToggle={toggleWeeksExpand}
+              >
+                <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+                  <TabSwitcher 
+                    tabs={[
+                      { id: '1', label: '1' }, 
+                      { id: '2', label: '2' }, 
+                      { id: '3', label: '3' }, 
+                      { id: '4', label: '4' }
+                    ]} 
+                    activeTab={String(localData.repeat)} 
+                    onTabPress={(id) => setLocalData(prev => ({ ...prev, repeat: id }))} 
+                    themeColors={themeColors} 
+                    activeTabBackgroundColor={isCustomRepeat ? 'transparent' : themeColors.accentColor}
+                    containerBackgroundColor={themeColors.backgroundColor}
+                    containerBorderColor={themeColors.borderColor}
+                  />
+                  <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor, borderColor: (isCustomRepeat && localData.repeat !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
+                    <TextInput 
+                      style={[styles.input, { color: themeColors.textColor }]} 
+                      value={isCustomRepeat ? String(localData.repeat) : ""} 
+                      onChangeText={(text) => setLocalData(prev => ({ ...prev, repeat: text.replace(/[^0-9]/g, '') }))} 
+                      placeholder={t('settings.week_manager.repeat_label', lang)} 
+                      placeholderTextColor={themeColors.textColor2} 
+                      keyboardType="number-pad" 
+                      maxLength={2} 
+                      returnKeyType="done" 
+                      onFocus={() => scrollToElement('general', 'weeks', 60, 300)}
+                    />
+                  </View>
+                  
+                  <View style={{ marginTop: 24, opacity: isSingleWeek ? 0.5 : 1 }}>
+                    <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>{t('settings.menu.start_date.title', lang)}</Text>
+                    <TouchableOpacity style={[styles.dateCard, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.borderColor }]} onPress={() => setCalendarVisible(true)} activeOpacity={0.7}>
+                      <View style={[styles.dateCardIcon, { backgroundColor: themeColors.accentColor + '15' }]}><Ionicons name="calendar" size={26} color={themeColors.accentColor} /></View>
+                      <View style={styles.dateCardTextContainer}><Text style={[styles.dateCardDay, { color: themeColors.textColor }]}>{capitalizedDay}</Text><Text style={[styles.dateCardDate, { color: themeColors.textColor2 }]}>{formattedDate}</Text></View>
+                      <Ionicons name="chevron-down" size={20} color={themeColors.textColor2} style={{ opacity: 0.5 }} />
+                    </TouchableOpacity>
+                  </View>
+
+                </View>
+              </ExpandableCard>
             </View>
           </View>
 
-          <View style={{ flex: 1, minHeight: 20 }} />
+          <View style={styles.section} onLayout={e => sectionYs.current['time'] = e.nativeEvent.layout.y}>
+            <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>{t('settings.sections.time_management', lang)}</Text>
+            
+            <View onLayout={e => cardYs.current['duration'] = e.nativeEvent.layout.y}>
+              <ExpandableCard
+                title={t('settings.menu.duration.title', lang)}
+                value={`${localData.duration} ${t('schedule.main_screen.minutes', lang)}`}
+                icon="hourglass-outline"
+                themeColors={themeColors}
+                isExpanded={isDurationExpanded}
+                onToggle={toggleDurationExpand}
+              >
+                <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+                  <TabSwitcher 
+                    tabs={[
+                      { id: '45', label: '45' }, 
+                      { id: '60', label: '60' }, 
+                      { id: '80', label: '80' }, 
+                      { id: '90', label: '90' }
+                    ]} 
+                    activeTab={String(localData.duration)} 
+                    onTabPress={(id) => setLocalData(prev => ({ ...prev, duration: id }))} 
+                    themeColors={themeColors} 
+                    activeTabBackgroundColor={isCustomDuration ? 'transparent' : themeColors.accentColor} 
+                    containerBackgroundColor={themeColors.backgroundColor}
+                    containerBorderColor={themeColors.borderColor}
+                  />
+                  <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor, borderColor: (isCustomDuration && localData.duration !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
+                    <TextInput 
+                      style={[styles.input, { color: themeColors.textColor }]} 
+                      value={isCustomDuration ? String(localData.duration) : ""} 
+                      onChangeText={(text) => setLocalData(prev => ({ ...prev, duration: text.replace(/[^0-9]/g, '') }))} 
+                      placeholder={t('schedule.main_screen.duration', lang)} 
+                      placeholderTextColor={themeColors.textColor2} 
+                      keyboardType="number-pad" 
+                      maxLength={3} 
+                      returnKeyType="done" 
+                      onFocus={() => scrollToElement('time', 'duration', 60, 300)}
+                    />
+                  </View>
+                </View>
+              </ExpandableCard>
+            </View>
 
-          <View style={[styles.footer, { paddingBottom: footerPaddingBottom }]}>
-            <TouchableOpacity 
-                style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 
-                onPress={() => navigation.goBack()}
-            >
-              <Text style={[styles.buttonText, { color: themeColors.textColor }]}>
-                {t('common.cancel', lang)}
-              </Text>
-            </TouchableOpacity>
+            <View onLayout={e => cardYs.current['startTime'] = e.nativeEvent.layout.y}>
+              <ExpandableCard
+                title={t('settings.menu.start_time.title', lang)}
+                value={localData.start_time}
+                icon="time-outline"
+                themeColors={themeColors}
+                isExpanded={isTimeExpanded}
+                onToggle={toggleTimeExpand}
+                hideChevronOnAndroid={true}
+              >
+                {Platform.OS === 'android' ? (
+                  <DateTimePicker value={timeDate} mode="time" is24Hour={true} display="default" onChange={(event, date) => { setIsTimeExpanded(false); if (event.type === 'set' && date) setLocalData(prev => ({ ...prev, start_time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` })); }} />
+                ) : (
+                  <View style={[styles.timePickerContainer, { borderTopColor: themeColors.borderColor }]}>
+                    {Platform.OS !== 'web' ? (
+                      <DateTimePicker value={timeDate} mode="time" is24Hour={true} display="spinner" onChange={(event, date) => { if (date) setLocalData(prev => ({ ...prev, start_time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` })); }} textColor={themeColors.textColor} style={{ height: 160, width: '100%' }} />
+                    ) : (
+                      <View style={{ padding: 20, width: '100%', alignItems: 'center' }}>
+                        {React.createElement('input', { type: 'time', value: timeValue, onChange: (e) => setLocalData(prev => ({ ...prev, start_time: e.target.value })), style: { fontSize: 24, padding: 12, borderRadius: 12, width: '80%', textAlign: 'center', border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor } })}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </ExpandableCard>
+            </View>
 
-            <TouchableOpacity 
-                style={[
-                  styles.button, 
-                  styles.saveButton, 
-                  { 
-                    backgroundColor: isFormValid ? themeColors.accentColor : themeColors.backgroundColor2,
-                    opacity: isFormValid ? 1 : 0.6
-                  }
-                ]} 
-                onPress={handleSave}
-                disabled={!isFormValid}
-            >
-              <Text style={[
-                styles.saveButtonText, 
-                { color: isFormValid ? "#fff" : themeColors.textColor2 }
-              ]}>
-                {isNew ? t('common.create', lang) : t('common.save', lang)}
-              </Text>
-            </TouchableOpacity>
+            <View onLayout={e => cardYs.current['breaks'] = e.nativeEvent.layout.y}>
+              <ExpandableCard
+                title={t('settings.menu.breaks.title', lang)}
+                value={`${localData.breaks.length}`}
+                icon="cafe-outline"
+                themeColors={themeColors}
+                isExpanded={isBreaksExpanded}
+                onToggle={toggleBreaksExpand}
+              >
+                <View style={styles.breaksExpandedContent}>
+                  {localData.breaks.map((brk, idx) => (
+                    <View key={`break-${idx}`} style={[styles.breakRow, { borderBottomColor: themeColors.borderColor }]}>
+                      <Text style={[styles.breakRowLabel, { color: themeColors.textColor }]}>{t('schedule.day_schedule.break', lang)} {idx + 1}</Text>
+                      
+                      <View style={styles.breakActions}>
+                        <View style={[styles.breakInputWrapper, { backgroundColor: themeColors.accentColor + '15' }]}>
+                          <TextInput 
+                            style={[styles.breakRowInput, { color: themeColors.accentColor }]} 
+                            value={String(brk)} 
+                            onChangeText={(t) => handleBreakChange(t, idx)} 
+                            keyboardType="number-pad" 
+                            maxLength={3} 
+                            selectTextOnFocus 
+                            onFocus={() => scrollToElement('time', 'breaks', 60 + (idx * 56), 300)}
+                          />
+                          <Text style={[styles.breakRowMin, { color: themeColors.accentColor }]}>{t('schedule.main_screen.minutes', lang)}</Text>
+                        </View>
+
+                        {localData.breaks.length > 1 && (
+                          <TouchableOpacity 
+                            onPress={() => handleRemoveBreak(idx)} 
+                            style={styles.trashBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                  <TouchableOpacity 
+                    style={[styles.addBreakBtn, { borderColor: themeColors.accentColor, backgroundColor: themeColors.accentColor + '0A' }]} 
+                    onPress={handleAddBreak} 
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add" size={20} color={themeColors.accentColor} />
+                    <Text style={[styles.addBreakText, { color: themeColors.accentColor }]}>{t('settings.breaks_manager.add_btn', lang)}</Text>
+                  </TouchableOpacity>
+                </View>
+              </ExpandableCard>
+            </View>
+
           </View>
-
-        </ScrollView>
+        </Animated.ScrollView>
       </KeyboardAvoidingView>
+      <CalendarSheet 
+        visible={isCalendarVisible} 
+        onClose={() => setCalendarVisible(false)} 
+        currentDate={new Date(localData.starting_week)} 
+        customSchedule={{
+          ...localData,
+          repeat: Math.max(1, Number(localData.repeat) || 1)
+        }}
+        onDateSelect={(date) => { 
+          setLocalData(prev => ({ ...prev, starting_week: date.toISOString() })); 
+          setCalendarVisible(false); 
+        }} 
+      />
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
-  mainContainer: { 
-    flex: 1, 
-  },
-  header: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: 12, 
-    paddingVertical: 14 
-  },
-  backButton: { 
-    width: 40, 
-    alignItems: 'flex-start' 
-  },
-  headerTitle: { 
-    fontSize: 18, 
-    fontWeight: '700' 
-  },
-  scrollContent: { 
-    flexGrow: 1, 
-    paddingHorizontal: 16, 
-    paddingTop: 16 
-  },
-  formGroup: { 
-    marginBottom: 24 
-  },
-  label: { 
-    fontSize: 14, 
-    fontWeight: "500", 
-    marginBottom: 8, 
-    marginLeft: 4, 
-    textTransform: "uppercase", 
-    letterSpacing: 0.5 
-  },
-  inputContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    borderRadius: 14, 
-    paddingHorizontal: 14, 
-    height: 54 
-  },
-  inputIcon: { 
-    marginRight: 10 
-  },
-  input: { 
-    flex: 1, 
-    fontSize: 16, 
-    height: "100%" 
-  },
-  footer: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    gap: 12, 
-    marginTop: 20 
-  },
-  button: { 
-    flex: 1, 
-    height: 50, 
-    borderRadius: 14, 
-    alignItems: "center", 
-    justifyContent: "center" 
-  },
-  cancelButton: { 
-    borderWidth: 0 
-  },
-  saveButton: { 
-    shadowColor: "#000", 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.1, 
-    shadowRadius: 4, 
-    elevation: 2 
-  },
-  buttonText: { 
-    fontSize: 16, 
-    fontWeight: "600" 
-  },
-  saveButtonText: { 
-    fontSize: 16, 
-    fontWeight: "700" 
-  },
+const styles = StyleSheet.create({ 
+  container: { flex: 1 }, scrollContent: { padding: 16 }, section: { marginBottom: 24 }, sectionTitle: { fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 4, textTransform: 'uppercase' }, inputContainer: { height: 52, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth }, input: { fontSize: 16, fontWeight: '500', height: '100%' }, 
+  dateCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth }, dateCardIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 }, dateCardTextContainer: { flex: 1 }, dateCardDay: { fontSize: 17, fontWeight: '600', marginBottom: 2 }, dateCardDate: { fontSize: 14 }, 
+  timePickerContainer: { alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingBottom: 16, overflow: 'hidden' }, 
+  breaksExpandedContent: { paddingBottom: 4 }, 
+  breakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth }, 
+  breakRowLabel: { fontSize: 16, fontWeight: '500' }, 
+  breakActions: { flexDirection: 'row', alignItems: 'center' },
+  breakInputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 36, borderRadius: 10, marginRight: 8 }, 
+  breakRowInput: { fontSize: 16, fontWeight: '700', textAlign: 'center', minWidth: 30 }, 
+  breakRowMin: { fontSize: 14, fontWeight: '600', marginLeft: 2, opacity: 0.8 }, 
+  trashBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FF3B3015', justifyContent: 'center', alignItems: 'center' },
+  addBreakBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginHorizontal: 16, marginTop: 12, marginBottom: 8, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed' }, 
+  addBreakText: { fontSize: 15, fontWeight: '600', marginLeft: 8 }
 });
-
-export default ScheduleEditorScreen;

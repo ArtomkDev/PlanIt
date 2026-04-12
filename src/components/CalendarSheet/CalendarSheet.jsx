@@ -4,18 +4,19 @@ import {
   Animated, Dimensions, Pressable, FlatList, Platform
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
-import AppBlur from '../../../../components/AppBlur';
-import { useSchedule } from '../../../../context/ScheduleProvider';
-import themes from '../../../../config/themes';
+
+import AppBlur from '../AppBlur';
+import { useSchedule } from '../../context/ScheduleProvider';
+import themes from '../../config/themes';
 import { useCalendarLogic } from './useCalendarLogic';
 import CalendarGrid from './CalendarGrid';
-import { t } from '../../../../utils/i18n';
+import { t } from '../../utils/i18n';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CONTENT_HEIGHT = 380; 
 
-export default function CalendarSheet({ visible, onClose, onDateSelect, currentDate }) {
-  const { global, schedule , lang} = useSchedule();
+export default function CalendarSheet({ visible, onClose, onDateSelect, currentDate, customSchedule }) {
+  const { global, schedule: activeSchedule , lang} = useSchedule();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -24,12 +25,13 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
   const [isPickerMode, setIsPickerMode] = useState(false);
   
   const yearsListRef = useRef(null);
+  const effectiveSchedule = customSchedule || activeSchedule;
 
   const { 
     viewDate, calendarDays, weekDayNames, 
     nextMonth, prevMonth, getWeekNumber,
     setMonth, setYear 
-  } = useCalendarLogic(currentDate, schedule);
+  } = useCalendarLogic(currentDate, effectiveSchedule);
 
   useEffect(() => {
     if (visible) {

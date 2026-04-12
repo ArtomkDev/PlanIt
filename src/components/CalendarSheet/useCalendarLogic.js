@@ -1,11 +1,15 @@
-import { useState, useMemo, useCallback } from 'react';
-import { useSchedule } from '../../../../context/ScheduleProvider';
-import { t } from '../../../../utils/i18n';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useSchedule } from '../../context/ScheduleProvider';
+import { t } from '../../utils/i18n';
 
 export function useCalendarLogic(initialDate, schedule) {
   const { global , lang} = useSchedule();
 
   const [viewDate, setViewDate] = useState(new Date(initialDate));
+
+  useEffect(() => {
+    setViewDate(new Date(initialDate));
+  }, [initialDate]);
 
   const startingWeekDateStr = schedule?.starting_week || new Date().toISOString().split('T')[0];
   const totalWeeks = schedule?.repeat || 1;

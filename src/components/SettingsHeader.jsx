@@ -7,10 +7,10 @@ import AppBlur from './AppBlur';
 import themes from '../config/themes';
 import { useSchedule } from '../context/ScheduleProvider';
 
-export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY, showBackButton = true }) {
+export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY, showBackButton = true, rightButton }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { global , lang} = useSchedule();
+  const { global } = useSchedule();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
@@ -18,7 +18,6 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
   const CONTENT_HEIGHT = 60;
   const HEADER_HEIGHT = CONTENT_HEIGHT + insets.top;
 
-  // === Анімації Скролу (Прозорість фону та підзаголовка) ===
   const bgOpacity = scrollY ? scrollY.interpolate({
     inputRange: [0, 25],
     outputRange: [0, 1],
@@ -37,8 +36,6 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
     extrapolate: 'clamp',
   }) : 0;
 
-
-  // === Анімації зміни тексту "Барабан" (МИТТЄВА) ===
   const [displayedSubTitle, setDisplayedSubTitle] = useState(subTitle || "");
   const prevIndexRef = useRef(subTitleIndex);
   
@@ -46,30 +43,20 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
   const textTranslate = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Запускаємо анімацію миттєво при зміні subTitle
-    if (subTitle !== displayedSubTitle) {
-      
-      // Визначаємо напрямок
+    if (subTitle && subTitle !== displayedSubTitle) {
       const isScrollingDown = subTitleIndex > prevIndexRef.current;
       const exitTo = isScrollingDown ? -15 : 15;
       const enterFrom = isScrollingDown ? 15 : -15;
 
-      // Зупиняємо попередню анімацію (якщо вона ще йде)
       textFade.stopAnimation();
       textTranslate.stopAnimation();
 
-      // 1. Вихід старого тексту
       Animated.parallel([
         Animated.timing(textFade, { toValue: 0, duration: 100, useNativeDriver: true }),
         Animated.timing(textTranslate, { toValue: exitTo, duration: 100, useNativeDriver: true }),
       ]).start(() => {
-        // 2. Зміна тексту
         setDisplayedSubTitle(subTitle || "");
-        
-        // 3. Підготовка до входу
         textTranslate.setValue(enterFrom); 
-
-        // 4. Вхід нового тексту
         Animated.parallel([
           Animated.timing(textFade, { toValue: 1, duration: 150, useNativeDriver: true }),
           Animated.timing(textTranslate, { toValue: 0, duration: 150, useNativeDriver: true }),
@@ -80,8 +67,6 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
     }
   }, [subTitle, subTitleIndex]); 
 
-
-  // === Комбінування анімацій ===
   const combinedOpacity = Animated.multiply(subTitleScrollOpacity, textFade);
   const combinedTranslateY = Animated.add(subTitleScrollTranslateY, textTranslate);
 
@@ -97,6 +82,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
       </Animated.View>
 
       <View style={[styles.content, { height: CONTENT_HEIGHT }]}>
+        
         <View style={styles.leftContainer}>
           {shouldShowBack && (
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -105,27 +91,32 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
           )}
         </View>
 
-        <View style={styles.titleContainer}>
-          <Text style={[styles.mainTitle, { color: themeColors.textColor }]} numberOfLines={1}>
+        <View style={[styles.titleContainer, !subTitle && { paddingBottom: 0, paddingTop: 0 }]}>
+          <Text style={[styles.mainTitle, { color: themeColors.textColor, marginBottom: subTitle ? 2 : 0 }]} numberOfLines={1}>
             {title}
           </Text>
 
-          <Animated.Text 
-            style={[
-              styles.subTitle,
-              { 
-                color: themeColors.accentColor,
-                opacity: combinedOpacity,
-                transform: [{ translateY: combinedTranslateY }]
-              }
-            ]} 
-            numberOfLines={1}
-          >
-            {displayedSubTitle}
-          </Animated.Text>
+          {!!subTitle && (
+            <Animated.Text 
+              style={[
+                styles.subTitle,
+                { 
+                  color: themeColors.accentColor,
+                  opacity: combinedOpacity,
+                  transform: [{ translateY: combinedTranslateY }]
+                }
+              ]} 
+              numberOfLines={1}
+            >
+              {displayedSubTitle}
+            </Animated.Text>
+          )}
         </View>
 
-        <View style={styles.rightContainer} />
+        <View style={styles.rightContainer}>
+          {rightButton}
+        </View>
+        
       </View>
     </View>
   );
@@ -143,13 +134,25 @@ const styles = StyleSheet.create({
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 8,
   },
-  leftContainer: { width: 40, alignItems: 'flex-start', zIndex: 2 },
-  rightContainer: { width: 40 },
+  leftContainer: { 
+    position: 'absolute',
+    left: 8,
+    height: '100%',
+    justifyContent: 'center',
+    zIndex: 2 
+  },
+  rightContainer: { 
+    position: 'absolute',
+    right: 8,
+    height: '100%',
+    justifyContent: 'center',
+    zIndex: 2 
+  },
   titleContainer: {
-    flex: 1,
+    paddingHorizontal: 60,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'column', 
@@ -158,7 +161,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 2, 
   },
   subTitle: {
     fontSize: 13,

@@ -8,6 +8,7 @@ export default function TabSwitcher({
   onTabPress,
   themeColors,
   containerBackgroundColor,
+  containerBorderColor,
   activeTabBackgroundColor,
   activeTextColor, 
   withShadow = false,
@@ -51,14 +52,19 @@ export default function TabSwitcher({
   };
 
   const bgColorContainer = containerBackgroundColor || themeColors.backgroundColor2;
-  
   const bgColorActive = activeTabBackgroundColor || themeColors.accentColor;
-  
   const finalActiveTextColor = activeTextColor || (activeTabBackgroundColor ? themeColors.textColor : "#fff");
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColorContainer, padding: containerPadding }]}>
-      
+    <View style={[
+      styles.container, 
+      { 
+        backgroundColor: bgColorContainer, 
+        padding: containerPadding,
+        borderWidth: containerBorderColor ? StyleSheet.hairlineWidth : 0,
+        borderColor: containerBorderColor 
+      }
+    ]}>
       {tabs.length > 0 && tabLayouts[tabs[0].id] && (
         <Animated.View
           style={[

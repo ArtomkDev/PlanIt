@@ -225,6 +225,8 @@ export default {
 
   settings: {
     sections: {
+      general: "Загальні",
+      time_management: "Керування часом",
       schedule: "Структура розкладу",
       data: "Дані",
       appearance: "Оформлення",
@@ -237,6 +239,8 @@ export default {
       weeks: { title: "Кількість тижнів", desc: "Непарні/парні або цикл тижнів" },
       start_date: { title: "Початкова дата", desc: "Звідси рахується № тижня" },
       breaks: { title: "Кількість перерв", desc: "Довжина та кількість перерв" },
+      duration: { title: "Тривалість заняття", desc: "Скільки триває одна пара" },
+      start_time: { title: "Час початку", desc: "Коли починається перший урок" },
       schedule: { title: "Розклад", desc: "Редактор занять по днях" },
       global_schedule: { title: "Глобальний розклад", desc: "Змінити глобальний розклад" },
       

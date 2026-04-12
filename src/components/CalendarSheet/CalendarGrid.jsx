@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import themes from '../../../../config/themes';
-import { useSchedule } from '../../../../context/ScheduleProvider';
+import themes from '../../config/themes';
+import { useSchedule } from '../../context/ScheduleProvider';
 
 const CELL_SIZE = 40;
 const GAP = 8;

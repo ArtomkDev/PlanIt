@@ -228,6 +228,8 @@ export default {
 
   settings: {
     sections: {
+      general: "General",
+      time_management: "Time Management",
       schedule: "Schedule Structure",
       data: "Data",
       appearance: "Appearance",
@@ -240,6 +242,8 @@ export default {
       weeks: { title: "Number of Weeks", desc: "Odd/even or week cycle" },
       start_date: { title: "Start Date", desc: "Week # starts from here" },
       breaks: { title: "Number of Breaks", desc: "Length and amount of breaks" },
+      duration: { title: "Lesson Duration", desc: "How long one class lasts" },
+      start_time: { title: "Start Time", desc: "When the first class begins" },
       schedule: { title: "Schedule", desc: "Daily classes editor" },
       global_schedule: { title: "Global Schedule", desc: "Change global schedule" },
       
