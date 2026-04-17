@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { auth } from "./config/firebase";
 import { trackScreenView } from "./utils/analytics/analytics";
+import { setCrashlyticsUser, initGlobalErrorHandling } from "./utils/analytics/crashlytics";
 import AuthScreen from "./auth/AuthScreen"; 
 import MainLayout from "./layouts/MainLayout";
 import { ScheduleProvider } from "./context/ScheduleProvider";
@@ -22,6 +23,7 @@ import useAppLanguage from './hooks/useAppLanguage';
 import { t } from './utils/i18n';
 import { initAds } from './utils/adInit/adInit';
 
+initGlobalErrorHandling();
 SplashScreen.preventAutoHideAsync();
 initAds();
 
@@ -83,6 +85,7 @@ export default function RootApp() {
           setGuest(false);
           setManualLogin(false);
           setAuthResolved(true); 
+          setCrashlyticsUser(firebaseUser.uid);
           
           try {
             await registerDevice(firebaseUser.uid);
@@ -101,6 +104,7 @@ export default function RootApp() {
       } else {
         currentUid = null;
         setUser(null);
+        setCrashlyticsUser('');
         
         if (wasLoggedIn.current) {
           setGuest(false);

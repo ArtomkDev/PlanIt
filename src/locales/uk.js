@@ -39,6 +39,12 @@ export default {
     common: {
       continue_with: "Продовжити через",
     },
+    terms: {
+      agree_prefix: "Я прочитав(-ла) і погоджуюсь з ",
+      privacy_policy: "Політикою",
+      and: " та ",
+      terms_conditions: "Умовами",
+    },
     settings: {
       link_with: "Прив'язати до",
     },
@@ -85,6 +91,7 @@ export default {
       email_already_in_use: "Цей email вже використовується",
       weak_password: "Пароль занадто слабкий (мінімум 6 символів)",
       accept_terms: "Будь ласка, прийміть Умови використання та Політику.",
+      accept_terms_strict: "Неможливо продовжити, доки ви не погодитеся з Політикою конфіденційності та Умовами використання.",
       expo_go_title: "Expo Go",
       expo_go_google_msg: "Робота з Google акаунтом недоступна в Expo Go. Використовуйте Web-версію або скомпілюйте додаток.",
       expo_go_apple_msg: "Робота з Apple акаунтом недоступна в Expo Go. Використовуйте Web-версію або скомпілюйте додаток.",

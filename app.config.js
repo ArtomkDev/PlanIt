@@ -63,7 +63,8 @@ export default {
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ],
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics"
     ]
   }
 };

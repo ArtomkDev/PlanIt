@@ -1,6 +1,6 @@
 {
   "name": "planit",
-  "version": "0.0.10",
+  "version": "0.0.14",
   "main": "index.js",
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start",
@@ -31,6 +31,7 @@
     "@react-native-community/netinfo": "11.4.1",
     "@react-native-firebase/analytics": "^24.0.0",
     "@react-native-firebase/app": "^24.0.0",
+    "@react-native-firebase/crashlytics": "^24.0.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/bottom-tabs": "^7.2.0",

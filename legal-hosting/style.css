@@ -1,0 +1,232 @@
+:root {
+  --primary-color: #1A202C;
+  --accent-color: #3B82F6;
+  --accent-hover: #2563EB;
+  --bg-color: #F2F4F7;
+  --text-color: #1A202C;
+  --text-muted: #64748B;
+  --border-color: #E2E8F0;
+  --card-bg: #FFFFFF;
+  
+  --surface-bg: #F8FAFC; 
+  --hover-bg: #F1F5F9; 
+  --divider-color: #F2F4F7; 
+  --app-title-bg: rgba(59, 130, 246, 0.15); 
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-color: #FFFFFF;
+    --accent-color: #3B82F6;
+    --accent-hover: #60A5FA;
+    --bg-color: #121214; 
+    --text-color: #FFFFFF;
+    --text-muted: #A1A1AA;
+    --border-color: #2D2D33;
+    --card-bg: #1E1E22;
+    
+    --surface-bg: #2D2D33;
+    --hover-bg: #3F3F46;
+    --divider-color: #2D2D33;
+    --app-title-bg: rgba(59, 130, 246, 0.2);
+  }
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.7;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 1rem;
+}
+
+.container {
+  width: 100%;
+  max-width: 860px;
+  background: var(--card-bg);
+  padding: 3.5rem 4.5rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  box-sizing: border-box;
+  transition: box-shadow 0.3s ease;
+}
+
+.container:hover {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+}
+
+header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.app-title {
+  display: inline-block;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent-color);
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  background-color: var(--app-title-bg);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+
+h1 {
+  color: var(--primary-color);
+  margin: 0 0 1.5rem 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+nav {
+  display: inline-flex;
+  background: var(--surface-bg);
+  padding: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-color);
+}
+
+.nav-link {
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.6rem 1.75rem;
+  border-radius: 9999px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-link.active {
+  color: var(--card-bg);
+  background-color: var(--accent-color);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.nav-link:hover:not(.active) {
+  color: var(--primary-color);
+  background-color: var(--hover-bg);
+}
+
+main {
+  font-size: 1.05rem;
+}
+
+strong {
+  display: block;
+  color: var(--primary-color);
+  font-size: 1.35rem;
+  margin: 3rem 0 1rem 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border-bottom: 2px solid var(--divider-color);
+  padding-bottom: 0.75rem;
+}
+
+main>strong:first-child {
+  display: none;
+}
+
+p {
+  margin-bottom: 1.5rem;
+}
+
+p:last-child {
+  margin-bottom: 0;
+}
+
+ul {
+  margin: 1.5rem 0;
+  padding-left: 1.75rem;
+  background: var(--surface-bg);
+  padding: 1.5rem 1.5rem 1.5rem 2.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+li {
+  margin-bottom: 0.75rem;
+  padding-left: 0.25rem;
+}
+
+li:last-child {
+  margin-bottom: 0;
+}
+
+a {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease, text-decoration 0.15s ease;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+hr {
+  border: 0;
+  height: 1px;
+  background: var(--border-color);
+  margin: 3.5rem 0 2rem 0;
+}
+
+hr+p {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 2.5rem 2rem;
+  }
+
+  h1 {
+    font-size: 2.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .wrapper {
+    padding: 1rem;
+  }
+
+  .container {
+    padding: 2rem 1.5rem;
+    border-radius: 16px;
+  }
+
+  h1 {
+    font-size: 1.875rem;
+  }
+
+  nav {
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    gap: 0.25rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .nav-link {
+    text-align: center;
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+}

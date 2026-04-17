@@ -15,7 +15,7 @@ const isExpoGo = Constants.appOwnership === 'expo';
 if (Platform.OS !== 'web' && !isExpoGo) {
   const { GoogleSignin } = require('@react-native-google-signin/google-signin');
   GoogleSignin.configure({
-    webClientId: '66089248812-is6urdiplc47uc3s323n4546vpip7aoe.apps.googleusercontent.com',
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     offlineAccess: true,
   });
 }

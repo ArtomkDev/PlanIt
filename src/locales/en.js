@@ -42,6 +42,12 @@ export default {
     common: {
       continue_with: "Continue with",
     },
+    terms: {
+      agree_prefix: "I have read and agree to the ",
+      privacy_policy: "Privacy Policy",
+      and: " and ",
+      terms_conditions: "Terms & Conditions",
+    },
     settings: {
       link_with: "Link with",
     },
@@ -88,6 +94,7 @@ export default {
       email_already_in_use: "This email is already in use",
       weak_password: "Password is too weak (min 6 characters)",
       accept_terms: "Please accept the Terms of Service and Privacy Policy.",
+      accept_terms_strict: "Cannot proceed until you agree to the Privacy Policy and Terms of Use.",
       expo_go_title: "Expo Go",
       expo_go_google_msg: "Google account sign-in is not available in Expo Go. Please use the web version or build the app.",
       expo_go_apple_msg: "Apple account sign-in is not available in Expo Go. Please use the web version or build the app.",

@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import createDefaultData from './createDefaultData';
+import { logCrashlyticsError } from '../utils/analytics/crashlytics';
 
 let isAccountBeingDeleted = false;
 
@@ -255,6 +256,7 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
   try {
     await batch.commit();
   } catch (error) {
+    logCrashlyticsError(error, 'saveSchedule_Firestore');
     console.error(error);
   }
 };
@@ -275,6 +277,7 @@ export const deleteUserSchedule = async (userId, scheduleId) => {
       lastModified: Date.now()
     }, { merge: true });
   } catch (error) {
+    logCrashlyticsError(error, 'deleteUserSchedule_Firestore');
     console.error(error);
   }
 };
@@ -303,6 +306,7 @@ export const resetUserSchedules = async (userId) => {
 
     await batch.commit();
   } catch (error) {
+    logCrashlyticsError(error, 'resetUserSchedules_Firestore');
     console.error(error);
   }
 };
@@ -334,6 +338,7 @@ export const deleteAllUserData = async (userId) => {
     await batch.commit();
   } catch (error) {
     isAccountBeingDeleted = false;
+    logCrashlyticsError(error, 'deleteAllUserData_Firestore');
     throw error;
   }
 };

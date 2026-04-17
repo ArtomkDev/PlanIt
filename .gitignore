@@ -85,5 +85,7 @@ ios/.xcode.env.local
 # GoogleService-Info.plist
 
 google-services.json
+credentials/
 
 android/
+builds/

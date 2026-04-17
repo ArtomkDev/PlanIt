@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, TextInput, TouchableOpacity, StyleSheet, 
   Alert, KeyboardAvoidingView, Platform, ScrollView, LayoutAnimation, UIManager,
-  Animated, Easing, useWindowDimensions, BackHandler, PanResponder
+  Animated, Easing, useWindowDimensions, BackHandler, PanResponder, Linking
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -159,30 +159,59 @@ const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, i
   </View>
 );
 
-const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin }) => (
-  <View style={[styles.contentBlock, { paddingTop: insets.top + 40 }]}>
-    <View style={styles.welcomeHeader}>
-      <View style={[styles.logoContainer, { backgroundColor: colors.accentColor }]}>
-         <Ionicons name="school" size={60} color="#fff" />
-      </View>
-      <Text style={[styles.welcomeTitle, { color: colors.textColor }]}>PlanIt</Text>
-      <Text style={[styles.welcomeSubtitle, { color: colors.textColor2 }]}>{t('auth.welcome.subtitle', lang)}</Text>
-    </View>
-    <View style={styles.actions}>
-      <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor }]} onPress={() => onNavigate('signin')}>
-        <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]} onPress={() => onNavigate('signup')}>
-        <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>{t('auth.signup.submit', lang)}</Text>
-      </TouchableOpacity>
-      {onGuestLogin && (
-        <TouchableOpacity style={styles.guestButton} onPress={onGuestLogin}>
-          <Text style={[styles.guestButtonText, { color: colors.textColor2 }]}>{t('auth.welcome.guest_btn', lang)}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  </View>
+const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang }) => (
+  <TouchableOpacity style={styles.checkboxContainer} onPress={() => setAcceptedTerms(!acceptedTerms)} activeOpacity={0.7}>
+    <Ionicons name={acceptedTerms ? "checkbox" : "square-outline"} size={22} color={acceptedTerms ? colors.accentColor : colors.textColor2} />
+    <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
+      {t('auth.terms.agree_prefix', lang)}
+      <Text style={{ color: colors.accentColor }} onPress={() => Linking.openURL('https://planit-hub.web.app/privacy.html')}>
+        {t('auth.terms.privacy_policy', lang)}
+      </Text>
+      {t('auth.terms.and', lang)}
+      <Text style={{ color: colors.accentColor }} onPress={() => Linking.openURL('https://planit-hub.web.app/terms.html')}>
+        {t('auth.terms.terms_conditions', lang)}
+      </Text>
+    </Text>
+  </TouchableOpacity>
 );
+
+const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, setAcceptedTerms }) => {
+  const checkTerms = (action) => {
+    if (!acceptedTerms) {
+      Alert.alert(t('common.error', lang), t('auth.errors.accept_terms_strict', lang));
+      return;
+    }
+    action();
+  };
+
+  return (
+    <View style={[styles.contentBlock, { paddingTop: insets.top + 40 }]}>
+      <View style={styles.welcomeHeader}>
+        <View style={[styles.logoContainer, { backgroundColor: colors.accentColor }]}>
+           <Ionicons name="school" size={60} color="#fff" />
+        </View>
+        <Text style={[styles.welcomeTitle, { color: colors.textColor }]}>PlanIt</Text>
+        <Text style={[styles.welcomeSubtitle, { color: colors.textColor2 }]}>{t('auth.welcome.subtitle', lang)}</Text>
+      </View>
+      <View style={styles.actions}>
+        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signin'))}>
+          <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
+          <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>{t('auth.signup.submit', lang)}</Text>
+        </TouchableOpacity>
+        {onGuestLogin && (
+          <TouchableOpacity style={styles.guestButton} onPress={() => checkTerms(onGuestLogin)}>
+            <Text style={[styles.guestButtonText, { color: acceptedTerms ? colors.textColor2 : colors.textColor2 + '80' }]}>{t('auth.welcome.guest_btn', lang)}</Text>
+          </TouchableOpacity>
+        )}
+        <View style={{ marginTop: 6, marginBottom: -10 }}>
+          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} />
+        </View>
+      </View>
+    </View>
+  );
+};
 
 const AuthScreen = ({ onGuestLogin }) => {
   const insets = useSafeAreaInsets();
@@ -266,6 +295,7 @@ const AuthScreen = ({ onGuestLogin }) => {
 
   const handleSignIn = async () => {
     if (!email || !password) return Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
+    if (!acceptedTerms) return Alert.alert(t('common.error', lang), t('auth.errors.accept_terms_strict', lang));
     setIsLoading(true);
     try { 
       const cred = await signInWithEmailAndPassword(auth, email, password); 
@@ -399,17 +429,11 @@ const AuthScreen = ({ onGuestLogin }) => {
           <InputField icon="mail-outline" placeholder={t('auth.fields.email', lang)} value={email} onChangeText={setEmail} keyboardType="email-address" colors={colors} />
           <InputField icon="lock-closed-outline" placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={setPassword} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} />
           
-          {currentView === 'signin' ? (
+          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} />
+          
+          {currentView === 'signin' && (
             <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
               <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>{t('auth.signin.forgot_password', lang)}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.checkboxContainer} onPress={() => setAcceptedTerms(!acceptedTerms)} activeOpacity={0.7}>
-              <Ionicons name={acceptedTerms ? "checkbox" : "square-outline"} size={24} color={acceptedTerms ? colors.accentColor : colors.textColor2} />
-              <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
-                {t('auth.signup.accept_terms_prefix', lang)}
-                <Text style={{ color: colors.accentColor }}>{t('auth.signup.accept_terms_link', lang)}</Text>
-              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -421,9 +445,9 @@ const AuthScreen = ({ onGuestLogin }) => {
             <MorphingLoader size={40} />
           ) : (
             <TouchableOpacity 
-              style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: (currentView === 'signup' && !acceptedTerms) ? 0.6 : 1 }]} 
+              style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms ? 0.6 : 1 }]} 
               onPress={currentView === 'signin' ? handleSignIn : handleSignUp} 
-              disabled={currentView === 'signup' && !acceptedTerms}
+              disabled={!acceptedTerms}
             >
               <Text style={styles.primaryButtonText}>
                 {currentView === 'signin' ? t('auth.signin.submit', lang) : t('auth.signup.submit', lang)}
@@ -435,7 +459,14 @@ const AuthScreen = ({ onGuestLogin }) => {
 
       elements.push(
         <View key="social" style={styles.socialGroup}>
-          <SocialAuthButtons onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} />
+          <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={() => { if (!acceptedTerms) Alert.alert(t('common.error', lang), t('auth.errors.accept_terms_strict', lang)); }}
+          >
+            <View pointerEvents={acceptedTerms ? 'auto' : 'none'} style={{ opacity: acceptedTerms ? 1 : 0.6 }}>
+              <SocialAuthButtons onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} />
+            </View>
+          </TouchableOpacity>
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.textColor2 }]}>
               {currentView === 'signin' ? t('auth.signin.no_account', lang) : t('auth.signup.already_have_account', lang)}
@@ -483,7 +514,7 @@ const AuthScreen = ({ onGuestLogin }) => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.responsiveContainer}>
-            {currentView === 'welcome' && <WelcomeContent onNavigate={handleNavigate} colors={colors} lang={lang} insets={insets} onGuestLogin={onGuestLogin} />}
+            {currentView === 'welcome' && <WelcomeContent onNavigate={handleNavigate} colors={colors} lang={lang} insets={insets} onGuestLogin={onGuestLogin} acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} />}
             
             {currentView !== 'welcome' && (
               <View style={[
