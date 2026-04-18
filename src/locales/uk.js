@@ -36,18 +36,14 @@ export default {
   },
 
   auth: {
-    common: {
-      continue_with: "Продовжити через",
-    },
+    common: { continue_with: "Продовжити через" },
     terms: {
       agree_prefix: "Я прочитав(-ла) і погоджуюсь з ",
       privacy_policy: "Політикою",
       and: " та ",
       terms_conditions: "Умовами",
     },
-    settings: {
-      link_with: "Прив'язати до",
-    },
+    settings: { link_with: "Прив'язати до" },
     signin: {
       title: "З поверненням!",
       subtitle: "Увійдіть, щоб синхронізувати розклад.",
@@ -141,9 +137,7 @@ export default {
       add_hint: "Затисніть екран, щоб додати",
       break: "Перерва",
     },
-    header: {
-      today: "Сьогодні",
-    },
+    header: { today: "Сьогодні" },
     lesson_viewer: {
       untitled: "Без назви",
       time: "Час",
@@ -251,33 +245,24 @@ export default {
       general: "Загальні",
       time_management: "Керування часом",
       schedule: "Структура розкладу",
-      data: "Дані",
       appearance: "Оформлення",
-      automation: "Автоматизація",
       account: "Акаунт",
       danger_zone: "Небезпечна зона",
     },
 
     menu: {
-      weeks: { title: "Кількість тижнів", desc: "Непарні/парні або цикл тижнів" },
-      start_date: { title: "Початкова дата", desc: "Звідси рахується № тижня" },
-      breaks: { title: "Кількість перерв", desc: "Довжина та кількість перерв" },
-      duration: { title: "Тривалість заняття", desc: "Скільки триває одна пара" },
-      start_time: { title: "Час початку", desc: "Коли починається перший урок" },
-      schedule: { title: "Розклад", desc: "Редактор занять по днях" },
+      weeks: { title: "Кількість тижнів" },
+      start_date: { title: "Початкова дата" },
+      breaks: { title: "Кількість перерв" },
+      duration: { title: "Тривалість заняття" },
+      start_time: { title: "Час початку" },
       global_schedule: { title: "Глобальний розклад", desc: "Змінити глобальний розклад" },
-      
-      subjects: { title: "Пари", desc: "Список предметів / аудиторій" },
-      teachers: { title: "Викладачі", desc: "Контакти та скорочення" },
-      
       themes: { title: "Теми", desc: "Світла/темна, акцент" },
       language: { title: "Мова", desc: "Вибір мови додатку" },
-      
       login: { title: "Увійти або Створити акаунт", desc: "Синхронізуйте дані в хмарі" },
       account_settings: { title: "Налаштування акаунту", desc: "Керування профілем, безпека, зміна пошти" },
       devices: { title: "Пристрої", desc: "Налаштування авторизованих пристроїв" },
       logout: { title: "Вийти з акаунту", desc: "Завершити сесію" },
-      
       reset_db: { title: "Скинути БД", desc: "Повне очищення даних" },
     },
 
@@ -290,11 +275,7 @@ export default {
 
     theme_screen: {
       mode_title: "Режим",
-      modes: {
-        light: "Світла",
-        dark: "Темна",
-        oled: "OLED",
-      },
+      modes: { light: "Світла", dark: "Темна", oled: "OLED" },
       blur_title: "Ефект розмиття (Blur)",
       blur_desc_oled: "У режимі OLED блюр буде темним",
       blur_desc_normal: "Прозорість елементів інтерфейсу",
@@ -404,19 +385,8 @@ export default {
       button_text: "Скинути розклади",
     },
 
-    week_manager: {
-      repeat_label: "Кількість тижнів повторення:",
-    },
-    start_week_manager: {
-      select_date: "Вибрати дату",
-    },
-
-    breaks_manager: {
-      title: "Налаштування перерв",
-      break_item: "Перерва",
-      minutes: "хв",
-      add_btn: "Додати перерву",
-    },
+    week_manager: { repeat_label: "Кількість тижнів повторення:" },
+    breaks_manager: { add_btn: "Додати перерву" },
 
     schedule_switcher: {
       last_schedule_error: "Ви не можете видалити останній розклад.",

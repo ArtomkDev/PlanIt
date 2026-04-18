@@ -1,88 +1,86 @@
-import { Platform } from 'react-native';
-
 const themes = {
   light: {
-    backgroundColor: '#F2F4F7', // Дуже світлий сіро-блакитний (сучасний "сірий")
-    backgroundColor2: '#FFFFFF', // Картки - чисто білі
-    backgroundColor3: '#E2E8F0', // Інпути / Бордери - світло-сірі
-    backgroundColor4: '#F8FAFC', // Альтернативний фон
-    backgroundColorTabNavigator: '#FFFFFF', // Навігація
+    backgroundColor: '#F2F4F7',
+    backgroundColor2: '#FFFFFF',
+    backgroundColor3: '#E2E8F0',
+    backgroundColor4: '#F8FAFC',
+    backgroundColorTabNavigator: '#FFFFFF',
     
-    textColor: '#1A202C', // Майже чорний, але м'якший (Cool Gray 900)
-    textColor2: '#64748B', // Вторинний текст (Slate 500)
-    textColor3: '#94A3B8', // Третинний текст (Slate 400)
+    textColor: '#1A202C',
+    textColor2: '#64748B',
+    textColor3: '#94A3B8',
     textColorScheduleCard: '#1A202C',
     
-    borderColor: '#E2E8F0', // Колір розділювачів
+    borderColor: '#E2E8F0',
   },
+  
   dark: {
-    backgroundColor: '#121214', // Глибокий темний (майже чорний, але м'який)
-    backgroundColor2: '#1E1E22', // Картки - трохи світліші
-    backgroundColor3: '#2D2D33', // Інпути - ще світліші
-    backgroundColor4: '#18181B', 
-    backgroundColorTabNavigator: '#1E1E22E6', // Напівпрозорий
+    backgroundColor: '#121214',
+    backgroundColor2: '#1E1E22',
+    backgroundColor3: '#2D2D33',
+    backgroundColor4: '#18181B',
+    backgroundColorTabNavigator: '#1E1E22E6',
     
-    textColor: '#FFFFFF', // Білий
-    textColor2: '#A1A1AA', // Світло-сірий (Zinc 400)
-    textColor3: '#52525B', // Темно-сірий (Zinc 600)
+    textColor: '#FFFFFF',
+    textColor2: '#A1A1AA',
+    textColor3: '#52525B',
     textColorScheduleCard: '#FFFFFF',
     
     borderColor: '#2D2D33',
   },
-  // 🔥 Новий режим для економії батареї
+  
   oled: {
-    backgroundColor: '#000000', // Абсолютний чорний
-    backgroundColor2: '#121212', // Material Dark Surface (для контрасту карток)
-    backgroundColor3: '#1C1C1E', // Інпути
+    backgroundColor: '#000000',
+    backgroundColor2: '#121212',
+    backgroundColor3: '#1C1C1E',
     backgroundColor4: '#000000',
     backgroundColorTabNavigator: '#000000',
     
     textColor: '#FFFFFF',
-    textColor2: '#B0B0B0', // Більш контрастний сірий для OLED
+    textColor2: '#B0B0B0',
     textColor3: '#333333',
     textColorScheduleCard: '#E0E0E0',
     
-    borderColor: '#333333', // Важливо для розділення чорного на чорному
+    borderColor: '#333333',
   },
   
   accentColors: {
-    // Базові (оновлені, більш "смачні")
-    red: "#FF4D4D",        // Більш живий червоний
-    blue: "#3B82F6",       // Modern Blue (Tailwind style)
-    green: "#10B981",      // Emerald
-    yellow: "#F59E0B",     // Amber (краще читається на білому, ніж чистий жовтий)
-    orange: "#F97316",     // Bright Orange
-    purple: "#8B5CF6",     // Violet
-    pink: "#EC4899",       // Pink
-    grey: "#71717A",       // Zinc Grey
+    red: '#EF4444',
+    orange: '#F97316',
+    amber: '#F59E0B',
+    yellow: '#EAB308',
 
-    // Пастельні (м'якіші для фонів)
-    pastelBlue: "#BFDBFE",
-    pastelGreen: "#A7F3D0",
-    pastelPink: "#FBCFE8",
-    pastelPurple: "#DDD6FE",
-    pastelYellow: "#FDE68A",
+    lime: '#84CC16',
+    green: '#10B981',
+    emerald: '#059669',
+    teal: '#14B8A6',
 
-    // Неонові (Cyberpunk style)
-    neonCyan: "#06B6D4",
-    neonPink: "#F472B6",
-    neonLime: "#84CC16",
+    cyan: '#06B6D4',
+    sky: '#0EA5E9',
+    blue: '#3B82F6',
+    indigo: '#6366F1',
 
-    // Глибокі (Professional style)
-    deepBlue: "#1E3A8A",
-    deepRed: "#991B1B",
-    deepPurple: "#5B21B6",
-    deepTeal: "#115E59",
+    violet: '#8B5CF6',
+    purple: '#A855F7',
+    fuchsia: '#D946EF',
+    pink: '#EC4899',
+
+    pastelPink: '#FBCFE8',
+    pastelYellow: '#FDE68A',
+    pastelGreen: '#A7F3D0',
+    pastelBlue: '#BFDBFE',
+
+    deepRed: '#991B1B',
+    deepBlue: '#1E3A8A',
+    deepPurple: '#5B21B6',
+    grey: '#71717A',
   },
 
   getColors(mode = "light", accent = "blue") {
-    // Фолбек, якщо mode некоректний
     const baseTheme = this[mode] || this.light;
     
-    // Фолбек для акцентного кольору
     let accentColor = this.accentColors[accent];
     
-    // Якщо акцент не знайдено в списку (це кастомний hex), використовуємо його як є
     if (!accentColor) {
       accentColor = (typeof accent === 'string' && accent.startsWith('#')) 
         ? accent 
@@ -95,8 +93,7 @@ const themes = {
       ...baseTheme,
       accentColor,
       textOnAccent,
-      // Додаткові похідні кольори для UI
-      accentColorLight: accentColor + '20', // 20% прозорості для фонів кнопок
+      accentColorLight: accentColor + '20',
     };
   },
 };

@@ -14,18 +14,16 @@ import { t } from '../utils/i18n';
 
 import Schedule from '../pages/Schedule/Schedule';
 import Settings from '../pages/Settings/Settings';
-import BreaksManager from '../pages/Settings/components/managers/BreaksManager';
-import WeekManager from '../pages/Settings/components/managers/WeekManager';
-import StartWeekManager from '../pages/Settings/components/managers/StartWeekManager';
-import SubjectsManager from '../pages/Settings/components/managers/SubjectsManager';
-import TeachersManager from '../pages/Settings/components/managers/TeachersManager';
-import ScheduleManager from '../pages/Settings/components/ScheduleManager';
+
+// Актуальні екрани налаштувань
 import ThemeSettings from '../pages/Settings/components/preferences/ThemeSettings';
+import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
 import ResetDB from '../pages/Settings/components/ResetDB';
 import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
 import DeviceManager from '../pages/Settings/components/managers/DeviceManagement';
 import ScheduleEditorScreen from '../pages/Settings/components/ScheduleEditorScreen';
-import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
+
+// Акаунт
 import AccountSettings from '../pages/Settings/components/AccountSettings/AccountSettings';
 import DeleteAccountScreen from '../pages/Settings/components/AccountSettings/components/DeleteAccountScreen';
 import ChangeNameScreen from '../pages/Settings/components/AccountSettings/components/ChangeNameScreen';
@@ -54,12 +52,8 @@ function SettingsStack({ screenProps }) {
         <Stack.Screen name="SettingsOverview">
           {props => <Settings {...props} {...screenProps} />}
         </Stack.Screen>
-        <Stack.Screen name="Breaks" component={BreaksManager} />
-        <Stack.Screen name="Weeks" component={WeekManager} />
-        <Stack.Screen name="StartWeek" component={StartWeekManager} />
-        <Stack.Screen name="Subjects" component={SubjectsManager} />
-        <Stack.Screen name="Teachers" component={TeachersManager} />
-        <Stack.Screen name="Schedule" component={ScheduleManager} />
+        
+        {/* Оновлені роути */}
         <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
         <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
         <Stack.Screen name="Theme" component={ThemeSettings} />

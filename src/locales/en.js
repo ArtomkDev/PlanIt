@@ -34,23 +34,16 @@ export default {
       sep: "September", oct: "October", nov: "November", dec: "December"
     },
   },
-  verify: {
-    title: "Email Verification",
-    subtitle: "An email has been sent to {email}.\nPlease verify it to continue."
-  },
+
   auth: {
-    common: {
-      continue_with: "Continue with",
-    },
+    common: { continue_with: "Continue with" },
     terms: {
       agree_prefix: "I have read and agree to the ",
       privacy_policy: "Privacy Policy",
       and: " and ",
       terms_conditions: "Terms & Conditions",
     },
-    settings: {
-      link_with: "Link with",
-    },
+    settings: { link_with: "Link with" },
     signin: {
       title: "Welcome back!",
       subtitle: "Sign in to sync your schedule.",
@@ -144,9 +137,7 @@ export default {
       add_hint: "Long press to add",
       break: "Break",
     },
-    header: {
-      today: "Today",
-    },
+    header: { today: "Today" },
     lesson_viewer: {
       untitled: "Untitled",
       time: "Time",
@@ -200,15 +191,15 @@ export default {
       end_time: "End Time",
     },
     icon_categories: {
-      science: 'Science & Math',
-      tech: 'IT & Tech',
-      humanities: 'Languages & Writing',
-      business: 'Society & Business',
-      art: 'Art & Music',
-      sport: 'Sport & Health',
-      edu: 'Education & Org',
-      misc: 'Other',
-      none: 'No Icon'
+      science: "Science & Math",
+      tech: "IT & Tech",
+      humanities: "Languages & Writing",
+      business: "Society & Business",
+      art: "Art & Music",
+      sport: "Sport & Health",
+      edu: "Education & Org",
+      misc: "Other",
+      none: "No Icon"
     },
     lesson_types: {
       lecture: "Lecture",
@@ -254,33 +245,24 @@ export default {
       general: "General",
       time_management: "Time Management",
       schedule: "Schedule Structure",
-      data: "Data",
       appearance: "Appearance",
-      automation: "Automation",
       account: "Account",
       danger_zone: "Danger Zone",
     },
 
     menu: {
-      weeks: { title: "Number of Weeks", desc: "Odd/even or week cycle" },
-      start_date: { title: "Start Date", desc: "Week # starts from here" },
-      breaks: { title: "Number of Breaks", desc: "Length and amount of breaks" },
-      duration: { title: "Lesson Duration", desc: "How long one class lasts" },
-      start_time: { title: "Start Time", desc: "When the first class begins" },
-      schedule: { title: "Schedule", desc: "Daily classes editor" },
+      weeks: { title: "Number of Weeks" },
+      start_date: { title: "Start Date" },
+      breaks: { title: "Number of Breaks" },
+      duration: { title: "Lesson Duration" },
+      start_time: { title: "Start Time" },
       global_schedule: { title: "Global Schedule", desc: "Change global schedule" },
-      
-      subjects: { title: "Subjects", desc: "List of subjects / classrooms" },
-      teachers: { title: "Teachers", desc: "Contacts and abbreviations" },
-      
       themes: { title: "Themes", desc: "Light/dark, accent" },
       language: { title: "Language", desc: "Select interface language" },
-      
       login: { title: "Log In or Create Account", desc: "Sync your data to the cloud" },
       account_settings: { title: "Account Settings", desc: "Profile management, security, email" },
       devices: { title: "Devices", desc: "Authorized devices settings" },
       logout: { title: "Log Out", desc: "End current session" },
-      
       reset_db: { title: "Reset Database", desc: "Complete data wipe" },
     },
 
@@ -293,11 +275,7 @@ export default {
 
     theme_screen: {
       mode_title: "Mode",
-      modes: {
-        light: "Light",
-        dark: "Dark",
-        oled: "OLED",
-      },
+      modes: { light: "Light", dark: "Dark", oled: "OLED" },
       blur_title: "Blur Effect",
       blur_desc_oled: "In OLED mode, blur will be dark",
       blur_desc_normal: "Transparency of interface elements",
@@ -407,19 +385,8 @@ export default {
       button_text: "Reset schedules",
     },
 
-    week_manager: {
-      repeat_label: "Number of repeating weeks:",
-    },
-    start_week_manager: {
-      select_date: "Select date",
-    },
-
-    breaks_manager: {
-      title: "Breaks Settings",
-      break_item: "Break",
-      minutes: "min",
-      add_btn: "Add break",
-    },
+    week_manager: { repeat_label: "Number of repeating weeks:" },
+    breaks_manager: { add_btn: "Add break" },
 
     schedule_switcher: {
       last_schedule_error: "You cannot delete the last schedule.",

@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, Platform } f
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
-  Stack, CalendarBlank, Timer, GridFour, Table, BookOpen, 
-  Users, Palette, Translate, SignIn, UserCircle, Cpu, 
+  Table, Palette, Translate, SignIn, UserCircle, Cpu, 
   SignOut, Trash, CaretRight
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
@@ -31,11 +30,6 @@ export default function Settings({ guest, onExitGuest }) {
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
-  
-  const weeksCount = Array.isArray(schedule?.weeks) ? schedule.weeks.length : (typeof schedule?.weeksCount === 'number' ? schedule.weeksCount : undefined);
-  const breaksCount = Array.isArray(schedule?.breaks) ? schedule.breaks.length : undefined;
-  const subjectsCount = Array.isArray(schedule?.subjects) ? schedule.subjects.length : undefined;
-  const teachersCount = Array.isArray(schedule?.teachers) ? schedule.teachers.length : undefined;
 
   const appVersion = Constants.expoConfig?.version;
   const buildNumber = Constants.nativeBuildVersion;
@@ -93,18 +87,12 @@ export default function Settings({ guest, onExitGuest }) {
     {
       title: t('settings.sections.schedule', lang),
       data: [
-        { label: t('settings.menu.weeks.title', lang), screen: 'Weeks', icon: Stack, meta: weeksCount ? String(weeksCount) : undefined, desc: t('settings.menu.weeks.desc', lang) },
-        { label: t('settings.menu.start_date.title', lang), screen: 'StartWeek', icon: CalendarBlank, desc: t('settings.menu.start_date.desc', lang) },
-        { label: t('settings.menu.breaks.title', lang), screen: 'Breaks', icon: Timer, meta: breaksCount ? String(breaksCount) : undefined, desc: t('settings.menu.breaks.desc', lang) },
-        { label: t('settings.menu.schedule.title', lang), screen: 'Schedule', icon: GridFour, desc: t('settings.menu.schedule.desc', lang) },
-        { label: t('settings.menu.global_schedule.title', lang), screen: 'ScheduleSwitcher', icon: Table, desc: t('settings.menu.global_schedule.desc', lang) },
-      ],
-    },
-    {
-      title: t('settings.sections.data', lang),
-      data: [
-        { label: t('settings.menu.subjects.title', lang), screen: 'Subjects', icon: BookOpen, meta: subjectsCount ? String(subjectsCount) : undefined, desc: t('settings.menu.subjects.desc', lang) },
-        { label: t('settings.menu.teachers.title', lang), screen: 'Teachers', icon: Users, meta: teachersCount ? String(teachersCount) : undefined, desc: t('settings.menu.teachers.desc', lang) },
+        { 
+          label: t('settings.menu.global_schedule.title', lang), 
+          screen: 'ScheduleSwitcher', 
+          icon: Table, 
+          desc: t('settings.menu.global_schedule.desc', lang) 
+        },
       ],
     },
     {
@@ -120,7 +108,6 @@ export default function Settings({ guest, onExitGuest }) {
         },
       ],
     },
-
     {
       title: t('settings.sections.account', lang),
       data: !user ? [
@@ -138,7 +125,7 @@ export default function Settings({ guest, onExitGuest }) {
         { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: Trash, desc: t('settings.menu.reset_db.desc', lang) },
       ],
     },
-  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, guest, user, lang]);
+  ]), [guest, user, lang]);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const sectionPositions = useRef([]);
