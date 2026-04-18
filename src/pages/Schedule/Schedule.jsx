@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, memo } from "react";
 import { StyleSheet, View, FlatList, Platform, useWindowDimensions, Animated, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons"; 
+import { Plus } from "phosphor-react-native"; 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Header from "./components/Header";
@@ -172,7 +172,7 @@ export default function Schedule() {
           onPress={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={32} color="#fff" />
+          <Plus size={32} color="#fff" weight="bold" />
         </TouchableOpacity>
       )}
       

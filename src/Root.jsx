@@ -6,7 +6,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onIdTokenChanged, signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
-import { Ionicons } from "@expo/vector-icons";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
@@ -44,7 +43,6 @@ export default function RootApp() {
     let isMounted = true;
     async function loadFonts() {
       try {
-        await Font.loadAsync(Ionicons.font);
       } catch (e) {
         console.warn(e);
       } finally {

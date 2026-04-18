@@ -199,6 +199,17 @@ export default {
       start_time: "Start Time",
       end_time: "End Time",
     },
+    icon_categories: {
+      science: 'Science & Math',
+      tech: 'IT & Tech',
+      humanities: 'Languages & Writing',
+      business: 'Society & Business',
+      art: 'Art & Music',
+      sport: 'Sport & Health',
+      edu: 'Education & Org',
+      misc: 'Other',
+      none: 'No Icon'
+    },
     lesson_types: {
       lecture: "Lecture",
       practice: "Practice",

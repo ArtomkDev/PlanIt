@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Switch, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { PencilSimple, Check } from "phosphor-react-native";
 import themes from "../../../../config/themes";
 import { useSchedule } from "../../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
@@ -13,7 +13,6 @@ const ThemeSettings = () => {
   const [currentMode, currentAccent] = global?.theme || ["light", "blue"];
   const currentBlur = global?.blur ?? true;
  
-  
   const [selectedMode, setSelectedMode] = useState(currentMode);
   const [selectedColor, setSelectedColor] = useState(currentAccent);
   const [isBlurEnabled, setIsBlurEnabled] = useState(currentBlur);
@@ -58,7 +57,7 @@ const ThemeSettings = () => {
         onPress={() => setSelectedColor(colorKey)}
         activeOpacity={0.7}
       >
-        {isSelected && <Text style={styles.checkmark}>✓</Text>}
+        {isSelected && <Check size={20} color="#fff" weight="bold" style={styles.checkmarkIcon} />}
       </TouchableOpacity>
     );
   };
@@ -138,10 +137,10 @@ const ThemeSettings = () => {
             ]}
             onPress={() => setPickerVisible(true)}
           >
-            <Ionicons 
-              name="pencil" 
+            <PencilSimple 
               size={20} 
               color={isCustomColor ? '#fff' : themeColors.textColor} 
+              weight="bold"
             />
           </TouchableOpacity>
         </View>
@@ -247,12 +246,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(150,150,150,0.3)',
     borderStyle: 'dashed',
   },
-  checkmark: { 
-    color: "#fff", 
-    fontWeight: "bold", 
-    fontSize: 18,
+  checkmarkIcon: { 
     ...Platform.select({
-      web: { textShadow: '0px 1px 2px rgba(0,0,0,0.3)' },
+      web: { filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.3))' },
       default: { textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 2 }
     })
   },

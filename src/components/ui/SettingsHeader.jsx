@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretLeft } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBlur from './AppBlur';
 import themes from '../../config/themes';
@@ -86,7 +86,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
         <View style={styles.leftContainer}>
           {shouldShowBack && (
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={28} color={themeColors.accentColor} />
+              <CaretLeft size={28} color={themeColors.accentColor} weight="bold" />
             </TouchableOpacity>
           )}
         </View>

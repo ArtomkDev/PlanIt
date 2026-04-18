@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { XCircle } from "phosphor-react-native";
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
@@ -11,7 +11,7 @@ export default function LessonEditorInputScreen({
   onSave,
   themeColors,
 }) {
-  const { global , lang} = useSchedule();
+  const { lang } = useSchedule();
 
   const [value, setValue] = useState(initialValue || "");
 
@@ -38,7 +38,7 @@ export default function LessonEditorInputScreen({
         />
         {value.length > 0 && (
           <TouchableOpacity onPress={() => setValue("")} style={styles.clearButton} hitSlop={15}>
-            <Ionicons name="close-circle" size={20} color={themeColors.textColor2} />
+            <XCircle size={22} color={themeColors.textColor2} weight="fill" />
           </TouchableOpacity>
         )}
       </View>

@@ -2,7 +2,7 @@ import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import React, { useCallback, useRef, useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { CalendarDots, GearSix } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import themes from '../config/themes';
@@ -142,7 +142,9 @@ export default function TabNavigator({ screenProps }) {
         component={Schedule}
         options={{
           tabBarLabel: t('common.schedule', lang),
-          tabBarIcon: ({ color, size }) => <Icon name="calendar" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <CalendarDots size={size} color={color} weight={focused ? 'fill' : 'regular'} />
+          ),
         }}
       />
       <Tab.Screen
@@ -150,7 +152,9 @@ export default function TabNavigator({ screenProps }) {
         component={SettingsStackWrapper}
         options={{
           tabBarLabel: t('common.settings', lang),
-          tabBarIcon: ({ color, size }) => <Icon name="settings" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <GearSix size={size} color={color} weight={focused ? 'fill' : 'regular'} />
+          ),
         }}
       />
     </Tab.Navigator>

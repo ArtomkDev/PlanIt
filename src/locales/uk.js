@@ -196,6 +196,17 @@ export default {
       start_time: "Початок заняття",
       end_time: "Кінець заняття",
     },
+    icon_categories: {
+      science: "Наука та Математика",
+      tech: "IT та Технології",
+      humanities: "Мови та Письмо",
+      business: "Суспільство та Бізнес",
+      art: "Мистецтво та Музика",
+      sport: "Спорт та Здоров'я",
+      edu: "Освіта та Організація",
+      misc: "Інше",
+      none: "Без іконки"
+    },
     lesson_types: {
       lecture: "Лекція",
       practice: "Практика",

@@ -11,7 +11,17 @@ import {
   Dimensions,
   Alert
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { 
+  X, 
+  Clock, 
+  MapPin, 
+  User, 
+  Phone, 
+  Link as LinkIcon, 
+  ArrowUpRight, 
+  Trash, 
+  PencilSimple 
+} from "phosphor-react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
@@ -123,10 +133,10 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
             
             <View style={styles.headerContent}>
               <View style={styles.iconCircle}>
-                 <MainIcon size={32} color={themeColors.backgroundColor} />
+                 <MainIcon size={32} color={themeColors.backgroundColor} weight="fill" />
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-                <Ionicons name="close" size={24} color="#fff" />
+                <X size={24} color="#fff" weight="bold" />
               </TouchableOpacity>
             </View>
           </View>
@@ -155,7 +165,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
             <View style={styles.gridRow}>
               <View style={[styles.gridItem, { backgroundColor: themeColors.backgroundColor2 }]}>
-                <Ionicons name="time-outline" size={22} color={themeColors.accentColor} />
+                <Clock size={22} color={themeColors.accentColor} weight="regular" />
                 <View style={styles.gridTextContainer}>
                   <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>
                     {t('schedule.lesson_viewer.time', lang)}
@@ -167,7 +177,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
               </View>
 
               <View style={[styles.gridItem, { backgroundColor: themeColors.backgroundColor2 }]}>
-                <Ionicons name="location-outline" size={22} color={themeColors.accentColor} />
+                <MapPin size={22} color={themeColors.accentColor} weight="regular" />
                 <View style={styles.gridTextContainer}>
                   <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>
                     {t('schedule.lesson_viewer.room', lang)}
@@ -187,7 +197,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                 {displayTeachers.map((teacher, index) => (
                   <View key={index} style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}>
                     <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
-                      <Ionicons name="person" size={18} color={themeColors.textColor} />
+                      <User size={18} color={themeColors.textColor} weight="fill" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.rowTitle, { color: themeColors.textColor }]}>{teacher.name}</Text>
@@ -195,7 +205,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                     </View>
                     {!!teacher.phone && (
                         <TouchableOpacity onPress={() => Linking.openURL(`tel:${teacher.phone}`)} hitSlop={10}>
-                            <Ionicons name="call-outline" size={22} color={themeColors.accentColor} style={{marginRight: 8}}/>
+                            <Phone size={22} color={themeColors.accentColor} style={{marginRight: 8}} weight="regular" />
                         </TouchableOpacity>
                     )}
                   </View>
@@ -215,7 +225,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                     onPress={() => handleLinkPress(link.url)}
                   >
                     <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
-                      <Ionicons name="link" size={18} color={themeColors.accentColor} />
+                      <LinkIcon size={18} color={themeColors.accentColor} weight="bold" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.rowTitle, { color: themeColors.accentColor, textDecorationLine: 'underline' }]}>
@@ -225,7 +235,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                         {link.url}
                       </Text>
                     </View>
-                    <Ionicons name="open-outline" size={20} color={themeColors.textColor2} />
+                    <ArrowUpRight size={20} color={themeColors.textColor2} weight="regular" />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -238,7 +248,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                 style={[styles.actionButton, { backgroundColor: 'rgba(255, 68, 68, 0.1)' }]}
                 onPress={handleDelete}
             >
-                <Ionicons name="trash-outline" size={20} color="#ff4444" style={{marginRight: 8}} />
+                <Trash size={20} color="#ff4444" style={{marginRight: 8}} weight="bold" />
                 <Text style={[styles.actionButtonText, { color: '#ff4444' }]}>{t('common.delete', lang)}</Text>
             </TouchableOpacity>
 
@@ -249,7 +259,7 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
                     onEdit({ ...lesson, subject: fullSubject, data: instanceData });
                 }}
             >
-                <Ionicons name="create-outline" size={20} color="#fff" style={{marginRight: 8}} />
+                <PencilSimple size={20} color="#fff" style={{marginRight: 8}} weight="bold" />
                 <Text style={[styles.actionButtonText, { color: '#fff' }]}>{t('common.edit', lang)}</Text>
             </TouchableOpacity>
           </View>

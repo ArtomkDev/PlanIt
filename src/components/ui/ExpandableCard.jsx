@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretUp, CaretDown } from 'phosphor-react-native';
 
 export default function ExpandableCard({
   title,
   value,
-  icon,
+  icon: Icon,
   themeColors,
   isExpanded,
   onToggle,
@@ -22,9 +22,11 @@ export default function ExpandableCard({
     ]}>
       <TouchableOpacity style={styles.header} onPress={onToggle} activeOpacity={0.7}>
         <View style={styles.rowLeft}>
-          <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '15' }]}>
-            <Ionicons name={icon} size={20} color={themeColors.accentColor} />
-          </View>
+          {Icon && (
+            <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '15' }]}>
+              <Icon size={20} color={themeColors.accentColor} weight="fill" />
+            </View>
+          )}
           <Text style={[styles.rowLabel, { color: themeColors.textColor }]}>
             {title}
           </Text>
@@ -40,11 +42,11 @@ export default function ExpandableCard({
             {value}
           </Text>
           {!(hideChevronOnAndroid && Platform.OS === 'android') && (
-            <Ionicons 
-              name={isExpanded ? "chevron-up" : "chevron-down"} 
-              size={18} 
-              color={themeColors.textColor2} 
-            />
+            isExpanded ? (
+              <CaretUp size={18} color={themeColors.textColor2} weight="bold" />
+            ) : (
+              <CaretDown size={18} color={themeColors.textColor2} weight="bold" />
+            )
           )}
         </View>
       </TouchableOpacity>

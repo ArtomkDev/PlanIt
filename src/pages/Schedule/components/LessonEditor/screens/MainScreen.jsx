@@ -1,6 +1,18 @@
 import React, { useState, useRef } from "react";
 import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManager } from "react-native";
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { 
+  BookOpen, 
+  Tag, 
+  Buildings, 
+  MapPin, 
+  User, 
+  Link as LinkIcon, 
+  Palette, 
+  Image as ImageIcon, 
+  Clock 
+} from "phosphor-react-native";
+
 import SettingRow from "../ui/SettingRow"; 
 import Group from "../ui/Group";
 import GradientBackground from "../../../../../components/ui/GradientBackground";
@@ -31,7 +43,7 @@ export default function LessonEditorMainScreen({
   onTimeChange,
   onClearSubject
 }) {
-  const { global , lang} = useSchedule();
+  const { lang } = useSchedule();
   const [expandedField, setExpandedField] = useState(null);
   const scrollViewRef = useRef(null);
 
@@ -147,7 +159,7 @@ export default function LessonEditorMainScreen({
     }
     const IconCmp = getIconComponent(currentSubject.icon);
     return IconCmp ? (
-      <IconCmp size={20} color={themeColors.textColor2} />
+      <IconCmp size={20} color={themeColors.textColor2} weight="regular" />
     ) : (
       <Text style={{ color: themeColors.textColor2, fontSize: 16 }}>{t('schedule.main_screen.none', lang)}</Text>
     );
@@ -171,7 +183,7 @@ export default function LessonEditorMainScreen({
             value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
             onPress={() => setActivePicker("subject")}
             themeColors={themeColors}
-            icon="book-outline"
+            icon={BookOpen}
           />
         </Group>
       </ScrollView>
@@ -195,7 +207,7 @@ export default function LessonEditorMainScreen({
           value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
           onPress={() => setActivePicker("subject")}
           themeColors={themeColors}
-          icon="book-outline"
+          icon={BookOpen}
         />
       </Group>
 
@@ -211,7 +223,7 @@ export default function LessonEditorMainScreen({
           value={getValueLabel("type", "type", "type")}
           onPress={() => setActivePicker("type")}
           themeColors={themeColors}
-          icon="pricetag-outline"
+          icon={Tag}
         />
       </Group>
 
@@ -227,14 +239,14 @@ export default function LessonEditorMainScreen({
           value={getValueLabel("building", "text", "location")}
           onPress={() => setActivePicker("building")}
           themeColors={themeColors}
-          icon="business-outline"
+          icon={Buildings}
         />
         <SettingRow
           label={t('schedule.main_screen.room', lang)}
           value={getValueLabel("room", "text", "location")}
           onPress={() => setActivePicker("room")}
           themeColors={themeColors}
-          icon="location-outline"
+          icon={MapPin}
         />
       </Group>
 
@@ -261,7 +273,7 @@ export default function LessonEditorMainScreen({
                     onPress={() => setActivePicker("teacher", index)}
                     onLongPress={() => onDirectEdit("teacher", id, index)} 
                     themeColors={themeColors}
-                    icon="person-outline"
+                    icon={User}
                 />
             ))
         )}
@@ -290,7 +302,7 @@ export default function LessonEditorMainScreen({
                     onPress={() => setActivePicker("link", index)}
                     onLongPress={() => onDirectEdit("link", id, index)} 
                     themeColors={themeColors}
-                    icon="link-outline"
+                    icon={LinkIcon}
                 />
             ))
         )}
@@ -302,14 +314,14 @@ export default function LessonEditorMainScreen({
           rightContent={renderColorPreview()}
           onPress={onEditSubjectColor} 
           themeColors={themeColors}
-          icon="color-palette-outline"
+          icon={Palette}
         />
         <SettingRow
           label={t('schedule.main_screen.subject_icon', lang)}
           rightContent={renderIconValue()}
           onPress={() => setActivePicker("icon")}
           themeColors={themeColors}
-          icon="image-outline"
+          icon={ImageIcon}
         />
       </Group>
 
@@ -327,7 +339,7 @@ export default function LessonEditorMainScreen({
           rightContent={renderTimeValue(currentStart, isTimeModified)}
           onPress={() => toggleExpand("startTime")}
           themeColors={themeColors}
-          icon="time-outline"
+          icon={Clock}
         />
         {expandedField === "startTime" && renderTimePicker("startTime", currentStart)}
 
@@ -336,7 +348,7 @@ export default function LessonEditorMainScreen({
           rightContent={renderTimeValue(currentEnd, isTimeModified)}
           onPress={() => toggleExpand("endTime")}
           themeColors={themeColors}
-          icon="time-outline"
+          icon={Clock}
         />
         {expandedField === "endTime" && renderTimePicker("endTime", currentEnd)}
 

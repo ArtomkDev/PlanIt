@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { StyleSheet, Text, View, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Timer, Coffee } from "phosphor-react-native";
 import Animated, { 
     useSharedValue, 
     useAnimatedStyle, 
@@ -85,17 +85,12 @@ const AnimatedBreakCard = React.memo(({ isVisible, isBreakNow, timeLeft, duratio
     }, [isVisible]);
 
     const iconScale = useSharedValue(1);
-    const [iconName, setIconName] = useState(isBreakNow ? "timer-outline" : "cafe-outline");
+    const [isTimerIcon, setIsTimerIcon] = useState(isBreakNow);
 
     useEffect(() => {
-        if (isBreakNow && iconName !== "timer-outline") {
+        if (isBreakNow !== isTimerIcon) {
             iconScale.value = withTiming(0, { duration: 150 }, () => {
-                runOnJS(setIconName)("timer-outline");
-                iconScale.value = withSpring(1, { damping: 12, stiffness: 100 });
-            });
-        } else if (!isBreakNow && iconName !== "cafe-outline") {
-            iconScale.value = withTiming(0, { duration: 150 }, () => {
-                runOnJS(setIconName)("cafe-outline");
+                runOnJS(setIsTimerIcon)(isBreakNow);
                 iconScale.value = withSpring(1, { damping: 12, stiffness: 100 });
             });
         }
@@ -133,7 +128,11 @@ const AnimatedBreakCard = React.memo(({ isVisible, isBreakNow, timeLeft, duratio
                         <View style={[StyleSheet.absoluteFillObject, { backgroundColor: activeColor, opacity: bgOpacity }]} />
                     )}
                     <Animated.View style={iconStyle}>
-                        <Ionicons name={iconName} size={16} color={isBreakNow ? themeColors.textColor : themeColors.textColor2} style={{ marginRight: 8 }} />
+                        {isTimerIcon ? (
+                             <Timer size={16} color={themeColors.textColor} style={{ marginRight: 8 }} weight="bold" />
+                        ) : (
+                             <Coffee size={16} color={themeColors.textColor2} style={{ marginRight: 8 }} weight="regular" />
+                        )}
                     </Animated.View>
                     <Text style={[styles.text, { color: isBreakNow ? themeColors.textColor : themeColors.textColor2, fontWeight: isBreakNow ? '700' : '600' }]}>
                         {text}

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
-import { Ionicons } from '@expo/vector-icons';
+import { CloudArrowUp, CheckSquare, Square } from 'phosphor-react-native';
 
 import { db } from '../../config/firebase';
 import createDefaultData from '../../config/createDefaultData';
@@ -172,7 +172,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
         <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
           
           <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '20' }]}>
-            <Ionicons name="cloud-upload" size={40} color={themeColors.accentColor} />
+            <CloudArrowUp size={40} color={themeColors.accentColor} weight="fill" />
           </View>
           
           <Text style={[styles.title, { color: themeColors.textColor }]}>
@@ -198,11 +198,11 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
                     onPress={() => toggleSelection(item.id)}
                     activeOpacity={0.7}
                   >
-                    <Ionicons 
-                      name={isSelected ? "checkbox" : "square-outline"} 
-                      size={24} 
-                      color={isSelected ? themeColors.accentColor : themeColors.textColor2} 
-                    />
+                    {isSelected ? (
+                      <CheckSquare size={24} color={themeColors.accentColor} weight="fill" />
+                    ) : (
+                      <Square size={24} color={themeColors.textColor2} weight="regular" />
+                    )}
                     <Text style={[styles.scheduleName, { color: themeColors.textColor }]} numberOfLines={1}>
                       {item.name || t('migration_modal.untitled', lang)}
                     </Text>

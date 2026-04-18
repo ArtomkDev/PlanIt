@@ -7,14 +7,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { PencilSimple, Trash, Plus, FloppyDisk } from "phosphor-react-native";
 import { useSchedule } from "../../../../context/ScheduleProvider";
 import themes from "../../../../config/themes";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import useUniqueId from "../../../../hooks/useUniqueId";
 
 export default function TeachersManager() {
-  const { global, schedule, setScheduleDraft , lang} = useSchedule();
+  const { global, schedule, setScheduleDraft, lang } = useSchedule();
   const teachers = schedule?.teachers || [];
   
   const [mode, accent] = global?.theme || ["light", "blue"];
@@ -76,7 +76,6 @@ export default function TeachersManager() {
           Manage Teachers
         </Text>
 
-        {/* Name */}
         <TextInput
           style={[
             styles.input,
@@ -91,7 +90,6 @@ export default function TeachersManager() {
           onChangeText={(text) => setNewTeacher({ ...newTeacher, name: text })}
         />
 
-        {/* Phone */}
         <TextInput
           style={[
             styles.input,
@@ -106,19 +104,24 @@ export default function TeachersManager() {
           onChangeText={(text) => setNewTeacher({ ...newTeacher, phone: text })}
         />
 
-        {/* Add / Save */}
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
           onPress={handleAddTeacher}
         >
-          <Text
-            style={[styles.addButtonText, { color: themeColors.textOnAccent }]}
-          >
-            {isEditMode ? "💾 Save Changes" : "➕ Add Teacher"}
-          </Text>
+          <View style={styles.buttonContent}>
+            {isEditMode ? (
+              <FloppyDisk size={20} color={themeColors.textOnAccent} weight="bold" />
+            ) : (
+              <Plus size={20} color={themeColors.textOnAccent} weight="bold" />
+            )}
+            <Text
+              style={[styles.addButtonText, { color: themeColors.textOnAccent }]}
+            >
+              {isEditMode ? " Save Changes" : " Add Teacher"}
+            </Text>
+          </View>
         </TouchableOpacity>
 
-        {/* Teachers list */}
         <FlatList
           data={teachers}
           keyExtractor={(item) => item.id.toString()}
@@ -129,7 +132,7 @@ export default function TeachersManager() {
                 { backgroundColor: themeColors.backgroundColor2 },
               ]}
             >
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text
                   style={[
                     styles.teacherName,
@@ -150,10 +153,10 @@ export default function TeachersManager() {
 
               <View style={styles.actionButtons}>
                 <TouchableOpacity onPress={() => handleEditTeacher(item)}>
-                  <Ionicons name="create-outline" size={22} color={themeColors.accentColor} />
+                  <PencilSimple size={22} color={themeColors.accentColor} weight="bold" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleRemoveTeacher(item.id)}>
-                  <Ionicons name="trash-outline" size={22} color="tomato" />
+                  <Trash size={22} color="tomato" weight="bold" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -183,7 +186,12 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 3,
   },
-  addButtonText: { fontSize: 16, fontWeight: "600" },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonText: { fontSize: 16, fontWeight: "600", marginLeft: 8 },
   teacherCard: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -198,5 +206,5 @@ const styles = StyleSheet.create({
   },
   teacherName: { fontSize: 16, fontWeight: "500" },
   teacherPhone: { fontSize: 14, marginTop: 2 },
-  actionButtons: { flexDirection: "row", gap: 12, alignItems: "center" },
+  actionButtons: { flexDirection: "row", gap: 16, alignItems: "center" },
 });

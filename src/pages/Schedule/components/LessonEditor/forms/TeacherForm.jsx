@@ -9,13 +9,12 @@ import {
   ScrollView, 
   Platform 
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { User, Phone } from "phosphor-react-native";
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal, onBack, themeColors }) {
-  const { global , lang} = useSchedule();
-
+  const { lang } = useSchedule();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -53,7 +52,7 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
             {t('schedule.lesson_editor.teacher_name_label', lang)}
           </Text>
           <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
-            <Ionicons name="person-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
+            <User size={20} color={themeColors.textColor2} weight="bold" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: themeColors.textColor }]}
               placeholder={t('schedule.lesson_editor.teacher_name_placeholder', lang)}
@@ -70,7 +69,7 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
             {t('schedule.lesson_editor.teacher_phone_label', lang)}
           </Text>
           <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
-            <Ionicons name="call-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
+            <Phone size={20} color={themeColors.textColor2} weight="bold" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: themeColors.textColor }]}
               placeholder="+380..."

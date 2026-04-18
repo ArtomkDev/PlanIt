@@ -2,7 +2,11 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { 
+  Stack, CalendarBlank, Timer, GridFour, Table, BookOpen, 
+  Users, Palette, Translate, SignIn, UserCircle, Cpu, 
+  SignOut, Trash, CaretRight
+} from 'phosphor-react-native';
 import Constants from 'expo-constants';
 
 import { useSchedule } from '../../context/ScheduleProvider';
@@ -89,28 +93,28 @@ export default function Settings({ guest, onExitGuest }) {
     {
       title: t('settings.sections.schedule', lang),
       data: [
-        { label: t('settings.menu.weeks.title', lang), screen: 'Weeks', icon: 'layers-outline', meta: weeksCount ? String(weeksCount) : undefined, desc: t('settings.menu.weeks.desc', lang) },
-        { label: t('settings.menu.start_date.title', lang), screen: 'StartWeek', icon: 'calendar-outline', desc: t('settings.menu.start_date.desc', lang) },
-        { label: t('settings.menu.breaks.title', lang), screen: 'Breaks', icon: 'timer-outline', meta: breaksCount ? String(breaksCount) : undefined, desc: t('settings.menu.breaks.desc', lang) },
-        { label: t('settings.menu.schedule.title', lang), screen: 'Schedule', icon: 'grid-outline', desc: t('settings.menu.schedule.desc', lang) },
-        { label: t('settings.menu.global_schedule.title', lang), screen: 'ScheduleSwitcher', icon: 'grid-outline', desc: t('settings.menu.global_schedule.desc', lang) },
+        { label: t('settings.menu.weeks.title', lang), screen: 'Weeks', icon: Stack, meta: weeksCount ? String(weeksCount) : undefined, desc: t('settings.menu.weeks.desc', lang) },
+        { label: t('settings.menu.start_date.title', lang), screen: 'StartWeek', icon: CalendarBlank, desc: t('settings.menu.start_date.desc', lang) },
+        { label: t('settings.menu.breaks.title', lang), screen: 'Breaks', icon: Timer, meta: breaksCount ? String(breaksCount) : undefined, desc: t('settings.menu.breaks.desc', lang) },
+        { label: t('settings.menu.schedule.title', lang), screen: 'Schedule', icon: GridFour, desc: t('settings.menu.schedule.desc', lang) },
+        { label: t('settings.menu.global_schedule.title', lang), screen: 'ScheduleSwitcher', icon: Table, desc: t('settings.menu.global_schedule.desc', lang) },
       ],
     },
     {
       title: t('settings.sections.data', lang),
       data: [
-        { label: t('settings.menu.subjects.title', lang), screen: 'Subjects', icon: 'book-outline', meta: subjectsCount ? String(subjectsCount) : undefined, desc: t('settings.menu.subjects.desc', lang) },
-        { label: t('settings.menu.teachers.title', lang), screen: 'Teachers', icon: 'people-outline', meta: teachersCount ? String(teachersCount) : undefined, desc: t('settings.menu.teachers.desc', lang) },
+        { label: t('settings.menu.subjects.title', lang), screen: 'Subjects', icon: BookOpen, meta: subjectsCount ? String(subjectsCount) : undefined, desc: t('settings.menu.subjects.desc', lang) },
+        { label: t('settings.menu.teachers.title', lang), screen: 'Teachers', icon: Users, meta: teachersCount ? String(teachersCount) : undefined, desc: t('settings.menu.teachers.desc', lang) },
       ],
     },
     {
       title: t('settings.sections.appearance', lang),
       data: [
-        { label: t('settings.menu.themes.title', lang), screen: 'Theme', icon: 'color-palette-outline', desc: t('settings.menu.themes.desc', lang) },
+        { label: t('settings.menu.themes.title', lang), screen: 'Theme', icon: Palette, desc: t('settings.menu.themes.desc', lang) },
         { 
           label: t('settings.menu.language.title', lang), 
           screen: 'Language', 
-          icon: 'language-outline', 
+          icon: Translate, 
           meta: lang.toUpperCase(), 
           desc: t('settings.menu.language.desc', lang) 
         },
@@ -120,18 +124,18 @@ export default function Settings({ guest, onExitGuest }) {
     {
       title: t('settings.sections.account', lang),
       data: !user ? [
-        { label: t('settings.menu.login.title', lang), action: handleAuthAction, icon: 'log-in-outline', desc: t('settings.menu.login.desc', lang) },
+        { label: t('settings.menu.login.title', lang), action: handleAuthAction, icon: SignIn, desc: t('settings.menu.login.desc', lang) },
       ] : [
-        { label: t('settings.menu.account_settings.title', lang), screen: 'AccountSettings', icon: 'person-circle-outline', desc: t('settings.menu.account_settings.desc', lang) },
-        { label: t('settings.menu.devices.title', lang), screen: 'DeviceManagement', icon: 'hardware-chip-outline', desc: t('settings.menu.devices.desc', lang) },
-        { label: t('settings.menu.logout.title', lang), action: handleSignOut, icon: 'log-out-outline', desc: t('settings.menu.logout.desc', lang), danger: true },
+        { label: t('settings.menu.account_settings.title', lang), screen: 'AccountSettings', icon: UserCircle, desc: t('settings.menu.account_settings.desc', lang) },
+        { label: t('settings.menu.devices.title', lang), screen: 'DeviceManagement', icon: Cpu, desc: t('settings.menu.devices.desc', lang) },
+        { label: t('settings.menu.logout.title', lang), action: handleSignOut, icon: SignOut, desc: t('settings.menu.logout.desc', lang), danger: true },
       ],
     },
     {
       title: t('settings.sections.danger_zone', lang),
       danger: true,
       data: [
-        { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: 'trash-outline', desc: t('settings.menu.reset_db.desc', lang) },
+        { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: Trash, desc: t('settings.menu.reset_db.desc', lang) },
       ],
     },
   ]), [weeksCount, breaksCount, subjectsCount, teachersCount, guest, user, lang]);
@@ -159,41 +163,46 @@ export default function Settings({ guest, onExitGuest }) {
     return () => scrollY.removeListener(listenerId);
   }, [headerHeight, sections]);
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => item.action ? item.action() : navigation.navigate(item.screen, { scheduleId: schedule?.id })}
-      style={[
-        styles.row,
-        { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor },
-      ]}
-    >
-      <View style={styles.left}>
-        <Icon 
-          name={item.icon} 
-          size={20} 
-          color={item.danger ? '#ff453a' : themeColors.textColor2} 
-          style={{ marginRight: 10 }} 
-        />
-        <View style={{ flexShrink: 1 }}>
-          <Text style={[
-            styles.title, 
-            { color: item.danger ? '#ff453a' : themeColors.textColor }
-          ]}>
-            {item.label}
-          </Text>
-          {!!item.desc && (
-            <Text style={[styles.desc, { color: themeColors.textColor2 }]} numberOfLines={1}>
-              {item.desc}
-            </Text>
+  const renderItem = ({ item }) => {
+    const IconComponent = item.icon;
+    return (
+      <TouchableOpacity
+        onPress={() => item.action ? item.action() : navigation.navigate(item.screen, { scheduleId: schedule?.id })}
+        style={[
+          styles.row,
+          { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor },
+        ]}
+      >
+        <View style={styles.left}>
+          {IconComponent && (
+            <IconComponent 
+              size={20} 
+              color={item.danger ? '#ff453a' : themeColors.textColor2} 
+              style={{ marginRight: 10 }} 
+              weight="regular"
+            />
           )}
+          <View style={{ flexShrink: 1 }}>
+            <Text style={[
+              styles.title, 
+              { color: item.danger ? '#ff453a' : themeColors.textColor }
+            ]}>
+              {item.label}
+            </Text>
+            {!!item.desc && (
+              <Text style={[styles.desc, { color: themeColors.textColor2 }]} numberOfLines={1}>
+                {item.desc}
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
-      <View style={styles.right}>
-        {!!item.meta && <Text style={[styles.meta, { color: themeColors.textColor2 }]}>{item.meta}</Text>}
-        <Icon name="chevron-forward" size={18} color={themeColors.textColor2} />
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.right}>
+          {!!item.meta && <Text style={[styles.meta, { color: themeColors.textColor2 }]}>{item.meta}</Text>}
+          <CaretRight size={18} color={themeColors.textColor2} weight="bold" />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>

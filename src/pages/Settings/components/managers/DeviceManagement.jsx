@@ -6,7 +6,13 @@ import {
   TouchableOpacity,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { 
+  Monitor, 
+  DeviceMobile, 
+  AppleLogo, 
+  AndroidLogo, 
+  SignOut 
+} from "phosphor-react-native";
 import Animated, { 
   FadeInDown, 
   FadeOutDown, 
@@ -36,7 +42,6 @@ export default function DeviceManager() {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-
 
   useEffect(() => {
     if (!user) return;
@@ -102,18 +107,18 @@ export default function DeviceManager() {
   };
 
   const getDeviceIconDetails = (device) => {
-    if (!device) return { name: "phone-portrait-outline", color: themeColors.textColor2 };
+    if (!device) return { Icon: DeviceMobile, color: themeColors.textColor2 };
 
     if (device.platform === "Web") {
-      return { name: "desktop-outline", color: themes.accentColors.blue };
+      return { Icon: Monitor, color: themes.accentColors.blue };
     }
     if (device.platform === "iOS" || device.brand?.toLowerCase() === "apple") {
-      return { name: "logo-apple", color: themeColors.textColor };
+      return { Icon: AppleLogo, color: themeColors.textColor };
     }
     if (device.platform?.includes("Android") || device.platform?.includes("realme") || (device.brand && device.brand?.toLowerCase() !== "apple")) {
-      return { name: "logo-android", color: themes.accentColors.green };
+      return { Icon: AndroidLogo, color: themes.accentColors.green };
     }
-    return { name: "phone-portrait-outline", color: themeColors.textColor2 };
+    return { Icon: DeviceMobile, color: themeColors.textColor2 };
   };
 
   const formatDate = (isoString) => {
@@ -149,7 +154,7 @@ export default function DeviceManager() {
 
     const isCurrent = item.id === currentDeviceId;
     const displayName = getDeviceDisplayName(item);
-    const iconDetails = getDeviceIconDetails(item);
+    const { Icon, color } = getDeviceIconDetails(item);
 
     const delay = index * 100;
 
@@ -169,8 +174,8 @@ export default function DeviceManager() {
         ]}
       >
         <View style={styles.cardLeft}>
-          <View style={[styles.iconContainer, { backgroundColor: iconDetails.color + "15" }]}>
-            <Ionicons name={iconDetails.name} size={24} color={iconDetails.color} />
+          <View style={[styles.iconContainer, { backgroundColor: color + "15" }]}>
+            <Icon size={24} color={color} weight={isCurrent ? "fill" : "regular"} />
           </View>
           <View style={styles.textContainer}>
             <Text style={[styles.deviceName, { color: themeColors.textColor }]} numberOfLines={1}>
@@ -195,7 +200,7 @@ export default function DeviceManager() {
               onPress={() => handleRemoveDevice(item.id)}
               hitSlop={10}
             >
-              <Ionicons name="log-out-outline" size={22} color={themes.accentColors.red} />
+              <SignOut size={22} color={themes.accentColors.red} weight="bold" />
             </TouchableOpacity>
           )}
         </View>
@@ -208,7 +213,6 @@ export default function DeviceManager() {
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
-        
         <View>
           <Text style={[styles.title, { color: themeColors.textColor }]}>
             {t('settings.device_screen.active_sessions', lang)}
@@ -228,10 +232,10 @@ export default function DeviceManager() {
               onPress={handleRemoveAllOthers}
               activeOpacity={0.7}
             >
-              <Ionicons 
-                name="log-out-outline" 
+              <SignOut 
                 size={20} 
                 color={themes.accentColors.red} 
+                weight="bold"
                 style={{ marginRight: 8 }} 
               />
               <Text style={[styles.deactivateAllText, { color: themes.accentColors.red }]}>
@@ -240,7 +244,6 @@ export default function DeviceManager() {
             </TouchableOpacity>
           </Animated.View>
         )}
-
       </View>
     </SettingsScreenLayout>
   );

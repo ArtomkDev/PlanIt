@@ -13,7 +13,16 @@ import {
   useWindowDimensions
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  Stack, 
+  CalendarBlank, 
+  Hourglass, 
+  Clock, 
+  Coffee, 
+  Trash, 
+  Plus, 
+  CaretDown 
+} from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -266,7 +275,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
               <ExpandableCard
                 title={t('settings.menu.weeks.title', lang)}
                 value={localData.repeat}
-                icon="layers-outline"
+                icon={Stack}
                 themeColors={themeColors}
                 isExpanded={isWeeksExpanded}
                 onToggle={toggleWeeksExpand}
@@ -303,9 +312,9 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                   <View style={{ marginTop: 24, opacity: isSingleWeek ? 0.5 : 1 }}>
                     <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>{t('settings.menu.start_date.title', lang)}</Text>
                     <TouchableOpacity style={[styles.dateCard, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.borderColor }]} onPress={() => setCalendarVisible(true)} activeOpacity={0.7}>
-                      <View style={[styles.dateCardIcon, { backgroundColor: themeColors.accentColor + '15' }]}><Ionicons name="calendar" size={26} color={themeColors.accentColor} /></View>
+                      <View style={[styles.dateCardIcon, { backgroundColor: themeColors.accentColor + '15' }]}><CalendarBlank size={26} color={themeColors.accentColor} weight="fill" /></View>
                       <View style={styles.dateCardTextContainer}><Text style={[styles.dateCardDay, { color: themeColors.textColor }]}>{capitalizedDay}</Text><Text style={[styles.dateCardDate, { color: themeColors.textColor2 }]}>{formattedDate}</Text></View>
-                      <Ionicons name="chevron-down" size={20} color={themeColors.textColor2} style={{ opacity: 0.5 }} />
+                      <CaretDown size={20} color={themeColors.textColor2} weight="bold" style={{ opacity: 0.5 }} />
                     </TouchableOpacity>
                   </View>
 
@@ -321,7 +330,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
               <ExpandableCard
                 title={t('settings.menu.duration.title', lang)}
                 value={`${localData.duration} ${t('schedule.main_screen.minutes', lang)}`}
-                icon="hourglass-outline"
+                icon={Hourglass}
                 themeColors={themeColors}
                 isExpanded={isDurationExpanded}
                 onToggle={toggleDurationExpand}
@@ -362,7 +371,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
               <ExpandableCard
                 title={t('settings.menu.start_time.title', lang)}
                 value={localData.start_time}
-                icon="time-outline"
+                icon={Clock}
                 themeColors={themeColors}
                 isExpanded={isTimeExpanded}
                 onToggle={toggleTimeExpand}
@@ -388,7 +397,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
               <ExpandableCard
                 title={t('settings.menu.breaks.title', lang)}
                 value={`${localData.breaks.length}`}
-                icon="cafe-outline"
+                icon={Coffee}
                 themeColors={themeColors}
                 isExpanded={isBreaksExpanded}
                 onToggle={toggleBreaksExpand}
@@ -418,7 +427,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                             style={styles.trashBtn}
                             activeOpacity={0.7}
                           >
-                            <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                            <Trash size={18} color="#FF3B30" weight="bold" />
                           </TouchableOpacity>
                         )}
                       </View>
@@ -429,7 +438,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                     onPress={handleAddBreak} 
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="add" size={20} color={themeColors.accentColor} />
+                    <Plus size={20} color={themeColors.accentColor} weight="bold" />
                     <Text style={[styles.addBreakText, { color: themeColors.accentColor }]}>{t('settings.breaks_manager.add_btn', lang)}</Text>
                   </TouchableOpacity>
                 </View>
@@ -457,8 +466,17 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
 }
 
 const styles = StyleSheet.create({ 
-  container: { flex: 1 }, scrollContent: { padding: 16 }, section: { marginBottom: 24 }, sectionTitle: { fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 4, textTransform: 'uppercase' }, inputContainer: { height: 52, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth }, input: { fontSize: 16, fontWeight: '500', height: '100%' }, 
-  dateCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth }, dateCardIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 }, dateCardTextContainer: { flex: 1 }, dateCardDay: { fontSize: 17, fontWeight: '600', marginBottom: 2 }, dateCardDate: { fontSize: 14 }, 
+  container: { flex: 1 }, 
+  scrollContent: { padding: 16 }, 
+  section: { marginBottom: 24 }, 
+  sectionTitle: { fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 4, textTransform: 'uppercase' }, 
+  inputContainer: { height: 52, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth }, 
+  input: { fontSize: 16, fontWeight: '500', height: '100%' }, 
+  dateCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth }, 
+  dateCardIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 }, 
+  dateCardTextContainer: { flex: 1 }, 
+  dateCardDay: { fontSize: 17, fontWeight: '600', marginBottom: 2 }, 
+  dateCardDate: { fontSize: 14 }, 
   timePickerContainer: { alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingBottom: 16, overflow: 'hidden' }, 
   breaksExpandedContent: { paddingBottom: 4 }, 
   breakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth }, 

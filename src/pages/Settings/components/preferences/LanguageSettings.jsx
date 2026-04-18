@@ -1,13 +1,13 @@
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, FlatList, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { CheckCircle } from "phosphor-react-native";
 import { useSchedule } from "../../../../context/ScheduleProvider";
 import themes from "../../../../config/themes";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import { t, SUPPORTED_LANGUAGES } from "../../../../utils/i18n";
 
 const LanguageSettings = () => {
-  const { global, setGlobalDraft, saveNow, isDirty , lang} = useSchedule();
+  const { global, setGlobalDraft, saveNow, isDirty } = useSchedule();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -76,7 +76,7 @@ const LanguageSettings = () => {
         </View>
 
         {isSelected && (
-          <Ionicons name="checkmark-circle" size={24} color={themeColors.accentColor} />
+          <CheckCircle size={24} color={themeColors.accentColor} weight="fill" />
         )}
       </TouchableOpacity>
     );

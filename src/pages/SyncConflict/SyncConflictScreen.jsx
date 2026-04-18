@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GitBranch, Smartphone, CloudDownload, CopyPlus, ChevronRight } from 'lucide-react-native';
+import { GitBranch, DeviceMobile, CloudArrowDown, Copy, CaretRight } from 'phosphor-react-native';
 import useSystemThemeColors from '../../hooks/useSystemThemeColors';
 import AppBlur from '../../components/ui/AppBlur';
 import { t } from '../../utils/i18n';
@@ -41,7 +41,7 @@ export default function SyncConflictScreen({
         onPress={onPress}
       >
         <View style={styles.actionIconWrapper}>
-          <Icon color={type === 'local' ? colors.textOnAccent : colors.textColor} size={18} />
+          <Icon color={type === 'local' ? colors.textOnAccent : colors.textColor} size={20} weight="fill" />
         </View>
         <View style={styles.actionTextContent}>
           <Text style={[styles.actionTitle, { color: type === 'local' ? colors.textOnAccent : colors.textColor }]}>
@@ -51,7 +51,7 @@ export default function SyncConflictScreen({
             {subtitle}
           </Text>
         </View>
-        <ChevronRight size={16} color={type === 'local' ? colors.textOnAccent : colors.textColor3} />
+        <CaretRight size={16} color={type === 'local' ? colors.textOnAccent : colors.textColor3} weight="bold" />
       </Pressable>
     );
   };
@@ -87,7 +87,7 @@ export default function SyncConflictScreen({
               <View style={styles.actionsGap}>
                 <ActionButton 
                   type="local"
-                  icon={Smartphone}
+                  icon={DeviceMobile}
                   title={t('sync_conflict.this_device', lang)}
                   subtitle={t('sync_conflict.overwrite_cloud', lang)}
                   onPress={() => handleResolveConflict(conflictId, 'local')}
@@ -95,7 +95,7 @@ export default function SyncConflictScreen({
                 
                 <ActionButton 
                   type="cloud"
-                  icon={CloudDownload}
+                  icon={CloudArrowDown}
                   title={t('sync_conflict.cloud_copy', lang)}
                   subtitle={t('sync_conflict.delete_local', lang)}
                   onPress={() => handleResolveConflict(conflictId, 'cloud')}
@@ -103,7 +103,7 @@ export default function SyncConflictScreen({
 
                 <ActionButton 
                   type="both"
-                  icon={CopyPlus}
+                  icon={Copy}
                   title={t('sync_conflict.keep_both', lang)}
                   subtitle={t('sync_conflict.create_duplicate', lang)}
                   onPress={() => handleResolveConflict(conflictId, 'both')}
@@ -133,7 +133,7 @@ export default function SyncConflictScreen({
         
         <View style={[styles.headerContent, { paddingTop: Math.max(insets.top, 16) + 20 }]}>
           <View style={[styles.iconBadge, { backgroundColor: colors.accentColorLight }]}>
-            <GitBranch color={colors.accentColor} size={32} strokeWidth={2.5} />
+            <GitBranch color={colors.accentColor} size={32} weight="bold" />
           </View>
           <Text style={[styles.title, { color: colors.textColor }]}>
             {t('sync_conflict.title', lang)}

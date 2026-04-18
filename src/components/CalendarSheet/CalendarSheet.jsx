@@ -3,7 +3,7 @@ import {
   View, Text, Modal, StyleSheet, TouchableOpacity, 
   Animated, Dimensions, Pressable, FlatList, Platform
 } from 'react-native';
-import { Ionicons } from "@expo/vector-icons";
+import { CaretLeft, CaretRight, CaretDown, CaretUp } from 'phosphor-react-native';
 
 import AppBlur from '../ui/AppBlur';
 import { useSchedule } from '../../context/ScheduleProvider';
@@ -88,7 +88,7 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
                 <View style={styles.navButtonContainer}>
                     {!isPickerMode && (
                         <TouchableOpacity onPress={prevMonth} style={styles.arrowBtn} hitSlop={10}>
-                            <Ionicons name="chevron-back" size={24} color={themeColors.textColor} />
+                            <CaretLeft size={24} color={themeColors.textColor} weight="bold" />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -104,18 +104,17 @@ export default function CalendarSheet({ visible, onClose, onDateSelect, currentD
                     <Text style={[styles.title, { color: themeColors.textColor }]}>
                         {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
                     </Text>
-                    <Ionicons 
-                      name={isPickerMode ? "chevron-up" : "chevron-down"} 
-                      size={18} 
-                      color={themeColors.accentColor} 
-                      style={{ marginLeft: 6, marginTop: 2 }}
-                    />
+                    {isPickerMode ? (
+                        <CaretUp size={18} color={themeColors.accentColor} style={{ marginLeft: 6, marginTop: 2 }} weight="bold" />
+                    ) : (
+                        <CaretDown size={18} color={themeColors.accentColor} style={{ marginLeft: 6, marginTop: 2 }} weight="bold" />
+                    )}
                 </TouchableOpacity>
 
                 <View style={styles.navButtonContainer}>
                     {!isPickerMode && (
                         <TouchableOpacity onPress={nextMonth} style={styles.arrowBtn} hitSlop={10}>
-                            <Ionicons name="chevron-forward" size={24} color={themeColors.textColor} />
+                            <CaretRight size={24} color={themeColors.textColor} weight="bold" />
                         </TouchableOpacity>
                     )}
                 </View>

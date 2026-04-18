@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Animated, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Clock, Hourglass, User, MapPin } from "phosphor-react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
@@ -270,7 +270,7 @@ const BackgroundPattern = React.memo(({ MainIcon }) => {
           <MainIcon 
             size={ICON_SIZE} 
             color="white" 
-            strokeWidth={2} 
+            weight="regular"
             style={Platform.OS === 'web' ? { overflow: 'visible' } : {}}
           />
         </View>
@@ -311,11 +311,11 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
           
           <View style={[styles.timeContainer, isActive && { backgroundColor: activePillBg }]}>
             <View style={styles.iconFixedContainer}>
-                <Ionicons 
-                  name={isActive ? "hourglass-outline" : "time"} 
-                  size={11} 
-                  color={isActive ? activePillText : "#fff"} 
-                />
+                {isActive ? (
+                   <Hourglass size={11} color={activePillText} weight="fill" />
+                ) : (
+                   <Clock size={11} color="#fff" weight="regular" />
+                )}
             </View>
             <Text style={[styles.timeText, isActive && { color: activePillText }]}>
               {isActive ? `Залишилось ${timeLeft}` : `${lesson?.timeInfo?.start || "—"} - ${lesson?.timeInfo?.end || "—"}`}
@@ -338,7 +338,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
         <View style={styles.footerRow}>
           <View style={styles.footerItem}>
             <View style={styles.iconFixedContainer}>
-                <Ionicons name="person" size={11} color="rgba(255,255,255,0.85)" />
+                <User size={11} color="rgba(255,255,255,0.85)" weight="fill" />
             </View>
             <Text style={styles.footerText} numberOfLines={1}>{teacher?.name || "—"}</Text>
           </View>
@@ -346,7 +346,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
           {!!(displayRoom || displayBuilding) && (
             <View style={styles.footerItem}>
               <View style={styles.iconFixedContainer}>
-                  <Ionicons name="location" size={11} color="rgba(255,255,255,0.85)" />
+                  <MapPin size={11} color="rgba(255,255,255,0.85)" weight="fill" />
               </View>
               <Text style={styles.footerText} numberOfLines={1}>
                   {displayBuilding ? `${displayBuilding} ` : ''}{displayRoom}

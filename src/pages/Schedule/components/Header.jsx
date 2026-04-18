@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { CaretDown } from "phosphor-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
@@ -49,7 +49,7 @@ export default function Header({ currentDate, onDateChange, onTodayPress, onTitl
              <Text style={[styles.dateText, { color: themeColors.textColor }]}>
                {formattedDate}
              </Text>
-             <Ionicons name="chevron-down" size={18} color={themeColors.accentColor} style={{ marginTop: 2 }}/>
+             <CaretDown size={18} color={themeColors.accentColor} weight="bold" style={{ marginTop: 2 }}/>
            </TouchableOpacity>
         </View>
 

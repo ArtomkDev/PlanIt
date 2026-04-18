@@ -9,13 +9,12 @@ import {
   ScrollView, 
   Platform 
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { TextT, Link as LinkIcon } from "phosphor-react-native";
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack, themeColors }) {
-  const { global , lang} = useSchedule();
-
+  const { lang } = useSchedule();
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -53,7 +52,7 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
             {t('schedule.lesson_editor.link_name_label', lang)}
           </Text>
           <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
-            <Ionicons name="text-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
+            <TextT size={20} color={themeColors.textColor2} weight="bold" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: themeColors.textColor }]}
               placeholder={t('schedule.lesson_editor.link_name_placeholder', lang)}
@@ -70,7 +69,7 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
             {t('schedule.lesson_editor.link_url_label', lang)}
           </Text>
           <View style={[styles.inputContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
-            <Ionicons name="link-outline" size={20} color={themeColors.textColor2} style={styles.inputIcon} />
+            <LinkIcon size={20} color={themeColors.textColor2} weight="bold" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: themeColors.textColor }]}
               placeholder="https://..."

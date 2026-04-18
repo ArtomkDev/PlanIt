@@ -5,7 +5,11 @@ import {
   Animated, Easing, useWindowDimensions, BackHandler, PanResponder, Linking
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  Planet, RocketLaunch, Compass, Fingerprint, IdentificationCard, ShieldCheck, 
+  UserPlus, CalendarBlank, PencilSimple, EnvelopeOpen, PaperPlaneRight, CheckCircle,
+  GraduationCap, Eye, EyeClosed, CheckSquare, Square, ArrowLeft, User, EnvelopeSimple, LockKey
+} from 'phosphor-react-native';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -33,24 +37,24 @@ const getIconConfig = (vw, vh) => {
 
   return {
     welcome: [
-      { id: 0, icon: 'planet', x: cx(0.1), y: cy(0.15), scale: 1.1, rotate: -15, opacity: 0.05 },
-      { id: 1, icon: 'rocket', x: cx(0.85), y: cy(0.85), scale: 0.9, rotate: 45, opacity: 0.06 },
-      { id: 2, icon: 'compass', x: cx(0.8), y: cy(0.2), scale: 0.7, rotate: 10, opacity: 0.04 },
+      { id: 0, IconComponent: Planet, x: cx(0.1), y: cy(0.15), scale: 1.1, rotate: -15, opacity: 0.05 },
+      { id: 1, IconComponent: RocketLaunch, x: cx(0.85), y: cy(0.85), scale: 0.9, rotate: 45, opacity: 0.06 },
+      { id: 2, IconComponent: Compass, x: cx(0.8), y: cy(0.2), scale: 0.7, rotate: 10, opacity: 0.04 },
     ],
     signin: [
-      { id: 0, icon: 'finger-print', x: cx(0.85), y: cy(0.15), scale: 1.2, rotate: 0, opacity: 0.05 },
-      { id: 1, icon: 'id-card', x: cx(0.15), y: cy(0.8), scale: 0.85, rotate: -20, opacity: 0.04 },
-      { id: 2, icon: 'shield-checkmark', x: cx(0.7), y: cy(0.85), scale: 0.75, rotate: 15, opacity: 0.06 },
+      { id: 0, IconComponent: Fingerprint, x: cx(0.85), y: cy(0.15), scale: 1.2, rotate: 0, opacity: 0.05 },
+      { id: 1, IconComponent: IdentificationCard, x: cx(0.15), y: cy(0.8), scale: 0.85, rotate: -20, opacity: 0.04 },
+      { id: 2, IconComponent: ShieldCheck, x: cx(0.7), y: cy(0.85), scale: 0.75, rotate: 15, opacity: 0.06 },
     ],
     signup: [
-      { id: 0, icon: 'person-add', x: cx(0.25), y: cy(0.15), scale: 1.1, rotate: 15, opacity: 0.06 },
-      { id: 1, icon: 'calendar-clear', x: cx(0.85), y: cy(0.5), scale: 0.9, rotate: -15, opacity: 0.05 },
-      { id: 2, icon: 'pencil', x: cx(0.15), y: cy(0.85), scale: 0.85, rotate: 35, opacity: 0.04 },
+      { id: 0, IconComponent: UserPlus, x: cx(0.25), y: cy(0.15), scale: 1.1, rotate: 15, opacity: 0.06 },
+      { id: 1, IconComponent: CalendarBlank, x: cx(0.85), y: cy(0.5), scale: 0.9, rotate: -15, opacity: 0.05 },
+      { id: 2, IconComponent: PencilSimple, x: cx(0.15), y: cy(0.85), scale: 0.85, rotate: 35, opacity: 0.04 },
     ],
     verify: [
-      { id: 0, icon: 'mail-unread', x: cx(0.15), y: cy(0.15), scale: 1.15, rotate: -15, opacity: 0.06 },
-      { id: 1, icon: 'paper-plane', x: cx(0.85), y: cy(0.25), scale: 0.9, rotate: 25, opacity: 0.05 },
-      { id: 2, icon: 'checkmark-circle', x: cx(0.5), y: cy(0.85), scale: 0.95, rotate: 10, opacity: 0.04 },
+      { id: 0, IconComponent: EnvelopeOpen, x: cx(0.15), y: cy(0.15), scale: 1.15, rotate: -15, opacity: 0.06 },
+      { id: 1, IconComponent: PaperPlaneRight, x: cx(0.85), y: cy(0.25), scale: 0.9, rotate: 25, opacity: 0.05 },
+      { id: 2, IconComponent: CheckCircle, x: cx(0.5), y: cy(0.85), scale: 0.95, rotate: 10, opacity: 0.04 },
     ]
   };
 };
@@ -117,12 +121,12 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
   const animOpacity = useRef(new Animated.Value(targetConfig.opacity)).current;
   
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const [iconName, setIconName] = useState(targetConfig.icon);
+  const [ActiveIcon, setActiveIcon] = useState(() => targetConfig.IconComponent);
 
   useEffect(() => {
-    if (iconName !== targetConfig.icon) {
+    if (ActiveIcon !== targetConfig.IconComponent) {
       Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-        setIconName(targetConfig.icon);
+        setActiveIcon(() => targetConfig.IconComponent);
         Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
       });
     }
@@ -141,19 +145,22 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
   return (
     <Animated.View style={[styles.backgroundIconWrapper, { transform: [{ translateX: animX }, { translateY: animY }, { scale: animScale }, { rotate: spin }], opacity: animOpacity }]}>
       <Animated.View style={{ opacity: fadeAnim }}>
-        <Ionicons name={`${iconName}-outline`} size={280} color={isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)'} />
+        {ActiveIcon && <ActiveIcon size={280} color={isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)'} weight="regular" />}
       </Animated.View>
     </Animated.View>
   );
 };
 
-const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, isPasswordVisible, setIsPasswordVisible, autoCapitalize="none", keyboardType="default", colors }) => (
+const InputField = ({ InputIcon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, isPasswordVisible, setIsPasswordVisible, autoCapitalize="none", keyboardType="default", colors }) => (
   <View style={[styles.inputContainer, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
-    <Ionicons name={icon} size={20} color={colors.textColor2} style={styles.inputIcon} />
+    {InputIcon && <InputIcon size={20} color={colors.textColor2} style={styles.inputIcon} weight="regular" />}
     <TextInput style={[styles.input, { color: colors.textColor }]} placeholder={placeholder} placeholderTextColor={colors.textColor2} secureTextEntry={secureTextEntry} value={value} onChangeText={onChangeText} autoCapitalize={autoCapitalize} keyboardType={keyboardType} />
     {isPasswordButton && (
       <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeButton}>
-        <Ionicons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textColor2} />
+        {isPasswordVisible ? 
+          <EyeClosed size={22} color={colors.textColor2} weight="regular" /> : 
+          <Eye size={22} color={colors.textColor2} weight="regular" />
+        }
       </TouchableOpacity>
     )}
   </View>
@@ -161,7 +168,10 @@ const InputField = ({ icon, placeholder, secureTextEntry, value, onChangeText, i
 
 const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang }) => (
   <TouchableOpacity style={styles.checkboxContainer} onPress={() => setAcceptedTerms(!acceptedTerms)} activeOpacity={0.7}>
-    <Ionicons name={acceptedTerms ? "checkbox" : "square-outline"} size={22} color={acceptedTerms ? colors.accentColor : colors.textColor2} />
+    {acceptedTerms ? 
+      <CheckSquare size={22} color={colors.accentColor} weight="fill" /> : 
+      <Square size={22} color={colors.textColor2} weight="regular" />
+    }
     <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
       {t('auth.terms.agree_prefix', lang)}
       <Text style={{ color: colors.accentColor }} onPress={() => Linking.openURL('https://planit-hub.web.app/privacy.html')}>
@@ -188,7 +198,7 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
     <View style={[styles.contentBlock, { paddingTop: insets.top + 40 }]}>
       <View style={styles.welcomeHeader}>
         <View style={[styles.logoContainer, { backgroundColor: colors.accentColor }]}>
-           <Ionicons name="school" size={60} color="#fff" />
+           <GraduationCap size={60} color="#fff" weight="fill" />
         </View>
         <Text style={[styles.welcomeTitle, { color: colors.textColor }]}>PlanIt</Text>
         <Text style={[styles.welcomeSubtitle, { color: colors.textColor2 }]}>{t('auth.welcome.subtitle', lang)}</Text>
@@ -410,7 +420,7 @@ const AuthScreen = ({ onGuestLogin }) => {
       elements.push(
         <View key="header" style={styles.formHeader}>
           <TouchableOpacity onPress={() => handleNavigate('welcome')} style={[styles.backBtn, { backgroundColor: colors.backgroundColor2 }]}>
-            <Ionicons name="arrow-back" size={24} color={colors.textColor} />
+            <ArrowLeft size={24} color={colors.textColor} weight="regular" />
           </TouchableOpacity>
           <Text style={[styles.formTitle, { color: colors.textColor }]}>
             {currentView === 'signin' ? t('auth.signin.title', lang) : t('auth.signup.title', lang)}
@@ -424,10 +434,10 @@ const AuthScreen = ({ onGuestLogin }) => {
       elements.push(
         <View key="inputs" style={styles.formGroup}>
           {currentView === 'signup' && (
-            <InputField icon="person-outline" placeholder={t('auth.fields.name', lang)} value={name} onChangeText={setName} autoCapitalize="words" colors={colors} />
+            <InputField InputIcon={User} placeholder={t('auth.fields.name', lang)} value={name} onChangeText={setName} autoCapitalize="words" colors={colors} />
           )}
-          <InputField icon="mail-outline" placeholder={t('auth.fields.email', lang)} value={email} onChangeText={setEmail} keyboardType="email-address" colors={colors} />
-          <InputField icon="lock-closed-outline" placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={setPassword} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} />
+          <InputField InputIcon={EnvelopeSimple} placeholder={t('auth.fields.email', lang)} value={email} onChangeText={setEmail} keyboardType="email-address" colors={colors} />
+          <InputField InputIcon={LockKey} placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={setPassword} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} />
           
           <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} />
           
@@ -550,9 +560,9 @@ const styles = StyleSheet.create({
   formBlock: { flex: 1, width: '100%', paddingBottom: 20 },
   verifyFormBlock: { flex: 1, width: '100%', justifyContent: 'center', paddingBottom: 40 },
   welcomeHeader: { alignItems: 'center', marginTop: '10%' },
-  logoContainer: { width: 90, height: 90, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 20, elevation: 8, ...Platform.select({ web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.1)' }, default: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 } }) },
+  logoContainer: { width: 90, height: 90, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginHorizontal: 'auto', marginBottom: 20, elevation: 8, ...Platform.select({ web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.1)' }, default: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 } }) },
   welcomeTitle: { fontSize: 36, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
-  welcomeSubtitle: { fontSize: 16, textAlign: 'center', lineHeight: 24, maxWidth: '85%' },
+  welcomeSubtitle: { fontSize: 16, textAlign: 'center', lineHeight: 24, maxWidth: '85%', marginHorizontal: 'auto' },
   actions: { width: '100%', gap: 14, marginTop: 40 },
   primaryButton: { width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },

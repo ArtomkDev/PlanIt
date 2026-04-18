@@ -1,6 +1,6 @@
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet, View, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { CaretRight } from "phosphor-react-native";
 import Animated, { FadeIn, Easing } from "react-native-reanimated";
 
 const isWeb = Platform.OS === "web";
@@ -11,7 +11,7 @@ export default function SettingRow({
   onPress, 
   onLongPress, 
   themeColors, 
-  icon,
+  icon: Icon,
   rightContent 
 }) {
   return (
@@ -23,9 +23,9 @@ export default function SettingRow({
       activeOpacity={0.7}
     >
       <View style={styles.left}>
-        {icon && (
+        {Icon && (
           <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '20' }]}>
-            <Ionicons name={icon} size={20} color={themeColors.accentColor} />
+            <Icon size={20} color={themeColors.accentColor} weight="fill" />
           </View>
         )}
         <Text style={[styles.label, { color: themeColors.textColor }]}>{label}</Text>
@@ -44,7 +44,7 @@ export default function SettingRow({
             {value}
           </Animated.Text>
         )}
-        <Ionicons name="chevron-forward" size={18} color={themeColors.textColor3 || "#aaa"} style={{marginLeft: 6}}/>
+        <CaretRight size={18} color={themeColors.textColor3 || "#aaa"} weight="bold" style={{marginLeft: 6}}/>
       </View>
     </TouchableOpacity>
   );

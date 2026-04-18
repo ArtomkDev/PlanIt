@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Plus, ArrowsCounterClockwise } from "phosphor-react-native";
 import Animated, { FadeIn, LinearTransition, Easing } from "react-native-reanimated";
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
@@ -12,7 +12,7 @@ const customLayoutTransition = isWeb
   : LinearTransition.duration(200).easing(Easing.out(Easing.quad));
 
 export default function Group({ title, children, onAdd, onReset, themeColors, showScopeToggle, scope, onScopeChange }) {
-  const { global , lang} = useSchedule();
+  const { lang } = useSchedule();
 
   const handleScopeChange = () => {
     onScopeChange(scope === "local" ? "global" : "local");
@@ -50,7 +50,7 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
               onPress={onAdd}
               activeOpacity={0.7}
             >
-              <Ionicons name="add" size={18} color={themeColors.textColor} />
+              <Plus size={18} color={themeColors.textColor} weight="bold" />
             </TouchableOpacity>
           ) : onReset ? (
             <TouchableOpacity
@@ -58,7 +58,7 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
               onPress={onReset}
               activeOpacity={0.7}
             >
-              <Ionicons name="refresh" size={18} color={themeColors.textColor} />
+              <ArrowsCounterClockwise size={18} color={themeColors.textColor} weight="bold" />
             </TouchableOpacity>
           ) : showScopeToggle ? (
             <View style={[styles.actionButton, styles.iconButton, { opacity: 0 }]} pointerEvents="none" />

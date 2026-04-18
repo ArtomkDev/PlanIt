@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { CaretRight, User, EnvelopeSimple, LockKey, Trash, GoogleLogo, AppleLogo } from 'phosphor-react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth';
 import Constants from 'expo-constants';
@@ -135,7 +135,7 @@ export default function AccountSettings() {
     }
   };
 
-  const SettingsRow = ({ icon, title, value, rightElement, isLast, isDestructive, onPress }) => {
+  const SettingsRow = ({ icon: IconComponent, title, value, rightElement, isLast, isDestructive, onPress }) => {
     const Component = onPress ? TouchableOpacity : View;
     
     return (
@@ -145,9 +145,9 @@ export default function AccountSettings() {
         activeOpacity={0.7}
       >
         <View style={styles.rowLeft}>
-          {icon && (
+          {IconComponent && (
             <View style={[styles.iconContainer, isDestructive && styles.destructiveIconContainer]}>
-              <Ionicons name={icon} size={20} color={isDestructive ? '#FF3B30' : themeColors.accentColor} />
+              <IconComponent size={20} color={isDestructive ? '#FF3B30' : themeColors.accentColor} weight="fill" />
             </View>
           )}
           <Text style={[styles.rowTitle, isDestructive && styles.destructiveText]}>{title}</Text>
@@ -208,18 +208,18 @@ export default function AccountSettings() {
       <Text style={styles.sectionTitle}>{t('settings.account_settings.info_section', lang)}</Text>
       <View style={styles.section}>
         <SettingsRow 
-          icon="person-outline" 
+          icon={User} 
           title={t('settings.account_settings.name', lang)} 
           value={userName} 
-          rightElement={<Ionicons name="chevron-forward" size={20} color={themeColors.textColor2} />}
+          rightElement={<CaretRight size={20} color={themeColors.textColor2} weight="bold" />}
           onPress={() => navigation.navigate('ChangeName')}
         />
         
         <SettingsRow 
-          icon="mail-outline" 
+          icon={EnvelopeSimple} 
           title={t('settings.account_settings.email', lang)} 
           value={userEmail} 
-          rightElement={<Ionicons name="chevron-forward" size={20} color={themeColors.textColor2} />}
+          rightElement={<CaretRight size={20} color={themeColors.textColor2} weight="bold" />}
           isLast
           onPress={() => {
             if (isSocialOnly) {
@@ -237,13 +237,13 @@ export default function AccountSettings() {
       <Text style={styles.sectionTitle}>{t('settings.account_settings.linked_accounts_section', lang)}</Text>
       <View style={styles.section}>
         <SettingsRow 
-          icon="logo-google" 
+          icon={GoogleLogo} 
           title="Google" 
           rightElement={renderProviderStatus(isGoogleLinked, 'google.com', handleLinkGoogle)}
         />
         {Platform.OS !== 'android' && (
           <SettingsRow 
-            icon="logo-apple" 
+            icon={AppleLogo} 
             title="Apple" 
             rightElement={renderProviderStatus(isAppleLinked, 'apple.com', handleLinkApple)}
             isLast
@@ -254,10 +254,10 @@ export default function AccountSettings() {
       <Text style={styles.sectionTitle}>{t('settings.account_settings.security_section', lang)}</Text>
       <View style={styles.section}>
         <SettingsRow 
-          icon="lock-closed-outline" 
+          icon={LockKey} 
           title={t('settings.account_settings.password', lang)} 
           value="••••••••" 
-          rightElement={<Ionicons name="chevron-forward" size={20} color={themeColors.textColor2} />}
+          rightElement={<CaretRight size={20} color={themeColors.textColor2} weight="bold" />}
           onPress={() => {
             if (isSocialOnly) {
               Alert.alert(
@@ -274,7 +274,7 @@ export default function AccountSettings() {
       <Text style={styles.sectionTitle}>{t('settings.account_settings.management_section', lang)}</Text>
       <View style={styles.section}>
         <SettingsRow 
-          icon="trash-outline" 
+          icon={Trash} 
           title={t('settings.account_settings.delete_account', lang)} 
           isLast 
           isDestructive 

@@ -7,7 +7,13 @@ import {
   Alert,
   Platform 
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { 
+  CloudArrowUp, 
+  CloudArrowDown, 
+  PencilSimple, 
+  Trash, 
+  PlusCircle 
+} from "phosphor-react-native";
 import { useNavigation } from "@react-navigation/native";
 import Animated, { 
   FadeInDown, 
@@ -21,7 +27,7 @@ import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import themes from "../../../config/themes"; 
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
-import TabSwitcher from "../../../components/ui/TabSwitcher"; // ОНОВЛЕНИЙ ШЛЯХ
+import TabSwitcher from "../../../components/ui/TabSwitcher";
 
 const ScheduleSwitcher = () => {
   const { 
@@ -222,7 +228,6 @@ const ScheduleSwitcher = () => {
             {t('settings.schedule_switcher.your_schedules', lang)}
           </Text>
           <Text style={[styles.sectionDescription, { color: themeColors.textColor2 }]}>
-            {/* Динамічний опис на основі обраної вкладки */}
             {guest 
               ? t('settings.schedule_switcher.description_guest', lang)
               : isAccountTab 
@@ -302,7 +307,7 @@ const ScheduleSwitcher = () => {
                         onPress={() => handleMoveToLocal(s)}
                         style={styles.iconButton}
                       >
-                        <Ionicons name="cloud-download-outline" size={20} color={themeColors.textColor2} />
+                        <CloudArrowDown size={20} color={themeColors.textColor2} weight="regular" />
                       </TouchableOpacity>
                     )}
 
@@ -312,7 +317,7 @@ const ScheduleSwitcher = () => {
                         onPress={() => handleMoveToCloud(s)}
                         style={styles.iconButton}
                       >
-                        <Ionicons name="cloud-upload-outline" size={20} color={themeColors.accentColor} />
+                        <CloudArrowUp size={20} color={themeColors.accentColor} weight="bold" />
                       </TouchableOpacity>
                     )}
 
@@ -322,7 +327,7 @@ const ScheduleSwitcher = () => {
                         onPress={() => handleEdit(s.id)}
                         style={styles.iconButton}
                       >
-                        <Ionicons name="pencil" size={20} color={themeColors.textColor2} />
+                        <PencilSimple size={20} color={themeColors.textColor2} weight="bold" />
                       </TouchableOpacity>
                     )}
 
@@ -331,7 +336,7 @@ const ScheduleSwitcher = () => {
                       onPress={() => isAccountTab ? handleDelete(s.id, s.name) : handleDeleteGuest(s.id, s.name)}
                       style={styles.iconButton}
                     >
-                      <Ionicons name="trash-outline" size={20} color={themes.accentColors.red} />
+                      <Trash size={20} color={themes.accentColors.red} weight="bold" />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -349,7 +354,7 @@ const ScheduleSwitcher = () => {
                 onPress={handleAddNew}
                 activeOpacity={0.7}
               >
-                <Ionicons name="add-circle-outline" size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} />
+                <PlusCircle size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} weight="bold" />
                 <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>
                   {t('settings.schedule_switcher.add_new', lang)}
                 </Text>

@@ -9,7 +9,7 @@ import {
   Animated,
   Modal,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { CaretLeft, PencilSimple, CheckCircle, XCircle } from "phosphor-react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
@@ -748,7 +748,7 @@ export default function LessonEditor({ lesson, onClose }) {
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={15}>
-          <Ionicons name="chevron-back" size={24} color={themeColors.accentColor} />
+          <CaretLeft size={24} color={themeColors.accentColor} weight="bold" />
           <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t('common.back', lang)}</Text>
         </TouchableOpacity>
       )}
@@ -802,7 +802,7 @@ export default function LessonEditor({ lesson, onClose }) {
               activeOpacity={0.7}
             >
               <View style={[styles.minimizedIcon, { backgroundColor: themeColors.accentColor + '20' }]}>
-                <Ionicons name="pencil" size={18} color={themeColors.accentColor} />
+                <PencilSimple size={18} color={themeColors.accentColor} weight="bold" />
               </View>
               <View style={{ flex: 1, paddingRight: 5 }}>
                 <Text style={[styles.minimizedTitle, { color: themeColors.textColor }]} numberOfLines={1}>
@@ -817,11 +817,11 @@ export default function LessonEditor({ lesson, onClose }) {
             <View style={styles.minimizedActions}>
               {canSave && (
                 <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn}>
-                  <Ionicons name="checkmark-circle" size={30} color={themeColors.accentColor} />
+                  <CheckCircle size={30} color={themeColors.accentColor} weight="fill" />
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]}>
-                <Ionicons name="close-circle" size={30} color={themeColors.accentColor || "#ff4444"} />
+                <XCircle size={30} color={themeColors.accentColor || "#ff4444"} weight="fill" />
               </TouchableOpacity>
             </View>
           </Animated.View>
