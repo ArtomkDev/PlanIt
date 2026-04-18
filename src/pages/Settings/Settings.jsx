@@ -27,9 +27,6 @@ export default function Settings({ guest, onExitGuest }) {
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
-
-  const autoSaveVal = global?.auto_save; 
-  const autoSaveEnabled = typeof autoSaveVal === 'number' && autoSaveVal > 0;
   
   const weeksCount = Array.isArray(schedule?.weeks) ? schedule.weeks.length : (typeof schedule?.weeksCount === 'number' ? schedule.weeksCount : undefined);
   const breaksCount = Array.isArray(schedule?.breaks) ? schedule.breaks.length : undefined;
@@ -119,18 +116,7 @@ export default function Settings({ guest, onExitGuest }) {
         },
       ],
     },
-    {
-      title: t('settings.sections.automation', lang),
-      data: [
-        { 
-          label: t('settings.menu.autosave.title', lang), 
-          screen: 'AutoSave', 
-          icon: 'save-outline',
-          meta: autoSaveEnabled ? t('settings.menu.every_sec', lang).replace('{val}', autoSaveVal) : t('common.disabled', lang),
-          desc: t('settings.menu.autosave.desc', lang) 
-        },
-      ],
-    },
+
     {
       title: t('settings.sections.account', lang),
       data: !user ? [
@@ -148,7 +134,7 @@ export default function Settings({ guest, onExitGuest }) {
         { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: 'trash-outline', desc: t('settings.menu.reset_db.desc', lang) },
       ],
     },
-  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, autoSaveEnabled, autoSaveVal, guest, user, lang]);
+  ]), [weeksCount, breaksCount, subjectsCount, teachersCount, guest, user, lang]);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const sectionPositions = useRef([]);

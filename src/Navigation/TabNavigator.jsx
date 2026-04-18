@@ -20,7 +20,6 @@ import StartWeekManager from '../pages/Settings/components/managers/StartWeekMan
 import SubjectsManager from '../pages/Settings/components/managers/SubjectsManager';
 import TeachersManager from '../pages/Settings/components/managers/TeachersManager';
 import ScheduleManager from '../pages/Settings/components/ScheduleManager';
-import AutoSaveManager from '../pages/Settings/components/preferences/AutoSaveIntervalSettings';
 import ThemeSettings from '../pages/Settings/components/preferences/ThemeSettings';
 import ResetDB from '../pages/Settings/components/ResetDB';
 import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
@@ -63,7 +62,6 @@ function SettingsStack({ screenProps }) {
         <Stack.Screen name="Schedule" component={ScheduleManager} />
         <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
         <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
-        <Stack.Screen name="AutoSave" component={AutoSaveManager} />
         <Stack.Screen name="Theme" component={ThemeSettings} />
         <Stack.Screen name="Language" component={LanguageSettings} />
         <Stack.Screen name="ResetDB" component={ResetDB} />

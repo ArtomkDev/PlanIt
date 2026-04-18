@@ -129,6 +129,11 @@ export default {
     untitled: "Без назви"
   },
 
+  autosave: {
+    no_internet: "Немає інтернету",
+    syncing: "Синхронізація з хмарою...",
+  },
+
   schedule: {
     loading: "Завантаження...",
     day_schedule: {
@@ -257,9 +262,6 @@ export default {
       themes: { title: "Теми", desc: "Світла/темна, акцент" },
       language: { title: "Мова", desc: "Вибір мови додатку" },
       
-      autosave: { title: "Авто збереження", desc: "Фонове збереження змін" },
-      every_sec: "кожні {val} сек",
-      
       login: { title: "Увійти або Створити акаунт", desc: "Синхронізуйте дані в хмарі" },
       account_settings: { title: "Налаштування акаунту", desc: "Керування профілем, безпека, зміна пошти" },
       devices: { title: "Пристрої", desc: "Налаштування авторизованих пристроїв" },
@@ -379,11 +381,6 @@ export default {
       current: "Поточний",
       active_sessions: "Активні сеанси",
       logout_all_others: "Вийти на всіх інших пристроях",
-    },
-
-    autosave_screen: {
-      interval_label: "Інтервал автозбереження (секунди):",
-      info_text: "Це налаштування впливає на частоту збереження даних у хмару.",
     },
 
     reset_db_screen: {

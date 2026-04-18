@@ -1,118 +1,105 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Pressable } from "react-native";
 import { useSchedule } from "../context/ScheduleProvider";
+import { t } from "../utils/i18n";
 
 export default function AutoSaveManager() {
-  const { saveNow, isCloudSaving, isDirty, user, global, isOnline, conflictQueue, cloudSyncState , lang} = useSchedule();
-  const autoSaveInterval = global?.auto_save || 60;
-
-  const [timeLeft, setTimeLeft] = useState(autoSaveInterval);
+  const { saveNow, isCloudSaving, isDirty, user, global, schedule, isOnline, conflictQueue, cloudSyncState , lang} = useSchedule();
   
   const [statusMessage, setStatusMessage] = useState("");
-  const [statusColor, setStatusColor] = useState("#4dff88"); 
-  const [showSavedState, setShowSavedState] = useState(false);
+  const prevMessageRef = useRef("");
 
-  const timerRef = useRef(null);
-  const hideTimeoutRef = useRef(null);
-  const prevCloudSavingRef = useRef(false);
+  const debounceTimeoutRef = useRef(null);
+  const maxWaitTimeoutRef = useRef(null);
   
   const heightAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const bgColorAnim = useRef(new Animated.Value(0)).current;
+  const textOpacityAnim = useRef(new Animated.Value(1)).current;
 
-  // 1. Управління таймером
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isDirty || !isOnline || isCloudSaving || cloudSyncState !== 'synced' || conflictQueue.length > 0) {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
+      return;
+    }
 
-    // 🔥 Таймер має право стартувати ТІЛЬКИ якщо Firebase підтвердив, що ми в синхроні ('synced')
-    const canStartTimer = isDirty && isOnline && !isCloudSaving && cloudSyncState === 'synced' && conflictQueue.length === 0;
-
-    if (canStartTimer && !timerRef.current) {
-      setTimeLeft(autoSaveInterval);
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
     }
     
-    // Якщо таймер працював, але зв'язок пропав, або почалася перевірка - зупиняємо
-    if (!canStartTimer && timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    debounceTimeoutRef.current = setTimeout(() => {
+      saveNow();
+    }, 2000);
+
+    return () => {
+      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    };
+  }, [schedule, global, isDirty, isOnline, isCloudSaving, cloudSyncState, conflictQueue.length, saveNow, user]);
+
+  useEffect(() => {
+    if (isDirty && isOnline && !isCloudSaving && cloudSyncState === 'synced' && conflictQueue.length === 0) {
+      if (!maxWaitTimeoutRef.current) {
+        maxWaitTimeoutRef.current = setTimeout(() => {
+          saveNow();
+          maxWaitTimeoutRef.current = null;
+        }, 60000);
+      }
+    } else {
+      if (maxWaitTimeoutRef.current) {
+        clearTimeout(maxWaitTimeoutRef.current);
+        maxWaitTimeoutRef.current = null;
+      }
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (maxWaitTimeoutRef.current) clearTimeout(maxWaitTimeoutRef.current);
     };
-  }, [isDirty, isOnline, isCloudSaving, cloudSyncState, autoSaveInterval, user, conflictQueue.length]);
+  }, [isDirty, isOnline, isCloudSaving, cloudSyncState, conflictQueue.length, saveNow]);
 
-  // 2. Дія по закінченню таймера
-  useEffect(() => {
-    if (timeLeft === 0 && isDirty && !isCloudSaving && cloudSyncState === 'synced' && conflictQueue.length === 0) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      setTimeLeft(autoSaveInterval);
-      saveNow();
-    }
-  }, [timeLeft, isDirty, isCloudSaving, cloudSyncState, saveNow, autoSaveInterval, conflictQueue.length]);
-
-  // 3. Візуалізація успішного збереження
-  useEffect(() => {
-    const justFinishedSaving = prevCloudSavingRef.current === true && isCloudSaving === false;
-    
-    if (justFinishedSaving && !isDirty && isOnline) {
-      setShowSavedState(true);
-      
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-
-      hideTimeoutRef.current = setTimeout(() => {
-        setShowSavedState(false);
-      }, 5000);
-    } else if (isDirty || isCloudSaving || !isOnline) {
-      setShowSavedState(false);
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    }
-    
-    prevCloudSavingRef.current = isCloudSaving;
-  }, [isCloudSaving, isDirty, isOnline]);
-
-  // 4. Логіка відображення плашки
   useEffect(() => {
     let shouldShow = false;
+    let newMessage = "";
+    let newColorVal = 0;
 
     if (conflictQueue.length > 0) {
       shouldShow = false; 
     } else if (!isOnline) {
-      setStatusMessage("Немає інтернету");
-      setStatusColor("#ff4d4d");
+      newMessage = t('autosave.no_internet', lang);
+      newColorVal = 0;
       shouldShow = true;
     } else if (cloudSyncState === 'syncing') {
-      // 🔥 Цей статус висітиме стільки, скільки Firebase буде встановлювати реальне з'єднання з Google
-      setStatusMessage("Синхронізація з хмарою...");
-      setStatusColor("#3399ff"); 
+      newMessage = t('autosave.syncing', lang);
+      newColorVal = 1;
       shouldShow = true;
-    } else if (isCloudSaving) {
-      setStatusMessage("Збереження у хмару...");
-      setStatusColor("#ffcc00");
-      shouldShow = true;
-    } else if (isDirty) {
-      setStatusMessage(`Автозбереження через: ${timeLeft} сек`);
-      setStatusColor("#ffcc00");
-      shouldShow = true;
-    } else if (showSavedState) {
-      setStatusMessage("Всі зміни збережено");
-      setStatusColor("#4dff88");
-      shouldShow = true;
-    } else {
-      shouldShow = false;
     }
 
     if (shouldShow) {
+      Animated.timing(bgColorAnim, {
+        toValue: newColorVal,
+        duration: 400,
+        useNativeDriver: false
+      }).start();
+
+      if (prevMessageRef.current !== newMessage && prevMessageRef.current !== "") {
+        Animated.timing(textOpacityAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start(() => {
+          setStatusMessage(newMessage);
+          prevMessageRef.current = newMessage;
+          Animated.timing(textOpacityAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+        });
+      } else if (prevMessageRef.current === "") {
+        setStatusMessage(newMessage);
+        prevMessageRef.current = newMessage;
+        textOpacityAnim.setValue(1);
+      }
       showBar();
     } else {
       hideBar();
+      prevMessageRef.current = "";
     }
-  }, [isOnline, isCloudSaving, isDirty, cloudSyncState, timeLeft, showSavedState, conflictQueue.length]);
+  }, [isOnline, cloudSyncState, conflictQueue.length, lang]);
 
   const showBar = () => {
     Animated.parallel([
@@ -128,6 +115,11 @@ export default function AutoSaveManager() {
     ]).start();
   };
 
+  const backgroundColor = bgColorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#ff4d4d", "#3399ff"]
+  });
+
   if (!user) return null;
 
   return (
@@ -137,12 +129,12 @@ export default function AutoSaveManager() {
           styles.container, 
           { 
             height: heightAnim, 
-            backgroundColor: statusColor,
+            backgroundColor: backgroundColor,
             opacity: opacityAnim
           }
         ]}
       >
-        <Animated.Text style={styles.text}>
+        <Animated.Text style={[styles.text, { opacity: textOpacityAnim }]}>
           {statusMessage}
         </Animated.Text>
       </Animated.View>

@@ -132,6 +132,11 @@ export default {
     untitled: "Untitled"
   },
 
+  autosave: {
+    no_internet: "No internet connection",
+    syncing: "Syncing with cloud...",
+  },
+
   schedule: {
     loading: "Loading...",
     day_schedule: {
@@ -260,9 +265,6 @@ export default {
       themes: { title: "Themes", desc: "Light/dark, accent" },
       language: { title: "Language", desc: "Select interface language" },
       
-      autosave: { title: "Auto-save", desc: "Background saving of changes" },
-      every_sec: "every {val} sec",
-      
       login: { title: "Log In or Create Account", desc: "Sync your data to the cloud" },
       account_settings: { title: "Account Settings", desc: "Profile management, security, email" },
       devices: { title: "Devices", desc: "Authorized devices settings" },
@@ -384,10 +386,6 @@ export default {
       logout_all_others: "Log out on all other devices",
     },
 
-    autosave_screen: {
-      interval_label: "Auto-save interval (seconds):",
-      info_text: "This setting affects the frequency of data saving to the cloud.",
-    },
     reset_db_screen: {
       alert_title: "Reset schedules?",
       alert_msg: "Your theme and account settings will be preserved, but all created schedules will be deleted and replaced with the default.",
