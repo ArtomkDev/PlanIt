@@ -125,7 +125,7 @@ main {
   font-size: 1.05rem;
 }
 
-strong {
+main > strong {
   display: block;
   color: var(--primary-color);
   font-size: 1.35rem;

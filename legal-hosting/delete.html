@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Deletion - PlanIt</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* М'який блок попередження без грубих рамок */
+    .warning {
+      background-color: rgba(255, 59, 48, 0.08);
+      color: #d32f2f;
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-weight: 500;
+      margin: 16px 0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .warning {
+        background-color: rgba(255, 59, 48, 0.15);
+        color: #ff6b6b;
+      }
+    }
+
+    /* Акуратна кнопка без артефактів */
+    .email-btn {
+      display: block;
+      width: 100%;
+      text-align: center;
+      margin: 24px 0 16px 0;
+      padding: 14px 24px;
+      background-color: var(--accent-color);
+      color: #ffffff !important;
+      text-decoration: none !important;
+      border-radius: 8px;
+      font-weight: 600;
+      box-sizing: border-box;
+      border: none;
+      transition: background-color 0.2s ease;
+    }
+
+    .email-btn:hover {
+      background-color: var(--accent-hover);
+    }
+
+    ul {
+      padding-left: 1.5rem;
+      margin-top: 8px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <header>
+        <div class="app-title">PlanIt</div>
+        <h1>Account Deletion</h1>
+        <nav>
+          <a href="privacy.html" class="nav-link">Privacy Policy</a>
+          <a href="terms.html" class="nav-link">Terms &amp; Conditions</a>
+          <a href="delete.html" class="nav-link active">Account Deletion</a>
+        </nav>
+      </header>
+      <main>
+        <strong>Data Security &amp; Verification</strong>
+        <p>Your data security is our top priority. To prevent unauthorized deletion of your schedules and personal data
+          by third parties, we must verify that you are the legitimate owner of the account.</p>
+
+        <div class="warning">
+          <strong>WARNING:</strong> The easiest, fastest, and most secure way to delete your account is to do it
+          directly within the PlanIt app. Navigate to <strong>Settings &rarr; Account Settings &rarr; Delete
+            Account</strong>.
+        </div>
+
+        <br><strong>How to request account deletion via website:</strong>
+        <p>If you no longer have access to the app, you can send us an email to formally request the deletion of your
+          account and all associated data.</p>
+
+        <p><strong>Important Requirements:</strong></p>
+        <ul>
+          <li>The email <strong>MUST</strong> be sent strictly from the exact email address that is linked to your
+            PlanIt account.</li>
+          <li>Requests sent from unverified or mismatched email addresses will be automatically rejected for security
+            reasons.</li>
+        </ul>
+
+        <a href="mailto:planit.app.support@gmail.com?subject=PlanIt%20Account%20Deletion%20Request&body=Please%20delete%20my%20account%20and%20all%20my%20data%20from%20the%20PlanIt%20app.%0A%0AMy%20registration%20email:%20[Enter%20your%20email%20here]"
+          class="email-btn">Send Deletion Request to planit.app.support@gmail.com</a>
+
+        <p style="text-align: center; font-size: 0.875rem; color: var(--text-muted); margin-top: 2rem;">
+          Upon verification, your account and all associated User-Generated Content will be permanently removed from our
+          active servers.
+        </p>
+      </main>
+    </div>
+  </div>
+</body>
+
+</html>
