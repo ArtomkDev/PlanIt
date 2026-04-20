@@ -6,8 +6,8 @@ import { signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { db, auth } from "../config/firebase";
-import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer } from "../config/firestore";
-import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs } from "../utils/storage";
+import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer, deleteAllUserData } from "../config/firestore";
+import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs, clearLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import useAppLanguage from "../hooks/useAppLanguage";
 
@@ -255,26 +255,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
     const activeSchedules = data.schedules || [];
 
-    if (activeSchedules.length === 0) {
-      const defaultData = createDefaultData();
-      const newSchedule = defaultData.schedules[0];
-
-      newSchedule.version = 1;
-      newSchedule.baseVersion = 1;
-      newSchedule.lastModified = Date.now();
-      newSchedule.lastSynced = 0;
-      newSchedule.isCloud = !guest;
-
-      setData(prev => ({
-        ...prev,
-        schedules: [...(prev.schedules || []), newSchedule]
-      }));
-
-      newPrefs.currentScheduleId = newSchedule.id;
-      prefsNeedSave = true;
-
-      if (!guest) updateIsDirty(true);
-    } else {
+    if (activeSchedules.length > 0) {
       const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
 
       if (!hasValidScheduleId) {
@@ -293,6 +274,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         if (newPrefs.currentScheduleId !== currentPrefs.currentScheduleId) {
           prefsNeedSave = true;
         }
+      }
+    } else {
+      if (newPrefs.currentScheduleId !== null) {
+        newPrefs.currentScheduleId = null;
+        prefsNeedSave = true;
       }
     }
 
@@ -689,8 +675,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const existingDeletions = dataRef.current?.deletedSchedules || [];
 
       const newData = {
-        global: { ...currentGlobal, lastModified: Date.now() },
-        schedules: [...defaultData.schedules],
+        global: { ...currentGlobal, lastModified: Date.now(), currentScheduleId: null },
+        schedules: [],
         deletedSchedules: [...existingDeletions, ...newDeletions]
       };
 
@@ -720,6 +706,36 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setIsLoading(false);
     }
   }, [user, updateIsDirty, syncDevicePrefsUpdate]);
+
+  const hardDeleteEverything = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      isDirtyRef.current = false;
+      updateIsDirty(false);
+
+      if (user) {
+        await deleteAllUserData(user.uid);
+        await clearLocalSchedule(user.uid);
+      }
+      
+      await clearLocalSchedule(null);
+      await AsyncStorage.removeItem('app_device_settings');
+      await safeLogout();
+    } catch (e) {
+      setError("Error hard deleting");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, safeLogout, updateIsDirty]);
+
+  const deleteGuestSchedules = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await clearLocalSchedule(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const handleResolveConflict = (conflictId, action) => {
     const conflictIndex = conflictQueue.findIndex(c => c.local?.id === conflictId);
@@ -804,7 +820,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     schedules: activeSchedules,
     setData, setScheduleDraft, setGlobalDraft, addSchedule, removeSchedule, saveNow,
     safeLogout,
-    reloadAllSchedules, resetApplication, isDirty, isSaving, isCloudSaving,
+    reloadAllSchedules, resetApplication, hardDeleteEverything, deleteGuestSchedules, isDirty, isSaving, isCloudSaving,
     isLoading, error, isOnline,
     conflictQueue, handleResolveConflict,
     cloudSyncState,

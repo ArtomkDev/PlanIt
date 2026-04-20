@@ -315,30 +315,33 @@ export const deleteAllUserData = async (userId) => {
   isAccountBeingDeleted = true;
   
   try {
-    const batch = writeBatch(db);
-
     try {
+      const schedulesBatch = writeBatch(db);
       const schedulesRef = collection(db, 'users', userId, 'schedules');
       const snapshot = await getDocs(schedulesRef);
-      snapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+      snapshot.docs.forEach((docSnap) => schedulesBatch.delete(docSnap.ref));
+      await schedulesBatch.commit();
     } catch (e) {}
 
     try {
-      const devicesRef = collection(db, 'users', userId, 'devices');
-      const snapshot = await getDocs(devicesRef);
-      snapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+      const userBatch = writeBatch(db);
+      userBatch.delete(doc(db, 'users', userId, 'global', 'settings'));
+      userBatch.delete(doc(db, 'users', userId));
+      await userBatch.commit();
     } catch (e) {}
 
-    const globalSettingsRef = doc(db, 'users', userId, 'global', 'settings');
-    batch.delete(globalSettingsRef);
+    try {
+      const devicesBatch = writeBatch(db);
+      const devicesRef = collection(db, 'users', userId, 'devices');
+      const devicesSnapshot = await getDocs(devicesRef);
+      devicesSnapshot.docs.forEach((docSnap) => devicesBatch.delete(docSnap.ref));
+      await devicesBatch.commit();
+    } catch (e) {}
 
-    const userDocRef = doc(db, 'users', userId);
-    batch.delete(userDocRef);
-
-    await batch.commit();
   } catch (error) {
-    isAccountBeingDeleted = false;
     logCrashlyticsError(error, 'deleteAllUserData_Firestore');
     throw error;
+  } finally {
+    isAccountBeingDeleted = false; 
   }
 };

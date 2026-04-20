@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Animated } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import AutoSaveManager from '../services/AutoSaveManager';
 import TabNavigator from '../navigation/TabNavigator';
@@ -13,12 +14,17 @@ import MorphingLoader from '../components/ui/MorphingLoader';
 
 import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
 import AdBanner from '../components/AdBanner/AdBanner';
+import OnboardingWizard from '../pages/Onboarding/OnboardingWizard';
+
+// Створюємо внутрішній навігатор для плавного переходу
+const MainStack = createNativeStackNavigator();
 
 export default function MainLayout({ guest, onExitGuest }) {
   const {
     user,
     global,
     schedule,
+    schedules,
     isLoading,
     error,
     lang,
@@ -29,8 +35,13 @@ export default function MainLayout({ guest, onExitGuest }) {
 
   const [isFatalTimeout, setIsFatalTimeout] = useState(false);
 
-  const isBlocking = isLoading || !schedule || error;
+  const hasSchedules = schedules && schedules.length > 0;
+  const isBlocking = isLoading || error || (hasSchedules && !schedule);
   const isErrorState = error || isFatalTimeout;
+
+  // Стан для плавного зникнення оверлею завантаження
+  const [showOverlay, setShowOverlay] = useState(isBlocking);
+  const overlayOpacity = useRef(new Animated.Value(isBlocking ? 1 : 0)).current;
 
   useEffect(() => {
     let timer;
@@ -38,8 +49,21 @@ export default function MainLayout({ guest, onExitGuest }) {
       timer = setTimeout(() => {
         setIsFatalTimeout(true);
       }, 5000);
+      
+      setShowOverlay(true);
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     } else {
       setIsFatalTimeout(false);
+      
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 600, // Плавний перехід при зникненні завантаження
+        useNativeDriver: true,
+      }).start(() => setShowOverlay(false));
     }
 
     return () => clearTimeout(timer);
@@ -60,12 +84,21 @@ export default function MainLayout({ guest, onExitGuest }) {
 
       <View style={styles.container}>
         <View style={{ flex: 1 }}>
-          <TabNavigator screenProps={{ guest, onExitGuest }} />
+          {/* ТУТ МИ ДОДАЛИ НАВІГАТОР З АНІМАЦІЄЮ FADE */}
+          <MainStack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
+            {!isLoading && !hasSchedules ? (
+              <MainStack.Screen name="Onboarding" component={OnboardingWizard} />
+            ) : (
+              <MainStack.Screen name="Tabs">
+                {() => <TabNavigator screenProps={{ guest, onExitGuest }} />}
+              </MainStack.Screen>
+            )}
+          </MainStack.Navigator>
         </View>
       </View>
 
-      {isBlocking && (
-        <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+      {showOverlay && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: themeColors.backgroundColor, opacity: overlayOpacity }]}>
           {isErrorState ? (
             <>
               <AppBlur style={StyleSheet.absoluteFill} intensity={25} tint={isLightMode ? 'light' : 'dark'} />
@@ -103,7 +136,7 @@ export default function MainLayout({ guest, onExitGuest }) {
           ) : (
             <MorphingLoader size={80} />
           )}
-        </View>
+        </Animated.View>
       )}
 
       <AutoSaveManager />

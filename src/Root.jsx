@@ -178,7 +178,7 @@ export default function RootApp() {
             routeNameRef.current = currentRouteName;
           }}
         >
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
             {user || guest ? (
               <Stack.Screen name="MainLayout">
                 {(props) => (

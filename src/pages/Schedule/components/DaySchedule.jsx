@@ -164,7 +164,7 @@ export default function DaySchedule({
             crashAppToTest();
           }}
         >
-          <Text style={styles.crashButtonText}>FORCE TEST CRASH</Text>
+          <Text style={styles.crashButtonText}>TEST CRASH</Text>
         </TouchableOpacity>
 
 
