@@ -59,8 +59,8 @@ export default {
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-7165910523854581~9152797441",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+          "androidAppId": process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || "",
+          "iosAppId": process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || ""
         }
       ],
       "@react-native-firebase/app",
