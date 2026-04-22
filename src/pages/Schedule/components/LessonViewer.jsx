@@ -132,9 +132,13 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
             {getHeaderBackground()}
             
             <View style={styles.headerContent}>
-              <View style={styles.iconCircle}>
-                 <MainIcon size={32} color={themeColors.backgroundColor} weight="fill" />
-              </View>
+              {MainIcon ? (
+                <View style={styles.iconCircle}>
+                   <MainIcon size={32} color={themeColors.backgroundColor} weight="fill" />
+                </View>
+              ) : (
+                <View />
+              )}
               <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
                 <X size={24} color="#fff" weight="bold" />
               </TouchableOpacity>

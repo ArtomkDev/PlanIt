@@ -208,5 +208,7 @@ export const ICON_CATEGORIES = [
 
 
 export function getIconComponent(iconKey) {
-  return SUBJECT_ICONS[iconKey] || SUBJECT_ICONS['default'];
+  if (!iconKey) return null; 
+  
+  return SUBJECT_ICONS[iconKey] || null; 
 }
