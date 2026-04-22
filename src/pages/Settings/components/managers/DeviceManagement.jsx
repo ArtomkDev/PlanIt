@@ -1,11 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { 
   Monitor, 
   DeviceMobile, 
@@ -13,18 +7,10 @@ import {
   AndroidLogo, 
   SignOut 
 } from "phosphor-react-native";
-import Animated, { 
-  FadeInDown, 
-  FadeOutDown, 
-  CurvedTransition 
-} from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  removeDevice,
-  removeAllOtherDevices,
-  getDeviceId,
-} from "../../../../utils/deviceService";
+import { removeDevice, removeAllOtherDevices, getDeviceId } from "../../../../utils/deviceService";
 import { useSchedule } from "../../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import { db } from "../../../../config/firebase";
@@ -32,14 +18,17 @@ import { collection, onSnapshot } from "firebase/firestore";
 import themes from "../../../../config/themes";
 import { t } from "../../../../utils/i18n";
 
+import SettingsGroup from "../../../../components/ui/SettingsKit/SettingsGroup";
+import SettingsRow from "../../../../components/ui/SettingsKit/SettingsRow";
+import SettingsActionRow from "../../../../components/ui/SettingsKit/SettingsActionRow";
+
 export default function DeviceManager() {
-  const { user, global , lang} = useSchedule();
+  const { user, global, lang } = useSchedule();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDeviceId, setCurrentDeviceId] = useState(null);
   
   const insets = useSafeAreaInsets();
-
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -149,62 +138,43 @@ export default function DeviceManager() {
     );
   }
 
-  function renderDevice(item, index) {
+  function renderDevice(item) {
     if (!item) return null;
 
     const isCurrent = item.id === currentDeviceId;
     const displayName = getDeviceDisplayName(item);
     const { Icon, color } = getDeviceIconDetails(item);
 
-    const delay = index * 100;
+    const currentBadge = isCurrent ? (
+      <View style={[styles.currentBadge, { backgroundColor: themeColors.accentColor + "20" }]}>
+        <Text style={[styles.currentBadgeText, { color: themeColors.accentColor }]}>
+          {t('settings.device_screen.current', lang)}
+        </Text>
+      </View>
+    ) : null;
+
+    const deleteBtn = !isCurrent ? (
+      <TouchableOpacity
+        style={[styles.deleteBtn, { backgroundColor: themes.accentColors.red + "15" }]}
+        onPress={() => handleRemoveDevice(item.id)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <SignOut size={20} color={themes.accentColors.red} weight="bold" />
+      </TouchableOpacity>
+    ) : null;
 
     return (
-      <Animated.View
+      <SettingsRow
         key={item.id}
-        entering={FadeInDown.delay(delay).springify()}
-        exiting={FadeOutDown.springify()}
-        layout={CurvedTransition} 
-        style={[
-          styles.card,
-          { 
-            backgroundColor: themeColors.backgroundColor2,
-            borderColor: isCurrent ? themeColors.accentColor : "transparent",
-            borderWidth: isCurrent ? 1 : 0
-          },
-        ]}
-      >
-        <View style={styles.cardLeft}>
-          <View style={[styles.iconContainer, { backgroundColor: color + "15" }]}>
-            <Icon size={24} color={color} weight={isCurrent ? "fill" : "regular"} />
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={[styles.deviceName, { color: themeColors.textColor }]} numberOfLines={1}>
-              {displayName}
-            </Text>
-            <Text style={[styles.subText, { color: themeColors.textColor2 }]}>
-              {formatDate(item.lastLogin)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.cardRight}>
-          {isCurrent ? (
-            <View style={[styles.currentBadge, { backgroundColor: themeColors.accentColor + "20" }]}>
-              <Text style={[styles.currentBadgeText, { color: themeColors.accentColor }]}>
-                {t('settings.device_screen.current', lang)}
-              </Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.deleteBtn}
-              onPress={() => handleRemoveDevice(item.id)}
-              hitSlop={10}
-            >
-              <SignOut size={22} color={themes.accentColors.red} weight="bold" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </Animated.View>
+        label={displayName}
+        desc={formatDate(item.lastLogin)}
+        icon={Icon}
+        iconColor={color}
+        iconBgColor={color + "15"}
+        iconWeight={isCurrent ? "fill" : "regular"}
+        themeColors={themeColors}
+        rightContent={isCurrent ? currentBadge : deleteBtn}
+      />
     );
   }
 
@@ -212,38 +182,27 @@ export default function DeviceManager() {
 
   return (
     <SettingsScreenLayout>
-      <View style={styles.container}>
-        <View>
-          <Text style={[styles.title, { color: themeColors.textColor }]}>
-            {t('settings.device_screen.active_sessions', lang)}
-          </Text>
-          <View style={styles.listContent}>
-            {sortedDevices.map((device, index) => renderDevice(device, index))}
-          </View>
-        </View>
+      <View style={[styles.container, { paddingBottom: bottomPadding }]}>
+        
+        <SettingsGroup 
+          title={t('settings.device_screen.active_sessions', lang)} 
+          themeColors={themeColors}
+        >
+          {sortedDevices.map((device) => renderDevice(device))}
+        </SettingsGroup>
 
         {sortedDevices.length > 1 && (
-          <Animated.View 
-            entering={FadeInDown.delay(300).springify()} 
-            style={{ marginTop: 10, marginBottom: bottomPadding }}
-          >
-            <TouchableOpacity
-              style={[styles.deactivateAll, { backgroundColor: themes.accentColors.red + "15" }]}
+          <Animated.View entering={FadeInDown.delay(200).springify()}>
+            <SettingsActionRow
+              icon={SignOut}
+              label={t('settings.device_screen.logout_all_others', lang)}
               onPress={handleRemoveAllOthers}
-              activeOpacity={0.7}
-            >
-              <SignOut 
-                size={20} 
-                color={themes.accentColors.red} 
-                weight="bold"
-                style={{ marginRight: 8 }} 
-              />
-              <Text style={[styles.deactivateAllText, { color: themes.accentColors.red }]}>
-                {t('settings.device_screen.logout_all_others', lang)}
-              </Text>
-            </TouchableOpacity>
+              danger={true}
+              themeColors={themeColors}
+            />
           </Animated.View>
         )}
+
       </View>
     </SettingsScreenLayout>
   );
@@ -253,57 +212,10 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 16,
-  },
   loadingText: {
     padding: 20,
     fontSize: 16,
     textAlign: "center",
-  },
-  listContent: {
-    paddingBottom: 10,
-  },
-  card: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 10,
-  },
-  cardLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  textContainer: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  deviceName: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  subText: {
-    fontSize: 13,
-    fontWeight: "400",
-  },
-  cardRight: {
-    flexDirection: "row",
-    alignItems: "center",
   },
   currentBadge: {
     paddingVertical: 6,
@@ -316,20 +228,6 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: 8,
-    backgroundColor: "rgba(255, 59, 48, 0.1)",
-    borderRadius: 10,
-  },
-  deactivateAll: {
-    padding: 16,
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 59, 48, 0.3)",
-  },
-  deactivateAllText: {
-    fontSize: 16,
-    fontWeight: "600",
+    borderRadius: 8,
   },
 });

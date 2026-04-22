@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from "react-native";
-import { X, PencilSimple, PlusCircle, Trash } from "phosphor-react-native";
+import { X, PlusCircle, Trash } from "phosphor-react-native";
+
 import { useSchedule } from "../../../../../context/ScheduleProvider";
 import { ICON_CATEGORIES } from "../../../../../config/subjectIcons";
 import { t } from "../../../../../utils/i18n";
+
+import SettingsSelectionRow from "../../../../../components/ui/SettingsKit/SettingsSelectionRow";
+import SettingsActionRow from "../../../../../components/ui/SettingsKit/SettingsActionRow";
 
 const { width } = Dimensions.get('window');
 const GRID_SPACING = 10;
@@ -77,40 +81,17 @@ export default function LessonEditorPickerScreen({
     const canBeEdited = onEdit && item.key !== 'none';
 
     return (
-      <TouchableOpacity
+      <SettingsSelectionRow
         key={item.key}
-        style={[
-          styles.option, 
-          { 
-            backgroundColor: themeColors.backgroundColor2, 
-            borderColor: isSelected ? themeColors.accentColor : 'transparent', 
-            borderWidth: 1, 
-            opacity: isAlreadySelected ? 0.5 : 1
-          }
-        ]}
-        onPress={() => !isAlreadySelected && handlePressItem(item.key)}
-        activeOpacity={isAlreadySelected ? 1 : 0.7}
+        label={item.label}
+        hint={isAlreadySelected ? t('schedule.picker_screen.already_added', lang) : null}
+        isSelected={isSelected}
+        isAlreadySelected={isAlreadySelected}
+        themeColors={themeColors}
+        onPress={() => handlePressItem(item.key)}
         onLongPress={() => canBeEdited && onEdit(item.key)}
-        delayLongPress={300}
-      >
-        <View style={styles.leftContainer}>
-          <Text style={[styles.optionText, { color: themeColors.textColor }, isSelected && { color: themeColors.accentColor, fontWeight: "bold" }]}>
-            {item.label}
-          </Text>
-          {isAlreadySelected && (
-            <Text style={[styles.hintText, { color: themeColors.accentColor }]}>
-              {t('schedule.picker_screen.already_added', lang)}
-            </Text>
-          )}
-        </View>
-        <View style={styles.rightContainer}>
-          {canBeEdited && (
-            <TouchableOpacity hitSlop={15} onPress={() => onEdit(item.key)} style={styles.editButton}>
-              <PencilSimple size={20} color={themeColors.textColor2} weight="bold" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </TouchableOpacity>
+        onEdit={canBeEdited ? () => onEdit(item.key) : undefined}
+      />
     );
   };
 
@@ -149,27 +130,26 @@ export default function LessonEditorPickerScreen({
             {options.filter(o => o.key !== 'none').map(renderListItem)}
             
             {onAdd && (
-              <TouchableOpacity 
-                style={[styles.actionButton, { borderColor: themeColors.accentColor, borderStyle: 'dashed' }]} 
-                onPress={onAdd}
-              >
-                <PlusCircle size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} weight="bold" />
-                <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>
-                  {t('schedule.picker_screen.add_new', lang)}
-                </Text>
-              </TouchableOpacity>
+              <View style={{ marginTop: 4 }}>
+                <SettingsActionRow 
+                  icon={PlusCircle}
+                  label={t('schedule.picker_screen.add_new', lang)}
+                  onPress={onAdd}
+                  themeColors={themeColors}
+                />
+              </View>
             )}
 
             {options.some(o => o.key === 'none') && (
-              <TouchableOpacity 
-                style={[styles.actionButton, { borderColor: '#EF4444', backgroundColor: '#EF444415', marginTop: 12 }]} 
-                onPress={() => handlePressItem('none')}
-              >
-                <Trash size={20} color="#EF4444" style={{ marginRight: 6 }} weight="bold" />
-                <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>
-                  {t('schedule.picker_screen.delete_slot', lang)}
-                </Text>
-              </TouchableOpacity>
+              <View style={{ marginTop: 8 }}>
+                <SettingsActionRow 
+                  icon={Trash}
+                  label={t('schedule.picker_screen.delete_slot', lang)}
+                  onPress={() => handlePressItem('none')}
+                  danger={true}
+                  themeColors={themeColors}
+                />
+              </View>
             )}
           </View>
         )}
@@ -213,28 +193,6 @@ const styles = StyleSheet.create({
     alignItems: 'center' 
   },
   listWrapper: { gap: 10 },
-  option: { 
-    paddingVertical: 14, 
-    paddingHorizontal: 16, 
-    borderRadius: 16, 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center' 
-  },
-  leftContainer: { flex: 1, justifyContent: 'center' },
-  rightContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  optionText: { fontSize: 16, fontWeight: "500" },
-  hintText: { fontSize: 12, marginTop: 4, opacity: 0.8 },
-  editButton: { padding: 4 },
-  actionButton: { 
-    padding: 14, 
-    borderRadius: 16, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    flexDirection: 'row', 
-    borderWidth: 1 
-  },
-  actionButtonText: { fontWeight: "600", fontSize: 16 },
   footer: { 
     padding: 16, 
     borderTopWidth: StyleSheet.hairlineWidth, 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
-import { CaretRight, User, EnvelopeSimple, LockKey, Trash, GoogleLogo, AppleLogo } from 'phosphor-react-native';
+import { User, EnvelopeSimple, LockKey, Trash, GoogleLogo, AppleLogo } from 'phosphor-react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth';
 import Constants from 'expo-constants';
@@ -12,6 +12,9 @@ import { t } from '../../../../utils/i18n';
 import MorphingLoader from '../../../../components/ui/MorphingLoader';
 import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
 import { getLinkedProviders, unlinkProvider, linkGoogleAccount, linkAppleAccount } from '../../../../auth/authServices';
+
+import SettingsGroup from '../../../../components/ui/SettingsKit/SettingsGroup';
+import SettingsRow from '../../../../components/ui/SettingsKit/SettingsRow';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
@@ -135,32 +138,6 @@ export default function AccountSettings() {
     }
   };
 
-  const SettingsRow = ({ icon: IconComponent, title, value, rightElement, isLast, isDestructive, onPress }) => {
-    const Component = onPress ? TouchableOpacity : View;
-    
-    return (
-      <Component 
-        style={[styles.row, !isLast && styles.rowBorder]} 
-        onPress={onPress}
-        activeOpacity={0.7}
-      >
-        <View style={styles.rowLeft}>
-          {IconComponent && (
-            <View style={[styles.iconContainer, isDestructive && styles.destructiveIconContainer]}>
-              <IconComponent size={20} color={isDestructive ? '#FF3B30' : themeColors.accentColor} weight="fill" />
-            </View>
-          )}
-          <Text style={[styles.rowTitle, isDestructive && styles.destructiveText]}>{title}</Text>
-        </View>
-        
-        <View style={styles.rowRight}>
-          {value && <Text style={styles.rowValue} numberOfLines={1} ellipsizeMode="tail">{value}</Text>}
-          {rightElement}
-        </View>
-      </Component>
-    );
-  };
-
   const renderProviderStatus = (isLinked, providerId, onLink) => {
     if (isProcessing === providerId) {
       return <MorphingLoader size={24} />;
@@ -205,22 +182,22 @@ export default function AccountSettings() {
         <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">{userEmail}</Text>
       </View>
 
-      <Text style={styles.sectionTitle}>{t('settings.account_settings.info_section', lang)}</Text>
-      <View style={styles.section}>
+      <SettingsGroup 
+        title={t('settings.account_settings.info_section', lang)} 
+        themeColors={themeColors}
+      >
         <SettingsRow 
           icon={User} 
-          title={t('settings.account_settings.name', lang)} 
+          label={t('settings.account_settings.name', lang)} 
           value={userName} 
-          rightElement={<CaretRight size={20} color={themeColors.textColor2} weight="bold" />}
+          themeColors={themeColors}
           onPress={() => navigation.navigate('ChangeName')}
         />
-        
         <SettingsRow 
           icon={EnvelopeSimple} 
-          title={t('settings.account_settings.email', lang)} 
+          label={t('settings.account_settings.email', lang)} 
           value={userEmail} 
-          rightElement={<CaretRight size={20} color={themeColors.textColor2} weight="bold" />}
-          isLast
+          themeColors={themeColors}
           onPress={() => {
             if (isSocialOnly) {
               Alert.alert(
@@ -232,32 +209,39 @@ export default function AccountSettings() {
             }
           }}
         />
-      </View>
+      </SettingsGroup>
 
-      <Text style={styles.sectionTitle}>{t('settings.account_settings.linked_accounts_section', lang)}</Text>
-      <View style={styles.section}>
+      <SettingsGroup 
+        title={t('settings.account_settings.linked_accounts_section', lang)} 
+        themeColors={themeColors}
+      >
         <SettingsRow 
           icon={GoogleLogo} 
-          title="Google" 
-          rightElement={renderProviderStatus(isGoogleLinked, 'google.com', handleLinkGoogle)}
+          label="Google" 
+          showCaret={false}
+          themeColors={themeColors}
+          rightContent={renderProviderStatus(isGoogleLinked, 'google.com', handleLinkGoogle)}
         />
         {Platform.OS !== 'android' && (
           <SettingsRow 
             icon={AppleLogo} 
-            title="Apple" 
-            rightElement={renderProviderStatus(isAppleLinked, 'apple.com', handleLinkApple)}
-            isLast
+            label="Apple" 
+            showCaret={false}
+            themeColors={themeColors}
+            rightContent={renderProviderStatus(isAppleLinked, 'apple.com', handleLinkApple)}
           />
         )}
-      </View>
+      </SettingsGroup>
 
-      <Text style={styles.sectionTitle}>{t('settings.account_settings.security_section', lang)}</Text>
-      <View style={styles.section}>
+      <SettingsGroup 
+        title={t('settings.account_settings.security_section', lang)} 
+        themeColors={themeColors}
+      >
         <SettingsRow 
           icon={LockKey} 
-          title={t('settings.account_settings.password', lang)} 
+          label={t('settings.account_settings.password', lang)} 
           value="••••••••" 
-          rightElement={<CaretRight size={20} color={themeColors.textColor2} weight="bold" />}
+          themeColors={themeColors}
           onPress={() => {
             if (isSocialOnly) {
               Alert.alert(
@@ -269,18 +253,21 @@ export default function AccountSettings() {
             }
           }}
         />
-      </View>
+      </SettingsGroup>
 
-      <Text style={styles.sectionTitle}>{t('settings.account_settings.management_section', lang)}</Text>
-      <View style={styles.section}>
+      <SettingsGroup 
+        title={t('settings.account_settings.management_section', lang)} 
+        themeColors={themeColors}
+      >
         <SettingsRow 
           icon={Trash} 
-          title={t('settings.account_settings.delete_account', lang)} 
-          isLast 
-          isDestructive 
+          label={t('settings.account_settings.delete_account', lang)} 
+          danger={true}
+          showCaret={false}
+          themeColors={themeColors}
           onPress={() => navigation.navigate('DeleteAccount')}
         />
-      </View>
+      </SettingsGroup>
     </SettingsScreenLayout>
   );
 }
@@ -290,37 +277,66 @@ const getStyles = (themeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
   },
-  header: { alignItems: 'center', marginBottom: 32, paddingHorizontal: 20 },
+  header: { 
+    alignItems: 'center', 
+    marginBottom: 32, 
+    paddingHorizontal: 20 
+  },
   avatar: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 80, 
+    height: 80, 
+    borderRadius: 40,
     backgroundColor: themeColors.accentColor,
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center', 
+    alignItems: 'center',
     marginBottom: 16,
     shadowColor: themeColors.accentColor,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.3, 
+    shadowRadius: 8, 
+    elevation: 5,
   },
-  avatarText: { fontSize: 32, fontWeight: 'bold', color: '#FFFFFF' },
-  userName: { fontSize: 22, fontWeight: '700', color: themeColors.textColor, marginBottom: 4, textAlign: 'center', width: '100%' },
-  userEmail: { fontSize: 14, color: themeColors.textColor2, textAlign: 'center', width: '100%' },
-  sectionTitle: { fontSize: 12, fontWeight: '600', color: themeColors.textColor2, marginLeft: 16, marginBottom: 8, marginTop: 24, letterSpacing: 0.5 },
-  section: {
-    backgroundColor: themeColors.backgroundColor2,
-    borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: themeColors.borderColor, overflow: 'hidden',
+  avatarText: { 
+    fontSize: 32, 
+    fontWeight: 'bold', 
+    color: '#FFFFFF' 
   },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 16, minHeight: 56 },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: themeColors.borderColor },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', flexShrink: 0, marginRight: 16 },
-  iconContainer: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(150, 150, 150, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  destructiveIconContainer: { backgroundColor: 'rgba(255, 59, 48, 0.1)' },
-  rowTitle: { fontSize: 16, color: themeColors.textColor, fontWeight: '500' },
-  rowRight: { flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'flex-end' },
-  rowValue: { fontSize: 16, color: themeColors.textColor2, marginRight: 8, flexShrink: 1, textAlign: 'right' },
-  linkedStatus: { fontSize: 14, color: themeColors.textColor2, fontWeight: '500' },
-  linkButton: { backgroundColor: themeColors.accentColor, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16 },
-  linkButtonText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
-  unlinkButton: { backgroundColor: 'transparent', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: '#FF3B30' },
-  unlinkButtonText: { fontSize: 12, color: '#FF3B30', fontWeight: '600' },
-  centerRow: { justifyContent: 'center' },
-  actionText: { fontSize: 16, color: themeColors.accentColor, fontWeight: '500' },
-  destructiveText: { color: '#FF3B30' },
+  userName: { 
+    fontSize: 22, 
+    fontWeight: '700', 
+    color: themeColors.textColor, 
+    marginBottom: 4, 
+    textAlign: 'center', 
+    width: '100%' 
+  },
+  userEmail: { 
+    fontSize: 14, 
+    color: themeColors.textColor2, 
+    textAlign: 'center', 
+    width: '100%' 
+  },
+  linkButton: { 
+    backgroundColor: themeColors.accentColor, 
+    paddingVertical: 6, 
+    paddingHorizontal: 12, 
+    borderRadius: 16 
+  },
+  linkButtonText: { 
+    fontSize: 12, 
+    color: '#FFFFFF', 
+    fontWeight: '600' 
+  },
+  unlinkButton: { 
+    backgroundColor: 'transparent', 
+    paddingVertical: 6, 
+    paddingHorizontal: 12, 
+    borderRadius: 16, 
+    borderWidth: 1, 
+    borderColor: '#FF3B30' 
+  },
+  unlinkButtonText: { 
+    fontSize: 12, 
+    color: '#FF3B30', 
+    fontWeight: '600' 
+  },
 });

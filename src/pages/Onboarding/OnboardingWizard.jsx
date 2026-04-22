@@ -19,8 +19,11 @@ import themes from '../../config/themes';
 import defaultSchedule from '../../config/defaultSchedule';
 import TabSwitcher from '../../components/ui/TabSwitcher';
 import CalendarSheet from '../../components/CalendarSheet/CalendarSheet';
-import ExpandableCard from '../../components/ui/ExpandableCard';
 import AppBlur from '../../components/ui/AppBlur';
+
+import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
+import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
+import SettingsActionRow from '../../components/ui/SettingsKit/SettingsActionRow';
 
 const ICONS = [HandWaving, PencilSimple, CalendarDots, Clock];
 const TOTAL_STEPS = 4;
@@ -287,54 +290,80 @@ export default function OnboardingWizard() {
   const renderStep3 = () => (
     <View style={styles.stepContent}>
       <Text style={[styles.title, { color: themeColors.textColor, textAlign: 'center' }]}>{t('onboarding.step3_title', lang)}</Text>
-      <Text style={[styles.subtitle, { color: themeColors.textColor2, textAlign: 'center', marginBottom: 30 }]}>{t('onboarding.step3_desc', lang)}</Text>
-      <View style={styles.inputGroup}>
-        <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.first_lesson_time_desc', lang)}</Text>
-        <ExpandableCard title={t('settings.menu.start_time.title', lang)} value={firstLessonTime} icon={Clock} themeColors={themeColors} isExpanded={isTimeExpanded} onToggle={toggleTimeExpand} hideChevronOnAndroid>
-          {Platform.OS === 'android' ? (
-            <DateTimePicker value={timeDate} mode="time" is24Hour display="default" themeVariant={mode} onChange={(e, d) => { setIsTimeExpanded(false); if (e.type === 'set' && d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} />
-          ) : (
-            <View style={styles.timePickerContainer}>
-              {Platform.OS !== 'web' ? <DateTimePicker value={timeDate} mode="time" is24Hour display="spinner" themeVariant={mode} onChange={(e, d) => { if (d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} textColor={themeColors.textColor} style={{ height: 120, width: '100%' }} /> : <View style={{ padding: 20, width: '100%', alignItems: 'center' }}><input type="time" value={firstLessonTime} onChange={(e) => setFirstLessonTime(e.target.value)} style={{ fontSize: 24, padding: 12, borderRadius: 12, width: '100%', textAlign: 'center', border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor }} /></View>}
+      <Text style={[styles.subtitle, { color: themeColors.textColor2, textAlign: 'center', marginBottom: 20 }]}>{t('onboarding.step3_desc', lang)}</Text>
+      
+      <View style={{ width: '100%' }}>
+        <SettingsGroup themeColors={themeColors}>
+          <SettingsRow
+            label={t('settings.menu.start_time.title', lang)}
+            value={firstLessonTime}
+            icon={Clock}
+            themeColors={themeColors}
+            onPress={toggleTimeExpand}
+          />
+          {isTimeExpanded && (
+            <View style={styles.expandedContentPicker}>
+              {Platform.OS === 'android' ? (
+                <DateTimePicker value={timeDate} mode="time" is24Hour display="default" themeVariant={mode} onChange={(e, d) => { setIsTimeExpanded(false); if (e.type === 'set' && d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} />
+              ) : (
+                <View style={styles.timePickerContainer}>
+                  {Platform.OS !== 'web' ? <DateTimePicker value={timeDate} mode="time" is24Hour display="spinner" themeVariant={mode} onChange={(e, d) => { if (d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} textColor={themeColors.textColor} style={{ height: 120, width: '100%' }} /> : <View style={{ padding: 20, width: '100%', alignItems: 'center' }}><input type="time" value={firstLessonTime} onChange={(e) => setFirstLessonTime(e.target.value)} style={{ fontSize: 24, padding: 12, borderRadius: 12, width: '100%', textAlign: 'center', border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor }} /></View>}
+                </View>
+              )}
             </View>
           )}
-        </ExpandableCard>
-      </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.lesson_duration_desc', lang)}</Text>
-        <ExpandableCard title={t('settings.menu.duration.title', lang)} value={`${lessonDuration} ${t('schedule.main_screen.minutes', lang)}`} icon={Hourglass} themeColors={themeColors} isExpanded={isDurationExpanded} onToggle={toggleDurationExpand}>
-          <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
-            <TabSwitcher tabs={[{ id: '45', label: '45' }, { id: '60', label: '60' }, { id: '80', label: '80' }, { id: '90', label: '90' }]} activeTab={String(lessonDuration)} onTabPress={setLessonDuration} themeColors={themeColors} activeTabBackgroundColor={isCustomDuration ? 'transparent' : themeColors.accentColor} containerBackgroundColor={themeColors.backgroundColor} containerBorderColor={themeColors.borderColor} />
-            <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor, borderColor: (isCustomDuration && lessonDuration !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
-              <TextInput style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomDuration ? String(lessonDuration) : ""} onChangeText={(t) => setLessonDuration(t.replace(/[^0-9]/g, ''))} placeholder={t('schedule.main_screen.duration', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={3} />
-            </View>
-          </View>
-        </ExpandableCard>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.breaks_desc', lang)}</Text>
-        <ExpandableCard title={t('settings.menu.breaks.title', lang)} value={`${breaks.length}`} icon={Coffee} themeColors={themeColors} isExpanded={isBreaksExpanded} onToggle={toggleBreaksExpand}>
-          <View style={{ paddingBottom: 8 }}>
-            {breaks.map((brk, idx) => (
-              <View key={`break-${idx}`} style={[styles.breakRow, { borderBottomColor: themeColors.borderColor }]}>
-                <Text style={[styles.breakRowLabel, { color: themeColors.textColor }]}>{t('schedule.day_schedule.break', lang)} {idx + 1}</Text>
-                <View style={styles.breakActions}>
-                  <View style={[styles.breakInputWrapper, { backgroundColor: themeColors.accentColor + '15' }]}>
-                    <TextInput style={[styles.breakRowInput, { color: themeColors.accentColor }]} value={String(brk)} onChangeText={(t) => handleBreakChange(t, idx)} keyboardType="number-pad" maxLength={3} selectTextOnFocus />
-                    <Text style={[styles.breakRowMin, { color: themeColors.accentColor }]}>{t('schedule.main_screen.minutes', lang)}</Text>
-                  </View>
-                  {breaks.length > 1 && <TouchableOpacity onPress={() => handleRemoveBreak(idx)} style={styles.trashBtn} activeOpacity={0.7}><Trash size={18} color="#FF3B30" weight="bold" /></TouchableOpacity>}
-                </View>
+          <SettingsRow
+            label={t('settings.menu.duration.title', lang)}
+            value={`${lessonDuration} ${t('schedule.main_screen.minutes', lang)}`}
+            icon={Hourglass}
+            themeColors={themeColors}
+            onPress={toggleDurationExpand}
+            showCaret={false}
+          />
+          {isDurationExpanded && (
+            <View style={styles.expandedContent}>
+              <TabSwitcher tabs={[{ id: '45', label: '45' }, { id: '60', label: '60' }, { id: '80', label: '80' }, { id: '90', label: '90' }]} activeTab={String(lessonDuration)} onTabPress={setLessonDuration} themeColors={themeColors} activeTabBackgroundColor={isCustomDuration ? 'transparent' : themeColors.accentColor} containerBackgroundColor={themeColors.backgroundColor} containerBorderColor={themeColors.borderColor} />
+              <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor, borderColor: (isCustomDuration && lessonDuration !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
+                <TextInput style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomDuration ? String(lessonDuration) : ""} onChangeText={(t) => setLessonDuration(t.replace(/[^0-9]/g, ''))} placeholder={t('schedule.main_screen.duration', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={3} />
               </View>
-            ))}
-            <TouchableOpacity style={[styles.addBreakBtn, { borderColor: themeColors.accentColor, backgroundColor: themeColors.accentColor + '0A' }]} onPress={handleAddBreak} activeOpacity={0.7}>
-              <Plus size={20} color={themeColors.accentColor} weight="bold" />
-              <Text style={[styles.addBreakText, { color: themeColors.accentColor }]}>{t('settings.breaks_manager.add_btn', lang)}</Text>
-            </TouchableOpacity>
-          </View>
-        </ExpandableCard>
+            </View>
+          )}
+
+          {/* Перерви */}
+          <SettingsRow
+            label={t('settings.menu.breaks.title', lang)}
+            value={`${breaks.length}`}
+            icon={Coffee}
+            themeColors={themeColors}
+            onPress={toggleBreaksExpand}
+            showCaret={false}
+          />
+          {isBreaksExpanded && (
+            <View style={styles.expandedContentBreaks}>
+              {breaks.map((brk, idx) => (
+                <View key={`break-${idx}`} style={[styles.breakRow, { borderBottomColor: themeColors.borderColor }]}>
+                  <Text style={[styles.breakRowLabel, { color: themeColors.textColor }]}>{t('schedule.day_schedule.break', lang)} {idx + 1}</Text>
+                  <View style={styles.breakActions}>
+                    <View style={[styles.breakInputWrapper, { backgroundColor: themeColors.accentColor + '15' }]}>
+                      <TextInput style={[styles.breakRowInput, { color: themeColors.accentColor }]} value={String(brk)} onChangeText={(t) => handleBreakChange(t, idx)} keyboardType="number-pad" maxLength={3} selectTextOnFocus />
+                      <Text style={[styles.breakRowMin, { color: themeColors.accentColor }]}>{t('schedule.main_screen.minutes', lang)}</Text>
+                    </View>
+                    {breaks.length > 1 && <TouchableOpacity onPress={() => handleRemoveBreak(idx)} style={styles.trashBtn} activeOpacity={0.7}><Trash size={18} color="#FF3B30" weight="bold" /></TouchableOpacity>}
+                  </View>
+                </View>
+              ))}
+              <View style={{ marginTop: 12 }}>
+                <SettingsActionRow 
+                  icon={Plus}
+                  label={t('settings.breaks_manager.add_btn', lang)}
+                  onPress={handleAddBreak}
+                  themeColors={themeColors}
+                />
+              </View>
+            </View>
+          )}
+        </SettingsGroup>
       </View>
     </View>
   );
@@ -527,16 +556,19 @@ const styles = StyleSheet.create({
   dateCardTextContainer: { flex: 1 },
   dateCardDay: { fontSize: 17, fontWeight: '600', marginBottom: 2 },
   dateCardDate: { fontSize: 14 },
+  
+  expandedContent: { paddingHorizontal: 16, paddingVertical: 16 },
+  expandedContentPicker: { paddingBottom: 8 },
+  expandedContentBreaks: { paddingHorizontal: 16, paddingBottom: 16 },
   timePickerContainer: { alignItems: 'center', overflow: 'hidden' },
-  breakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  breakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   breakRowLabel: { fontSize: 16, fontWeight: '500' },
   breakActions: { flexDirection: 'row', alignItems: 'center' },
   breakInputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 36, borderRadius: 10, marginRight: 8 },
   breakRowInput: { fontSize: 16, fontWeight: '700', textAlign: 'center', minWidth: 30 },
   breakRowMin: { fontSize: 14, fontWeight: '600', marginLeft: 2, opacity: 0.8 },
   trashBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FF3B3015', justifyContent: 'center', alignItems: 'center' },
-  addBreakBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed' },
-  addBreakText: { fontSize: 15, fontWeight: '600', marginLeft: 8 },
+  
   bottomNavContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 36 : 20, borderTopWidth: StyleSheet.hairlineWidth, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'transparent', overflow: 'hidden' },
   navBtn: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   navBtnMain: { flex: 1, height: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 16 },

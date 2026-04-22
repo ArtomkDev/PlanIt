@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+ import React, { useState, useEffect } from "react";
 import { 
   View, 
   Text, 
@@ -28,6 +28,9 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
 import TabSwitcher from "../../../components/ui/TabSwitcher";
+
+import SettingsSelectionRow from "../../../components/ui/SettingsKit/SettingsSelectionRow";
+import SettingsActionRow from "../../../components/ui/SettingsKit/SettingsActionRow";
 
 const ScheduleSwitcher = () => {
   const { 
@@ -266,16 +269,12 @@ const ScheduleSwitcher = () => {
                 entering={FadeInDown.delay(delay).springify()}
                 exiting={FadeOutDown.springify()}
                 layout={CurvedTransition}
+                style={{ marginBottom: 10 }}
               >
-                <TouchableOpacity
-                  style={[
-                    styles.option,
-                    {
-                      backgroundColor: themeColors.backgroundColor2,
-                      borderColor: isSelected ? themeColors.accentColor : 'transparent',
-                      borderWidth: isSelected ? 2 : 1,
-                    }
-                  ]}
+                <SettingsSelectionRow
+                  label={s.name || t('settings.schedule_switcher.untitled', lang)}
+                  isSelected={isSelected}
+                  themeColors={themeColors}
                   onPress={() => {
                     if (isAccountTab) {
                       !isSelected && handleChange(s.id);
@@ -287,78 +286,60 @@ const ScheduleSwitcher = () => {
                     }
                   }}
                   onLongPress={() => isAccountTab ? handleEdit(s.id) : null}
-                  delayLongPress={300}
-                  activeOpacity={isSelected ? 1 : 0.7}
-                >
-                  <View style={styles.leftContainer}>
-                    <Text style={[
-                      styles.optionText, 
-                      { color: themeColors.textColor },
-                      isSelected && { color: themeColors.accentColor, fontWeight: "bold" }
-                    ]}>
-                      {s.name || t('settings.schedule_switcher.untitled', lang)}
-                    </Text>
-                  </View>
+                  rightContent={
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {!guest && isAccountTab && (
+                        <TouchableOpacity 
+                          hitSlop={15}
+                          onPress={() => handleMoveToLocal(s)}
+                          style={styles.iconButton}
+                        >
+                          <CloudArrowDown size={20} color={themeColors.textColor2} weight="regular" />
+                        </TouchableOpacity>
+                      )}
 
-                  <View style={styles.rightContainer}>
-                    {!guest && isAccountTab && (
+                      {!guest && !isAccountTab && (
+                        <TouchableOpacity 
+                          hitSlop={15}
+                          onPress={() => handleMoveToCloud(s)}
+                          style={styles.iconButton}
+                        >
+                          <CloudArrowUp size={20} color={themeColors.accentColor} weight="bold" />
+                        </TouchableOpacity>
+                      )}
+
+                      {isAccountTab && (
+                        <TouchableOpacity 
+                          hitSlop={15}
+                          onPress={() => handleEdit(s.id)}
+                          style={styles.iconButton}
+                        >
+                          <PencilSimple size={20} color={themeColors.textColor2} weight="bold" />
+                        </TouchableOpacity>
+                      )}
+
                       <TouchableOpacity 
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        onPress={() => handleMoveToLocal(s)}
+                        hitSlop={15}
+                        onPress={() => isAccountTab ? handleDelete(s.id, s.name) : handleDeleteGuest(s.id, s.name)}
                         style={styles.iconButton}
                       >
-                        <CloudArrowDown size={20} color={themeColors.textColor2} weight="regular" />
+                        <Trash size={20} color={themes.accentColors.red} weight="bold" />
                       </TouchableOpacity>
-                    )}
-
-                    {!guest && !isAccountTab && (
-                      <TouchableOpacity 
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        onPress={() => handleMoveToCloud(s)}
-                        style={styles.iconButton}
-                      >
-                        <CloudArrowUp size={20} color={themeColors.accentColor} weight="bold" />
-                      </TouchableOpacity>
-                    )}
-
-                    {isAccountTab && (
-                      <TouchableOpacity 
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        onPress={() => handleEdit(s.id)}
-                        style={styles.iconButton}
-                      >
-                        <PencilSimple size={20} color={themeColors.textColor2} weight="bold" />
-                      </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity 
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      onPress={() => isAccountTab ? handleDelete(s.id, s.name) : handleDeleteGuest(s.id, s.name)}
-                      style={styles.iconButton}
-                    >
-                      <Trash size={20} color={themes.accentColors.red} weight="bold" />
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
+                    </View>
+                  }
+                />
               </Animated.View>
             );
           })}
 
           {isAccountTab && (
             <Animated.View layout={CurvedTransition}>
-              <TouchableOpacity 
-                style={[
-                  styles.actionButton, 
-                  { borderColor: themeColors.accentColor, borderStyle: 'dashed' }
-                ]} 
+              <SettingsActionRow
+                icon={PlusCircle}
+                label={t('settings.schedule_switcher.add_new', lang)}
                 onPress={handleAddNew}
-                activeOpacity={0.7}
-              >
-                <PlusCircle size={22} color={themeColors.accentColor} style={{ marginRight: 6 }} weight="bold" />
-                <Text style={[styles.actionButtonText, { color: themeColors.accentColor }]}>
-                  {t('settings.schedule_switcher.add_new', lang)}
-                </Text>
-              </TouchableOpacity>
+                themeColors={themeColors}
+              />
             </Animated.View>
           )}
           
@@ -388,50 +369,14 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
-  option: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  leftContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  rightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  optionText: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
   iconButton: {
     padding: 4,
-    borderRadius: 8,
-  },
-  actionButton: {
-    padding: 14,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: 'row',
-    borderWidth: 1,
-    marginTop: 4,
-  },
-  actionButtonText: {
-    fontWeight: "600",
-    fontSize: 16,
   },
 });
 

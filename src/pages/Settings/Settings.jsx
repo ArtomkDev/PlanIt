@@ -1,10 +1,10 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Table, Palette, Translate, SignIn, UserCircle, Cpu, 
-  SignOut, Trash, CaretRight, Info
+  SignOut, Trash, Info
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 
@@ -13,6 +13,9 @@ import themes from '../../config/themes';
 import SettingsHeader from '../../components/ui/SettingsHeader';
 import { t } from '../../utils/i18n';
 import MorphingLoader from '../../components/ui/MorphingLoader';
+
+import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
+import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
 
 export default function Settings({ guest, onExitGuest }) {
   const navigation = useNavigation();
@@ -133,7 +136,7 @@ export default function Settings({ guest, onExitGuest }) {
       title: t('settings.sections.danger_zone', lang),
       danger: true,
       data: [
-        { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: Trash, desc: t('settings.menu.reset_db.desc', lang) },
+        { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: Trash, desc: t('settings.menu.reset_db.desc', lang), danger: true },
       ],
     },
   ]), [guest, user, lang]);
@@ -160,47 +163,6 @@ export default function Settings({ guest, onExitGuest }) {
 
     return () => scrollY.removeListener(listenerId);
   }, [headerHeight, sections]);
-
-  const renderItem = ({ item }) => {
-    const IconComponent = item.icon;
-    return (
-      <TouchableOpacity
-        onPress={() => item.action ? item.action() : navigation.navigate(item.screen, { scheduleId: schedule?.id })}
-        style={[
-          styles.row,
-          { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor },
-        ]}
-      >
-        <View style={styles.left}>
-          {IconComponent && (
-            <IconComponent 
-              size={20} 
-              color={item.danger ? '#ff453a' : themeColors.textColor2} 
-              style={{ marginRight: 10 }} 
-              weight="regular"
-            />
-          )}
-          <View style={{ flexShrink: 1 }}>
-            <Text style={[
-              styles.title, 
-              { color: item.danger ? '#ff453a' : themeColors.textColor }
-            ]}>
-              {item.label}
-            </Text>
-            {!!item.desc && (
-              <Text style={[styles.desc, { color: themeColors.textColor2 }]} numberOfLines={1}>
-                {item.desc}
-              </Text>
-            )}
-          </View>
-        </View>
-        <View style={styles.right}>
-          {!!item.meta && <Text style={[styles.meta, { color: themeColors.textColor2 }]}>{item.meta}</Text>}
-          <CaretRight size={18} color={themeColors.textColor2} weight="bold" />
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
@@ -244,23 +206,23 @@ export default function Settings({ guest, onExitGuest }) {
               sectionPositions.current[sectionIndex] = layout.y;
             }}
           >
-            <Text
-              style={[
-                styles.sectionHeader,
-                { color: section.danger ? '#ff453a' : themeColors.textColor2, backgroundColor: themeColors.backgroundColor },
-              ]}
+            <SettingsGroup 
+              title={section.title} 
+              themeColors={themeColors}
             >
-              {section.title}
-            </Text>
-
-            {section.data.map((item, itemIndex) => (
-              <View key={`item-${sectionIndex}-${itemIndex}`}>
-                {renderItem({ item })}
-                {itemIndex < section.data.length - 1 && <View style={{ height: 10 }} />}
-              </View>
-            ))}
-
-            <View style={{ height: 12 }} />
+              {section.data.map((item, itemIndex) => (
+                <SettingsRow
+                  key={`item-${sectionIndex}-${itemIndex}`}
+                  icon={item.icon}
+                  label={item.label}
+                  desc={item.desc}
+                  value={item.meta}
+                  danger={item.danger}
+                  themeColors={themeColors}
+                  onPress={() => item.action ? item.action() : navigation.navigate(item.screen, { scheduleId: schedule?.id })}
+                />
+              ))}
+            </SettingsGroup>
           </View>
         ))}
 
@@ -291,31 +253,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
   },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  row: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  left: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
-  right: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 16, fontWeight: '600' },
-  desc: { fontSize: 12, marginTop: 2 },
-  meta: { fontSize: 12, marginRight: 6 },
   appInfoFooter: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 30,
+    paddingTop: 10,
     paddingBottom: 10,
   },
   appInfoText: {

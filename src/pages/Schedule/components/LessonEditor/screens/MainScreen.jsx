@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManager } from "react-native";
+import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManager, TouchableOpacity } from "react-native";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { 
   BookOpen, 
@@ -10,11 +10,14 @@ import {
   Link as LinkIcon, 
   Palette, 
   Image as ImageIcon, 
-  Clock 
+  Clock,
+  Plus,
+  ArrowsCounterClockwise
 } from "phosphor-react-native";
 
-import SettingRow from "../ui/SettingRow"; 
-import Group from "../ui/Group";
+import SettingsGroup from "../../../../../components/ui/SettingsKit/SettingsGroup";
+import SettingsRow from "../../../../../components/ui/SettingsKit/SettingsRow";
+
 import GradientBackground from "../../../../../components/ui/GradientBackground";
 import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons"; 
@@ -174,18 +177,61 @@ export default function LessonEditorMainScreen({
     return <View style={[styles.colorPreview, { backgroundColor: color }]} />;
   };
 
+  const renderHeaderRight = (showScopeToggle, scope, onScopeChangeHandler, onAdd, onReset) => {
+    const hasButtons = showScopeToggle || onAdd || onReset;
+    if (!hasButtons) return null;
+
+    return (
+      <>
+        {showScopeToggle && onScopeChangeHandler && (
+          <TouchableOpacity
+            style={[
+              styles.headerActionButton,
+              { 
+                backgroundColor: scope === "local" ? themeColors.accentColor : themeColors.backgroundColor2, 
+                paddingHorizontal: 10, 
+                width: 'auto' 
+              }
+            ]}
+            onPress={() => onScopeChangeHandler(scope === "local" ? "global" : "local")}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "600", color: scope === "local" ? "#fff" : themeColors.textColor }}>
+              {scope === "local" ? t('schedule.lesson_editor.scope_local', lang) : t('schedule.lesson_editor.scope_global', lang)}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {onAdd && (
+          <TouchableOpacity style={[styles.headerActionButton, { backgroundColor: themeColors.backgroundColor2 }]} onPress={onAdd} activeOpacity={0.7}>
+            <Plus size={18} color={themeColors.textColor} weight="bold" />
+          </TouchableOpacity>
+        )}
+
+        {onReset && (
+          <TouchableOpacity style={[styles.headerActionButton, { backgroundColor: themeColors.backgroundColor2 }]} onPress={onReset} activeOpacity={0.7}>
+            <ArrowsCounterClockwise size={18} color={themeColors.textColor} weight="bold" />
+          </TouchableOpacity>
+        )}
+      </>
+    );
+  };
+
   if (!selectedSubjectId) {
     return (
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        <Group themeColors={themeColors} title={t('schedule.main_screen.subject', lang)} showScopeToggle={false}>
-          <SettingRow
+        <SettingsGroup 
+          themeColors={themeColors} 
+          title={t('schedule.main_screen.subject', lang)}
+        >
+          <SettingsRow
             label={t('schedule.main_screen.subject_name', lang)}
             value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
             onPress={() => setActivePicker("subject")}
             themeColors={themeColors}
             icon={BookOpen}
           />
-        </Group>
+        </SettingsGroup>
       </ScrollView>
     );
   }
@@ -196,67 +242,59 @@ export default function LessonEditorMainScreen({
   return (
     <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={styles.scrollContent}>
       
-      <Group 
+      <SettingsGroup 
         themeColors={themeColors} 
         title={t('schedule.main_screen.subject', lang)} 
-        showScopeToggle={false}
-        onReset={onClearSubject}
+        headerRight={renderHeaderRight(false, null, null, null, onClearSubject)}
       >
-        <SettingRow
+        <SettingsRow
           label={t('schedule.main_screen.subject_name', lang)}
           value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
           onPress={() => setActivePicker("subject")}
           themeColors={themeColors}
           icon={BookOpen}
         />
-      </Group>
+      </SettingsGroup>
 
-      <Group 
+      <SettingsGroup 
         themeColors={themeColors} 
         title={t('schedule.main_screen.lesson_type_group', lang)}
-        showScopeToggle={true}
-        scope={scopes.type}
-        onScopeChange={(newScope) => onScopeChange('type', newScope)}
+        headerRight={renderHeaderRight(true, scopes.type, (s) => onScopeChange('type', s), null, null)}
       >
-        <SettingRow
+        <SettingsRow
           label={t('schedule.main_screen.lesson_type_label', lang)}
           value={getValueLabel("type", "type", "type")}
           onPress={() => setActivePicker("type")}
           themeColors={themeColors}
           icon={Tag}
         />
-      </Group>
+      </SettingsGroup>
 
-      <Group 
+      <SettingsGroup 
         themeColors={themeColors} 
         title={t('schedule.main_screen.location', lang)}
-        showScopeToggle={true}
-        scope={scopes.location}
-        onScopeChange={(newScope) => onScopeChange('location', newScope)}
+        headerRight={renderHeaderRight(true, scopes.location, (s) => onScopeChange('location', s), null, null)}
       >
-        <SettingRow
+        <SettingsRow
           label={t('schedule.main_screen.building', lang)}
           value={getValueLabel("building", "text", "location")}
           onPress={() => setActivePicker("building")}
           themeColors={themeColors}
           icon={Buildings}
         />
-        <SettingRow
+        <SettingsRow
           label={t('schedule.main_screen.room', lang)}
           value={getValueLabel("room", "text", "location")}
           onPress={() => setActivePicker("room")}
           themeColors={themeColors}
           icon={MapPin}
         />
-      </Group>
+      </SettingsGroup>
 
-      <Group 
+      <SettingsGroup 
         themeColors={themeColors} 
         title={t('schedule.main_screen.people', lang)}
-        showScopeToggle={true}
-        scope={scopes.people}
-        onScopeChange={(newScope) => onScopeChange('people', newScope)}
-        onAdd={() => setActivePicker('teacher', teachersArr.length)}
+        headerRight={renderHeaderRight(true, scopes.people, (s) => onScopeChange('people', s), () => setActivePicker('teacher', teachersArr.length), null)}
       >
         {teachersArr.length === 0 ? (
            <View style={styles.emptyContainer}>
@@ -266,7 +304,7 @@ export default function LessonEditorMainScreen({
            </View>
         ) : (
             teachersArr.map((id, index) => (
-                <SettingRow
+                <SettingsRow
                     key={`teacher-${id}`}
                     label={`${t('schedule.main_screen.teacher', lang)} ${index + 1}`}
                     value={safeGetLabel("teacher", id)}
@@ -277,15 +315,12 @@ export default function LessonEditorMainScreen({
                 />
             ))
         )}
-      </Group>
+      </SettingsGroup>
 
-      <Group 
+      <SettingsGroup 
         themeColors={themeColors} 
         title={t('schedule.main_screen.materials', lang)}
-        showScopeToggle={true}
-        scope={scopes.materials}
-        onScopeChange={(newScope) => onScopeChange('materials', newScope)}
-        onAdd={() => setActivePicker('link', linksArr.length)}
+        headerRight={renderHeaderRight(true, scopes.materials, (s) => onScopeChange('materials', s), () => setActivePicker('link', linksArr.length), null)}
       >
         {linksArr.length === 0 ? (
            <View style={styles.emptyContainer}>
@@ -295,7 +330,7 @@ export default function LessonEditorMainScreen({
            </View>
         ) : (
             linksArr.map((id, index) => (
-                <SettingRow
+                <SettingsRow
                     key={`link-${id}`}
                     label={`${t('schedule.main_screen.link', lang)} ${index + 1}`}
                     value={safeGetLabel("link", id)}
@@ -306,35 +341,37 @@ export default function LessonEditorMainScreen({
                 />
             ))
         )}
-      </Group>
+      </SettingsGroup>
 
-      <Group themeColors={themeColors} title={t('schedule.main_screen.appearance', lang)} showScopeToggle={false}>
-        <SettingRow
+      <SettingsGroup 
+        themeColors={themeColors} 
+        title={t('schedule.main_screen.appearance', lang)}
+      >
+        <SettingsRow
           label={t('schedule.main_screen.card_color', lang)}
           rightContent={renderColorPreview()}
           onPress={onEditSubjectColor} 
           themeColors={themeColors}
           icon={Palette}
         />
-        <SettingRow
+        <SettingsRow
           label={t('schedule.main_screen.subject_icon', lang)}
           rightContent={renderIconValue()}
           onPress={() => setActivePicker("icon")}
           themeColors={themeColors}
           icon={ImageIcon}
         />
-      </Group>
+      </SettingsGroup>
 
-      <Group 
+      <SettingsGroup 
         themeColors={themeColors} 
         title={t('schedule.main_screen.time', lang) || "Час заняття"} 
-        showScopeToggle={false}
-        onReset={isTimeModified ? () => {
+        headerRight={renderHeaderRight(false, null, null, null, isTimeModified ? () => {
             onTimeChange("startTime", null);
             onTimeChange("endTime", null);
-        } : null}
+        } : null)}
       >
-        <SettingRow
+        <SettingsRow
           label={t('schedule.main_screen.start_time', lang) || "Початок"}
           rightContent={renderTimeValue(currentStart, isTimeModified)}
           onPress={() => toggleExpand("startTime")}
@@ -343,7 +380,7 @@ export default function LessonEditorMainScreen({
         />
         {expandedField === "startTime" && renderTimePicker("startTime", currentStart)}
 
-        <SettingRow
+        <SettingsRow
           label={t('schedule.main_screen.end_time', lang) || "Кінець"}
           rightContent={renderTimeValue(currentEnd, isTimeModified)}
           onPress={() => toggleExpand("endTime")}
@@ -357,7 +394,7 @@ export default function LessonEditorMainScreen({
             {duration ? `${duration} ${t('schedule.main_screen.minutes', lang)}` : "—"}
           </Text>
         </View>
-      </Group>
+      </SettingsGroup>
 
     </ScrollView>
   );
@@ -366,6 +403,13 @@ export default function LessonEditorMainScreen({
 const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
   scrollContent: { paddingBottom: 40 },
+  headerActionButton: {
+    width: 34,
+    height: 30,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   timePickerContainer: {
     overflow: 'hidden',
     borderTopWidth: StyleSheet.hairlineWidth,

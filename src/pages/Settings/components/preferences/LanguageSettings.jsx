@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, FlatList, Platform } from "react-native";
-import { CheckCircle } from "phosphor-react-native";
+import { StyleSheet, Text, View, Platform } from "react-native";
 import { useSchedule } from "../../../../context/ScheduleProvider";
 import themes from "../../../../config/themes";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import { t, SUPPORTED_LANGUAGES } from "../../../../utils/i18n";
+
+import SettingsSelectionRow from "../../../../components/ui/SettingsKit/SettingsSelectionRow";
 
 const LanguageSettings = () => {
   const { global, setGlobalDraft, saveNow, isDirty } = useSchedule();
@@ -31,57 +32,6 @@ const LanguageSettings = () => {
     }
   }, [currentAppLang, isDirty, saveNow]);
 
-  const renderItem = ({ item }) => {
-    const isSelected = currentAppLang === item.code;
-    const translatedName = t(`languages.${item.code}`, currentAppLang);
-
-    const renderFlagIcon = () => {
-      if (Platform.OS === 'web') {
-        return (
-          <View style={[styles.webFlagCircle, { backgroundColor: isSelected ? themeColors.accentColor : themeColors.borderColor }]}>
-             <Text style={[styles.webFlagText, { color: isSelected ? '#fff' : themeColors.textColor }]}>
-               {item.code.toUpperCase()}
-             </Text>
-          </View>
-        );
-      }
-      return <Text style={styles.flag}>{item.flag}</Text>;
-    };
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.card,
-          { 
-            backgroundColor: themeColors.backgroundColor2,
-            borderColor: isSelected ? themeColors.accentColor : 'transparent',
-            borderWidth: 2 
-          }
-        ]}
-        onPress={() => handleSelect(item.code)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.leftSection}>
-          <View style={styles.flagContainer}>
-             {renderFlagIcon()}
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={[styles.nativeLabel, { color: themeColors.textColor }]}>
-              {item.label}
-            </Text>
-            <Text style={[styles.translatedLabel, { color: themeColors.textColor2 }]}>
-              {translatedName}
-            </Text>
-          </View>
-        </View>
-
-        {isSelected && (
-          <CheckCircle size={24} color={themeColors.accentColor} weight="fill" />
-        )}
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
@@ -92,40 +42,56 @@ const LanguageSettings = () => {
           {t('settings.language_screen.desc', currentAppLang)}
         </Text>
 
-        <FlatList
-          data={SUPPORTED_LANGUAGES}
-          renderItem={renderItem}
-          keyExtractor={item => item.code}
-          contentContainerStyle={styles.listGap}
-          scrollEnabled={false}
-        />
+        <View style={styles.listContent}>
+          {SUPPORTED_LANGUAGES.map((item) => {
+            const isSelected = currentAppLang === item.code;
+            const translatedName = t(`languages.${item.code}`, currentAppLang);
+
+            return (
+              <View key={item.code} style={{ marginBottom: 12 }}>
+                <SettingsSelectionRow
+                  label={item.label}
+                  hint={translatedName}
+                  isSelected={isSelected}
+                  themeColors={themeColors}
+                  onPress={() => handleSelect(item.code)}
+                  rightContent={
+                    Platform.OS === 'web' ? (
+                      <View style={[styles.webFlagCircle, { backgroundColor: isSelected ? themeColors.accentColor : themeColors.borderColor }]}>
+                         <Text style={[styles.webFlagText, { color: isSelected ? '#fff' : themeColors.textColor }]}>
+                           {item.code.toUpperCase()}
+                         </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.flag}>{item.flag}</Text>
+                    )
+                  }
+                />
+              </View>
+            );
+          })}
+        </View>
       </View>
     </SettingsScreenLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  title: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
-  desc: { fontSize: 14, marginBottom: 24, lineHeight: 20 },
-  listGap: { gap: 12 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 16,
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.05)' },
-      default: { elevation: 1 }
-    })
+  container: { 
+    padding: 20 
   },
-  leftSection: { flexDirection: 'row', alignItems: 'center', gap: 15 },
-  flagContainer: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+  title: { 
+    fontSize: 20, 
+    fontWeight: "700", 
+    marginBottom: 8 
+  },
+  desc: { 
+    fontSize: 14, 
+    marginBottom: 24, 
+    lineHeight: 20 
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   flag: { 
     fontSize: 28,
@@ -144,9 +110,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  textContainer: { justifyContent: 'center' },
-  nativeLabel: { fontSize: 17, fontWeight: '600' },
-  translatedLabel: { fontSize: 13, marginTop: 2 },
 });
 
 export default LanguageSettings;

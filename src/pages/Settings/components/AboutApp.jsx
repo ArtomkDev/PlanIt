@@ -1,16 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, Share, Alert, Platform } from 'react-native';
 import { 
-  ShieldCheck, FileText, CaretRight, EnvelopeSimple, 
+  ShieldCheck, FileText, EnvelopeSimple, 
   ShareNetwork, Globe 
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
+
+import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
+import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
 
 export default function AboutApp() {
   const { lang, global } = useSchedule();
@@ -46,83 +48,69 @@ export default function AboutApp() {
     }
   };
 
-  const InfoRow = ({ label, value }) => (
-    <View style={[styles.row, { borderColor: themeColors.borderColor }]}>
-      <Text style={[styles.label, { color: themeColors.textColor }]}>{label}</Text>
-      <Text style={[styles.value, { color: themeColors.textColor2 }]}>{value}</Text>
-    </View>
-  );
-
-  const ActionRow = ({ label, icon: Icon, onPress, showArrow = true }) => (
-    <TouchableOpacity 
-      style={[styles.row, { borderColor: themeColors.borderColor }]} 
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={styles.left}>
-        <Icon size={22} color={themeColors.accentColor} weight="regular" style={{ marginRight: 12 }} />
-        <Text style={[styles.label, { color: themeColors.textColor }]}>{label}</Text>
-      </View>
-      {showArrow ? <CaretRight size={18} color={themeColors.textColor2} weight="bold" /> : null}
-    </TouchableOpacity>
-  );
-
   return (
     <SettingsScreenLayout title={t('settings.about_screen.title', lang)}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
-        {/* Чистий заголовок */}
         <View style={styles.header}>
           <Text style={[styles.appName, { color: themeColors.textColor }]}>{appName}</Text>
         </View>
 
-        {/* Блок версії */}
-        <View style={[styles.section, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
-          <InfoRow label={t('settings.about_screen.version', lang)} value={appVersion} />
-          <InfoRow label={t('settings.about_screen.platform', lang)} value={platformName} />
-        </View>
+        <SettingsGroup themeColors={themeColors}>
+          <SettingsRow 
+            label={t('settings.about_screen.version', lang)} 
+            value={appVersion} 
+            themeColors={themeColors} 
+          />
+          <SettingsRow 
+            label={t('settings.about_screen.platform', lang)} 
+            value={platformName} 
+            themeColors={themeColors} 
+          />
+        </SettingsGroup>
 
-        {/* Блок підтримки */}
-        <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
-          {t('settings.about_screen.support_section', lang)}
-        </Text>
-        <View style={[styles.section, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
-          <ActionRow 
+        <SettingsGroup 
+          title={t('settings.about_screen.support_section', lang)} 
+          themeColors={themeColors}
+        >
+          <SettingsRow 
             label={t('settings.about_screen.website', lang)} 
             icon={Globe} 
             onPress={() => openLink(WEBSITE_URL)} 
+            themeColors={themeColors} 
           />
-          <ActionRow 
+          <SettingsRow 
             label={t('settings.about_screen.contact_support', lang)} 
             icon={EnvelopeSimple} 
             onPress={() => openLink(`mailto:${SUPPORT_EMAIL}?subject=${appName} Support`)} 
+            themeColors={themeColors} 
           />
-          <ActionRow 
+          <SettingsRow 
             label={t('settings.about_screen.share_app', lang)} 
             icon={ShareNetwork} 
             onPress={handleShare} 
-            showArrow={false}
+            showCaret={false}
+            themeColors={themeColors} 
           />
-        </View>
+        </SettingsGroup>
 
-        {/* Блок документів */}
-        <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
-          {t('settings.about_screen.legal_section', lang)}
-        </Text>
-        <View style={[styles.section, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
-          <ActionRow 
+        <SettingsGroup 
+          title={t('settings.about_screen.legal_section', lang)} 
+          themeColors={themeColors}
+        >
+          <SettingsRow 
             label={t('settings.about_screen.privacy_policy', lang)} 
             icon={ShieldCheck} 
             onPress={() => openLink(`${WEBSITE_URL}/privacy.html`)} 
+            themeColors={themeColors} 
           />
-          <ActionRow 
+          <SettingsRow 
             label={t('settings.about_screen.terms_of_use', lang)} 
             icon={FileText} 
             onPress={() => openLink(`${WEBSITE_URL}/terms.html`)} 
+            themeColors={themeColors} 
           />
-        </View>
-
-        <View style={styles.bottomPadding} />
+        </SettingsGroup>
 
       </ScrollView>
     </SettingsScreenLayout>
@@ -130,17 +118,18 @@ export default function AboutApp() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 30, alignItems: 'center' },
-  header: { alignItems: 'center', marginBottom: 24, marginTop: 20 },
-  appName: { fontSize: 32, fontWeight: '800', letterSpacing: 0.5 },
-  section: { width: '100%', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: 24 },
-  sectionTitle: { alignSelf: 'flex-start', fontSize: 12, fontWeight: '700', marginLeft: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  row: { 
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
-    padding: 16, borderBottomWidth: StyleSheet.hairlineWidth 
+  container: { 
+    padding: 16, 
+    paddingBottom: 40 
   },
-  left: { flexDirection: 'row', alignItems: 'center' },
-  label: { fontSize: 16, fontWeight: '500' },
-  value: { fontSize: 16, fontWeight: '400' },
-  bottomPadding: { height: 40 }
+  header: { 
+    alignItems: 'center', 
+    marginBottom: 32, 
+    marginTop: 10 
+  },
+  appName: { 
+    fontSize: 34, 
+    fontWeight: '800', 
+    letterSpacing: 0.5 
+  }
 });
