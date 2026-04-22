@@ -276,6 +276,7 @@ export default {
       schedule: "Schedule Structure",
       appearance: "Appearance",
       account: "Account",
+      about: "About App",
       danger_zone: "Danger Zone",
     },
 
@@ -443,6 +444,20 @@ export default {
       edit_schedule: "Edit",
       schedule_name: "Schedule Name",
       enter_name: "Enter name...",
+    },
+    
+    about_screen: {
+      title: "About App",
+      description: "App info and legal documents",
+      version: "Version",
+      platform: "Platform",
+      legal_section: "LEGAL INFORMATION",
+      privacy_policy: "Privacy Policy",
+      terms_of_use: "Terms of Use",
+      support_section: "SUPPORT & COMMUNITY",
+      contact_support: "Contact Support",
+      share_app: "Share App",
+      website: "Our Website",
     },
 
     alerts: {

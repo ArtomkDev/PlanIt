@@ -16,7 +16,6 @@ import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
 import AdBanner from '../components/AdBanner/AdBanner';
 import OnboardingWizard from '../pages/Onboarding/OnboardingWizard';
 
-// Створюємо внутрішній навігатор для плавного переходу
 const MainStack = createNativeStackNavigator();
 
 export default function MainLayout({ guest, onExitGuest }) {
@@ -26,6 +25,7 @@ export default function MainLayout({ guest, onExitGuest }) {
     schedule,
     schedules,
     isLoading,
+    cloudSyncState,
     error,
     lang,
     resetApplication,
@@ -34,14 +34,25 @@ export default function MainLayout({ guest, onExitGuest }) {
   } = useSchedule();
 
   const [isFatalTimeout, setIsFatalTimeout] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const hasSchedules = schedules && schedules.length > 0;
-  const isBlocking = isLoading || error || (hasSchedules && !schedule);
+  
+  const isInitialSync = user && !guest && !hasSchedules && cloudSyncState === 'syncing';
+  const isBlocking = isLoading || isInitialSync || error || (hasSchedules && !schedule);
   const isErrorState = error || isFatalTimeout;
 
-  // Стан для плавного зникнення оверлею завантаження
-  const [showOverlay, setShowOverlay] = useState(isBlocking);
-  const overlayOpacity = useRef(new Animated.Value(isBlocking ? 1 : 0)).current;
+  const [showOverlay, setShowOverlay] = useState(true);
+  const overlayOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!isBlocking && !hasSchedules) {
+      const timeout = setTimeout(() => setShowOnboarding(true), 150);
+      return () => clearTimeout(timeout);
+    } else {
+      setShowOnboarding(false);
+    }
+  }, [isBlocking, hasSchedules]);
 
   useEffect(() => {
     let timer;
@@ -58,16 +69,15 @@ export default function MainLayout({ guest, onExitGuest }) {
       }).start();
     } else {
       setIsFatalTimeout(false);
-      
       Animated.timing(overlayOpacity, {
         toValue: 0,
-        duration: 600, // Плавний перехід при зникненні завантаження
+        duration: 600,
         useNativeDriver: true,
       }).start(() => setShowOverlay(false));
     }
 
     return () => clearTimeout(timer);
-  }, [isBlocking]);
+  }, [isBlocking, overlayOpacity]);
 
   const handleForceCreate = async () => {
     setIsFatalTimeout(false);
@@ -84,9 +94,8 @@ export default function MainLayout({ guest, onExitGuest }) {
 
       <View style={styles.container}>
         <View style={{ flex: 1 }}>
-          {/* ТУТ МИ ДОДАЛИ НАВІГАТОР З АНІМАЦІЄЮ FADE */}
           <MainStack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
-            {!isLoading && !hasSchedules ? (
+            {showOnboarding ? (
               <MainStack.Screen name="Onboarding" component={OnboardingWizard} />
             ) : (
               <MainStack.Screen name="Tabs">

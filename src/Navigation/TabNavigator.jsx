@@ -19,6 +19,7 @@ import Settings from '../pages/Settings/Settings';
 import ThemeSettings from '../pages/Settings/components/preferences/ThemeSettings';
 import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
 import ResetDB from '../pages/Settings/components/ResetDB';
+import AboutApp from '../pages/Settings/components/AboutApp';
 import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
 import DeviceManager from '../pages/Settings/components/managers/DeviceManagement';
 import ScheduleEditorScreen from '../pages/Settings/components/ScheduleEditorScreen';
@@ -29,6 +30,7 @@ import DeleteAccountScreen from '../pages/Settings/components/AccountSettings/co
 import ChangeNameScreen from '../pages/Settings/components/AccountSettings/components/ChangeNameScreen';
 import ChangeEmailScreen from '../pages/Settings/components/AccountSettings/components/ChangeEmailScreen';
 import ChangePasswordScreen from '../pages/Settings/components/AccountSettings/components/ChangePasswordScreen';
+
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator(); 
@@ -59,6 +61,7 @@ function SettingsStack({ screenProps }) {
         <Stack.Screen name="Theme" component={ThemeSettings} />
         <Stack.Screen name="Language" component={LanguageSettings} />
         <Stack.Screen name="ResetDB" component={ResetDB} />
+        <Stack.Screen name="AboutApp" component={AboutApp} />
         <Stack.Screen name="DeviceManagement" component={DeviceManager} />
         <Stack.Screen name="AccountSettings" component={AccountSettings} />
         <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />

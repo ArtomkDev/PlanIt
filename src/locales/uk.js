@@ -276,6 +276,7 @@ export default {
       schedule: "Структура розкладу",
       appearance: "Оформлення",
       account: "Акаунт",
+      about: "Про додаток",
       danger_zone: "Небезпечна зона",
     },
 
@@ -443,6 +444,20 @@ export default {
       edit_schedule: "Редагування",
       schedule_name: "Назва розкладу",
       enter_name: "Введіть назву...",
+    },
+
+    about_screen: {
+      title: "Про додаток",
+      description: "Інформація про додаток та юридичні документи",
+      version: "Версія",
+      platform: "Платформа",
+      legal_section: "ЮРИДИЧНА ІНФОРМАЦІЯ",
+      privacy_policy: "Політика конфіденційності",
+      terms_of_use: "Умови використання",
+      support_section: "ПІДТРИМКА ТА СПІЛЬНОТА",
+      contact_support: "Написати в підтримку",
+      share_app: "Поділитися додатком",
+      website: "Наш веб-сайт",
     },
 
     alerts: {
