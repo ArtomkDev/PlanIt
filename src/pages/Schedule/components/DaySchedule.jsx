@@ -7,7 +7,6 @@ import LessonCard from "./LessonCard";
 import BreakCard from "./BreakCard";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
-import { crashAppToTest } from "../../../utils/analytics/crashlytics"; 
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HEADER_HEIGHT = 140;
@@ -152,26 +151,6 @@ export default function DaySchedule({
             </Text>
           </View>
         )}
-        
-
-
-
-
-        <TouchableOpacity
-          style={styles.crashButton}
-          onPress={() => {
-            console.log("Triggering Test Crash...");
-            crashAppToTest();
-          }}
-        >
-          <Text style={styles.crashButtonText}>TEST CRASH</Text>
-        </TouchableOpacity>
-
-
-
-
-
-
 
         <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
       </TouchableOpacity>
@@ -196,34 +175,5 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 14,
-  },
-
-
-
-
-
-
-
-  
-  crashButton: {
-    marginTop: 30,
-    backgroundColor: '#ff3b30',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    shadowColor: "#ff3b30",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  crashButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 1,
   }
 });
