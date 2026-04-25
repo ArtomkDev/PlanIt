@@ -7,7 +7,7 @@ export default function createDefaultData() {
 
   const global = {
     currentScheduleId: scheduleId,
-    theme: ['dark', 'red'],
+    theme: ['dark', 'cyan'], 
     lastModified: now, 
     lastSynced: 0, 
   };

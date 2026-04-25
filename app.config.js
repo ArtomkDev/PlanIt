@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import pkg from './package.json';
 
+const versionParts = pkg.version.split('.');
+const versionCode = parseInt(versionParts[0]) * 10000 + parseInt(versionParts[1]) * 100 + parseInt(versionParts[2]);
+
 export default {
   expo: {
     name: "PlanIt",
@@ -26,6 +29,7 @@ export default {
     },
     android: {
       package: "com.artomk.planit",
+      versionCode: versionCode,
       googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
