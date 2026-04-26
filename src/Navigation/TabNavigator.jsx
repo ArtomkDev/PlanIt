@@ -15,7 +15,6 @@ import { t } from '../utils/i18n';
 import Schedule from '../pages/Schedule/Schedule';
 import Settings from '../pages/Settings/Settings';
 
-// Актуальні екрани налаштувань
 import ThemeSettings from '../pages/Settings/components/preferences/ThemeSettings';
 import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
 import ResetDB from '../pages/Settings/components/ResetDB';
@@ -24,13 +23,11 @@ import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
 import DeviceManager from '../pages/Settings/components/managers/DeviceManagement';
 import ScheduleEditorScreen from '../pages/Settings/components/ScheduleEditorScreen';
 
-// Акаунт
 import AccountSettings from '../pages/Settings/components/AccountSettings/AccountSettings';
 import DeleteAccountScreen from '../pages/Settings/components/AccountSettings/components/DeleteAccountScreen';
 import ChangeNameScreen from '../pages/Settings/components/AccountSettings/components/ChangeNameScreen';
 import ChangeEmailScreen from '../pages/Settings/components/AccountSettings/components/ChangeEmailScreen';
 import ChangePasswordScreen from '../pages/Settings/components/AccountSettings/components/ChangePasswordScreen';
-
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator(); 
@@ -55,7 +52,6 @@ function SettingsStack({ screenProps }) {
           {props => <Settings {...props} {...screenProps} />}
         </Stack.Screen>
         
-        {/* Оновлені роути */}
         <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
         <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
         <Stack.Screen name="Theme" component={ThemeSettings} />
@@ -104,6 +100,10 @@ export default function TabNavigator({ screenProps }) {
     );
   }
 
+  const isAndroid = Platform.OS === 'android';
+  const basePaddingBottom = isAndroid ? 16 : 10;
+  const baseHeight = isAndroid ? 60 : 50;
+
   return (
     <Tab.Navigator
       tabBar={(props) => (
@@ -125,8 +125,8 @@ export default function TabNavigator({ screenProps }) {
           elevation: 0,
           shadowOpacity: 0,
           borderTopWidth: 0,
-          height: 50 + insets.bottom,
-          paddingBottom: 10 + insets.bottom,
+          height: baseHeight + insets.bottom,
+          paddingBottom: basePaddingBottom + insets.bottom,
         },
         tabBarLabelStyle: { fontSize: 12, fontWeight: 'bold' },
         tabBarActiveTintColor: themeColors.accentColor,

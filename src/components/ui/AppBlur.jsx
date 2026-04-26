@@ -6,7 +6,7 @@ import { useSchedule } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
 
 export default function AppBlur({ style, intensity = 80, children }) {
-  const { global , lang} = useSchedule();
+  const { global, lang } = useSchedule();
   
   const themeSetting = global?.theme || ["light", "blue"];
   const [mode, accent] = Array.isArray(themeSetting) ? themeSetting : ["light", "blue"];
@@ -18,13 +18,21 @@ export default function AppBlur({ style, intensity = 80, children }) {
 
   const dynamicOpacity = activeRouteName === 'ScheduleTab' ? 0.7 : 0.1;
 
-  if (!blurEnabled || Platform.OS === "android") {
-    const fallbackColor = !blurEnabled 
-      ? (themeColors.backgroundColorTabNavigator || themeColors.backgroundColor2)
-      : (mode === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(20,20,20,0.95)');
+  const solidColor = themeColors.backgroundColor2;
 
+  const transparentColor = mode === 'light' ? 'rgba(255,255,255,0.85)' : 'rgba(20,20,20,0.85)';
+
+  if (!blurEnabled) {
     return (
-      <View style={[{ backgroundColor: fallbackColor }, style]}>
+      <View style={[{ backgroundColor: solidColor }, style]}>
+        {children}
+      </View>
+    );
+  }
+
+  if (Platform.OS === "android") {
+    return (
+      <View style={[{ backgroundColor: transparentColor }, style]}>
         {children}
       </View>
     );

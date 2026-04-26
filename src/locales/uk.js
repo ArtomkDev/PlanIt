@@ -419,7 +419,7 @@ export default {
       desc_delete_guest: "Повністю видаляє розклади вашого хмарного акаунта ТА будь-які локальні гостьові розклади на цьому пристрої.",
     },
 
-    week_manager: { repeat_label: "Кількість тижнів повторення:" },
+    week_manager: { repeat_label: "Або інша кількість", },
     breaks_manager: { add_btn: "Додати перерву" },
 
     schedule_switcher: {

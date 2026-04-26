@@ -419,7 +419,7 @@ export default {
       desc_delete_guest: "Completely deletes your cloud account schedules AND any local guest schedules on this device.",
     },
 
-    week_manager: { repeat_label: "Number of repeating weeks:" },
+    week_manager: { repeat_label: "Or another number", },
     breaks_manager: { add_btn: "Add break" },
 
     schedule_switcher: {

@@ -123,6 +123,28 @@ export default function OnboardingWizard() {
   const toggleDurationExpand = () => { setIsDurationExpanded(!isDurationExpanded); setIsTimeExpanded(false); setIsBreaksExpanded(false); };
   const toggleBreaksExpand = () => { setIsBreaksExpanded(!isBreaksExpanded); setIsTimeExpanded(false); setIsDurationExpanded(false); };
 
+  const handleFinishRef = useRef();
+  const navigateToStepRef = useRef();
+  const widthRef = useRef(width);
+  widthRef.current = width;
+
+  const handleFinish = async () => {
+    const finalRepeat = Math.max(1, Number(weeksCount) || 1);
+    const scheduleId = uuidv4();
+    addSchedule({
+      ...defaultSchedule,
+      id: scheduleId,
+      name: scheduleName.trim() || t('sync_conflict.untitled', lang),
+      repeat: finalRepeat,
+      duration: Number(lessonDuration) || 80,
+      breaks: breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b)),
+      start_time: firstLessonTime,
+      starting_week: startingWeek,
+    });
+    setGlobalDraft(prev => ({ ...prev, currentScheduleId: scheduleId }));
+  };
+  handleFinishRef.current = handleFinish;
+
   const navigateToStep = (newStep) => {
     if (newStep < 0) return;
     
@@ -140,7 +162,7 @@ export default function OnboardingWizard() {
           useNativeDriver: true
         })
       ]).start(() => {
-        handleFinish();
+        handleFinishRef.current();
       });
       return;
     }
@@ -156,22 +178,7 @@ export default function OnboardingWizard() {
       speed: 16
     }).start();
   };
-
-  const handleFinish = async () => {
-    const finalRepeat = Math.max(1, Number(weeksCount) || 1);
-    const scheduleId = uuidv4();
-    addSchedule({
-      ...defaultSchedule,
-      id: scheduleId,
-      name: scheduleName.trim() || t('sync_conflict.untitled', lang),
-      repeat: finalRepeat,
-      duration: Number(lessonDuration) || 80,
-      breaks: breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b)),
-      start_time: firstLessonTime,
-      starting_week: startingWeek,
-    });
-    setGlobalDraft(prev => ({ ...prev, currentScheduleId: scheduleId }));
-  };
+  navigateToStepRef.current = navigateToStep;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -183,7 +190,7 @@ export default function OnboardingWizard() {
         swipeStartPos.current = currentPosRef.current;
       },
       onPanResponderMove: (evt, gestureState) => {
-        let newPos = swipeStartPos.current - (gestureState.dx / width);
+        let newPos = swipeStartPos.current - (gestureState.dx / widthRef.current);
         if (newPos < 0) newPos = newPos * 0.25;
         if (newPos > TOTAL_STEPS - 1) newPos = (TOTAL_STEPS - 1) + (newPos - (TOTAL_STEPS - 1)) * 0.4;
         position.setValue(newPos);
@@ -196,7 +203,7 @@ export default function OnboardingWizard() {
         else if (dx < -50 || vx < -0.5) targetStep = Math.ceil(currentPosRef.current);
 
         targetStep = Math.max(0, Math.min(TOTAL_STEPS, targetStep));
-        navigateToStep(targetStep);
+        navigateToStepRef.current(targetStep);
       }
     })
   ).current;
@@ -330,7 +337,6 @@ export default function OnboardingWizard() {
             </View>
           )}
 
-          {/* Перерви */}
           <SettingsRow
             label={t('settings.menu.breaks.title', lang)}
             value={`${breaks.length}`}
@@ -349,7 +355,9 @@ export default function OnboardingWizard() {
                       <TextInput style={[styles.breakRowInput, { color: themeColors.accentColor }]} value={String(brk)} onChangeText={(t) => handleBreakChange(t, idx)} keyboardType="number-pad" maxLength={3} selectTextOnFocus />
                       <Text style={[styles.breakRowMin, { color: themeColors.accentColor }]}>{t('schedule.main_screen.minutes', lang)}</Text>
                     </View>
-                    {breaks.length > 1 && <TouchableOpacity onPress={() => handleRemoveBreak(idx)} style={styles.trashBtn} activeOpacity={0.7}><Trash size={18} color="#FF3B30" weight="bold" /></TouchableOpacity>}
+                    <TouchableOpacity onPress={() => handleRemoveBreak(idx)} style={styles.trashBtn} activeOpacity={0.7}>
+                      <Trash size={18} color="#FF3B30" weight="bold" />
+                    </TouchableOpacity>
                   </View>
                 </View>
               ))}

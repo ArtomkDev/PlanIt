@@ -19,7 +19,7 @@ const themes = {
     backgroundColor2: '#1E1E22',
     backgroundColor3: '#2D2D33',
     backgroundColor4: '#18181B',
-    backgroundColorTabNavigator: '#1E1E22E6',
+    backgroundColorTabNavigator: '#1E1E22',
     
     textColor: '#FFFFFF',
     textColor2: '#A1A1AA',

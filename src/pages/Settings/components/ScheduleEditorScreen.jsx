@@ -33,7 +33,6 @@ import TabSwitcher from '../../../components/ui/TabSwitcher';
 import { generateId } from '../../../utils/idGenerator';
 import CalendarSheet from '../../../components/CalendarSheet/CalendarSheet';
 
-// Імпортуємо наш новий UI Kit
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
 import SettingsActionRow from '../../../components/ui/SettingsKit/SettingsActionRow';
@@ -434,15 +433,13 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                           <Text style={[styles.breakRowMin, { color: themeColors.accentColor }]}>{t('schedule.main_screen.minutes', lang)}</Text>
                         </View>
 
-                        {localData.breaks.length > 1 && (
-                          <TouchableOpacity 
-                            onPress={() => handleRemoveBreak(idx)} 
-                            style={styles.trashBtn}
-                            activeOpacity={0.7}
-                          >
-                            <Trash size={18} color="#FF3B30" weight="bold" />
-                          </TouchableOpacity>
-                        )}
+                        <TouchableOpacity 
+                          onPress={() => handleRemoveBreak(idx)} 
+                          style={styles.trashBtn}
+                          activeOpacity={0.7}
+                        >
+                          <Trash size={18} color="#FF3B30" weight="bold" />
+                        </TouchableOpacity>
                       </View>
                     </View>
                   ))}
