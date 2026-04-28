@@ -9,6 +9,7 @@ export default {
     name: "PlanIt",
     slug: "PlanIt",
     version: pkg.version,
+    scheme: "planit",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
@@ -68,7 +69,22 @@ export default {
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics"
+      "@react-native-firebase/crashlytics",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "ScheduleWidget",
+              "label": "Мій Розклад",
+              "minWidth": "150dp",
+              "minHeight": "110dp",
+              "description": "Показує ваше наступне заняття",
+              "resizeMode": "horizontal|vertical"
+            }
+          ]
+        }
+      ]
     ]
   }
 };

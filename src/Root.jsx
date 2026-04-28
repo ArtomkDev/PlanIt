@@ -1,13 +1,13 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState, useRef } from "react";
-import { AppState, Alert } from 'react-native';
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onIdTokenChanged, signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as LinkingExpo from 'expo-linking';
 
 import { auth } from "./config/firebase";
 import { trackScreenView } from "./utils/analytics/analytics";
@@ -19,7 +19,6 @@ import { EditorProvider } from "./context/EditorProvider";
 import { registerDevice, listenForDeviceRemoval } from "./utils/deviceService";
 import { setManualLogin } from "./utils/authFlags";
 import useAppLanguage from './hooks/useAppLanguage';
-import { t } from './utils/i18n';
 import { initAds } from './utils/adInit/adInit';
 
 initGlobalErrorHandling();
@@ -27,6 +26,27 @@ SplashScreen.preventAutoHideAsync();
 initAds();
 
 const Stack = createNativeStackNavigator();
+
+const linking = {
+  prefixes: [LinkingExpo.createURL('/'), 'planit://'],
+  config: {
+    screens: {
+      MainLayout: {
+        path: '*',
+      },
+      Auth: 'auth',
+    },
+  },
+};
+
+const AppDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#000000',
+    card: '#121214',
+  },
+};
 
 export default function RootApp() {
   const [user, setUser] = useState(null);
@@ -162,6 +182,8 @@ export default function RootApp() {
       <ScheduleProvider guest={guest} user={user}>
         <NavigationContainer 
           ref={navigationRef}
+          linking={linking}
+          theme={AppDarkTheme}
           onReady={() => {
             if (navigationRef.current) {
               routeNameRef.current = navigationRef.current.getCurrentRoute().name;

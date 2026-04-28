@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { AppState, useColorScheme } from "react-native";
+import { AppState, useColorScheme, Platform } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { v4 as uuidv4 } from 'uuid';
 import { signOut } from "firebase/auth";
@@ -10,8 +10,45 @@ import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromS
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs, clearLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import useAppLanguage from "../hooks/useAppLanguage";
+import { syncScheduleToWidget } from "../widgets/widgetService";
+
+let requestWidgetUpdate = null;
+let ScheduleWidget = null;
+if (Platform.OS === 'android') {
+  try {
+    requestWidgetUpdate = require('react-native-android-widget').requestWidgetUpdate;
+    ScheduleWidget = require('../widgets/ScheduleWidget').ScheduleWidget;
+  } catch (e) {}
+}
 
 const ScheduleContext = createContext(null);
+
+const calculateNextLesson = (scheduleData) => {
+  if (!scheduleData || !scheduleData.days) return null;
+  const date = new Date();
+  let dayIndex = date.getDay() - 1;
+  if (dayIndex < 0) dayIndex = 6;
+  
+  const currentDay = scheduleData.days.find(d => String(d.id) === String(dayIndex));
+  if (!currentDay || !currentDay.lessons) return null;
+
+  const nowMinutes = date.getHours() * 60 + date.getMinutes();
+  
+  for (const lesson of currentDay.lessons) {
+    if (!lesson.startTime) continue;
+    const [h, m] = lesson.startTime.split(':').map(Number);
+    const lessonMinutes = h * 60 + m;
+    
+    if (lessonMinutes > nowMinutes) {
+      return {
+        title: lesson.subject || lesson.name || '',
+        time: `${lesson.startTime} - ${lesson.endTime || ''}`,
+        room: lesson.room || lesson.location || ''
+      };
+    }
+  }
+  return null;
+};
 
 function resolveSyncConflict(localData, cloudData) {
   if (!localData) return { mergedData: cloudData, needsPushToCloud: false, conflicts: [] };
@@ -367,15 +404,21 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const currentScheduleId = mergedGlobal?.currentScheduleId || null;
 
   const activeSchedules = useMemo(() => {
-    return data?.schedules || [];
+    return (data?.schedules || []).filter(s => !s.isDeleted);
   }, [data?.schedules]);
 
   const schedule = useMemo(() => {
     if (!activeSchedules.length) return null;
-    return (currentScheduleId
-      ? activeSchedules.find((s) => s.id === currentScheduleId)
-      : null) || activeSchedules[0];
+    if (!currentScheduleId) return null; 
+    
+    return activeSchedules.find((s) => s.id === currentScheduleId) || null;
   }, [activeSchedules, currentScheduleId]);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      syncScheduleToWidget(schedule);
+    }
+  }, [schedule]);
 
   const setScheduleDraft = useCallback((updater) => {
     const currentId = devicePrefsRef.current.currentScheduleId || dataRef.current?.global?.currentScheduleId;

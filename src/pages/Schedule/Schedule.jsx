@@ -1,7 +1,9 @@
-import React, { useState, useRef, useCallback, useMemo, memo } from "react";
-import { StyleSheet, View, FlatList, Platform, useWindowDimensions, Animated, TouchableOpacity } from "react-native";
+import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from "react";
+import { StyleSheet, View, FlatList, Platform, useWindowDimensions, Animated, TouchableOpacity, AppState } from "react-native";
 import { Plus } from "phosphor-react-native"; 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import Header from "./components/Header";
 import WeekStrip from "./components/WeekStrip";
@@ -23,6 +25,46 @@ const getLocalISODate = (date = new Date()) => {
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().split('T')[0];
 };
+
+function addMinutes(timeStr, minsToAdd) {
+  if (!timeStr) return null;
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  if (isNaN(hours) || isNaN(minutes)) return null;
+
+  let totalMinutes = hours * 60 + minutes + (minsToAdd || 0);
+  totalMinutes = (totalMinutes + 24 * 60) % (24 * 60); 
+
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+const getBreakDuration = (breaksArray, index) => {
+  if (!Array.isArray(breaksArray) || breaksArray.length === 0) return 0;
+  return Number(breaksArray[index % breaksArray.length]) || 0;
+};
+
+function buildLessonTimes(startTime, duration, breaks, daySchedule) {
+  if (!startTime || !duration || !Array.isArray(daySchedule)) return [];
+  let times = [];
+  let currentStart = startTime;
+
+  for (let i = 0; i < daySchedule.length; i++) {
+    const item = daySchedule[i];
+    const isInstance = typeof item === 'object' && item !== null;
+    const customStart = isInstance ? item.startTime : null;
+    const customEnd = isInstance ? item.endTime : null;
+
+    const actualStart = customStart ? customStart : currentStart;
+    const actualEnd = customEnd ? customEnd : addMinutes(actualStart, duration);
+
+    times.push({ start: actualStart, end: actualEnd });
+    const currentBreak = getBreakDuration(breaks, i);
+    currentStart = addMinutes(actualEnd, currentBreak);
+  }
+
+  return times;
+}
 
 const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handleAddLesson, scrollY }) => {
     const targetDate = useMemo(() => {
@@ -91,12 +133,8 @@ export default function Schedule() {
   }, [SCREEN_WIDTH, anchorDate, currentDate]);
 
   const goToDate = useCallback((targetDateInput, animated = true) => {
-    let targetDate;
-    if (typeof targetDateInput === 'string') {
-       targetDate = new Date(targetDateInput);
-    } else {
-       targetDate = targetDateInput;
-    }
+    let targetDate = new Date(targetDateInput);
+    targetDate.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((targetDate.getTime() - anchorDate.getTime()) / (1000 * 3600 * 24));
     
@@ -104,10 +142,9 @@ export default function Schedule() {
         isJumping.current = true;
         setCurrentDate(new Date(targetDate));
         flatListRef.current?.scrollToIndex({ index: HALF_SIZE + diffDays, animated });
-        setTimeout(() => { isJumping.current = false; }, animated ? 500 : 0);
+        setTimeout(() => { isJumping.current = false; }, animated ? 500 : 50);
     } else {
         const newAnchor = new Date(targetDate);
-        newAnchor.setHours(0,0,0,0);
         setAnchorDate(newAnchor);
         setCurrentDate(new Date(targetDate));
     }
@@ -122,6 +159,123 @@ export default function Schedule() {
     setViewerVisible(false);
     setTimeout(() => { setEditingLesson(lesson); setEditorVisible(true); }, 100);
   }, []);
+
+  const findLessonById = useCallback((id) => {
+    if (!schedule || !schedule.schedule) return null;
+    for (let d = 0; d < schedule.schedule.length; d++) {
+        const day = schedule.schedule[d];
+        for (const weekKey of Object.keys(day)) {
+            const lessons = day[weekKey];
+            if (Array.isArray(lessons)) {
+                let found = lessons.find(l => l && l.id === id);
+                if (!found) found = lessons.find(l => l && (l.subject === id || l.subjectId === id));
+                if (found) return found;
+            }
+        }
+    }
+    return { id, subject: id, subjectId: id }; 
+  }, [schedule]);
+
+  useEffect(() => {
+    if (!schedule) return;
+
+    const processLessonId = (id) => {
+      if (!id) return;
+      const lesson = findLessonById(id);
+      if (lesson) {
+          setTimeout(() => { openViewer(lesson); }, 300);
+      }
+    };
+
+    const handleUrl = ({ url }) => {
+      if (url && url.includes('lesson-view/')) {
+         const id = url.split('lesson-view/')[1];
+         const cleanId = id.split('?')[0].replace(/\//g, '');
+         processLessonId(cleanId);
+      }
+    };
+
+    Linking.getInitialURL().then(url => { if (url) handleUrl({ url }); });
+    const sub = Linking.addEventListener('url', handleUrl);
+
+    const checkWidgetIntent = async () => {
+        try {
+            const intentStr = await AsyncStorage.getItem('widget_intent');
+            if (intentStr) {
+                const intent = JSON.parse(intentStr);
+                
+                if (intent.action === 'OPEN_LESSON' && Date.now() - intent.timestamp < 5000) {
+                    await AsyncStorage.removeItem('widget_intent');
+                    const { targetDateStr, lessonIndex } = intent.data;
+
+                    const targetDate = new Date(targetDateStr);
+                    targetDate.setHours(0, 0, 0, 0); 
+
+                    setTimeout(() => {
+                        goToDate(targetDate, false);
+                    }, 100);
+
+                    if (schedule && schedule.schedule) {
+                        let dayIndex = targetDate.getDay() - 1;
+                        if (dayIndex < 0) dayIndex = 6;
+                        
+                        const dayObj = schedule.schedule[dayIndex];
+                        if (dayObj) {
+                            let totalWeeks = schedule.repeat || 1;
+                            let currentWeekNum = 1;
+                            
+                            if (schedule.starting_week && totalWeeks > 1) {
+                                const start = new Date(schedule.starting_week);
+                                start.setHours(0,0,0,0);
+                                const t = new Date(targetDate);
+                                const weeksPassed = Math.floor((t.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                let mod = weeksPassed % totalWeeks;
+                                if (mod < 0) mod += totalWeeks;
+                                currentWeekNum = mod + 1;
+                            }
+                            
+                            const weekKey = `week${currentWeekNum}`;
+                            const rawLessons = Array.isArray(dayObj[weekKey]) ? dayObj[weekKey] : [];
+                            const item = rawLessons[lessonIndex];
+                            
+                            if (item) {
+                                const isInstance = typeof item === 'object' && item !== null;
+                                const subjectId = isInstance ? (item.subjectId || item.subject || item.id) : item;
+                                const lessonData = isInstance ? item : {};
+                                
+                                const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
+                                const lessonTimes = buildLessonTimes(start_time, duration, breaks, rawLessons);
+                                const timeInfo = lessonTimes[lessonIndex] || {};
+
+                                setTimeout(() => {
+                                    openViewer({
+                                        subjectId,
+                                        index: lessonIndex,
+                                        timeInfo,
+                                        data: lessonData
+                                    });
+                                }, 300); 
+                            }
+                        }
+                    }
+                }
+            }
+        } catch(e) {
+            console.error(e);
+        }
+    };
+
+    checkWidgetIntent();
+    
+    const appStateSub = AppState.addEventListener('change', (nextAppState) => {
+        if (nextAppState === 'active') checkWidgetIntent();
+    });
+
+    return () => {
+        sub.remove();
+        appStateSub.remove();
+    };
+  }, [schedule, findLessonById, openViewer, goToDate]);
 
   const renderItem = useCallback(({ item: offset }) => (
       <DayPage 
