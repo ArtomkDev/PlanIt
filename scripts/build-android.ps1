@@ -26,6 +26,10 @@ $sourceKey = "credentials\my-release-key.keystore"
 $targetKeyDir = "android\app"
 if (Test-Path -Path $sourceKey) { Copy-Item -Path $sourceKey -Destination $targetKeyDir -Force }
 
+$sourceGradleProps = "credentials\gradle.properties"
+$targetAndroidDir = "android"
+if (Test-Path -Path $sourceGradleProps) { Copy-Item -Path $sourceGradleProps -Destination $targetAndroidDir -Force }
+
 Write-Host "2. Starting Gradle Signed Release Build..." -ForegroundColor Cyan
 cd android
 $env:JAVA_HOME="D:\Android\Android Studio\jbr"

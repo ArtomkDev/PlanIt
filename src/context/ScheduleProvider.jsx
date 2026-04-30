@@ -414,11 +414,20 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     return activeSchedules.find((s) => s.id === currentScheduleId) || null;
   }, [activeSchedules, currentScheduleId]);
 
+  const prevWidgetScheduleStr = useRef(null);
+
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      syncScheduleToWidget(schedule);
+    if (Platform.OS !== 'android' || isLoading) return;
+
+    const currentScheduleStr = schedule ? JSON.stringify(schedule) : null;
+
+    if (prevWidgetScheduleStr.current !== currentScheduleStr) {
+      prevWidgetScheduleStr.current = currentScheduleStr;
+      setTimeout(() => {
+        syncScheduleToWidget(schedule);
+      }, 0);
     }
-  }, [schedule]);
+  }, [schedule, isLoading]);
 
   const setScheduleDraft = useCallback((updater) => {
     const currentId = devicePrefsRef.current.currentScheduleId || dataRef.current?.global?.currentScheduleId;

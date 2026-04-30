@@ -18,9 +18,17 @@ export function ScheduleWidget({ schedule, dateOffset = 0 }) {
   
   const headerText = dateOffset === 0 ? "Сьогодні" : (dateOffset === 1 ? "Завтра" : daysUk[targetDate.getDay()]);
   const dateInfo = `${targetDate.getDate()} ${monthsUk[targetDate.getMonth()]}${totalWeeks > 1 ? ` • Тиждень ${currentWeekNum}` : ''}`;
+  const isTodayActive = dateOffset === 0;
 
   const RootContainer = ({ children }) => (
-    <FlexWidget style={{ height: 'match_parent', width: 'match_parent', backgroundColor: '#121214', borderRadius: 28, paddingTop: 16, paddingBottom: 0, flexDirection: 'column' }}>
+    <FlexWidget style={{ 
+      height: 'match_parent', 
+      width: 'match_parent', 
+      backgroundColor: '#121214', 
+      borderRadius: 24, 
+      paddingTop: 16, 
+      flexDirection: 'column' 
+    }}>
       {children}
     </FlexWidget>
   );
@@ -28,13 +36,13 @@ export function ScheduleWidget({ schedule, dateOffset = 0 }) {
   if (!schedule) {
     return (
       <RootContainer>
-        <FlexWidget style={{ flex: 1, width: 'match_parent', height: 'match_parent', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 16 }}>
-          <TextWidget text="Виберіть розклад" style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 16 }} />
+        <FlexWidget style={{ flex: 1, width: 'match_parent', height: 'match_parent', justifyContent: 'center', alignItems: 'center', paddingBottom: 16, paddingHorizontal: 16 }}>
+          <TextWidget text="Виберіть розклад" style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }} />
           <FlexWidget 
             clickAction="OPEN_SCHEDULE_SELECTOR" 
-            style={{ backgroundColor: '#0A84FF', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 14 }}
+            style={{ backgroundColor: '#0A84FF', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 }}
           >
-            <TextWidget text="Відкрити налаштування" style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }} />
+            <TextWidget text="Відкрити налаштування" style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }} />
           </FlexWidget>
         </FlexWidget>
       </RootContainer>
@@ -43,115 +51,136 @@ export function ScheduleWidget({ schedule, dateOffset = 0 }) {
 
   return (
     <RootContainer>
-      <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 16 }}>
-        <FlexWidget style={{ flexDirection: 'column', flex: 1 }}>
-          <TextWidget text={headerText} style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 'bold' }} />
-          <TextWidget text={dateInfo} style={{ color: '#8E8E93', fontSize: 12 }} />
+      <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 16 }}>
+        <FlexWidget style={{ flexDirection: 'column', flex: 1, marginRight: 8, flexShrink: 1 }}>
+          <TextWidget text={headerText} style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' }} maxLines={1} />
+          <TextWidget text={dateInfo} style={{ color: '#8E8E93', fontSize: 12 }} maxLines={1} />
         </FlexWidget>
 
-        <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <FlexWidget clickAction="OPEN_SCHEDULE_SELECTOR" style={{ padding: 8, backgroundColor: '#242426', borderRadius: 12, marginRight: 6 }}>
-            <SvgWidget svg={ICON_SCHEDULE} style={{ width: 16, height: 16 }} />
-          </FlexWidget>
-          <FlexWidget clickAction="PREV_DAY" style={{ padding: 8, backgroundColor: '#242426', borderRadius: 12, marginRight: 6 }}>
-            <SvgWidget svg={ICON_LEFT} style={{ width: 16, height: 16 }} />
-          </FlexWidget>
-          <FlexWidget clickAction="NEXT_DAY" style={{ padding: 8, backgroundColor: '#242426', borderRadius: 12 }}>
-            <SvgWidget svg={ICON_RIGHT} style={{ width: 16, height: 16 }} />
-          </FlexWidget>
+        <FlexWidget clickAction="OPEN_SCHEDULE_SELECTOR" style={{ padding: 10, backgroundColor: '#242426', borderRadius: 12, flexShrink: 0 }}>
+          <SvgWidget svg={ICON_SCHEDULE} style={{ width: 18, height: 18 }} />
         </FlexWidget>
       </FlexWidget>
 
-      {items.length > 0 ? (
-        <ListWidget style={{ flex: 1, width: 'match_parent' }}>
-          {items.map((item, idx) => {
-            if (item.type === 'lesson') {
-              return (
-                <FlexWidget 
-                  key={`lesson-${idx}`} 
-                  clickAction="OPEN_LESSON" 
-                  clickActionData={{ targetDateStr: targetDate.toISOString(), lessonIndex: item.lessonIndex }}
-                  style={{ 
-                    flexDirection: 'row', 
-                    alignItems: 'stretch',
-                    backgroundColor: item.isCurrent ? '#2C2C2E' : '#1C1C1E', 
-                    marginBottom: 8, 
-                    width: 'match_parent',
-                  }}
-                >
+      <FlexWidget style={{ flex: 1, width: 'match_parent' }}>
+        {items.length > 0 ? (
+          <ListWidget style={{ width: 'match_parent', height: 'match_parent' }}>
+            {items.map((item, idx) => {
+              if (item.type === 'lesson') {
+                return (
                   <FlexWidget 
+                    key={`lesson-${idx}`} 
+                    clickAction="OPEN_LESSON" 
+                    clickActionData={{ targetDateStr: targetDate.toISOString(), lessonIndex: item.lessonIndex }}
                     style={{ 
-                      width: 5, 
-                      backgroundColor: item.color, 
-                      height: 'match_parent',
-                      borderRadius: 16,
-                      marginTop: 6,
-                      marginBottom: 6,
-                      marginLeft: 16 
-                    }} 
-                  />
-                  
-                  <FlexWidget style={{ flexDirection: 'row', flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingLeft: 10, paddingRight: 16 }}>
-                    <FlexWidget style={{ flexDirection: 'column', flex: 1 }}>
-                      <TextWidget text={`${item.lessonIndex + 1}. ${item.subject}`} style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', marginBottom: 4 }} maxLines={1} />
-                      <TextWidget text={`${item.startTime} - ${item.endTime} • ${item.details}`} style={{ color: '#8E8E93', fontSize: 12 }} maxLines={1} />
-                    </FlexWidget>
-
-                    {item.isCurrent && (
-                      <FlexWidget style={{ backgroundColor: '#32D74B20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginLeft: 8, justifyContent: 'center', alignItems: 'center' }}>
-                        <TextWidget text={`${item.minutesLeft} хв`} style={{ color: '#32D74B', fontSize: 13, fontWeight: 'bold' }} />
+                      flexDirection: 'row', 
+                      alignItems: 'stretch',
+                      backgroundColor: item.isCurrent ? '#2C2C2E' : '#1C1C1E', 
+                      marginBottom: 8, 
+                      width: 'match_parent',
+                      borderRadius: 0, 
+                    }}
+                  >
+                    <FlexWidget 
+                      style={{ 
+                        width: 4, 
+                        height: 'match_parent',
+                        backgroundColor: item.color, 
+                        marginTop: 10,
+                        marginBottom: 10,
+                        marginLeft: 16, 
+                        borderRadius: 4, 
+                      }} 
+                    />
+                    
+                    <FlexWidget style={{ flexDirection: 'row', flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingLeft: 12, paddingRight: 16 }}>
+                      <FlexWidget style={{ flexDirection: 'column', flex: 1, marginRight: item.isCurrent ? 8 : 0 }}>
+                        <TextWidget text={`${item.lessonIndex + 1}. ${item.subject}`} style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700', marginBottom: 2 }} maxLines={1} />
+                        <TextWidget text={`${item.startTime} - ${item.endTime} • ${item.details}`} style={{ color: '#8E8E93', fontSize: 12 }} maxLines={1} />
                       </FlexWidget>
-                    )}
-                  </FlexWidget>
-                </FlexWidget>
-              );
-            }
 
-            if (item.type === 'break') {
-              const breakIconColor = item.isCurrent ? item.color : '#8E8E93';
-              const breakTextColor = item.isCurrent ? '#FFFFFF' : '#8E8E93';
-              const breakBgColor = item.isCurrent ? '#2C2C2E' : '#121214'; 
-
-              return (
-                <FlexWidget
-                  key={`break-${idx}`}
-                  style={{
-                    flexDirection: 'row',
-                    backgroundColor: breakBgColor,
-                    marginBottom: 8,
-                    width: 'match_parent',
-                    alignItems: 'stretch',
-                  }}
-                >
-                  <FlexWidget 
-                    style={{ 
-                      width: 5, 
-                      backgroundColor: item.isCurrent ? item.color : '#48484A', 
-                      height: 'match_parent',
-                      borderRadius: 16,
-                      marginTop: 4,
-                      marginBottom: 4,
-                      marginLeft: 16
-                    }} 
-                  />
-
-                  <FlexWidget style={{ paddingVertical: 8, paddingHorizontal: 10, paddingRight: 16, flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <SvgWidget svg={ICON_COFFEE_TEMPLATE(breakIconColor)} style={{ width: 14, height: 14, marginRight: 6 }} />
-                      <TextWidget text={`Перерва ${item.duration} хв`} style={{ color: breakTextColor, fontSize: 13, fontWeight: '600' }} />
+                      {item.isCurrent && (
+                        <FlexWidget style={{ backgroundColor: '#32D74B20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+                          <TextWidget text={`${item.minutesLeft} хв`} style={{ color: '#32D74B', fontSize: 12, fontWeight: 'bold' }} />
+                        </FlexWidget>
+                      )}
                     </FlexWidget>
-                    <TextWidget text={`${item.startTime} - ${item.endTime}`} style={{ color: '#8E8E93', fontSize: 12 }} />
                   </FlexWidget>
-                </FlexWidget>
-              );
-            }
-          })}
-        </ListWidget>
-      ) : (
-        <FlexWidget style={{ flex: 1, width: 'match_parent', height: 'match_parent', justifyContent: 'center', alignItems: 'center', paddingBottom: 16 }}>
-          <TextWidget text="Пар немає 🎉" style={{ color: '#48484A', fontSize: 15 }} />
+                );
+              }
+
+              if (item.type === 'break') {
+                const breakIconColor = item.isCurrent ? item.color : '#8E8E93';
+                const breakTextColor = item.isCurrent ? '#FFFFFF' : '#8E8E93';
+                const breakBgColor = item.isCurrent ? '#2C2C2E' : '#121214'; 
+                const stripColor = item.isCurrent ? item.color : '#48484A';
+
+                return (
+                  <FlexWidget
+                    key={`break-${idx}`}
+                    style={{
+                      flexDirection: 'row',
+                      backgroundColor: breakBgColor,
+                      marginBottom: 8,
+                      width: 'match_parent',
+                      alignItems: 'stretch',
+                      borderRadius: 0,
+                    }}
+                  >
+                    <FlexWidget style={{ 
+                      width: 4, 
+                      height: 'match_parent',
+                      marginLeft: 16, 
+                      marginTop: 12, 
+                      marginBottom: 12, 
+                      flexDirection: 'column',
+                    }}>
+                      <FlexWidget style={{ width: 4, flex: 1, backgroundColor: stripColor, borderRadius: 4, marginBottom: 4 }} />
+                      <FlexWidget style={{ width: 4, flex: 1, backgroundColor: stripColor, borderRadius: 4 }} />
+                    </FlexWidget>
+
+                    <FlexWidget style={{ paddingVertical: 10, paddingLeft: 12, paddingRight: 16, flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                        <SvgWidget svg={ICON_COFFEE_TEMPLATE(breakIconColor)} style={{ width: 14, height: 14, marginRight: 6 }} />
+                        <TextWidget text={`Перерва ${item.duration} хв`} style={{ color: breakTextColor, fontSize: 13, fontWeight: '600' }} maxLines={1} />
+                      </FlexWidget>
+                      <TextWidget text={`${item.startTime} - ${item.endTime}`} style={{ color: '#8E8E93', fontSize: 11 }} maxLines={1} />
+                    </FlexWidget>
+                  </FlexWidget>
+                );
+              }
+            })}
+          </ListWidget>
+        ) : (
+          <FlexWidget style={{ flex: 1, width: 'match_parent', height: 'match_parent', justifyContent: 'center', alignItems: 'center' }}>
+            <TextWidget text="Пар немає 🎉" style={{ color: '#8E8E93', fontSize: 15 }} />
+          </FlexWidget>
+        )}
+      </FlexWidget>
+
+      <FlexWidget style={{ 
+        flexDirection: 'row', 
+        width: 'match_parent', 
+        paddingBottom: 16, 
+        paddingTop: 8,
+        paddingHorizontal: 16
+      }}>
+        <FlexWidget clickAction="PREV_DAY" style={{ flex: 1, height: 48, backgroundColor: '#242426', borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+          <SvgWidget svg={ICON_LEFT} style={{ width: 22, height: 22 }} />
         </FlexWidget>
-      )}
+        
+        <FlexWidget 
+          {...(isTodayActive ? {} : { clickAction: "TODAY" })}
+          style={{ flex: 2, height: 48, backgroundColor: '#242426', borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 6 }}
+        >
+          <TextWidget text="Сьогодні" style={{ color: isTodayActive ? '#8E8E93' : '#FFFFFF', fontSize: 14, fontWeight: 'bold' }} maxLines={1} />
+        </FlexWidget>
+        
+        <FlexWidget clickAction="NEXT_DAY" style={{ flex: 1, height: 48, backgroundColor: '#242426', borderRadius: 14, justifyContent: 'center', alignItems: 'center' }}>
+          <SvgWidget svg={ICON_RIGHT} style={{ width: 22, height: 22 }} />
+        </FlexWidget>
+      </FlexWidget>
+
     </RootContainer>
   );
 }
