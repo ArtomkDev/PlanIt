@@ -14,7 +14,6 @@ $date = Get-Date -Format "yyyy-MM-dd_HH-mm"
 $buildsDir = "D:\GitHub\ArtomkDev\PlanIt\builds"
 
 Write-Host "1. Running Expo Prebuild (Generating Native Code & Widgets)..." -ForegroundColor Yellow
-
 npx expo prebuild --platform android --clean --no-interactive
 
 $sourceAdi = "credentials\adi-registration.properties"
@@ -33,11 +32,11 @@ if (Test-Path -Path $sourceGradleProps) { Copy-Item -Path $sourceGradleProps -De
 Write-Host "2. Starting Gradle Signed Release Build..." -ForegroundColor Cyan
 cd android
 $env:JAVA_HOME="D:\Android\Android Studio\jbr"
-.\gradlew assembleRelease
+$keystoreAbsPath = Join-Path (Get-Location) "app\my-release-key.keystore"
+.\gradlew assembleRelease "-Pandroid.injected.signing.store.file=$keystoreAbsPath" "-Pandroid.injected.signing.store.password=$env:ANDROID_KEYSTORE_PASSWORD" "-Pandroid.injected.signing.key.alias=$env:ANDROID_KEYSTORE_ALIAS" "-Pandroid.injected.signing.key.password=$env:ANDROID_KEY_PASSWORD"
 cd ..
 
 if (!(Test-Path -Path $buildsDir)) { New-Item -ItemType Directory -Path $buildsDir | Out-Null }
-
 $apkSource = "android\app\build\outputs\apk\release\app-release.apk"
 $apkDest = "$buildsDir\PlanIt_v$version`_$date.apk"
 
