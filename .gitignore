@@ -89,3 +89,11 @@ credentials/
 
 android/
 builds/
+
+
+# ----------------------
+# Firebase
+# ----------------------
+.firebase/
+firebase-debug.log
+firebase-debug.*.log

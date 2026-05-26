@@ -18,7 +18,9 @@
     "build:aab": "powershell -ExecutionPolicy Bypass -File ./scripts/build-aab.ps1",
     "playstore:patch": "npm version patch --no-git-tag-version && npm run build:aab",
     "playstore:minor": "npm version minor --no-git-tag-version && npm run build:aab",
-    "playstore:major": "npm version major --no-git-tag-version && npm run build:aab"
+    "playstore:major": "npm version major --no-git-tag-version && npm run build:aab",
+    "build:dev": "powershell -ExecutionPolicy Bypass -File ./scripts/build-dev.ps1",
+    "dev-start": "npx expo start --dev-client"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

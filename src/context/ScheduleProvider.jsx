@@ -278,6 +278,12 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       prefsNeedSave = true;
     }
 
+    // Initialize blur setting from cloud if local is absent
+    if (newPrefs.blur === undefined) {
+      newPrefs.blur = data.global?.blur ?? true;
+      prefsNeedSave = true;
+    }
+
     if (data.global && data.global.language === undefined && lang && !isLangLoading) {
       setData(prev => ({
         ...prev,
@@ -396,6 +402,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     return {
       ...baseGlobal,
       theme: devicePrefs.theme || baseGlobal.theme || [fallbackMode, "blue"],
+      blur: devicePrefs.blur !== undefined ? devicePrefs.blur : (baseGlobal.blur ?? true),
       currentScheduleId: devicePrefs.currentScheduleId || baseGlobal.currentScheduleId,
       language: lang
     };
@@ -449,6 +456,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!guest) updateIsDirty(true);
   }, [guest, updateIsDirty]);
 
+  // Handle saving global variables directly to local devicePrefs
   const setGlobalDraft = useCallback((updater) => {
     const currentPrev = dataRef.current;
     if (!currentPrev) return;
@@ -456,6 +464,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     const currentMerged = {
       ...currentPrev.global,
       theme: devicePrefsRef.current.theme,
+      blur: devicePrefsRef.current.blur !== undefined ? devicePrefsRef.current.blur : (currentPrev.global?.blur ?? true),
       currentScheduleId: devicePrefsRef.current.currentScheduleId,
       language: devicePrefsRef.current.language
     };
@@ -469,6 +478,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       newPrefs.theme = nextGlobal.theme;
       prefsChanged = true;
     }
+    
+    // Add logic to save blur setting locally
+    if (nextGlobal.blur !== undefined && nextGlobal.blur !== currentMerged.blur) {
+      newPrefs.blur = nextGlobal.blur;
+      prefsChanged = true;
+    }
+
     if (nextGlobal.currentScheduleId && nextGlobal.currentScheduleId !== currentMerged.currentScheduleId) {
       newPrefs.currentScheduleId = nextGlobal.currentScheduleId;
       prefsChanged = true;
@@ -734,6 +750,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       const retainedPrefs = {
         theme: devicePrefsRef.current.theme,
+        blur: devicePrefsRef.current.blur,
         language: devicePrefsRef.current.language
       };
       syncDevicePrefsUpdate(retainedPrefs);

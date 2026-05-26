@@ -6,25 +6,28 @@ import { useSchedule } from "../../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import AdvancedColorPicker from "../../../../components/ui/AdvancedColorPicker";
 import { t } from "../../../../utils/i18n";
+import { saveDevicePrefs, getDevicePrefs } from "../../../../utils/storage";
 
 const ThemeSettings = () => {
-  const { global, setGlobalDraft , lang} = useSchedule();
+  const { global, setGlobalDraft, lang } = useSchedule();
   
   const [currentMode, currentAccent] = global?.theme || ["light", "blue"];
   const currentBlur = global?.blur ?? true;
- 
+
   const [selectedMode, setSelectedMode] = useState(currentMode);
   const [selectedColor, setSelectedColor] = useState(currentAccent);
   const [isBlurEnabled, setIsBlurEnabled] = useState(currentBlur);
-  
   const [isPickerVisible, setPickerVisible] = useState(false);
 
-  const themeColors = useMemo(() => themes.getColors(selectedMode, selectedColor), [selectedMode, selectedColor]);
+  const themeColors = useMemo(
+    () => themes.getColors(selectedMode, selectedColor), 
+    [selectedMode, selectedColor]
+  );
 
   useEffect(() => {
     if (
-      currentMode !== selectedMode || 
-      currentAccent !== selectedColor || 
+      currentMode !== selectedMode ||
+      currentAccent !== selectedColor ||
       currentBlur !== isBlurEnabled
     ) {
       setGlobalDraft((prev) => ({
@@ -32,6 +35,15 @@ const ThemeSettings = () => {
         theme: [selectedMode, selectedColor],
         blur: isBlurEnabled,
       }));
+
+      // Saves locally so cross-device cloud sync doesn't overwrite explicit local choices
+      getDevicePrefs().then((prefs) => {
+        saveDevicePrefs({
+          ...prefs,
+          theme: [selectedMode, selectedColor],
+          blur: isBlurEnabled,
+        });
+      });
     }
   }, [selectedMode, selectedColor, isBlurEnabled]);
 
@@ -45,7 +57,7 @@ const ThemeSettings = () => {
   const renderColorOption = (colorKey) => {
     const colorValue = themes.accentColors[colorKey];
     const isSelected = selectedColor === colorKey;
-
+    
     return (
       <TouchableOpacity
         key={colorKey}
@@ -57,7 +69,9 @@ const ThemeSettings = () => {
         onPress={() => setSelectedColor(colorKey)}
         activeOpacity={0.7}
       >
-        {isSelected && <Check size={20} color="#fff" weight="bold" style={styles.checkmarkIcon} />}
+        {isSelected && (
+          <Check size={20} color="#fff" weight="bold" style={styles.checkmarkIcon} />
+        )}
       </TouchableOpacity>
     );
   };
@@ -65,15 +79,15 @@ const ThemeSettings = () => {
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
-        
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           {t('settings.theme_screen.mode_title', lang)}
         </Text>
+        
         <View style={styles.themeContainer}>
           {[
             { key: "light", label: `☀️ ${t('settings.theme_screen.modes.light', lang)}` },
             { key: "dark", label: `🌙 ${t('settings.theme_screen.modes.dark', lang)}` },
-            { key: "oled", label: `🖤 ${t('settings.theme_screen.modes.oled', lang)}` },
+            { key: "oled", label: `⚫ ${t('settings.theme_screen.modes.oled', lang)}` },
           ].map((item) => (
             <TouchableOpacity
               key={item.key}
@@ -104,8 +118,8 @@ const ThemeSettings = () => {
               {t('settings.theme_screen.blur_title', lang)}
             </Text>
             <Text style={[styles.switchSubLabel, { color: themeColors.textColor2 }]}>
-              {selectedMode === 'oled' 
-                ? t('settings.theme_screen.blur_desc_oled', lang) 
+              {selectedMode === 'oled'
+                ? t('settings.theme_screen.blur_desc_oled', lang)
                 : t('settings.theme_screen.blur_desc_normal', lang)}
             </Text>
           </View>
@@ -123,23 +137,22 @@ const ThemeSettings = () => {
         
         <View style={styles.colorsContainer}>
           {predefinedKeys.map((colorName) => renderColorOption(colorName))}
-
           <TouchableOpacity
             style={[
               styles.colorTile,
               styles.customTile,
               { backgroundColor: themeColors.backgroundColor2 },
               isCustomColor && {
-                 backgroundColor: selectedColor,
-                 borderWidth: 2,
-                 borderColor: themeColors.textColor 
+                backgroundColor: selectedColor,
+                borderWidth: 2,
+                borderColor: themeColors.textColor
               }
             ]}
             onPress={() => setPickerVisible(true)}
           >
-            <PencilSimple 
-              size={20} 
-              color={isCustomColor ? '#fff' : themeColors.textColor} 
+            <PencilSimple
+              size={20}
+              color={isCustomColor ? '#fff' : themeColors.textColor}
               weight="bold"
             />
           </TouchableOpacity>
@@ -148,6 +161,7 @@ const ThemeSettings = () => {
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           {t('settings.theme_screen.preview.title', lang)}
         </Text>
+        
         <View
           style={[
             styles.previewCard,
@@ -166,7 +180,6 @@ const ThemeSettings = () => {
              <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t('settings.theme_screen.preview.button', lang)}</Text>
           </View>
         </View>
-
       </View>
 
       <AdvancedColorPicker
@@ -180,9 +193,15 @@ const ThemeSettings = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", marginBottom: 15, marginTop: 10 },
-  
+  container: { 
+    padding: 20 
+  },
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: "700", 
+    marginBottom: 15, 
+    marginTop: 10 
+  },
   themeContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -200,8 +219,10 @@ const styles = StyleSheet.create({
       default: { shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }
     })
   },
-  themeCardText: { fontSize: 14, fontWeight: "600" },
-
+  themeCardText: { 
+    fontSize: 14, 
+    fontWeight: "600" 
+  },
   switchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -210,9 +231,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 25,
   },
-  switchLabel: { fontSize: 16, fontWeight: "600" },
-  switchSubLabel: { fontSize: 12, marginTop: 4 },
-
+  switchLabel: { 
+    fontSize: 16, 
+    fontWeight: "600" 
+  },
+  switchSubLabel: { 
+    fontSize: 12, 
+    marginTop: 4 
+  },
   colorsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -246,13 +272,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(150,150,150,0.3)',
     borderStyle: 'dashed',
   },
-  checkmarkIcon: { 
-    ...Platform.select({
+  checkmarkIcon: {
+     ...Platform.select({
       web: { filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.3))' },
       default: { textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 2 }
     })
   },
-
   previewCard: {
     borderRadius: 16,
     padding: 20,
@@ -263,8 +288,17 @@ const styles = StyleSheet.create({
       default: { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 }
     })
   },
-  previewHeader: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
-  previewText: { fontSize: 14, lineHeight: 20, marginBottom: 15, opacity: 0.8 },
+  previewHeader: { 
+    fontSize: 18, 
+    fontWeight: "bold", 
+    marginBottom: 8 
+  },
+  previewText: { 
+    fontSize: 14, 
+    lineHeight: 20, 
+    marginBottom: 15, 
+    opacity: 0.8 
+  },
   dummyButton: {
     alignSelf: 'flex-start',
     paddingVertical: 10,
