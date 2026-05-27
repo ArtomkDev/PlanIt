@@ -3,34 +3,67 @@ import { requestWidgetUpdate } from 'react-native-android-widget';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScheduleWidget } from './ScheduleWidget';
 
-let lastSyncedScheduleStr = null;
+let syncDebounceTimer = null;
+let pendingSchedule = undefined;
 
-export const syncScheduleToWidget = async (schedule) => {
+const DIMENSIONS_KEY = 'widget_dimensions';
+const SCHEDULE_KEY = 'widget_active_schedule';
+const OFFSET_KEY = 'widget_date_offset';
+
+async function getStoredDimensions() {
   try {
-    const scheduleString = schedule ? JSON.stringify(schedule) : null;
+    const raw = await AsyncStorage.getItem(DIMENSIONS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return { width: undefined, height: undefined };
+}
 
-    if (lastSyncedScheduleStr === scheduleString) return;
-    lastSyncedScheduleStr = scheduleString;
+async function doWidgetUpdate(schedule, width, height) {
+  const offset = await (async () => {
+    try {
+      const s = await AsyncStorage.getItem(OFFSET_KEY);
+      return s ? parseInt(s, 10) : 0;
+    } catch (_) { return 0; }
+  })();
 
-    if (!schedule) {
-      await AsyncStorage.multiRemove(['widget_active_schedule', 'widget_date_offset']);
-      await requestWidgetUpdate({
-        widgetName: 'ScheduleWidget',
-        renderWidget: () => <ScheduleWidget schedule={null} dateOffset={0} />,
-      });
-      return;
-    }
+  await requestWidgetUpdate({
+    widgetName: 'ScheduleWidget',
+    renderWidget: () => (
+      <ScheduleWidget
+        schedule={schedule}
+        dateOffset={offset}
+        width={width}
+        height={height}
+      />
+    ),
+  });
+}
 
-    await AsyncStorage.setItem('widget_active_schedule', scheduleString);
+export const syncScheduleToWidget = (schedule) => {
+  pendingSchedule = schedule;
 
-    const savedOffsetStr = await AsyncStorage.getItem('widget_date_offset');
-    const offset = savedOffsetStr ? parseInt(savedOffsetStr, 10) : 0;
-
-    await requestWidgetUpdate({
-      widgetName: 'ScheduleWidget',
-      renderWidget: () => <ScheduleWidget schedule={schedule} dateOffset={offset} />,
-    });
-  } catch (error) {
-    console.error('Service Sync Error:', error);
+  if (syncDebounceTimer) {
+    clearTimeout(syncDebounceTimer);
   }
+
+  syncDebounceTimer = setTimeout(async () => {
+    syncDebounceTimer = null;
+    const currentSchedule = pendingSchedule;
+    pendingSchedule = undefined;
+
+    try {
+      if (!currentSchedule) {
+        await AsyncStorage.multiRemove([SCHEDULE_KEY, OFFSET_KEY]);
+        const dims = await getStoredDimensions();
+        await doWidgetUpdate(null, dims.width, dims.height);
+        return;
+      }
+
+      await AsyncStorage.setItem(SCHEDULE_KEY, JSON.stringify(currentSchedule));
+      const dims = await getStoredDimensions();
+      await doWidgetUpdate(currentSchedule, dims.width, dims.height);
+    } catch (error) {
+      console.error('Widget sync error:', error);
+    }
+  }, 500);
 };
