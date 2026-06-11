@@ -8,6 +8,9 @@ const DIMENSIONS_KEY = 'widget_dimensions';
 const SCHEDULE_KEY = 'widget_active_schedule';
 const OFFSET_KEY = 'widget_date_offset';
 
+let cachedOffset = null;
+let isRendering = false;
+
 async function saveDimensions(widgetInfo) {
   if (widgetInfo?.width > 0 && widgetInfo?.height > 0) {
     try {
@@ -38,10 +41,25 @@ async function getSchedule() {
 }
 
 async function getOffset() {
+  if (cachedOffset !== null) return cachedOffset;
   try {
     const raw = await AsyncStorage.getItem(OFFSET_KEY);
-    return raw ? parseInt(raw, 10) : 0;
+    cachedOffset = raw ? parseInt(raw, 10) : 0;
+    return cachedOffset;
   } catch (_) { return 0; }
+}
+
+async function updateOffset(delta, absoluteValue) {
+  let current = await getOffset();
+  if (absoluteValue !== undefined) {
+    current = absoluteValue;
+  } else {
+    current += delta;
+  }
+  
+  cachedOffset = current;
+  await AsyncStorage.setItem(OFFSET_KEY, current.toString());
+  return current;
 }
 
 async function renderWidget(widgetInfo) {
@@ -71,7 +89,7 @@ export async function widgetTask(props) {
     await saveDimensions(widgetInfo);
 
     if (clickAction === 'OPEN_SCHEDULE_SELECTOR' || clickAction === 'OPEN_LESSON') {
-      AsyncStorage.setItem(
+      await AsyncStorage.setItem(
         'widget_intent',
         JSON.stringify({
           action: clickAction,
@@ -90,16 +108,20 @@ export async function widgetTask(props) {
       widgetAction === 'WIDGET_CLICK'
     ) {
       if (widgetAction === 'WIDGET_CLICK') {
-        let offset = await getOffset();
-        if (clickAction === 'PREV_DAY') offset -= 1;
-        if (clickAction === 'NEXT_DAY') offset += 1;
-        if (clickAction === 'TODAY') offset = 0;
-        await AsyncStorage.setItem(OFFSET_KEY, offset.toString());
+        if (clickAction === 'PREV_DAY') await updateOffset(-1);
+        if (clickAction === 'NEXT_DAY') await updateOffset(1);
+        if (clickAction === 'TODAY') await updateOffset(0, 0);
       }
 
+      if (isRendering) return;
+      isRendering = true;
+
       await renderWidget(widgetInfo);
+      
+      isRendering = false;
     }
   } catch (error) {
+    isRendering = false;
     console.error('Widget Task Error:', error);
   }
 }

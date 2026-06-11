@@ -241,23 +241,23 @@ export function ScheduleWidget({ schedule, dateOffset = 0, width, height }) {
                         />
                       </FlexWidget>
 
-                      {item.isCurrent && (
-                        <FlexWidget
-                          style={{
-                            backgroundColor: '#32D74B20',
-                            paddingHorizontal: badgePadH,
-                            paddingVertical: badgePadV,
-                            borderRadius: badgeRadius,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <TextWidget
-                            text={`${item.minutesLeft} хв`}
-                            style={{ color: '#32D74B', fontSize: badgeFont, fontWeight: 'bold' }}
-                          />
-                        </FlexWidget>
-                      )}
+                    {item.isCurrent && (
+                      <FlexWidget
+                        style={{
+                          backgroundColor: '#32D74B20',
+                          paddingHorizontal: badgePadH,
+                          paddingVertical: badgePadV,
+                          borderRadius: badgeRadius,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <TextWidget
+                          text="Зараз"
+                          style={{ color: '#32D74B', fontSize: badgeFont, fontWeight: 'bold' }}
+                        />
+                      </FlexWidget>
+                    )}
                     </FlexWidget>
                   </FlexWidget>
                 );
