@@ -54,6 +54,8 @@ function resolveSyncConflict(localData, cloudData) {
   if (!localData) return { mergedData: cloudData, needsPushToCloud: false, conflicts: [] };
   if (!cloudData) return { mergedData: localData, needsPushToCloud: true, conflicts: [] };
 
+  const watermark = cloudData.global?.watermark || localData.global?.watermark || 0;
+
   const mergedSchedulesMap = new Map();
   const conflicts = [];
   let needsPushToCloud = false;
@@ -62,8 +64,15 @@ function resolveSyncConflict(localData, cloudData) {
   const localDeleted = localData.deletedSchedules || [];
   const cloudDeleted = cloudData.deletedSchedules || cloudData.global?.deletedSchedules || [];
 
-  localDeleted.forEach(ld => mergedDeletedMap.set(ld.id, ld));
+  localDeleted.forEach(ld => {
+    if ((ld.deletedAt || 0) > watermark) {
+      mergedDeletedMap.set(ld.id, ld);
+    }
+  });
+
   cloudDeleted.forEach(cd => {
+    if ((cd.deletedAt || 0) <= watermark) return;
+
     const existing = mergedDeletedMap.get(cd.id);
     if (!existing || cd.deletedAt > existing.deletedAt) {
       mergedDeletedMap.set(cd.id, cd);
@@ -77,7 +86,7 @@ function resolveSyncConflict(localData, cloudData) {
   (cloudData.schedules || []).forEach(s => {
     if (s && s.id) {
       cloudMap.set(s.id, s);
-      if (s.isDeleted && !mergedDeletedMap.has(s.id)) {
+      if (s.isDeleted && !mergedDeletedMap.has(s.id) && (s.deletedAt || s.lastModified || 0) > watermark) {
         mergedDeletedMap.set(s.id, {
           id: s.id,
           deletedAt: s.lastModified || Date.now(),
@@ -89,6 +98,11 @@ function resolveSyncConflict(localData, cloudData) {
 
   (localData.schedules || []).forEach(localSch => {
     if (!localSch || !localSch.id) return;
+
+    if (localSch.isDeleted && (localSch.deletedAt || localSch.lastModified || 0) <= watermark) {
+      needsPushToCloud = true; 
+      return;
+    }
 
     const deletionRecord = mergedDeletedMap.get(localSch.id);
     if (deletionRecord) {
@@ -278,7 +292,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       prefsNeedSave = true;
     }
 
-    // Initialize blur setting from cloud if local is absent
     if (newPrefs.blur === undefined) {
       newPrefs.blur = data.global?.blur ?? true;
       prefsNeedSave = true;
@@ -404,6 +417,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       theme: devicePrefs.theme || baseGlobal.theme || [fallbackMode, "blue"],
       blur: devicePrefs.blur !== undefined ? devicePrefs.blur : (baseGlobal.blur ?? true),
       currentScheduleId: devicePrefs.currentScheduleId || baseGlobal.currentScheduleId,
+      watermark: baseGlobal.watermark || 0,
       language: lang
     };
   }, [data?.global, devicePrefs, lang, systemColorScheme]);
@@ -456,7 +470,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (!guest) updateIsDirty(true);
   }, [guest, updateIsDirty]);
 
-  // Handle saving global variables directly to local devicePrefs
   const setGlobalDraft = useCallback((updater) => {
     const currentPrev = dataRef.current;
     if (!currentPrev) return;
@@ -479,7 +492,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       prefsChanged = true;
     }
     
-    // Add logic to save blur setting locally
     if (nextGlobal.blur !== undefined && nextGlobal.blur !== currentMerged.blur) {
       newPrefs.blur = nextGlobal.blur;
       prefsChanged = true;
@@ -639,6 +651,12 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         });
         nextDeleted = dataToSave.deletedSchedules;
       }
+
+      const watermark = prev.global?.watermark || 0;
+      nextDeleted = nextDeleted.filter(d => (d.deletedAt || 0) > watermark);
+      nextSchedules = nextSchedules.filter(s => !(s.isDeleted && (s.deletedAt || s.lastModified || 0) <= watermark));
+      
+      dataToSave.deletedSchedules = nextDeleted;
 
       const optimisticData = { ...prev, global: nextGlobal, schedules: nextSchedules, deletedSchedules: nextDeleted };
 

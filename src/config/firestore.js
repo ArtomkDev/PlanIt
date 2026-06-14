@@ -13,6 +13,7 @@ import {
 import { db } from "./firebase";
 import createDefaultData from './createDefaultData';
 import { logCrashlyticsError } from '../utils/analytics/crashlytics';
+import { getDeviceId } from '../utils/deviceService';
 
 let isAccountBeingDeleted = false;
 
@@ -194,12 +195,44 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
   if (isAccountBeingDeleted) return;
 
   const batch = writeBatch(db);
+  const now = Date.now();
+
+  let deviceId = null;
+  try {
+    deviceId = await getDeviceId();
+  } catch (e) {}
+
+  if (deviceId) {
+    const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
+    batch.set(deviceRef, { lastSyncTime: now }, { merge: true });
+  }
+
+  const devicesRef = collection(db, 'users', userId, 'devices');
+  const devicesSnap = await getDocs(devicesRef);
+  
+  let watermark = now;
+  let activeDevices = 0;
+  const DEAD_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
+
+  devicesSnap.docs.forEach(docSnap => {
+    const devData = docSnap.data();
+    const syncTime = devData.lastSyncTime || 0;
+    if (now - syncTime < DEAD_DEVICE_MS) {
+      activeDevices++;
+      if (syncTime < watermark) watermark = syncTime;
+    }
+  });
+
+  if (activeDevices === 0) watermark = now;
 
   let hasGlobalUpdates = false;
   let globalUpdateData = {};
 
   if (data.global) {
-    globalUpdateData = { ...data.global };
+    globalUpdateData = { ...data.global, watermark };
+    hasGlobalUpdates = true;
+  } else {
+    globalUpdateData = { watermark };
     hasGlobalUpdates = true;
   }
 
@@ -212,11 +245,17 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
       
       if (typeof scheduleId === 'string' && scheduleId.trim() !== '') {
         const scheduleDocRef = doc(db, 'users', userId, 'schedules', scheduleId);
-        batch.set(scheduleDocRef, {
-          id: scheduleId,
-          isDeleted: true,
-          deletedAt: item?.deletedAt || Date.now()
-        }, { merge: true });
+        const itemDeletedAt = item?.deletedAt || now;
+
+        if (itemDeletedAt <= watermark) {
+          batch.delete(scheduleDocRef);
+        } else {
+          batch.set(scheduleDocRef, {
+            id: scheduleId,
+            isDeleted: true,
+            deletedAt: itemDeletedAt
+          }, { merge: true });
+        }
       }
     });
   }
@@ -239,7 +278,8 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
             id: docSnap.id,
             isDeleted: true, 
             version: (docSnap.data().version || 1) + 1,
-            baseVersion: (docSnap.data().baseVersion || 1) + 1
+            baseVersion: (docSnap.data().baseVersion || 1) + 1,
+            lastModified: now
           }, { merge: true });
         }
       });
@@ -248,7 +288,12 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
     data.schedules.forEach((schedule) => {
       if (schedule && schedule.id) {
         const scheduleDocRef = doc(db, 'users', userId, 'schedules', schedule.id);
-        batch.set(scheduleDocRef, schedule, { merge: true });
+        
+        if (schedule.isDeleted && (schedule.deletedAt || schedule.lastModified || 0) <= watermark) {
+          batch.delete(scheduleDocRef);
+        } else {
+          batch.set(scheduleDocRef, schedule, { merge: true });
+        }
       }
     });
   }
