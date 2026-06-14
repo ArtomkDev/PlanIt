@@ -6,7 +6,7 @@ import { signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { db, auth } from "../config/firebase";
-import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer, deleteAllUserData } from "../config/firestore";
+import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer, deleteAllUserData, updateDeviceSyncTimeAndCleanUp } from "../config/firestore";
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs, clearLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import useAppLanguage from "../hooks/useAppLanguage";
@@ -54,99 +54,78 @@ function resolveSyncConflict(localData, cloudData) {
   if (!localData) return { mergedData: cloudData, needsPushToCloud: false, conflicts: [] };
   if (!cloudData) return { mergedData: localData, needsPushToCloud: true, conflicts: [] };
 
-  const watermark = cloudData.global?.watermark || localData.global?.watermark || 0;
+  const watermark = Math.max(cloudData.global?.watermark || 0, localData.global?.watermark || 0);
 
   const mergedSchedulesMap = new Map();
   const conflicts = [];
   let needsPushToCloud = false;
 
-  const mergedDeletedMap = new Map();
-  const localDeleted = localData.deletedSchedules || [];
-  const cloudDeleted = cloudData.deletedSchedules || cloudData.global?.deletedSchedules || [];
-
-  localDeleted.forEach(ld => {
-    if ((ld.deletedAt || 0) > watermark) {
-      mergedDeletedMap.set(ld.id, ld);
-    }
-  });
-
-  cloudDeleted.forEach(cd => {
-    if ((cd.deletedAt || 0) <= watermark) return;
-
-    const existing = mergedDeletedMap.get(cd.id);
-    if (!existing || cd.deletedAt > existing.deletedAt) {
-      mergedDeletedMap.set(cd.id, cd);
-    }
-    if (!existing && !localData.schedules?.some(s => s.id === cd.id)) {
-      needsPushToCloud = true;
-    }
-  });
-
   const cloudMap = new Map();
   (cloudData.schedules || []).forEach(s => {
-    if (s && s.id) {
-      cloudMap.set(s.id, s);
-      if (s.isDeleted && !mergedDeletedMap.has(s.id) && (s.deletedAt || s.lastModified || 0) > watermark) {
-        mergedDeletedMap.set(s.id, {
-          id: s.id,
-          deletedAt: s.lastModified || Date.now(),
-          lastSynced: s.lastModified || Date.now()
-        });
-      }
-    }
+    if (s && s.id) cloudMap.set(s.id, s);
   });
 
-  (localData.schedules || []).forEach(localSch => {
-    if (!localSch || !localSch.id) return;
+  const allIds = new Set([
+    ...(localData.schedules || []).map(s => s.id),
+    ...(cloudData.schedules || []).map(s => s.id)
+  ]);
 
-    if (localSch.isDeleted && (localSch.deletedAt || localSch.lastModified || 0) <= watermark) {
-      needsPushToCloud = true; 
-      return;
-    }
+  allIds.forEach(id => {
+    const localSch = (localData.schedules || []).find(s => s.id === id);
+    const cloudSch = cloudMap.get(id);
 
-    const deletionRecord = mergedDeletedMap.get(localSch.id);
-    if (deletionRecord) {
-      if ((localSch.lastModified || 0) > deletionRecord.deletedAt) {
-        mergedDeletedMap.delete(localSch.id);
-        needsPushToCloud = true;
+    if (localSch && !cloudSch) {
+      if (localSch.lastSynced > 0) {
       } else {
-        return;
-      }
-    }
-
-    const cloudSch = cloudMap.get(localSch.id);
-
-    if (!cloudSch) {
-      if (!((localSch.lastSynced || 0) > 0)) {
-        mergedSchedulesMap.set(localSch.id, localSch);
+        mergedSchedulesMap.set(id, localSch);
         needsPushToCloud = true;
+      }
+    } else if (!localSch && cloudSch) {
+      if (!(cloudSch.isDeleted && (cloudSch.deletedAt || cloudSch.lastModified || 0) <= watermark + 2000)) {
+        mergedSchedulesMap.set(id, cloudSch);
       }
     } else {
-      if (cloudSch.isDeleted) return;
-
       const localBase = Number(localSch.baseVersion) || 1;
       const cloudVer = Number(cloudSch.version) || 1;
       const isLocalDirty = (localSch.lastModified || 0) > (localSch.lastSynced || 0);
 
-      if (!isLocalDirty) {
-        mergedSchedulesMap.set(localBase > cloudVer ? localSch.id : cloudSch.id, localBase > cloudVer ? localSch : cloudSch);
-      } else if (cloudVer > localBase) {
-        conflicts.push({ local: localSch, cloud: cloudSch });
-        mergedSchedulesMap.set(localSch.id, localSch);
+      if (localSch.isDeleted && cloudSch.isDeleted) {
+        const latest = (localSch.deletedAt || 0) > (cloudSch.deletedAt || 0) ? localSch : cloudSch;
+        mergedSchedulesMap.set(id, latest);
+        if (latest === localSch && isLocalDirty) needsPushToCloud = true;
+      } else if (localSch.isDeleted && !cloudSch.isDeleted) {
+        if (localSch.lastModified > cloudSch.lastModified) {
+          mergedSchedulesMap.set(id, localSch);
+          needsPushToCloud = true;
+        } else {
+          mergedSchedulesMap.set(id, cloudSch);
+        }
+      } else if (!localSch.isDeleted && cloudSch.isDeleted) {
+        if (cloudSch.lastModified > localSch.lastModified) {
+          mergedSchedulesMap.set(id, cloudSch);
+        } else {
+          mergedSchedulesMap.set(id, localSch);
+          needsPushToCloud = true;
+        }
       } else {
-        mergedSchedulesMap.set(localSch.id, localSch);
-        needsPushToCloud = true;
+        if (!isLocalDirty) {
+          mergedSchedulesMap.set(id, localBase > cloudVer ? localSch : cloudSch);
+        } else if (cloudVer > localBase) {
+          conflicts.push({ local: localSch, cloud: cloudSch });
+          mergedSchedulesMap.set(id, localSch);
+        } else {
+          mergedSchedulesMap.set(id, localSch);
+          needsPushToCloud = true;
+        }
       }
     }
   });
 
-  (cloudData.schedules || []).forEach(cloudSch => {
-    if (cloudSch && cloudSch.id && !mergedSchedulesMap.has(cloudSch.id)) {
-      if (!mergedDeletedMap.has(cloudSch.id) && !cloudSch.isDeleted) {
-        mergedSchedulesMap.set(cloudSch.id, cloudSch);
-      }
+  for (const [id, sch] of mergedSchedulesMap.entries()) {
+    if (sch.isDeleted && (sch.deletedAt || sch.lastModified || 0) <= watermark + 2000) {
+      mergedSchedulesMap.delete(id);
     }
-  });
+  }
 
   const isGlobalDirty = (localData.global?.lastModified || 0) > (localData.global?.lastSynced || 0);
   const localGlobalBase = Number(localData.global?.baseVersion) || 1;
@@ -170,8 +149,7 @@ function resolveSyncConflict(localData, cloudData) {
   return {
     mergedData: {
       global: mergedGlobal,
-      schedules: Array.from(mergedSchedulesMap.values()),
-      deletedSchedules: Array.from(mergedDeletedMap.values())
+      schedules: Array.from(mergedSchedulesMap.values())
     },
     needsPushToCloud,
     conflicts
@@ -251,6 +229,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             if (cloudData && cloudData.schedules && cloudData.schedules.length > 0) {
               setData(cloudData);
               await saveLocalSchedule(cloudData, user.uid);
+              updateDeviceSyncTimeAndCleanUp(user.uid);
             } else {
               const defaultData = createDefaultData();
               setData(defaultData);
@@ -309,7 +288,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       if (!guest) updateIsDirty(true);
     }
 
-    const activeSchedules = data.schedules || [];
+    const activeSchedules = (data.schedules || []).filter(s => !s.isDeleted);
 
     if (activeSchedules.length > 0) {
       const hasValidScheduleId = newPrefs.currentScheduleId && activeSchedules.some(s => s.id === newPrefs.currentScheduleId);
@@ -368,6 +347,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         if (conflictQueueRef.current.length > 0) return;
 
         setCloudSyncState(isFromCache ? 'syncing' : 'synced');
+
+        if (!isFromCache) {
+          updateDeviceSyncTimeAndCleanUp(user.uid);
+        }
 
         try {
           const currentLocal = dataRef.current || await getLocalSchedule(user.uid);
@@ -537,24 +520,35 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     const prev = dataRef.current;
     if (!prev) return;
 
-    const nextSchedules = prev.schedules.filter(s => s.id !== scheduleId);
+    const now = Date.now();
     let fallbackId = null;
 
-    const nextDeleted = [...(prev.deletedSchedules || [])];
-    if (!nextDeleted.some(d => d.id === scheduleId)) {
-      nextDeleted.push({ id: scheduleId, deletedAt: Date.now(), lastSynced: 0 });
-    }
+    const nextSchedules = prev.schedules.map(s => {
+      if (s.id === scheduleId) {
+        return {
+          ...s,
+          isDeleted: true,
+          deletedAt: now,
+          lastModified: now,
+          lastSynced: 0,
+          version: (s.version || 1) + 1,
+          baseVersion: (s.baseVersion || 1) + 1
+        };
+      }
+      return s;
+    });
 
+    const activeNext = nextSchedules.filter(s => !s.isDeleted);
     let nextGlobal = { ...prev.global };
     const currentId = devicePrefsRef.current.currentScheduleId || prev.global?.currentScheduleId;
 
     if (currentId === scheduleId) {
-      if (nextSchedules.length > 0) {
-        const sorted = [...nextSchedules].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+      if (activeNext.length > 0) {
+        const sorted = [...activeNext].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
         fallbackId = sorted[0].id;
       }
       nextGlobal.currentScheduleId = fallbackId;
-      nextGlobal.lastModified = Date.now();
+      nextGlobal.lastModified = now;
     }
 
     if (fallbackId !== null) {
@@ -566,8 +560,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       return {
         ...current,
         global: nextGlobal,
-        schedules: current.schedules.filter(s => s.id !== scheduleId),
-        deletedSchedules: nextDeleted
+        schedules: nextSchedules
       };
     });
 
@@ -589,9 +582,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       const isGlobalDirty = force || (prev.global?.lastModified || 0) > (prev.global?.lastSynced || 0);
       const dirtySchedules = prev.schedules.filter(s => force || (s.lastModified || 0) > (s.lastSynced || 0));
-      const dirtyDeleted = (prev.deletedSchedules || []).filter(d => force || (d.deletedAt || 0) > (d.lastSynced || 0));
 
-      if (!isGlobalDirty && dirtySchedules.length === 0 && dirtyDeleted.length === 0 && !force) {
+      if (!isGlobalDirty && dirtySchedules.length === 0 && !force) {
         updateIsDirty(false);
         return;
       }
@@ -599,7 +591,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const dataToSave = {};
       let nextGlobal = { ...prev.global };
       let nextSchedules = [...prev.schedules];
-      let nextDeleted = [...(prev.deletedSchedules || [])];
 
       if (isGlobalDirty) {
         const nextGlobalVer = (prev.global?.version || 1) + 1;
@@ -624,41 +615,21 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       if (dirtySchedules.length > 0) {
         dataToSave.schedules = dirtySchedules.map(s => {
-          const nextVer = (s.version || 1) + 1;
+          const nextVer = force ? s.version : (s.version || 1) + 1;
           return { ...s, version: nextVer, baseVersion: nextVer, lastSynced: now };
         });
 
         nextSchedules = prev.schedules.map(currentSch => {
           const savedSch = dataToSave.schedules?.find(s => s.id === currentSch.id);
-          if (savedSch) {
-            return {
-              ...currentSch,
-              version: savedSch.version,
-              baseVersion: savedSch.baseVersion,
-              lastSynced: savedSch.lastSynced
-            };
-          }
+          if (savedSch) return savedSch;
           return currentSch;
         });
       }
 
-      if (dirtyDeleted.length > 0 || force) {
-        dataToSave.deletedSchedules = nextDeleted.map(d => {
-          if (force || (d.deletedAt || 0) > (d.lastSynced || 0)) {
-            return { ...d, lastSynced: now };
-          }
-          return d;
-        });
-        nextDeleted = dataToSave.deletedSchedules;
-      }
-
       const watermark = prev.global?.watermark || 0;
-      nextDeleted = nextDeleted.filter(d => (d.deletedAt || 0) > watermark);
-      nextSchedules = nextSchedules.filter(s => !(s.isDeleted && (s.deletedAt || s.lastModified || 0) <= watermark));
-      
-      dataToSave.deletedSchedules = nextDeleted;
+      nextSchedules = nextSchedules.filter(s => !(s.isDeleted && (s.deletedAt || s.lastModified || 0) <= watermark + 2000));
 
-      const optimisticData = { ...prev, global: nextGlobal, schedules: nextSchedules, deletedSchedules: nextDeleted };
+      const optimisticData = { ...prev, global: nextGlobal, schedules: nextSchedules };
 
       setData(optimisticData);
       dataRef.current = optimisticData;
@@ -750,20 +721,20 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     setIsLoading(true);
     try {
       const currentGlobal = dataRef.current?.global || createDefaultData().global;
-      const defaultData = createDefaultData();
-
       const currentSchedules = dataRef.current?.schedules || [];
-      const newDeletions = currentSchedules.map(s => ({
-        id: s.id,
-        deletedAt: Date.now(),
+      
+      const now = Date.now();
+      const newSchedules = currentSchedules.map(s => ({
+        ...s,
+        isDeleted: true,
+        deletedAt: now,
+        lastModified: now,
         lastSynced: 0
       }));
-      const existingDeletions = dataRef.current?.deletedSchedules || [];
 
       const newData = {
-        global: { ...currentGlobal, lastModified: Date.now(), currentScheduleId: null },
-        schedules: [],
-        deletedSchedules: [...existingDeletions, ...newDeletions]
+        global: { ...currentGlobal, lastModified: now, currentScheduleId: null },
+        schedules: newSchedules
       };
 
       const retainedPrefs = {
@@ -779,8 +750,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         await resetUserSchedules(user.uid);
         await saveSchedule(user.uid, {
           global: newData.global,
-          schedules: newData.schedules,
-          deletedSchedules: newData.deletedSchedules
+          schedules: newData.schedules
         }, true);
         await saveLocalSchedule(newData, user.uid);
       } else {

@@ -7,7 +7,6 @@ import {
   onSnapshot,
   getDocFromServer,
   getDocsFromServer,
-  deleteDoc,
   setDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -35,6 +34,58 @@ const ensureVersioning = (data) => {
     lastModified: lastMod,
     lastSynced: lastMod, 
   };
+};
+
+export const updateDeviceSyncTimeAndCleanUp = async (userId) => {
+  if (isAccountBeingDeleted) return;
+  try {
+    const deviceId = await getDeviceId();
+    if (!deviceId) return;
+    
+    const now = Date.now();
+    const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
+    await setDoc(deviceRef, { lastSyncTime: now }, { merge: true });
+
+    const devicesRef = collection(db, 'users', userId, 'devices');
+    const devicesSnap = await getDocs(devicesRef);
+    
+    let watermark = now;
+    let activeDevices = 0;
+    const DEAD_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
+
+    devicesSnap.docs.forEach(docSnap => {
+      const syncTime = docSnap.data().lastSyncTime || 0;
+      if (now - syncTime < DEAD_DEVICE_MS) {
+        activeDevices++;
+        if (syncTime < watermark) watermark = syncTime;
+      }
+    });
+
+    if (activeDevices === 0) watermark = now;
+    const safeWatermark = watermark + 2000;
+
+    const schedulesRef = collection(db, 'users', userId, 'schedules');
+    const schedulesSnap = await getDocs(schedulesRef);
+    
+    const batch = writeBatch(db);
+    let hasDeletions = false;
+
+    schedulesSnap.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.isDeleted && (data.deletedAt || data.lastModified || 0) <= safeWatermark) {
+        batch.delete(docSnap.ref);
+        hasDeletions = true;
+      }
+    });
+
+    if (hasDeletions) {
+      const globalRef = doc(db, 'users', userId, 'global', 'settings');
+      batch.set(globalRef, { watermark }, { merge: true });
+      await batch.commit();
+    }
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
@@ -215,8 +266,7 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
   const DEAD_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
 
   devicesSnap.docs.forEach(docSnap => {
-    const devData = docSnap.data();
-    const syncTime = devData.lastSyncTime || 0;
+    const syncTime = docSnap.data().lastSyncTime || 0;
     if (now - syncTime < DEAD_DEVICE_MS) {
       activeDevices++;
       if (syncTime < watermark) watermark = syncTime;
@@ -224,6 +274,7 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
   });
 
   if (activeDevices === 0) watermark = now;
+  const safeWatermark = watermark + 2000;
 
   let hasGlobalUpdates = false;
   let globalUpdateData = {};
@@ -234,30 +285,6 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
   } else {
     globalUpdateData = { watermark };
     hasGlobalUpdates = true;
-  }
-
-  if (data.deletedSchedules && Array.isArray(data.deletedSchedules) && data.deletedSchedules.length > 0) {
-    globalUpdateData.deletedSchedules = data.deletedSchedules;
-    hasGlobalUpdates = true;
-    
-    data.deletedSchedules.forEach((item) => {
-      const scheduleId = item && typeof item === 'object' ? item.id : item;
-      
-      if (typeof scheduleId === 'string' && scheduleId.trim() !== '') {
-        const scheduleDocRef = doc(db, 'users', userId, 'schedules', scheduleId);
-        const itemDeletedAt = item?.deletedAt || now;
-
-        if (itemDeletedAt <= watermark) {
-          batch.delete(scheduleDocRef);
-        } else {
-          batch.set(scheduleDocRef, {
-            id: scheduleId,
-            isDeleted: true,
-            deletedAt: itemDeletedAt
-          }, { merge: true });
-        }
-      }
-    });
   }
 
   if (hasGlobalUpdates) {
@@ -279,7 +306,8 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
             isDeleted: true, 
             version: (docSnap.data().version || 1) + 1,
             baseVersion: (docSnap.data().baseVersion || 1) + 1,
-            lastModified: now
+            lastModified: now,
+            deletedAt: now
           }, { merge: true });
         }
       });
@@ -289,7 +317,7 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
       if (schedule && schedule.id) {
         const scheduleDocRef = doc(db, 'users', userId, 'schedules', schedule.id);
         
-        if (schedule.isDeleted && (schedule.deletedAt || schedule.lastModified || 0) <= watermark) {
+        if (schedule.isDeleted && (schedule.deletedAt || schedule.lastModified || 0) <= safeWatermark) {
           batch.delete(scheduleDocRef);
         } else {
           batch.set(scheduleDocRef, schedule, { merge: true });
@@ -302,7 +330,6 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
     await batch.commit();
   } catch (error) {
     logCrashlyticsError(error, 'saveSchedule_Firestore');
-    console.error(error);
   }
 };
 
@@ -319,11 +346,11 @@ export const deleteUserSchedule = async (userId, scheduleId) => {
       isDeleted: true, 
       version: (data.version || 1) + 1,
       baseVersion: (data.baseVersion || 1) + 1,
-      lastModified: Date.now()
+      lastModified: Date.now(),
+      deletedAt: Date.now()
     }, { merge: true });
   } catch (error) {
     logCrashlyticsError(error, 'deleteUserSchedule_Firestore');
-    console.error(error);
   }
 };
 
@@ -345,14 +372,14 @@ export const resetUserSchedules = async (userId) => {
         isDeleted: true, 
         version: (docSnap.data().version || 1) + 1,
         baseVersion: (docSnap.data().baseVersion || 1) + 1,
-        lastModified: now 
+        lastModified: now,
+        deletedAt: now
       }, { merge: true });
     });
 
     await batch.commit();
   } catch (error) {
     logCrashlyticsError(error, 'resetUserSchedules_Firestore');
-    console.error(error);
   }
 };
 
