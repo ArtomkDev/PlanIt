@@ -4,17 +4,14 @@ import React, { useCallback, useRef, useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { CalendarDots, GearSix } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import themes from '../config/themes';
 import { useSchedule } from '../context/ScheduleProvider';
 import AppBlur from '../components/ui/AppBlur';
 import AdBanner from '../components/AdBanner/AdBanner';
 import MorphingLoader from '../components/ui/MorphingLoader';
 import { t } from '../utils/i18n';
-
 import Schedule from '../pages/Schedule/Schedule';
 import Settings from '../pages/Settings/Settings';
-
 import ThemeSettings from '../pages/Settings/components/preferences/ThemeSettings';
 import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
 import ResetDB from '../pages/Settings/components/ResetDB';
@@ -22,15 +19,15 @@ import AboutApp from '../pages/Settings/components/AboutApp';
 import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
 import DeviceManager from '../pages/Settings/components/managers/DeviceManagement';
 import ScheduleEditorScreen from '../pages/Settings/components/ScheduleEditorScreen';
-
 import AccountSettings from '../pages/Settings/components/AccountSettings/AccountSettings';
 import DeleteAccountScreen from '../pages/Settings/components/AccountSettings/components/DeleteAccountScreen';
 import ChangeNameScreen from '../pages/Settings/components/AccountSettings/components/ChangeNameScreen';
 import ChangeEmailScreen from '../pages/Settings/components/AccountSettings/components/ChangeEmailScreen';
 import ChangePasswordScreen from '../pages/Settings/components/AccountSettings/components/ChangePasswordScreen';
+import SharedSchedulesManager from '../pages/Settings/components/SharedSchedulesManager';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator(); 
+const Stack = createStackNavigator();
 
 function SettingsStack({ screenProps }) {
   const { global } = useSchedule();
@@ -64,6 +61,7 @@ function SettingsStack({ screenProps }) {
         <Stack.Screen name="ChangeName" component={ChangeNameScreen} />
         <Stack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="SharedSchedulesManager" component={SharedSchedulesManager} />
       </Stack.Navigator>
     </View>
   );
@@ -72,7 +70,6 @@ function SettingsStack({ screenProps }) {
 export default function TabNavigator({ screenProps }) {
   const { global, lang, isLoading, tabBarHeight, setTabBarHeight } = useSchedule();
   const insets = useSafeAreaInsets();
-  
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -173,5 +170,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 6,
     width: '100%',
-  }
+  },
 });

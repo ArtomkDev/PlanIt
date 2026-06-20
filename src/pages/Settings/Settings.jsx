@@ -4,16 +4,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Table, Palette, Translate, SignIn, UserCircle, Cpu, 
-  SignOut, Trash, Info
+  SignOut, Trash, Info, ShareNetwork
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
-
 import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/ui/SettingsHeader';
 import { t } from '../../utils/i18n';
 import MorphingLoader from '../../components/ui/MorphingLoader';
-
 import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
 
@@ -21,15 +19,14 @@ export default function Settings({ guest, onExitGuest }) {
   const navigation = useNavigation();
   const { user, global, schedule, lang, safeLogout, tabBarHeight } = useSchedule();
   const insets = useSafeAreaInsets();
-
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const headerHeight = 50 + insets.top;
   const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
-  const bottomPadding = safeTabBarHeight + 32; 
-  
+  const bottomPadding = safeTabBarHeight + 32;
+
   const scrollY = useRef(new Animated.Value(0)).current;
-  
+
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
@@ -96,6 +93,12 @@ export default function Settings({ guest, onExitGuest }) {
           icon: Table, 
           desc: t('settings.menu.global_schedule.desc', lang) 
         },
+        ...(user ? [{
+          label: t('settings.menu.shared_schedules.title', lang),
+          screen: 'SharedSchedulesManager',
+          icon: ShareNetwork,
+          desc: t('settings.menu.shared_schedules.desc', lang)
+        }] : [])
       ],
     },
     {
@@ -106,7 +109,7 @@ export default function Settings({ guest, onExitGuest }) {
           label: t('settings.menu.language.title', lang), 
           screen: 'Language', 
           icon: Translate, 
-          meta: lang.toUpperCase(), 
+          meta: lang.toUpperCase(),
           desc: t('settings.menu.language.desc', lang) 
         },
       ],
@@ -126,7 +129,7 @@ export default function Settings({ guest, onExitGuest }) {
       data: [
         { 
           label: t('settings.about_screen.title', lang), 
-          screen: 'AboutApp',
+          screen: 'AboutApp', 
           icon: Info, 
           desc: t('settings.about_screen.description', lang) 
         },
@@ -148,7 +151,6 @@ export default function Settings({ guest, onExitGuest }) {
     const listenerId = scrollY.addListener(({ value }) => {
       const checkPoint = value + headerHeight + 20; 
       let newActiveIndex = 0;
-
       for (let i = 0; i < sections.length; i++) {
         const sectionY = sectionPositions.current[i];
         if (typeof sectionY === 'number' && checkPoint >= sectionY) {
@@ -157,10 +159,8 @@ export default function Settings({ guest, onExitGuest }) {
           break;
         }
       }
-
       setActiveSectionIndex(prev => (prev !== newActiveIndex ? newActiveIndex : prev));
     });
-
     return () => scrollY.removeListener(listenerId);
   }, [headerHeight, sections]);
 
@@ -170,7 +170,7 @@ export default function Settings({ guest, onExitGuest }) {
         <View style={[StyleSheet.absoluteFill, styles.loadingOverlay]}>
           <MorphingLoader size={60} />
           <Text style={styles.loadingText}>
-            {t('settings.alerts.cloud_saving_warning', lang) || "Зачекайте, дані зберігаються у хмару..."}
+            {t('settings.alerts.cloud_saving_warning', lang) || "..."}
           </Text>
         </View>
       )}

@@ -4,6 +4,7 @@ import { StyleSheet, View, Text, TouchableOpacity, Animated, Modal, AppState } f
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 
 import AutoSaveManager from '../services/AutoSaveManager';
 import TabNavigator from '../navigation/TabNavigator';
@@ -17,6 +18,7 @@ import MorphingLoader from '../components/ui/MorphingLoader';
 import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
 import OnboardingWizard from '../pages/Onboarding/OnboardingWizard';
 import { syncScheduleToWidget } from '../widgets/widgetService';
+import ImportScheduleModal from '../components/modals/ImportScheduleModal';
 
 const MainStack = createNativeStackNavigator();
 
@@ -36,10 +38,13 @@ export default function MainLayout({ guest, onExitGuest }) {
   } = useSchedule();
 
   const navigation = useNavigation();
+  const url = Linking.useURL();
 
   const [isFatalTimeout, setIsFatalTimeout] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showWidgetConfig, setShowWidgetConfig] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importCode, setImportCode] = useState("");
 
   const hasSchedules = schedules && schedules.length > 0;
   const isInitialSync = user && !guest && !hasSchedules && cloudSyncState === 'syncing';
@@ -48,6 +53,20 @@ export default function MainLayout({ guest, onExitGuest }) {
 
   const [showOverlay, setShowOverlay] = useState(true);
   const overlayOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (url) {
+      let code = null;
+      if (url.includes("share/")) {
+        const parts = url.split("share/");
+        code = parts[1]?.split("?")[0]?.replace("/", "");
+      }
+      if (code && code.length >= 5) {
+        setImportCode(code.toUpperCase());
+        setImportModalVisible(true);
+      }
+    }
+  }, [url]);
 
   useEffect(() => {
     const checkIntent = async () => {
@@ -119,6 +138,11 @@ export default function MainLayout({ guest, onExitGuest }) {
   const handleForceCreate = async () => {
     setIsFatalTimeout(false);
     await resetApplication(); 
+  };
+
+  const handleCloseImportModal = () => {
+    setImportModalVisible(false);
+    setTimeout(() => setImportCode(""), 500);
   };
 
   const [currentTheme, currentAccent] = global?.theme || ['light', 'blue'];
@@ -226,6 +250,12 @@ export default function MainLayout({ guest, onExitGuest }) {
         conflictQueue={conflictQueue}
         handleResolveConflict={handleResolveConflict}
         lang={lang}
+      />
+
+      <ImportScheduleModal
+        visible={importModalVisible}
+        onClose={handleCloseImportModal}
+        initialCode={importCode}
       />
     </View>
   );
