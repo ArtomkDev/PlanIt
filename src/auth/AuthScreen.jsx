@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, TextInput, TouchableOpacity, StyleSheet, 
-  Alert, KeyboardAvoidingView, Platform, ScrollView, LayoutAnimation, UIManager,
+  KeyboardAvoidingView, Platform, ScrollView, LayoutAnimation, UIManager,
   Animated, Easing, useWindowDimensions, BackHandler, PanResponder, Linking
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Planet, RocketLaunch, Compass, Fingerprint, IdentificationCard, ShieldCheck, 
   UserPlus, CalendarBlank, PencilSimple, EnvelopeOpen, PaperPlaneRight, CheckCircle,
-  GraduationCap, Eye, EyeClosed, CheckSquare, Square, ArrowLeft, User, EnvelopeSimple, LockKey
+  GraduationCap, Eye, EyeClosed, CheckSquare, Square, ArrowLeft, User, EnvelopeSimple, LockKey, WarningCircle
 } from 'phosphor-react-native';
 import { 
   signInWithEmailAndPassword, 
@@ -77,27 +77,27 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(welcomeOpacity, { toValue: currentView === 'welcome' ? 1 : 0, duration: 800, useNativeDriver: true }),
-      Animated.timing(signinOpacity, { toValue: currentView === 'signin' ? 1 : 0, duration: 800, useNativeDriver: true }),
-      Animated.timing(signupOpacity, { toValue: currentView === 'signup' ? 1 : 0, duration: 800, useNativeDriver: true }),
-      Animated.timing(verifyOpacity, { toValue: currentView === 'verify' ? 1 : 0, duration: 800, useNativeDriver: true }),
+      Animated.timing(welcomeOpacity, { toValue: currentView === 'welcome' ? 1 : 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(signinOpacity, { toValue: currentView === 'signin' ? 1 : 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(signupOpacity, { toValue: currentView === 'signup' ? 1 : 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(verifyOpacity, { toValue: currentView === 'verify' ? 1 : 0, duration: 600, useNativeDriver: true }),
     ]).start();
   }, [currentView]);
 
   const baseColor = colors.backgroundColor;
   
   const palettes = {
-    welcome: { secondary: isDark ? '#4c1d95' : '#e0e7ff', accent: isDark ? '#8b5cf6' : '#6366f1' },
-    signin: { secondary: isDark ? '#0f172a' : '#e0f2fe', accent: isDark ? '#0284c7' : '#0369a1' },
-    signup: { secondary: isDark ? '#064e3b' : '#dcfce7', accent: isDark ? '#10b981' : '#16a34a' },
-    verify: { secondary: isDark ? '#7c2d12' : '#ffedd5', accent: isDark ? '#ea580c' : '#f97316' }
+    welcome: { secondary: isDark ? '#2e1065' : '#e0e7ff', accent: isDark ? '#7c3aed' : '#4f46e5' },
+    signin: { secondary: isDark ? '#020617' : '#e0f2fe', accent: isDark ? '#0369a1' : '#0284c7' },
+    signup: { secondary: isDark ? '#022c22' : '#dcfce7', accent: isDark ? '#059669' : '#10b981' },
+    verify: { secondary: isDark ? '#164e63' : '#cffafe', accent: isDark ? '#06b6d4' : '#0891b2' }
   };
 
   const renderLayer = (opacityAnim, palette) => (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="none">
       <LinearGradient colors={[baseColor, palette.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: breathAnim }]}>
-        <LinearGradient colors={['transparent', palette.accent]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.25 : 0.15 }]} />
+        <LinearGradient colors={['transparent', palette.accent]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.22 : 0.12 }]} />
       </Animated.View>
     </Animated.View>
   );
@@ -132,11 +132,11 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
     }
 
     Animated.parallel([
-      Animated.spring(animX, { toValue: targetConfig.x, friction: 7, tension: 30, useNativeDriver: true }),
-      Animated.spring(animY, { toValue: targetConfig.y, friction: 7, tension: 30, useNativeDriver: true }),
-      Animated.spring(animScale, { toValue: targetConfig.scale, friction: 7, tension: 40, useNativeDriver: true }),
-      Animated.timing(animRotate, { toValue: targetConfig.rotate, duration: 800, easing: Easing.out(Easing.exp), useNativeDriver: true }),
-      Animated.timing(animOpacity, { toValue: targetConfig.opacity, duration: 600, useNativeDriver: true }),
+      Animated.spring(animX, { toValue: targetConfig.x, friction: 8, tension: 25, useNativeDriver: true }),
+      Animated.spring(animY, { toValue: targetConfig.y, friction: 8, tension: 25, useNativeDriver: true }),
+      Animated.spring(animScale, { toValue: targetConfig.scale, friction: 8, tension: 35, useNativeDriver: true }),
+      Animated.timing(animRotate, { toValue: targetConfig.rotate, duration: 700, easing: Easing.out(Easing.exp), useNativeDriver: true }),
+      Animated.timing(animOpacity, { toValue: targetConfig.opacity, duration: 500, useNativeDriver: true }),
     ]).start();
   }, [targetConfig]);
 
@@ -145,29 +145,85 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
   return (
     <Animated.View style={[styles.backgroundIconWrapper, { transform: [{ translateX: animX }, { translateY: animY }, { scale: animScale }, { rotate: spin }], opacity: animOpacity }]}>
       <Animated.View style={{ opacity: fadeAnim }}>
-        {ActiveIcon && <ActiveIcon size={280} color={isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)'} weight="regular" />}
+        {ActiveIcon && <ActiveIcon size={280} color={isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)'} weight="regular" />}
       </Animated.View>
     </Animated.View>
   );
 };
 
-const InputField = ({ InputIcon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, isPasswordVisible, setIsPasswordVisible, autoCapitalize="none", keyboardType="default", colors }) => (
-  <View style={[styles.inputContainer, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
-    {InputIcon && <InputIcon size={20} color={colors.textColor2} style={styles.inputIcon} weight="regular" />}
-    <TextInput style={[styles.input, { color: colors.textColor }]} placeholder={placeholder} placeholderTextColor={colors.textColor2} secureTextEntry={secureTextEntry} value={value} onChangeText={onChangeText} autoCapitalize={autoCapitalize} keyboardType={keyboardType} />
-    {isPasswordButton && (
-      <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeButton}>
-        {isPasswordVisible ? 
-          <EyeClosed size={22} color={colors.textColor2} weight="regular" /> : 
-          <Eye size={22} color={colors.textColor2} weight="regular" />
-        }
-      </TouchableOpacity>
-    )}
-  </View>
-);
+const InputField = ({ InputIcon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, isPasswordVisible, setIsPasswordVisible, autoCapitalize="none", keyboardType="default", colors, isDark }) => {
+  const [isFocused, setIsFocused] = useState(false);
+  
+  return (
+    <View style={[
+      styles.inputContainer, 
+      { 
+        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)', 
+        borderColor: isFocused ? colors.accentColor : (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)')
+      }
+    ]}>
+      {InputIcon && <InputIcon size={20} color={isFocused ? colors.accentColor : colors.textColor2} style={styles.inputIcon} weight={isFocused ? "fill" : "regular"} />}
+      <TextInput 
+        style={[styles.input, { color: colors.textColor }]} 
+        placeholder={placeholder} 
+        placeholderTextColor={colors.textColor2} 
+        secureTextEntry={secureTextEntry} 
+        value={value} 
+        onChangeText={onChangeText} 
+        autoCapitalize={autoCapitalize} 
+        keyboardType={keyboardType}
+        onFocus={() => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setIsFocused(true);
+        }}
+        onBlur={() => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setIsFocused(false);
+        }}
+      />
+      {isPasswordButton && (
+        <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeButton}>
+          {isPasswordVisible ? 
+            <EyeClosed size={22} color={colors.textColor2} weight="regular" /> : 
+            <Eye size={22} color={colors.textColor2} weight="regular" />
+          }
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
 
-const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang }) => (
-  <TouchableOpacity style={styles.checkboxContainer} onPress={() => setAcceptedTerms(!acceptedTerms)} activeOpacity={0.7}>
+const PasswordStrengthBar = ({ password, colors, isDark }) => {
+  if (!password) return null;
+  
+  const getStrength = (pass) => {
+    if (pass.length < 6) return { width: '30%', color: '#ef4444' };
+    const hasLetters = /[a-zA-Z]/.test(pass);
+    const hasNumbers = /[0-9]/.test(pass);
+    if (hasLetters && hasNumbers && pass.length >= 8) {
+      return { width: '100%', color: '#10b981' };
+    }
+    return { width: '65%', color: '#f59e0b' };
+  };
+
+  const strength = getStrength(password);
+
+  return (
+    <View style={[styles.strengthContainer, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
+      <View style={[styles.strengthBar, { width: strength.width, backgroundColor: strength.color }]} />
+    </View>
+  );
+};
+
+const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormError }) => (
+  <TouchableOpacity 
+    style={styles.checkboxContainer} 
+    onPress={() => {
+      setAcceptedTerms(!acceptedTerms);
+      setFormError('');
+    }} 
+    activeOpacity={0.7}
+  >
     {acceptedTerms ? 
       <CheckSquare size={22} color={colors.accentColor} weight="fill" /> : 
       <Square size={22} color={colors.textColor2} weight="regular" />
@@ -185,10 +241,10 @@ const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang }) => (
   </TouchableOpacity>
 );
 
-const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, setAcceptedTerms }) => {
+const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, setAcceptedTerms, isDark, setFormError, formError }) => {
   const checkTerms = (action) => {
     if (!acceptedTerms) {
-      Alert.alert(t('common.error', lang), t('auth.errors.accept_terms_strict', lang));
+      setFormError(t('auth.errors.accept_terms_strict', lang));
       return;
     }
     action();
@@ -198,16 +254,24 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
     <View style={[styles.contentBlock, { paddingTop: insets.top + 40 }]}>
       <View style={styles.welcomeHeader}>
         <View style={[styles.logoContainer, { backgroundColor: colors.accentColor }]}>
-           <GraduationCap size={60} color="#fff" weight="fill" />
+           <GraduationCap size={54} color="#fff" weight="fill" />
         </View>
         <Text style={[styles.welcomeTitle, { color: colors.textColor }]}>PlanIt</Text>
         <Text style={[styles.welcomeSubtitle, { color: colors.textColor2 }]}>{t('auth.welcome.subtitle', lang)}</Text>
       </View>
-      <View style={styles.actions}>
+      <View style={[styles.glassCard, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.4)', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
+        
+        {formError ? (
+          <View style={[styles.errorBox, { marginBottom: 16 }]}>
+            <WarningCircle size={20} color="#ef4444" weight="fill" />
+            <Text style={styles.errorText}>{formError}</Text>
+          </View>
+        ) : null}
+
         <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signin'))}>
           <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
+        <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
           <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>{t('auth.signup.submit', lang)}</Text>
         </TouchableOpacity>
         {onGuestLogin && (
@@ -215,8 +279,8 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
             <Text style={[styles.guestButtonText, { color: acceptedTerms ? colors.textColor2 : colors.textColor2 + '80' }]}>{t('auth.welcome.guest_btn', lang)}</Text>
           </TouchableOpacity>
         )}
-        <View style={{ marginTop: 6, marginBottom: -10 }}>
-          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} />
+        <View style={{ marginTop: 12 }}>
+          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} />
         </View>
       </View>
     </View>
@@ -242,8 +306,25 @@ const AuthScreen = ({ onGuestLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   
+  const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const validateEmail = (emailText) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailText);
+  };
+
+  const handleTextChange = (setter) => (text) => {
+    setter(text);
+    if (formError || successMessage) {
+      setFormError('');
+      setSuccessMessage('');
+    }
+  };
+
   const handleNavigate = (view) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setFormError('');
+    setSuccessMessage('');
     setCurrentView(view);
   };
 
@@ -271,7 +352,7 @@ const AuthScreen = ({ onGuestLogin }) => {
             await auth.currentUser.getIdToken(true);
           }
         }
-      }, 3000);
+      }, 4000);
     }
     return () => clearInterval(interval);
   }, [currentView]);
@@ -291,12 +372,12 @@ const AuthScreen = ({ onGuestLogin }) => {
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderRelease: (evt, gestureState) => {
-        if (gestureState.dx > 40 || gestureState.vx > 0.5) {
+        if (gestureState.dx > 45 || gestureState.vx > 0.5) {
           if (currentView !== 'verify') handleNavigate('welcome');
         }
       },
       onPanResponderTerminate: (evt, gestureState) => {
-        if (gestureState.dx > 40 || gestureState.vx > 0.5) {
+        if (gestureState.dx > 45 || gestureState.vx > 0.5) {
           if (currentView !== 'verify') handleNavigate('welcome');
         }
       }
@@ -304,64 +385,86 @@ const AuthScreen = ({ onGuestLogin }) => {
   ).current;
 
   const handleSignIn = async () => {
-    if (!email || !password) return Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
-    if (!acceptedTerms) return Alert.alert(t('common.error', lang), t('auth.errors.accept_terms_strict', lang));
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) return setFormError(t('auth.errors.fill_fields', lang));
+    if (!validateEmail(trimmedEmail)) return setFormError(t('auth.errors.invalid_email_format', lang));
+    if (!acceptedTerms) return setFormError(t('auth.errors.accept_terms_strict', lang));
+    
     setIsLoading(true);
     try { 
-      const cred = await signInWithEmailAndPassword(auth, email, password); 
+      const cred = await signInWithEmailAndPassword(auth, trimmedEmail, password); 
       if (!cred.user.emailVerified) {
         handleNavigate('verify');
       }
-    } 
-    catch (error) { 
-      Alert.alert(t('auth.errors.signin_failed', lang), t('auth.errors.wrong_credentials', lang)); 
-    } 
-    finally { 
+    } catch (error) { 
+      let msg = t('auth.errors.wrong_credentials', lang);
+      if (error.code === 'auth/user-not-found') msg = t('auth.errors.user_not_found', lang);
+      if (error.code === 'auth/wrong-password') msg = t('auth.errors.wrong_password', lang);
+      if (error.code === 'auth/invalid-credential') msg = t('auth.errors.invalid_credential', lang);
+      if (error.code === 'auth/too-many-requests') msg = t('auth.errors.too_many_requests', lang);
+      setFormError(msg);
+    } finally { 
       setIsLoading(false); 
     }
   };
 
   const handleSignUp = async () => {
-    if (!name || !email || !password) return Alert.alert(t('common.error', lang), t('auth.errors.fill_fields', lang));
-    if (!acceptedTerms) return Alert.alert(t('common.error', lang), t('auth.errors.accept_terms', lang));
+    const trimmedEmail = email.trim();
+    const trimmedName = name.trim();
+    
+    if (!trimmedName || !trimmedEmail || !password) return setFormError(t('auth.errors.fill_fields', lang));
+    if (!validateEmail(trimmedEmail)) return setFormError(t('auth.errors.invalid_email_format', lang));
+    if (password.length < 6) return setFormError(t('auth.errors.password_too_short', lang));
+    if (!acceptedTerms) return setFormError(t('auth.errors.accept_terms', lang));
+    
     setIsLoading(true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(cred.user, { displayName: name });
+      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      await updateProfile(cred.user, { displayName: trimmedName });
       await sendEmailVerification(cred.user);
       handleNavigate('verify');
     } catch (error) { 
-      Alert.alert(t('common.error', lang), error.message || t('auth.errors.signup_failed', lang)); 
-    } 
-    finally { 
+      let msg = t('auth.errors.signup_failed', lang);
+      if (error.code === 'auth/email-already-in-use') msg = t('auth.errors.email_in_use', lang);
+      if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
+      if (error.code === 'auth/weak-password') msg = t('auth.errors.weak_password', lang);
+      setFormError(msg);
+    } finally { 
       setIsLoading(false); 
     }
   };
 
   const handleForgotPassword = async () => {
     const trimmedEmail = email.trim();
-    if (!trimmedEmail) return Alert.alert(t('common.error', lang), t('auth.forgot_password.req_email', lang));
+    if (!trimmedEmail) return setFormError(t('auth.forgot_password.req_email', lang));
+    if (!validateEmail(trimmedEmail)) return setFormError(t('auth.errors.invalid_email_format', lang));
+    
     try {
       await sendPasswordResetEmail(auth, trimmedEmail);
-      Alert.alert(t('common.success', lang), t('auth.forgot_password.success_msg', lang));
+      setSuccessMessage(t('auth.forgot_password.success_msg', lang));
     } catch (error) {
-      if (error.code === 'auth/invalid-email') {
-        Alert.alert(t('common.error', lang), t('auth.forgot_password.invalid_email', lang));
-      } else {
-        Alert.alert(t('common.error', lang), error.message);
-      }
+      let msg = t('auth.errors.reset_failed', lang);
+      if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
+      if (error.code === 'auth/user-not-found') msg = t('auth.errors.user_not_found', lang);
+      setFormError(msg);
     }
   };
 
   const handleCancelVerification = async () => {
-    if (auth.currentUser) {
-      try {
+    try {
+      if (auth.currentUser) {
         await signOut(auth);
-      } catch (error) {
-        console.error(error);
       }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      handleNavigate('welcome');
+      setEmail('');
+      setPassword('');
+      setName('');
+      setFormError('');
+      setSuccessMessage('');
     }
-    handleNavigate('welcome');
   };
 
   const handleResendEmail = async () => {
@@ -397,6 +500,14 @@ const AuthScreen = ({ onGuestLogin }) => {
           <Text style={[styles.formSubtitle, { color: colors.textColor2, textAlign: 'center', marginTop: 16, lineHeight: 24 }]}>
             {t('auth.verify.subtitle', lang).replace('{email}', email || auth.currentUser?.email || '')}
           </Text>
+          
+          <View style={[styles.spamBox, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
+            <WarningCircle size={24} color={isDark ? '#fbbf24' : '#d97706'} weight="fill" />
+            <Text style={[styles.spamText, { color: isDark ? '#fbbf24' : '#d97706' }]}>
+              {t('auth.verify.spam_warning', lang)}
+            </Text>
+          </View>
+
           <TouchableOpacity 
             style={[styles.primaryButton, { backgroundColor: colors.accentColor, marginTop: 40, opacity: resendCooldown > 0 ? 0.6 : 1 }]} 
             onPress={handleResendEmail}
@@ -419,8 +530,8 @@ const AuthScreen = ({ onGuestLogin }) => {
     } else {
       elements.push(
         <View key="header" style={styles.formHeader}>
-          <TouchableOpacity onPress={() => handleNavigate('welcome')} style={[styles.backBtn, { backgroundColor: colors.backgroundColor2 }]}>
-            <ArrowLeft size={24} color={colors.textColor} weight="regular" />
+          <TouchableOpacity onPress={() => handleNavigate('welcome')} style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+            <ArrowLeft size={22} color={colors.textColor} weight="regular" />
           </TouchableOpacity>
           <Text style={[styles.formTitle, { color: colors.textColor }]}>
             {currentView === 'signin' ? t('auth.signin.title', lang) : t('auth.signup.title', lang)}
@@ -433,13 +544,31 @@ const AuthScreen = ({ onGuestLogin }) => {
 
       elements.push(
         <View key="inputs" style={styles.formGroup}>
-          {currentView === 'signup' && (
-            <InputField InputIcon={User} placeholder={t('auth.fields.name', lang)} value={name} onChangeText={setName} autoCapitalize="words" colors={colors} />
-          )}
-          <InputField InputIcon={EnvelopeSimple} placeholder={t('auth.fields.email', lang)} value={email} onChangeText={setEmail} keyboardType="email-address" colors={colors} />
-          <InputField InputIcon={LockKey} placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={setPassword} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} />
           
-          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} />
+          {formError ? (
+            <View style={styles.errorBox}>
+              <WarningCircle size={20} color="#ef4444" weight="fill" />
+              <Text style={styles.errorText}>{formError}</Text>
+            </View>
+          ) : null}
+
+          {successMessage ? (
+            <View style={styles.successBox}>
+              <CheckCircle size={20} color="#10b981" weight="fill" />
+              <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          ) : null}
+
+          {currentView === 'signup' && (
+            <InputField InputIcon={User} placeholder={t('auth.fields.name', lang)} value={name} onChangeText={handleTextChange(setName)} autoCapitalize="words" colors={colors} isDark={isDark} />
+          )}
+          <InputField InputIcon={EnvelopeSimple} placeholder={t('auth.fields.email', lang)} value={email} onChangeText={handleTextChange(setEmail)} keyboardType="email-address" colors={colors} isDark={isDark} />
+          <View>
+            <InputField InputIcon={LockKey} placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={handleTextChange(setPassword)} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} isDark={isDark} />
+            <PasswordStrengthBar password={password} colors={colors} isDark={isDark} />
+          </View>
+          
+          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} />
           
           {currentView === 'signin' && (
             <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
@@ -455,9 +584,8 @@ const AuthScreen = ({ onGuestLogin }) => {
             <MorphingLoader size={40} />
           ) : (
             <TouchableOpacity 
-              style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms ? 0.6 : 1 }]} 
-              onPress={currentView === 'signin' ? handleSignIn : handleSignUp} 
-              disabled={!acceptedTerms}
+              style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms || (currentView === 'signup' && password.length < 6) ? 0.6 : 1 }]} 
+              onPress={currentView === 'signin' ? handleSignIn : handleSignUp}
             >
               <Text style={styles.primaryButtonText}>
                 {currentView === 'signin' ? t('auth.signin.submit', lang) : t('auth.signup.submit', lang)}
@@ -471,10 +599,10 @@ const AuthScreen = ({ onGuestLogin }) => {
         <View key="social" style={styles.socialGroup}>
           <TouchableOpacity 
             activeOpacity={1} 
-            onPress={() => { if (!acceptedTerms) Alert.alert(t('common.error', lang), t('auth.errors.accept_terms_strict', lang)); }}
+            onPress={() => { if (!acceptedTerms) setFormError(t('auth.errors.accept_terms_strict', lang)); }}
           >
             <View pointerEvents={acceptedTerms ? 'auto' : 'none'} style={{ opacity: acceptedTerms ? 1 : 0.6 }}>
-              <SocialAuthButtons onAuthError={(err) => Alert.alert(t('common.error', lang), err.message)} />
+              <SocialAuthButtons onAuthError={(err) => setFormError(err.message)} />
             </View>
           </TouchableOpacity>
           <View style={styles.footer}>
@@ -504,7 +632,7 @@ const AuthScreen = ({ onGuestLogin }) => {
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0} style={styles.container}>
         
         <AnimatedGradientBackground currentView={currentView} colors={colors} isDark={isDark} />
 
@@ -524,12 +652,27 @@ const AuthScreen = ({ onGuestLogin }) => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.responsiveContainer}>
-            {currentView === 'welcome' && <WelcomeContent onNavigate={handleNavigate} colors={colors} lang={lang} insets={insets} onGuestLogin={onGuestLogin} acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} />}
-            
+            {currentView === 'welcome' && (
+              <WelcomeContent 
+                onNavigate={handleNavigate} 
+                colors={colors} 
+                lang={lang} 
+                insets={insets} 
+                onGuestLogin={onGuestLogin} 
+                acceptedTerms={acceptedTerms} 
+                setAcceptedTerms={setAcceptedTerms} 
+                isDark={isDark} 
+                setFormError={setFormError} 
+                formError={formError}
+              />
+            )}
+
             {currentView !== 'welcome' && (
               <View style={[
                 styles.formBlock, 
-                currentView === 'verify' ? styles.verifyFormBlock : { paddingTop: insets.top + 40 }
+                styles.glassCard,
+                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.45)', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
+                currentView === 'verify' ? styles.verifyFormBlock : { marginTop: insets.top + 24 }
               ]}>
                 {renderFormElements()}
               </View>
@@ -551,45 +694,53 @@ const AuthScreen = ({ onGuestLogin }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },
-  edgeSwipeArea: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 40, zIndex: 9999, elevation: 9999 },
+  edgeSwipeArea: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 45, zIndex: 9999, elevation: 9999 },
   loadingWrapper: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   backgroundIconWrapper: { position: 'absolute', top: 0, left: 0 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 24, alignItems: 'center' },
-  responsiveContainer: { width: '100%', maxWidth: 440, flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20, alignItems: 'center' },
+  responsiveContainer: { width: '100%', maxWidth: 440, flex: 1, justifyContent: 'center' },
   contentBlock: { flex: 1, justifyContent: 'space-between', paddingBottom: 20 },
-  formBlock: { flex: 1, width: '100%', paddingBottom: 20 },
-  verifyFormBlock: { flex: 1, width: '100%', justifyContent: 'center', paddingBottom: 40 },
-  welcomeHeader: { alignItems: 'center', marginTop: '10%' },
-  logoContainer: { width: 90, height: 90, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginHorizontal: 'auto', marginBottom: 20, elevation: 8, ...Platform.select({ web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.1)' }, default: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 } }) },
-  welcomeTitle: { fontSize: 36, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
+  formBlock: { width: '100%', paddingBottom: 24, paddingHorizontal: 20, borderRadius: 24, borderWidth: 1 },
+  glassCard: { padding: 20, borderRadius: 24, borderWidth: 1, backdropFilter: 'blur(20px)' },
+  verifyFormBlock: { width: '100%', justifyContent: 'center', paddingVertical: 40 },
+  welcomeHeader: { alignItems: 'center', marginTop: '15%', marginBottom: '10%' },
+  logoContainer: { width: 84, height: 84, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 20, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
+  welcomeTitle: { fontSize: 38, fontWeight: '800', marginBottom: 8, textAlign: 'center', letterSpacing: -0.5 },
   welcomeSubtitle: { fontSize: 16, textAlign: 'center', lineHeight: 24, maxWidth: '85%', marginHorizontal: 'auto' },
-  actions: { width: '100%', gap: 14, marginTop: 40 },
-  primaryButton: { width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  primaryButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  secondaryButton: { width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
-  secondaryButtonText: { fontSize: 18, fontWeight: '600' },
-  guestButton: { alignItems: 'center', marginTop: 10 },
-  guestButtonText: { fontSize: 16, fontWeight: '500' },
-  formHeader: { marginBottom: 30 },
-  backBtn: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  formTitle: { fontSize: 32, fontWeight: '800', marginBottom: 8 },
-  formSubtitle: { fontSize: 16, lineHeight: 24 },
-  formGroup: { gap: 16 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 56 },
-  inputIcon: { marginRight: 12 },
+  primaryButton: { width: '100%', height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  secondaryButton: { width: '100%', height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, marginTop: 12 },
+  secondaryButtonText: { fontSize: 17, fontWeight: '600' },
+  guestButton: { alignItems: 'center', marginTop: 14 },
+  guestButtonText: { fontSize: 15, fontWeight: '500' },
+  formHeader: { marginTop: 10, marginBottom: 24 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  formTitle: { fontSize: 28, fontWeight: '800', marginBottom: 6, letterSpacing: -0.5 },
+  formSubtitle: { fontSize: 15, lineHeight: 22 },
+  formGroup: { gap: 14 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 54 },
+  inputIcon: { marginRight: 10 },
   input: { flex: 1, height: '100%', fontSize: 16 },
-  eyeButton: { padding: 10, marginRight: -10 },
-  forgotPassword: { alignSelf: 'flex-end', marginTop: -6, marginBottom: 10 },
+  eyeButton: { padding: 8, marginRight: -6 },
+  forgotPassword: { alignSelf: 'flex-end', marginTop: -4, marginBottom: 4 },
   forgotPasswordText: { fontSize: 14, fontWeight: '500' },
-  checkboxContainer: { flexDirection: 'row', alignItems: 'center', paddingRight: 20, marginVertical: 4 },
-  checkboxText: { marginLeft: 10, fontSize: 14, lineHeight: 20, flex: 1 },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
-  footerText: { fontSize: 15 },
-  footerLink: { fontSize: 15, fontWeight: '600' },
-  verifyLoaderContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 30 },
-  verifyTextContainer: { alignItems: 'center' },
-  buttonLoaderContainer: { height: 56, justifyContent: 'center', marginTop: 16 },
-  socialGroup: { marginTop: 16 }
+  checkboxContainer: { flexDirection: 'row', alignItems: 'center', paddingRight: 10, marginVertical: 2 },
+  checkboxText: { marginLeft: 10, fontSize: 13, lineHeight: 18, flex: 1 },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+  footerText: { fontSize: 14 },
+  footerLink: { fontSize: 14, fontWeight: '600' },
+  verifyLoaderContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  verifyTextContainer: { alignItems: 'center', width: '100%' },
+  buttonLoaderContainer: { height: 54, justifyContent: 'center', marginTop: 14 },
+  socialGroup: { marginTop: 14 },
+  strengthContainer: { width: '100%', height: 3, borderRadius: 2, marginTop: 6, overflow: 'hidden' },
+  strengthBar: { height: '100%', borderRadius: 2 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', gap: 10 },
+  errorText: { color: '#ef4444', fontSize: 14, fontWeight: '500', flex: 1 },
+  successBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.3)', gap: 10 },
+  successText: { color: '#10b981', fontSize: 14, fontWeight: '500', flex: 1 },
+  spamBox: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1, marginTop: 20, gap: 12, width: '100%' },
+  spamText: { fontSize: 14, fontWeight: '600', flex: 1, lineHeight: 20 },
 });
 
 export default AuthScreen;
