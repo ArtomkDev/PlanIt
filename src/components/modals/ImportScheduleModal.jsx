@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, ScrollView, Keyboard } from "react-native";
+import { 
+  View, Text, TextInput, TouchableOpacity, StyleSheet, 
+  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, 
+  ScrollView, Keyboard 
+} from "react-native";
 import { DownloadSimple, X } from "phosphor-react-native";
 import { useSchedule } from "../../context/ScheduleProvider";
 import { fetchSharedSchedule } from "../../services/shareService";
@@ -17,6 +21,18 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [placeholderText, setPlaceholderText] = useState("");
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardOpen(true));
+      const hideSub = Keyboard.addListener("keyboardDidHide", () => setIsKeyboardOpen(false));
+      return () => {
+        showSub.remove();
+        hideSub.remove();
+      };
+    }
+  }, []);
 
   useEffect(() => {
     if (visible && initialCode) {
@@ -56,7 +72,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
           clearInterval(interval);
         }
         iteration += 1;
-      }, 40);
+      }, 40); 
     } else if (!visible) {
       setPlaceholderText("");
     }
@@ -106,7 +122,11 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
 
   return (
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={resetAndClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboardView}>
+      <KeyboardAvoidingView 
+        behavior="padding" 
+        enabled={Platform.OS === "ios" || isKeyboardOpen}
+        style={styles.keyboardView}
+      >
         <TouchableOpacity activeOpacity={1} style={styles.overlay} onPress={resetAndClose}>
           <TouchableOpacity activeOpacity={1} style={[styles.modalContainer, { backgroundColor: themeColors.backgroundColor }]}>
             
@@ -127,17 +147,26 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                   <Text style={[styles.label, { color: themeColors.textColor2 }]}>
                     {t("share.enter_code", lang)}
                   </Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: error ? "#FF3B30" : themeColors.borderColor }]}
-                    placeholder={placeholderText}
-                    placeholderTextColor={themeColors.textColor3}
-                    value={code}
-                    onChangeText={(text) => { setCode(text.toUpperCase()); setError(null); }}
-                    autoCapitalize="characters"
-                    maxLength={8}
-                    autoCorrect={false}
-                    autoFocus={Platform.OS === "ios"}
-                  />
+                  
+                  <View style={styles.inputWrapper}>
+                    {/* Independent text layer handles high-frequency updates without native TextInput drops */}
+                    {!code && placeholderText ? (
+                      <Text style={[styles.placeholderOverlay, { color: themeColors.textColor3 }]} pointerEvents="none">
+                        {placeholderText}
+                      </Text>
+                    ) : null}
+                    
+                    <TextInput
+                      style={[styles.input, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: error ? "#FF3B30" : themeColors.borderColor }]}
+                      value={code}
+                      onChangeText={(text) => { setCode(text.toUpperCase()); setError(null); }}
+                      autoCapitalize="characters"
+                      maxLength={8}
+                      autoCorrect={false}
+                      autoFocus={Platform.OS === "ios"}
+                    />
+                  </View>
+                  
                   {error && <Text style={styles.errorText}>{error}</Text>}
 
                   <TouchableOpacity
@@ -184,7 +213,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "700" },
   content: { padding: 20, paddingBottom: 40 },
   label: { fontSize: 14, fontWeight: "600", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 },
-  input: { height: 64, borderRadius: 16, borderWidth: 1, paddingHorizontal: 20, fontSize: 22, fontWeight: "800", letterSpacing: 3, textAlign: "center", marginBottom: 8 },
+  inputWrapper: { position: "relative", justifyContent: "center", marginBottom: 8 },
+  input: { height: 64, borderRadius: 16, borderWidth: 1, paddingHorizontal: 20, fontSize: 22, fontWeight: "800", letterSpacing: 3, textAlign: "center" },
+  placeholderOverlay: { position: "absolute", width: "100%", textAlign: "center", fontSize: 22, fontWeight: "800", letterSpacing: 3, zIndex: 2 },
   errorText: { color: "#FF3B30", fontSize: 14, textAlign: "center", marginTop: 4, fontWeight: "600" },
   primaryBtn: { width: "100%", paddingVertical: 16, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 24 },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },

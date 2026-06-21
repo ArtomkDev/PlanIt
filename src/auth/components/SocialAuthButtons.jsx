@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform, Alert } from 'react-native';
-import { GoogleLogo, AppleLogo } from 'phosphor-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import useSystemThemeColors from '../../hooks/useSystemThemeColors';
 import useAppLanguage from '../../hooks/useAppLanguage';
@@ -144,7 +144,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
             <ActivityIndicator color={colors.textColor} />
           ) : (
             <>
-              <GoogleLogo size={24} color={isDark ? '#fff' : '#DB4437'} weight="fill" />
+              <FontAwesome5 name="google" size={20} color={isDark ? '#fff' : '#DB4437'} solid />
               <Text style={[styles.socialButtonText, { color: colors.textColor }]}>Google</Text>
             </>
           )}
@@ -165,7 +165,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
               <ActivityIndicator color={isDark ? '#000' : '#fff'} />
             ) : (
               <>
-                <AppleLogo size={24} color={isDark ? '#000' : '#fff'} weight="fill" />
+                <FontAwesome5 name="apple" size={24} color={isDark ? '#000' : '#fff'} solid />
                 <Text style={[styles.socialButtonText, { color: isDark ? '#000' : '#fff' }]}>Apple</Text>
               </>
             )}

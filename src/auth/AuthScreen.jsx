@@ -27,7 +27,11 @@ import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 import MorphingLoader from '../components/ui/MorphingLoader';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' && 
+  UIManager.setLayoutAnimationEnabledExperimental && 
+  global._IS_FABRIC !== true
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -564,8 +568,21 @@ const AuthScreen = ({ onGuestLogin }) => {
           )}
           <InputField InputIcon={EnvelopeSimple} placeholder={t('auth.fields.email', lang)} value={email} onChangeText={handleTextChange(setEmail)} keyboardType="email-address" colors={colors} isDark={isDark} />
           <View>
-            <InputField InputIcon={LockKey} placeholder={t('auth.fields.password', lang)} secureTextEntry={!isPasswordVisible} value={password} onChangeText={handleTextChange(setPassword)} isPasswordButton isPasswordVisible={isPasswordVisible} setIsPasswordVisible={setIsPasswordVisible} colors={colors} isDark={isDark} />
-            <PasswordStrengthBar password={password} colors={colors} isDark={isDark} />
+            <InputField 
+              InputIcon={LockKey} 
+              placeholder={t('auth.fields.password', lang)} 
+              secureTextEntry={!isPasswordVisible} 
+              value={password} 
+              onChangeText={handleTextChange(setPassword)} 
+              isPasswordButton 
+              isPasswordVisible={isPasswordVisible} 
+              setIsPasswordVisible={setIsPasswordVisible} 
+              colors={colors} 
+              isDark={isDark} 
+            />
+            {currentView === 'signup' && (
+              <PasswordStrengthBar password={password} colors={colors} isDark={isDark} />
+            )}
           </View>
           
           <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} />
@@ -632,7 +649,7 @@ const AuthScreen = ({ onGuestLogin }) => {
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0} style={styles.container}>
+      <KeyboardAvoidingView behavior="padding" enabled={Platform.OS === 'ios'} style={styles.container}>
         
         <AnimatedGradientBackground currentView={currentView} colors={colors} isDark={isDark} />
 

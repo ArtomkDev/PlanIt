@@ -101,7 +101,7 @@ const BottomSheet = forwardRef(({
   ).current;
 
   return (
-    <KeyboardAvoidingView behavior={IS_IOS ? "padding" : "height"} style={styles.overlay}>
+    <KeyboardAvoidingView behavior="padding" enabled={IS_IOS} style={styles.overlay}>
       <Pressable onPress={minimizeWithAnimation} style={styles.backdrop} />
 
       <Animated.View

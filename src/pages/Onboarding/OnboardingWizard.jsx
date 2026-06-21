@@ -381,7 +381,8 @@ export default function OnboardingWizard() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : null}
+      behavior="padding"
+      enabled={Platform.OS === 'ios'}
       {...panResponder.panHandlers}
     >
       <Animated.View style={[{ flex: 1, opacity: exitOpacity, transform: [{ scale: exitScale }, { translateY: exitTranslateY }] }]}>

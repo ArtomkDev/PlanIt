@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
-import { User, EnvelopeSimple, LockKey, Trash, GoogleLogo, AppleLogo } from 'phosphor-react-native';
+import { User, EnvelopeSimple, LockKey, Trash } from 'phosphor-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth';
 import Constants from 'expo-constants';
@@ -17,6 +18,9 @@ import SettingsGroup from '../../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../../components/ui/SettingsKit/SettingsRow';
 
 const isExpoGo = Constants.appOwnership === 'expo';
+
+const AuthenticGoogleIcon = (props) => <FontAwesome5 name="google" solid {...props} />;
+const AuthenticAppleIcon = (props) => <FontAwesome5 name="apple" solid {...props} />;
 
 if (Platform.OS !== 'web' && !isExpoGo) {
   const { GoogleSignin } = require('@react-native-google-signin/google-signin');
@@ -216,7 +220,7 @@ export default function AccountSettings() {
         themeColors={themeColors}
       >
         <SettingsRow 
-          icon={GoogleLogo} 
+          icon={AuthenticGoogleIcon}
           label="Google" 
           showCaret={false}
           themeColors={themeColors}
@@ -224,7 +228,7 @@ export default function AccountSettings() {
         />
         {Platform.OS !== 'android' && (
           <SettingsRow 
-            icon={AppleLogo} 
+            icon={AuthenticAppleIcon}
             label="Apple" 
             showCaret={false}
             themeColors={themeColors}

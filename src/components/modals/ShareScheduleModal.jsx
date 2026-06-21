@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Share, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, ScrollView, Switch } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, Switch, ActivityIndicator, Keyboard} from "react-native";
 import { ShareNetwork, Copy, CheckCircle, X, BookOpen, GraduationCap, Palette, User, Link, Note } from "phosphor-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useSchedule } from "../../context/ScheduleProvider";
@@ -105,9 +105,26 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
     { id: "30", label: t("share.duration_30d", lang) },
   ];
 
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardOpen(true));
+      const hideSub = Keyboard.addListener("keyboardDidHide", () => setIsKeyboardOpen(false));
+      return () => {
+        showSub.remove();
+        hideSub.remove();
+      };
+    }
+  }, []);
+
   return (
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={resetAndClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboardView}>
+      <KeyboardAvoidingView 
+        behavior="padding" 
+        enabled={Platform.OS === "ios" || isKeyboardOpen}
+        style={styles.keyboardView}
+      >
         <TouchableOpacity activeOpacity={1} style={styles.overlay} onPress={resetAndClose}>
           <TouchableOpacity activeOpacity={1} style={[styles.modalContainer, { backgroundColor: themeColors.backgroundColor }]}>
             

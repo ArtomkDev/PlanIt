@@ -38,8 +38,9 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 110 : 0} 
+      behavior="padding"
+      enabled={Platform.OS === 'ios'}
+      keyboardVerticalOffset={110} 
     >
       <ScrollView 
         contentContainerStyle={styles.container}

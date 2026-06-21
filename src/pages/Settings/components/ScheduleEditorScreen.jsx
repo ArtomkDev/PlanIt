@@ -37,7 +37,11 @@ import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
 import SettingsActionRow from '../../../components/ui/SettingsKit/SettingsActionRow';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' && 
+  UIManager.setLayoutAnimationEnabledExperimental && 
+  global._IS_FABRIC !== true
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -235,7 +239,8 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
+        enabled={Platform.OS === 'ios'}
       >
         <SettingsHeader title={displayTitle} scrollY={scrollY} showBackButton={!isInitialSetup} rightButton={saveButtonElement} />
         
