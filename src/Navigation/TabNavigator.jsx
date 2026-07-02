@@ -100,6 +100,7 @@ export default function TabNavigator({ screenProps }) {
 
   return (
     <Tab.Navigator
+      detachInactiveScreens={false}
       tabBar={(props) => (
         <PlanItTabBar {...props} insets={insets} onLayout={handleLayout} />
       )}
@@ -111,7 +112,8 @@ export default function TabNavigator({ screenProps }) {
         tabBarActiveTintColor: themeColors.accentColor,
         tabBarInactiveTintColor: themeColors.textColor2,
         tabBarHideOnKeyboard: true,
-        animation: global?.navigationAnimations === false ? 'none' : 'fade',
+        lazy: false,
+        animation: 'none',
         headerShown: false,
       }}
     >

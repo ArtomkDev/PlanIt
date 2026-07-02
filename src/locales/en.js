@@ -334,7 +334,7 @@ export default {
       labels_title: "Show tab names",
       labels_desc: "Display labels below the navigation icons",
       animations_title: "Smooth animations",
-      animations_desc: "Animate the active tab, icon, and screen transition",
+      animations_desc: "Animate the active tab and icon without fading the screen",
       sync_note: "Saved on this device and backed up to your account. This device's choice takes priority.",
       styles: {
         classic: { title: "Classic", desc: "A clean edge-to-edge bar that stays out of the way" },
