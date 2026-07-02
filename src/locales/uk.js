@@ -13,6 +13,7 @@ export default {
     save: "Зберегти",
     cancel: "Скасувати",
     back: "Назад",
+    close: "Закрити",
     enabled: "Увімкнено",
     disabled: "Вимкнено",
     error: "Помилка",
@@ -171,7 +172,21 @@ export default {
       add_hint: "Затисніть екран, щоб додати",
       break: "Перерва",
     },
-    header: { today: "Сьогодні" },
+    header: {
+      today: "Сьогодні",
+      switch_schedule: "Перемкнути розклад",
+      switch_hint: "Оберіть розклад для головного екрана",
+      long_press_hint: "Затисніть розклад, щоб відкрити його налаштування",
+      open_calendar: "Відкрити календар",
+    },
+    calendar: {
+      title: "Оберіть дату",
+      previous_month: "Попередній місяць",
+      next_month: "Наступний місяць",
+      previous_year: "Попередній рік",
+      next_year: "Наступний рік",
+      week_short: "Тиж",
+    },
     lesson_viewer: {
       untitled: "Без назви",
       time: "Час",
@@ -468,6 +483,8 @@ export default {
       edit_schedule: "Редагування",
       schedule_name: "Назва розкладу",
       enter_name: "Введіть назву...",
+      color: "Колір розкладу",
+      color_hint: "Використовується у хедері та перемикачі",
     },
 
     about_screen: {

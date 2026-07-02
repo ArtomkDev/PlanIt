@@ -20,7 +20,8 @@ import {
   Clock, 
   Coffee, 
   Trash, 
-  Plus
+  Plus,
+  Palette
 } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -32,6 +33,8 @@ import SettingsHeader from '../../../components/ui/SettingsHeader';
 import TabSwitcher from '../../../components/ui/TabSwitcher';
 import { generateId } from '../../../utils/idGenerator';
 import CalendarSheet from '../../../components/CalendarSheet/CalendarSheet';
+import AdvancedColorPicker from '../../../components/ui/AdvancedColorPicker';
+import { resolveScheduleColor, scheduleColorWithAlpha } from '../../../utils/scheduleColors';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
@@ -66,6 +69,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const [localData, setLocalData] = useState({
     id: targetSchedule?.id || generateId(),
     name: targetSchedule?.name || "",
+    color: resolveScheduleColor(targetSchedule, themeColors.accentColor),
     repeat: String(targetSchedule?.repeat || 1),
     start_time: targetSchedule?.start_time || "08:30",
     duration: String(targetSchedule?.duration || "45"),
@@ -83,6 +87,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const cardYs = useRef({});
 
   const [isCalendarVisible, setCalendarVisible] = useState(false);
+  const [isColorPickerVisible, setColorPickerVisible] = useState(false);
   
   const [isWeeksExpanded, setIsWeeksExpanded] = useState(false);
   const [isDurationExpanded, setIsDurationExpanded] = useState(false);
@@ -272,6 +277,29 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                   returnKeyType="done" 
                   maxLength={40} 
                   onFocus={() => scrollToElement('general', 'name', 0, 300)}
+                />
+              </View>
+
+              <View onLayout={e => cardYs.current['color'] = e.nativeEvent.layout.y}>
+                <SettingsRow
+                  label={t('settings.schedule_editor.color', lang)}
+                  desc={t('settings.schedule_editor.color_hint', lang)}
+                  icon={Palette}
+                  iconColor={localData.color}
+                  iconBgColor={scheduleColorWithAlpha(localData.color, 0.16)}
+                  themeColors={themeColors}
+                  onPress={() => setColorPickerVisible(true)}
+                  rightContent={(
+                    <View
+                      style={[
+                        styles.colorPreview,
+                        {
+                          backgroundColor: localData.color,
+                          borderColor: scheduleColorWithAlpha(localData.color, 0.5),
+                        },
+                      ]}
+                    />
+                  )}
                 />
               </View>
 
@@ -478,6 +506,16 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
           setCalendarVisible(false); 
         }} 
       />
+
+      <AdvancedColorPicker
+        visible={isColorPickerVisible}
+        initialColor={localData.color}
+        onClose={() => setColorPickerVisible(false)}
+        onSave={(color) => {
+          setLocalData(prev => ({ ...prev, color }));
+          setColorPickerVisible(false);
+        }}
+      />
     </View>
   );
 }
@@ -497,6 +535,12 @@ const styles = StyleSheet.create({
     fontWeight: '500', 
     paddingVertical: 0
   }, 
+  colorPreview: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    borderWidth: 2,
+  },
   
   expandedContent: {
     paddingHorizontal: 16,

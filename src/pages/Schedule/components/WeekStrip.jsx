@@ -3,11 +3,16 @@ import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Animated
 import themes from '../../../config/themes';
 import { useSchedule } from '../../../context/ScheduleProvider';
 import { t } from '../../../utils/i18n';
+import { resolveScheduleColor } from '../../../utils/scheduleColors';
 
 const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
-  const { global, lang } = useSchedule();
+  const { global, schedule, lang } = useSchedule();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
+  const scheduleColor = useMemo(
+    () => resolveScheduleColor(schedule, themeColors.accentColor),
+    [schedule, themeColors.accentColor]
+  );
   const { width: SCREEN_WIDTH } = useWindowDimensions();
 
   const DAYS = useMemo(() => {
@@ -154,7 +159,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
           <Animated.View style={[
             styles.selectionIndicator,
             { 
-              backgroundColor: themeColors.accentColor,
+              backgroundColor: scheduleColor,
               transform: [{ translateX: circleTranslateX }]
             }
           ]} />
@@ -172,13 +177,13 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
               >
                 <Text style={[
                   styles.dayName, 
-                  { color: isCurrentlySelected ? themeColors.accentColor : themeColors.textColor2 }
+                  { color: isCurrentlySelected ? scheduleColor : themeColors.textColor2 }
                 ]}>
                   {orderedDayNames[index]}
                 </Text>
                 <View style={[
                   styles.dateCircle,
-                  !isCurrentlySelected && isToday && { borderWidth: 1, borderColor: themeColors.accentColor }
+                  !isCurrentlySelected && isToday && { borderWidth: 1, borderColor: scheduleColor }
                 ]}>
                   <Text style={[
                     styles.dayNumber, 

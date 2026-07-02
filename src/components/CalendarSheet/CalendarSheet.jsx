@@ -1,260 +1,446 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { 
-  View, Text, Modal, StyleSheet, TouchableOpacity, 
-  Animated, Dimensions, Pressable, FlatList, Platform
-} from 'react-native';
-import { CaretLeft, CaretRight, CaretDown, CaretUp } from 'phosphor-react-native';
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import {
+  CalendarBlank,
+  CaretDown,
+  CaretLeft,
+  CaretRight,
+  CaretUp,
+  X,
+} from "phosphor-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import AppBlur from '../ui/AppBlur';
-import { useSchedule } from '../../context/ScheduleProvider';
-import themes from '../../config/themes';
-import { useCalendarLogic } from './useCalendarLogic';
-import CalendarGrid from './CalendarGrid';
-import { t } from '../../utils/i18n';
+import AppBlur from "../ui/AppBlur";
+import themes from "../../config/themes";
+import { useSchedule } from "../../context/ScheduleProvider";
+import { triggerLightHaptic } from "../../utils/haptics";
+import { t } from "../../utils/i18n";
+import CalendarGrid from "./CalendarGrid";
+import { useCalendarLogic } from "./useCalendarLogic";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CONTENT_HEIGHT = 380; 
-
-export default function CalendarSheet({ visible, onClose, onDateSelect, currentDate, customSchedule }) {
-  const { global, schedule: activeSchedule , lang} = useSchedule();
+export default function CalendarSheet({
+  visible,
+  onClose,
+  onDateSelect,
+  currentDate,
+  customSchedule,
+}) {
+  const { global, schedule: activeSchedule, lang } = useSchedule();
+  const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const [isPickerMode, setIsPickerMode] = useState(false);
-  
-  const yearsListRef = useRef(null);
   const effectiveSchedule = customSchedule || activeSchedule;
 
-  const { 
-    viewDate, calendarDays, weekDayNames, 
-    nextMonth, prevMonth, getWeekNumber,
-    setMonth, setYear 
+  const {
+    viewDate,
+    calendarDays,
+    weekDayNames,
+    nextMonth,
+    prevMonth,
+    getWeekNumber,
+    setMonth,
+    setYear,
   } = useCalendarLogic(currentDate, effectiveSchedule);
 
   useEffect(() => {
-    if (visible) {
-      setIsPickerMode(false);
-      Animated.spring(slideAnim, { 
-        toValue: 0, 
-        useNativeDriver: Platform.OS !== 'web', 
-        damping: 20, 
-        stiffness: 90 
-      }).start();
-    } else {
-      Animated.timing(slideAnim, { 
-        toValue: SCREEN_HEIGHT, 
-        duration: 250, 
-        useNativeDriver: Platform.OS !== 'web' 
-      }).start();
-    }
+    if (visible) setIsMonthPickerOpen(false);
   }, [visible]);
 
-  useEffect(() => {
-    if (isPickerMode && yearsListRef.current) {
-        setTimeout(() => {
-            yearsListRef.current?.scrollToIndex({ 
-                index: 5, 
-                animated: false, 
-                viewPosition: 0.5 
-            });
-        }, 0);
-    }
-  }, [isPickerMode]);
+  const monthNames = useMemo(
+    () => [
+      t("common.months.jan", lang),
+      t("common.months.feb", lang),
+      t("common.months.mar", lang),
+      t("common.months.apr", lang),
+      t("common.months.may", lang),
+      t("common.months.jun", lang),
+      t("common.months.jul", lang),
+      t("common.months.aug", lang),
+      t("common.months.sep", lang),
+      t("common.months.oct", lang),
+      t("common.months.nov", lang),
+      t("common.months.dec", lang),
+    ],
+    [lang]
+  );
 
-  if (!visible) return null;
+  const selectedDateLabel = useMemo(
+    () =>
+      currentDate.toLocaleDateString(t("locale", lang), {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }),
+    [currentDate, lang]
+  );
 
-  const monthNames = [
-    t('common.months.jan', lang), t('common.months.feb', lang), t('common.months.mar', lang),
-    t('common.months.apr', lang), t('common.months.may', lang), t('common.months.jun', lang),
-    t('common.months.jul', lang), t('common.months.aug', lang), t('common.months.sep', lang),
-    t('common.months.oct', lang), t('common.months.nov', lang), t('common.months.dec', lang)
-  ];
+  const selectDate = (date) => {
+    triggerLightHaptic();
+    onDateSelect(date);
+    onClose();
+  };
 
-  const years = Array.from({ length: 11 }, (_, i) => viewDate.getFullYear() - 5 + i);
+  const selectToday = () => selectDate(new Date());
 
   return (
-    <Modal transparent visible={visible} onRequestClose={onClose} animationType="none">
+    <Modal
+      transparent
+      visible={visible}
+      statusBarTranslucent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
-        <Pressable onPress={onClose} style={styles.backdrop} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("common.close", lang)}
+          onPress={onClose}
+          style={styles.backdrop}
+        />
 
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }], backgroundColor: themeColors.backgroundColor }]}>
-            <View style={StyleSheet.absoluteFill}>
-                 <AppBlur style={StyleSheet.absoluteFill} intensity={80} tint={mode === 'dark' ? 'dark' : 'light'} />
+        <View
+          style={[
+            styles.sheet,
+            {
+              height: Math.min(height * 0.82, 640),
+              paddingBottom: Math.max(insets.bottom, 12),
+              backgroundColor: themeColors.backgroundColor2,
+            },
+          ]}
+        >
+          <AppBlur style={StyleSheet.absoluteFill} intensity={88} />
+
+          <View style={[styles.handle, { backgroundColor: themeColors.textColor3 }]} />
+
+          <View style={styles.sheetHeader}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close", lang)}
+              onPress={onClose}
+              activeOpacity={0.7}
+              style={[styles.roundButton, { backgroundColor: themeColors.backgroundColor3 }]}
+            >
+              <X size={20} color={themeColors.textColor} weight="bold" />
+            </TouchableOpacity>
+
+            <View style={styles.headerCopy}>
+              <Text style={[styles.sheetTitle, { color: themeColors.textColor }]}>
+                {t("schedule.calendar.title", lang)}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={[styles.selectedDate, { color: themeColors.textColor2 }]}
+              >
+                {selectedDateLabel}
+              </Text>
             </View>
 
-            <View style={styles.header}>
-                <View style={styles.navButtonContainer}>
-                    {!isPickerMode && (
-                        <TouchableOpacity onPress={prevMonth} style={styles.arrowBtn} hitSlop={10}>
-                            <CaretLeft size={24} color={themeColors.textColor} weight="bold" />
-                        </TouchableOpacity>
-                    )}
-                </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("schedule.header.today", lang)}
+              onPress={selectToday}
+              activeOpacity={0.7}
+              style={[styles.todayButton, { backgroundColor: themeColors.accentColorLight }]}
+            >
+              <CalendarBlank size={17} color={themeColors.accentColor} weight="bold" />
+              <Text style={[styles.todayText, { color: themeColors.accentColor }]}>
+                {t("schedule.header.today", lang)}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-                <TouchableOpacity 
-                  style={[
-                    styles.titleButton, 
-                    isPickerMode && { backgroundColor: themeColors.borderColor } 
-                  ]}
-                  onPress={() => setIsPickerMode(!isPickerMode)}
-                  activeOpacity={0.6}
-                >
-                    <Text style={[styles.title, { color: themeColors.textColor }]}>
-                        {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
-                    </Text>
-                    {isPickerMode ? (
-                        <CaretUp size={18} color={themeColors.accentColor} style={{ marginLeft: 6, marginTop: 2 }} weight="bold" />
-                    ) : (
-                        <CaretDown size={18} color={themeColors.accentColor} style={{ marginLeft: 6, marginTop: 2 }} weight="bold" />
-                    )}
-                </TouchableOpacity>
+          <View style={styles.monthNavigation}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("schedule.calendar.previous_month", lang)}
+              onPress={prevMonth}
+              activeOpacity={0.7}
+              style={[styles.monthArrow, { backgroundColor: themeColors.backgroundColor4 }]}
+            >
+              <CaretLeft size={21} color={themeColors.textColor} weight="bold" />
+            </TouchableOpacity>
 
-                <View style={styles.navButtonContainer}>
-                    {!isPickerMode && (
-                        <TouchableOpacity onPress={nextMonth} style={styles.arrowBtn} hitSlop={10}>
-                            <CaretRight size={24} color={themeColors.textColor} weight="bold" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-            </View>
-
-            <View style={{ height: CONTENT_HEIGHT }}>
-              {isPickerMode ? (
-                <View style={styles.pickerContainer}>
-                  
-                  <View style={styles.yearsWrapper}>
-                    <FlatList
-                        ref={yearsListRef}
-                        data={years}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={(item) => item.toString()}
-                        getItemLayout={(data, index) => (
-                            { length: 80, offset: 80 * index, index }
-                        )}
-                        renderItem={({ item: y }) => {
-                            const isSelected = y === viewDate.getFullYear();
-                            return (
-                                <TouchableOpacity 
-                                    style={[
-                                    styles.yearChip, 
-                                    isSelected && { backgroundColor: themeColors.accentColor }
-                                    ]}
-                                    onPress={() => setYear(y)}
-                                >
-                                    <Text style={[
-                                    styles.yearText, 
-                                    { color: isSelected ? '#fff' : themeColors.textColor }
-                                    ]}>{y}</Text>
-                                </TouchableOpacity>
-                            );
-                        }}
-                    />
-                  </View>
-
-                  <View style={styles.monthsGrid}>
-                    {monthNames.map((m, index) => {
-                      const isSelected = index === viewDate.getMonth();
-                      return (
-                        <TouchableOpacity 
-                          key={index} 
-                          style={[
-                            styles.monthItem, 
-                            isSelected && { borderColor: themeColors.accentColor, borderWidth: 1.5, backgroundColor: themeColors.borderColor }
-                          ]}
-                          onPress={() => {
-                            setMonth(index);
-                            setIsPickerMode(false);
-                          }}
-                        >
-                          <Text style={[
-                            styles.monthText, 
-                            { color: isSelected ? themeColors.accentColor : themeColors.textColor }
-                          ]}>{m}</Text>
-                        </TouchableOpacity>
-                      )
-                    })}
-                  </View>
-                </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isMonthPickerOpen }}
+              onPress={() => setIsMonthPickerOpen((value) => !value)}
+              activeOpacity={0.7}
+              style={[
+                styles.monthTitleButton,
+                {
+                  backgroundColor: isMonthPickerOpen
+                    ? themeColors.accentColorLight
+                    : "transparent",
+                },
+              ]}
+            >
+              <Text style={[styles.monthTitle, { color: themeColors.textColor }]}>
+                {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
+              </Text>
+              {isMonthPickerOpen ? (
+                <CaretUp size={17} color={themeColors.accentColor} weight="bold" />
               ) : (
-                <CalendarGrid 
-                    days={calendarDays}
-                    weekDayNames={weekDayNames}
-                    getWeekNumber={getWeekNumber}
-                    currentSelectedDate={currentDate}
-                    onSelectDate={(date) => {
-                        onDateSelect(date);
-                        onClose(); 
-                    }}
-                />
+                <CaretDown size={17} color={themeColors.accentColor} weight="bold" />
               )}
-            </View>
-            
-            <View style={{ height: 40 }} />
-        </Animated.View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("schedule.calendar.next_month", lang)}
+              onPress={nextMonth}
+              activeOpacity={0.7}
+              style={[styles.monthArrow, { backgroundColor: themeColors.backgroundColor4 }]}
+            >
+              <CaretRight size={21} color={themeColors.textColor} weight="bold" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.content}>
+            {isMonthPickerOpen ? (
+              <View style={styles.pickerContainer}>
+                <View style={styles.yearNavigation}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={t("schedule.calendar.previous_year", lang)}
+                    onPress={() => setYear(viewDate.getFullYear() - 1)}
+                    activeOpacity={0.7}
+                    style={[styles.yearArrow, { backgroundColor: themeColors.backgroundColor4 }]}
+                  >
+                    <CaretLeft size={20} color={themeColors.textColor} weight="bold" />
+                  </TouchableOpacity>
+
+                  <Text style={[styles.yearTitle, { color: themeColors.textColor }]}>
+                    {viewDate.getFullYear()}
+                  </Text>
+
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={t("schedule.calendar.next_year", lang)}
+                    onPress={() => setYear(viewDate.getFullYear() + 1)}
+                    activeOpacity={0.7}
+                    style={[styles.yearArrow, { backgroundColor: themeColors.backgroundColor4 }]}
+                  >
+                    <CaretRight size={20} color={themeColors.textColor} weight="bold" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.monthsGrid}>
+                  {monthNames.map((name, index) => {
+                    const isSelected = index === viewDate.getMonth();
+                    return (
+                      <TouchableOpacity
+                        key={name}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isSelected }}
+                        accessibilityLabel={`${name} ${viewDate.getFullYear()}`}
+                        onPress={() => {
+                          setMonth(index);
+                          setIsMonthPickerOpen(false);
+                        }}
+                        activeOpacity={0.72}
+                        style={[
+                          styles.monthItem,
+                          {
+                            backgroundColor: isSelected
+                              ? themeColors.accentColor
+                              : themeColors.backgroundColor4,
+                            borderColor: isSelected
+                              ? themeColors.accentColor
+                              : themeColors.borderColor,
+                          },
+                        ]}
+                      >
+                        <Text
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          style={[
+                            styles.monthItemText,
+                            { color: isSelected ? "#fff" : themeColors.textColor },
+                          ]}
+                        >
+                          {name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : (
+              <CalendarGrid
+                days={calendarDays}
+                weekDayNames={weekDayNames}
+                getWeekNumber={getWeekNumber}
+                currentSelectedDate={currentDate}
+                weekLabel={t("schedule.calendar.week_short", lang)}
+                onSelectDate={selectDate}
+              />
+            )}
+          </View>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 20,
-    overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0px -2px 10px rgba(0,0,0,0.1)' },
-      default: { shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10 }
-    })
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    marginBottom: 10,
-    height: 50,
-  },
-  navButtonContainer: {
-      width: 44,
-      alignItems: 'center'
-  },
-  arrowBtn: { padding: 10 },
-  titleButton: {
+  overlay: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginHorizontal: 5,
+    justifyContent: "flex-end",
   },
-  title: { fontSize: 18, fontWeight: 'bold' },
-  pickerContainer: { flex: 1, paddingHorizontal: 15 },
-  yearsWrapper: { height: 50, marginBottom: 15 },
-  yearChip: {
-    width: 72, 
-    height: 36,
-    marginRight: 8,
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(4, 8, 15, 0.5)",
+  },
+  sheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: "hidden",
+    paddingHorizontal: 14,
+    ...Platform.select({
+      web: { boxShadow: "0 -12px 40px rgba(0,0,0,0.16)" },
+      default: {
+        elevation: 18,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -8 },
+        shadowOpacity: 0.18,
+        shadowRadius: 24,
+      },
+    }),
+  },
+  handle: {
+    alignSelf: "center",
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 10,
+    marginBottom: 11,
+    opacity: 0.7,
+  },
+  sheetHeader: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  roundButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
+  sheetTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  selectedDate: {
+    maxWidth: "100%",
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  todayButton: {
+    minHeight: 36,
     borderRadius: 18,
-    justifyContent: 'center', alignItems: 'center',
-    marginTop: 7, 
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
-  yearText: { fontWeight: 'bold', fontSize: 15 },
+  todayText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  monthNavigation: {
+    height: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  monthArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  monthTitleButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 14,
+    marginHorizontal: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  monthTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.25,
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  pickerContainer: {
+    flex: 1,
+    paddingTop: 8,
+  },
+  yearNavigation: {
+    height: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  yearArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  yearTitle: {
+    width: 120,
+    textAlign: "center",
+    fontSize: 25,
+    fontWeight: "800",
+  },
   monthsGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 10,
   },
   monthItem: {
-    width: '31%', 
-    paddingVertical: 12,
-    marginBottom: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-    backgroundColor: 'rgba(120,120,120,0.1)'
+    width: "31.5%",
+    minHeight: 48,
+    borderRadius: 15,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  monthText: { fontWeight: '600' }
+  monthItemText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });

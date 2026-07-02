@@ -66,7 +66,16 @@ function buildLessonTimes(startTime, duration, breaks, daySchedule) {
   return times;
 }
 
-const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handleAddLesson, scrollY }) => {
+const DayPage = memo(({
+    offset,
+    anchorDate,
+    width,
+    headerHeight,
+    openViewer,
+    openEditor,
+    handleAddLesson,
+    scrollY,
+}) => {
     const targetDate = useMemo(() => {
         const d = new Date(anchorDate);
         d.setDate(d.getDate() + offset);
@@ -82,6 +91,7 @@ const DayPage = memo(({ offset, anchorDate, width, openViewer, openEditor, handl
                   onLessonLongPress={openEditor}
                   onEmptyPress={handleAddLesson}
                   scrollY={scrollY}
+                  headerHeight={headerHeight}
                />
             </DayScheduleProvider>
         </View>
@@ -111,6 +121,7 @@ export default function Schedule() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(190);
   const [editingLesson, setEditingLesson] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);
 
@@ -280,19 +291,27 @@ export default function Schedule() {
   const renderItem = useCallback(({ item: offset }) => (
       <DayPage 
          offset={offset} anchorDate={anchorDate} width={SCREEN_WIDTH}
+         headerHeight={headerHeight}
          openViewer={openViewer} openEditor={openEditor}
          handleAddLesson={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }} 
          scrollY={scrollY}
       />
-  ), [anchorDate, SCREEN_WIDTH, openViewer, openEditor, scrollY]);
+  ), [anchorDate, SCREEN_WIDTH, headerHeight, openViewer, openEditor, scrollY]);
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
-      <View style={styles.headerContainer}>
+      <View
+        style={styles.headerContainer}
+        onLayout={(event) => {
+          const measuredHeight = Math.ceil(event.nativeEvent.layout.height);
+          setHeaderHeight((previous) =>
+            Math.abs(previous - measuredHeight) > 1 ? measuredHeight : previous
+          );
+        }}
+      >
         <View style={StyleSheet.absoluteFill}><AppBlur style={StyleSheet.absoluteFill} intensity={50} /></View>
         <Header 
             currentDate={currentDate} 
-            onDateChange={(d) => goToDate(d, false)} 
             onTodayPress={goToToday} 
             onTitlePress={() => setCalendarVisible(true)} 
         />

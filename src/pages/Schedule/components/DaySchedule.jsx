@@ -9,8 +9,6 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const HEADER_HEIGHT = 140;
-
 function addMinutes(timeStr, minsToAdd) {
   if (!timeStr) return null;
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -58,7 +56,8 @@ export default function DaySchedule({
   onLessonPress, 
   onLessonLongPress, 
   onEmptyPress,
-  scrollY
+  scrollY,
+  headerHeight = 190,
 }) {
   const { getDaySchedule } = useDaySchedule();
   const { schedule, global, lang, tabBarHeight } = useSchedule();
@@ -80,7 +79,7 @@ export default function DaySchedule({
 
   return (
     <Animated.ScrollView 
-      contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_HEIGHT + 50 }]}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 16 }]}
       showsVerticalScrollIndicator={false}
       overScrollMode="always"
       onScroll={Animated.event(

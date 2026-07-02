@@ -13,6 +13,7 @@ export default {
     save: "Save",
     cancel: "Cancel",
     back: "Back",
+    close: "Close",
     enabled: "Enabled",
     disabled: "Disabled",
     error: "Error",
@@ -171,7 +172,21 @@ export default {
       add_hint: "Long press to add",
       break: "Break",
     },
-    header: { today: "Today" },
+    header: {
+      today: "Today",
+      switch_schedule: "Switch schedule",
+      switch_hint: "Choose a schedule for the home screen",
+      long_press_hint: "Long press a schedule to open its settings",
+      open_calendar: "Open calendar",
+    },
+    calendar: {
+      title: "Choose a date",
+      previous_month: "Previous month",
+      next_month: "Next month",
+      previous_year: "Previous year",
+      next_year: "Next year",
+      week_short: "Wk",
+    },
     lesson_viewer: {
       untitled: "Untitled",
       time: "Time",
@@ -468,6 +483,8 @@ export default {
       edit_schedule: "Edit",
       schedule_name: "Schedule Name",
       enter_name: "Enter name...",
+      color: "Schedule color",
+      color_hint: "Used in the header and schedule switcher",
     },
 
     about_screen: {

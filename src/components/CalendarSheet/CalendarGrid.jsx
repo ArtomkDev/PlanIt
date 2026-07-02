@@ -1,85 +1,111 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import themes from '../../config/themes';
-import { useSchedule } from '../../context/ScheduleProvider';
+import React, { useMemo } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-const CELL_SIZE = 40;
-const GAP = 8;
+import themes from "../../config/themes";
+import { useSchedule } from "../../context/ScheduleProvider";
 
-export default function CalendarGrid({ 
-  days, 
-  onSelectDate, 
-  currentSelectedDate, 
-  getWeekNumber, 
-  weekDayNames 
+const sameDay = (left, right) =>
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
+
+export default function CalendarGrid({
+  days,
+  onSelectDate,
+  currentSelectedDate,
+  getWeekNumber,
+  weekDayNames,
+  weekLabel,
 }) {
   const { global } = useSchedule();
-
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const today = useMemo(() => new Date(), []);
+  const showWeekNumbers = getWeekNumber(today) !== null;
 
-  const todayStr = new Date().toDateString();
-
-  const weeks = [];
-  for (let i = 0; i < days.length; i += 7) {
-    weeks.push(days.slice(i, i + 7));
-  }
+  const weeks = useMemo(() => {
+    const result = [];
+    for (let index = 0; index < days.length; index += 7) {
+      result.push(days.slice(index, index + 7));
+    }
+    return result;
+  }, [days]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        {getWeekNumber(new Date()) !== null && <View style={styles.weekNumPlaceholder} />}
-        
+      <View style={styles.weekHeader}>
+        {showWeekNumbers && (
+          <View style={styles.weekNumberColumn}>
+            <Text style={[styles.weekLabel, { color: themeColors.textColor3 }]}>
+              {weekLabel}
+            </Text>
+          </View>
+        )}
+
         {weekDayNames.map((name, index) => (
-          <View key={index} style={styles.cell}>
-            <Text style={[styles.dayName, { color: themeColors.textColor2 }]}>{name}</Text>
+          <View key={`${name}-${index}`} style={styles.daySlot}>
+            <Text style={[styles.dayName, { color: themeColors.textColor2 }]}>
+              {name.replace(".", "")}
+            </Text>
           </View>
         ))}
       </View>
 
-      {weeks.map((week, wIndex) => {
-        const weekNum = getWeekNumber(week[0].date); 
+      {weeks.map((week, weekIndex) => {
+        const weekNumber = showWeekNumbers ? getWeekNumber(week[0].date) : null;
 
         return (
-          <View key={wIndex} style={styles.row}>
-            {weekNum !== null && (
-              <View style={styles.weekNumContainer}>
-                <Text style={[styles.weekNumText, { color: themeColors.accentColor }]}>
-                  {weekNum}
-                </Text>
+          <View key={weekIndex} style={styles.weekRow}>
+            {showWeekNumbers && (
+              <View style={styles.weekNumberColumn}>
+                <View style={[styles.weekBadge, { backgroundColor: themeColors.accentColorLight }]}>
+                  <Text style={[styles.weekNumber, { color: themeColors.accentColor }]}>
+                    {weekNumber}
+                  </Text>
+                </View>
               </View>
             )}
 
-            {week.map((dayObj, dIndex) => {
-              const isToday = dayObj.date.toDateString() === todayStr;
-              const isSelected = currentSelectedDate.toDateString() === dayObj.date.toDateString();
-              
-              let bg = 'transparent';
-              let textColor = dayObj.isCurrentMonth ? themeColors.textColor : themeColors.textColor2;
-              let borderWidth = 0;
-
-              if (isSelected) {
-                bg = themeColors.accentColor;
-                textColor = '#fff';
-              }
-              else if (isToday) {
-                borderWidth = 1.5;
-              }
+            {week.map((day) => {
+              const isToday = sameDay(day.date, today);
+              const isSelected = sameDay(day.date, currentSelectedDate);
 
               return (
-                <TouchableOpacity
-                  key={dIndex}
-                  style={[
-                    styles.cell, 
-                    { backgroundColor: bg, borderColor: themeColors.accentColor, borderWidth }
-                  ]}
-                  onPress={() => onSelectDate(dayObj.date)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.dayText, { color: textColor, fontWeight: (isToday || isSelected) ? 'bold' : 'normal' }]}>
-                    {dayObj.date.getDate()}
-                  </Text>
-                </TouchableOpacity>
+                <View key={day.date.toISOString()} style={styles.daySlot}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    onPress={() => onSelectDate(day.date)}
+                    activeOpacity={0.68}
+                    style={[
+                      styles.dayButton,
+                      isSelected && { backgroundColor: themeColors.accentColor },
+                      !isSelected && isToday && {
+                        borderColor: themeColors.accentColor,
+                        borderWidth: 1.5,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        {
+                          color: isSelected
+                            ? "#fff"
+                            : day.isCurrentMonth
+                              ? themeColors.textColor
+                              : themeColors.textColor3,
+                          fontWeight: isSelected || isToday ? "800" : "600",
+                        },
+                      ]}
+                    >
+                      {day.date.getDate()}
+                    </Text>
+                    {isToday && !isSelected && (
+                      <View style={[styles.todayDot, { backgroundColor: themeColors.accentColor }]} />
+                    )}
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -90,17 +116,70 @@ export default function CalendarGrid({
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: 10 },
-  row: { flexDirection: 'row', justifyContent: 'center', marginBottom: GAP, alignItems: 'center' },
-  cell: {
-    width: CELL_SIZE, height: CELL_SIZE,
-    justifyContent: 'center', alignItems: 'center',
-    borderRadius: CELL_SIZE / 2,
-    marginHorizontal: 2,
+  container: {
+    width: "100%",
+    alignSelf: "center",
+    maxWidth: 520,
+    paddingHorizontal: 2,
   },
-  dayName: { fontSize: 12, textTransform: 'uppercase', marginBottom: 5 },
-  dayText: { fontSize: 16 },
-  weekNumPlaceholder: { width: 30, marginRight: 5 },
-  weekNumContainer: { width: 30, marginRight: 5, justifyContent: 'center', alignItems: 'center' },
-  weekNumText: { fontSize: 12, fontWeight: 'bold', opacity: 0.8 },
+  weekHeader: {
+    height: 34,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  weekRow: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  weekNumberColumn: {
+    width: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  weekLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  weekBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  weekNumber: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  daySlot: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayName: {
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  dayButton: {
+    width: "88%",
+    maxWidth: 42,
+    aspectRatio: 1,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayText: {
+    fontSize: 15,
+  },
+  todayDot: {
+    position: "absolute",
+    bottom: 5,
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+  },
 });
