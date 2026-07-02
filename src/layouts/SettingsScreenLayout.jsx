@@ -25,6 +25,7 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
     'ScheduleSwitcher': t('settings.menu.global_schedule.title', lang),
     'AutoSave': t('settings.menu.autosave.title', lang),
     'Theme': t('settings.menu.themes.title', lang),
+    'Navigation': t('settings.menu.navigation.title', lang),
     'Language': t('settings.menu.language.title', lang),
     'ResetDB': t('settings.menu.reset_db.title', lang),
     'DeviceManagement': t('settings.menu.devices.title', lang),

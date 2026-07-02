@@ -7,7 +7,10 @@ export default function createDefaultData() {
 
   const global = {
     currentScheduleId: scheduleId,
-    theme: ['dark', 'cyan'], 
+    theme: ['dark', 'cyan'],
+    navigationStyle: 'classic',
+    navigationLabels: true,
+    navigationAnimations: true,
     lastModified: now, 
     lastSynced: 0, 
   };

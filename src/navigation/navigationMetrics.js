@@ -1,0 +1,42 @@
+export const NAVIGATION_METRICS = Object.freeze({
+  classic: {
+    heightWithLabels: 48,
+    heightIconsOnly: 44,
+    horizontalMargin: 0,
+    radius: 0,
+    bottomGap: 0,
+    iconSize: 22,
+    labelSize: 10,
+    indicatorWidth: 28,
+    indicatorHeight: 2,
+    indicatorRadius: 1,
+  },
+  island: {
+    heightWithLabels: 50,
+    heightIconsOnly: 46,
+    horizontalMargin: 12,
+    radius: 16,
+    bottomGap: 6,
+    iconSize: 22,
+    labelSize: 10,
+    indicatorWidth: '82%',
+    indicatorHeightWithLabels: 38,
+    indicatorHeightIconsOnly: 34,
+    indicatorRadius: 11,
+  },
+  material: {
+    heightWithLabels: 52,
+    heightIconsOnly: 46,
+    horizontalMargin: 10,
+    radius: 14,
+    bottomGap: 4,
+    iconSize: 22,
+    labelSize: 10,
+    indicatorWidth: 52,
+    indicatorHeight: 28,
+    indicatorRadius: 14,
+    indicatorTopWithLabels: 4,
+  },
+});
+
+export const NAVIGATION_STYLE_KEYS = Object.freeze(Object.keys(NAVIGATION_METRICS));

@@ -286,6 +286,7 @@ export default {
     },
 
     menu: {
+      navigation: { title: "Bottom Navigation", desc: "Style, labels, and motion" },
       weeks: { title: "Number of Weeks" },
       start_date: { title: "Start Date" },
       breaks: { title: "Number of Breaks" },
@@ -323,6 +324,23 @@ export default {
         mode_label: "Mode:",
         button: "Button",
       }
+    },
+
+    navigation_screen: {
+      title: "Make navigation yours",
+      description: "Choose how the bottom bar looks and behaves. Changes are applied immediately.",
+      style_title: "Bar style",
+      behavior_title: "Behavior",
+      labels_title: "Show tab names",
+      labels_desc: "Display labels below the navigation icons",
+      animations_title: "Smooth animations",
+      animations_desc: "Animate the active tab, icon, and screen transition",
+      sync_note: "Saved on this device and backed up to your account. This device's choice takes priority.",
+      styles: {
+        classic: { title: "Classic", desc: "A clean edge-to-edge bar that stays out of the way" },
+        island: { title: "Floating Island", desc: "A compact floating pill inspired by modern iPhone interfaces" },
+        material: { title: "Material", desc: "A grounded Android-style bar with a clear active indicator" },
+      },
     },
 
     account_settings: {

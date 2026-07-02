@@ -276,6 +276,21 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       prefsNeedSave = true;
     }
 
+    if (!newPrefs.navigationStyle) {
+      newPrefs.navigationStyle = data.global?.navigationStyle || 'classic';
+      prefsNeedSave = true;
+    }
+
+    if (newPrefs.navigationLabels === undefined) {
+      newPrefs.navigationLabels = data.global?.navigationLabels ?? true;
+      prefsNeedSave = true;
+    }
+
+    if (newPrefs.navigationAnimations === undefined) {
+      newPrefs.navigationAnimations = data.global?.navigationAnimations ?? true;
+      prefsNeedSave = true;
+    }
+
     if (data.global && data.global.language === undefined && lang && !isLangLoading) {
       setData(prev => ({
         ...prev,
@@ -399,6 +414,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       ...baseGlobal,
       theme: devicePrefs.theme || baseGlobal.theme || [fallbackMode, "blue"],
       blur: devicePrefs.blur !== undefined ? devicePrefs.blur : (baseGlobal.blur ?? true),
+      navigationStyle: devicePrefs.navigationStyle || baseGlobal.navigationStyle || 'classic',
+      navigationLabels: devicePrefs.navigationLabels !== undefined
+        ? devicePrefs.navigationLabels
+        : (baseGlobal.navigationLabels ?? true),
+      navigationAnimations: devicePrefs.navigationAnimations !== undefined
+        ? devicePrefs.navigationAnimations
+        : (baseGlobal.navigationAnimations ?? true),
       currentScheduleId: devicePrefs.currentScheduleId || baseGlobal.currentScheduleId,
       watermark: baseGlobal.watermark || 0,
       language: lang
@@ -461,6 +483,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       ...currentPrev.global,
       theme: devicePrefsRef.current.theme,
       blur: devicePrefsRef.current.blur !== undefined ? devicePrefsRef.current.blur : (currentPrev.global?.blur ?? true),
+      navigationStyle: devicePrefsRef.current.navigationStyle || currentPrev.global?.navigationStyle || 'classic',
+      navigationLabels: devicePrefsRef.current.navigationLabels !== undefined
+        ? devicePrefsRef.current.navigationLabels
+        : (currentPrev.global?.navigationLabels ?? true),
+      navigationAnimations: devicePrefsRef.current.navigationAnimations !== undefined
+        ? devicePrefsRef.current.navigationAnimations
+        : (currentPrev.global?.navigationAnimations ?? true),
       currentScheduleId: devicePrefsRef.current.currentScheduleId,
       language: devicePrefsRef.current.language
     };
@@ -477,6 +506,21 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     
     if (nextGlobal.blur !== undefined && nextGlobal.blur !== currentMerged.blur) {
       newPrefs.blur = nextGlobal.blur;
+      prefsChanged = true;
+    }
+
+    if (nextGlobal.navigationStyle && nextGlobal.navigationStyle !== currentMerged.navigationStyle) {
+      newPrefs.navigationStyle = nextGlobal.navigationStyle;
+      prefsChanged = true;
+    }
+
+    if (nextGlobal.navigationLabels !== undefined && nextGlobal.navigationLabels !== currentMerged.navigationLabels) {
+      newPrefs.navigationLabels = nextGlobal.navigationLabels;
+      prefsChanged = true;
+    }
+
+    if (nextGlobal.navigationAnimations !== undefined && nextGlobal.navigationAnimations !== currentMerged.navigationAnimations) {
+      newPrefs.navigationAnimations = nextGlobal.navigationAnimations;
       prefsChanged = true;
     }
 
@@ -740,7 +784,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const retainedPrefs = {
         theme: devicePrefsRef.current.theme,
         blur: devicePrefsRef.current.blur,
-        language: devicePrefsRef.current.language
+        language: devicePrefsRef.current.language,
+        navigationStyle: devicePrefsRef.current.navigationStyle,
+        navigationLabels: devicePrefsRef.current.navigationLabels,
+        navigationAnimations: devicePrefsRef.current.navigationAnimations
       };
       syncDevicePrefsUpdate(retainedPrefs);
 

@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Table, Palette, Translate, SignIn, UserCircle, Cpu, 
-  SignOut, Trash, Info, ShareNetwork
+  SignOut, Trash, Info, ShareNetwork, SquaresFour
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 import { useSchedule } from '../../context/ScheduleProvider';
@@ -105,6 +105,7 @@ export default function Settings({ guest, onExitGuest }) {
       title: t('settings.sections.appearance', lang),
       data: [
         { label: t('settings.menu.themes.title', lang), screen: 'Theme', icon: Palette, desc: t('settings.menu.themes.desc', lang) },
+        { label: t('settings.menu.navigation.title', lang), screen: 'Navigation', icon: SquaresFour, desc: t('settings.menu.navigation.desc', lang) },
         { 
           label: t('settings.menu.language.title', lang), 
           screen: 'Language', 

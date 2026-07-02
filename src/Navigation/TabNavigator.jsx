@@ -1,14 +1,13 @@
-import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import React, { useCallback, useRef, useEffect } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View } from 'react-native';
 import { CalendarDots, GearSix } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import themes from '../config/themes';
 import { useSchedule } from '../context/ScheduleProvider';
-import AppBlur from '../components/ui/AppBlur';
-import AdBanner from '../components/AdBanner/AdBanner';
 import MorphingLoader from '../components/ui/MorphingLoader';
+import PlanItTabBar from './PlanItTabBar';
 import { t } from '../utils/i18n';
 import Schedule from '../pages/Schedule/Schedule';
 import Settings from '../pages/Settings/Settings';
@@ -25,6 +24,7 @@ import ChangeNameScreen from '../pages/Settings/components/AccountSettings/compo
 import ChangeEmailScreen from '../pages/Settings/components/AccountSettings/components/ChangeEmailScreen';
 import ChangePasswordScreen from '../pages/Settings/components/AccountSettings/components/ChangePasswordScreen';
 import SharedSchedulesManager from '../pages/Settings/components/SharedSchedulesManager';
+import NavigationSettings from '../pages/Settings/components/preferences/NavigationSettings';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -52,6 +52,7 @@ function SettingsStack({ screenProps }) {
         <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
         <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
         <Stack.Screen name="Theme" component={ThemeSettings} />
+        <Stack.Screen name="Navigation" component={NavigationSettings} />
         <Stack.Screen name="Language" component={LanguageSettings} />
         <Stack.Screen name="ResetDB" component={ResetDB} />
         <Stack.Screen name="AboutApp" component={AboutApp} />
@@ -97,37 +98,20 @@ export default function TabNavigator({ screenProps }) {
     );
   }
 
-  const isAndroid = Platform.OS === 'android';
-  const basePaddingBottom = isAndroid ? 16 : 10;
-  const baseHeight = isAndroid ? 60 : 50;
-
   return (
     <Tab.Navigator
       tabBar={(props) => (
-        <View style={styles.customTabBarContainer} onLayout={handleLayout}>
-          <AppBlur style={StyleSheet.absoluteFill} intensity={80} />
-          <View style={styles.adWrapper}>
-            <AdBanner />
-          </View>
-          <BottomTabBar {...props} />
-        </View>
+        <PlanItTabBar {...props} insets={insets} onLayout={handleLayout} />
       )}
       screenOptions={{
         sceneContainerStyle: { 
           backgroundColor: themeColors.backgroundColor,
           paddingBottom: tabBarHeight || (110 + insets.bottom)
         },
-        tabBarStyle: {
-          backgroundColor: 'transparent',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderTopWidth: 0,
-          height: baseHeight + insets.bottom,
-          paddingBottom: basePaddingBottom + insets.bottom,
-        },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: 'bold' },
         tabBarActiveTintColor: themeColors.accentColor,
         tabBarInactiveTintColor: themeColors.textColor2,
+        tabBarHideOnKeyboard: true,
+        animation: global?.navigationAnimations === false ? 'none' : 'fade',
         headerShown: false,
       }}
     >
@@ -154,21 +138,3 @@ export default function TabNavigator({ screenProps }) {
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  customTabBarContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    overflow: 'hidden',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(150,150,150,0.2)',
-  },
-  adWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 6,
-    width: '100%',
-  },
-});
