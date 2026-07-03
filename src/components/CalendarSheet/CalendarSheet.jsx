@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Modal,
-  Platform,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,7 +16,7 @@ import {
 } from "phosphor-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import AppBlur from "../ui/AppBlur";
+import BottomSheet from "../ui/BottomSheet";
 import themes from "../../config/themes";
 import { useSchedule } from "../../context/ScheduleProvider";
 import { triggerLightHaptic } from "../../utils/haptics";
@@ -93,37 +90,25 @@ export default function CalendarSheet({
   };
 
   const selectToday = () => selectDate(new Date());
+  const snapPoints = [Math.min(height * 0.58, 450), Math.min(height * 0.82, 640)];
 
   return (
-    <Modal
-      transparent
+    <BottomSheet
       visible={visible}
-      statusBarTranslucent
-      animationType="slide"
-      onRequestClose={onClose}
+      onClose={onClose}
+      snapPoints={snapPoints}
+      initialSnapIndex={1}
+      maxWidth={680}
+      backgroundColor={themeColors.backgroundColor2}
+      handleColor={themeColors.textColor3}
+      accessibilityLabel={t("schedule.calendar.title", lang)}
+      closeAccessibilityLabel={t("common.close", lang)}
+      testID="calendar-sheet"
+      contentStyle={[
+        styles.sheetContent,
+        { paddingBottom: Math.max(insets.bottom, 12) },
+      ]}
     >
-      <View style={styles.overlay}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("common.close", lang)}
-          onPress={onClose}
-          style={styles.backdrop}
-        />
-
-        <View
-          style={[
-            styles.sheet,
-            {
-              height: Math.min(height * 0.82, 640),
-              paddingBottom: Math.max(insets.bottom, 12),
-              backgroundColor: themeColors.backgroundColor2,
-            },
-          ]}
-        >
-          <AppBlur style={StyleSheet.absoluteFill} intensity={88} />
-
-          <View style={[styles.handle, { backgroundColor: themeColors.textColor3 }]} />
-
           <View style={styles.sheetHeader}>
             <TouchableOpacity
               accessibilityRole="button"
@@ -288,45 +273,13 @@ export default function CalendarSheet({
               />
             )}
           </View>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(4, 8, 15, 0.5)",
-  },
-  sheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: "hidden",
+  sheetContent: {
     paddingHorizontal: 14,
-    ...Platform.select({
-      web: { boxShadow: "0 -12px 40px rgba(0,0,0,0.16)" },
-      default: {
-        elevation: 18,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -8 },
-        shadowOpacity: 0.18,
-        shadowRadius: 24,
-      },
-    }),
-  },
-  handle: {
-    alignSelf: "center",
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 10,
-    marginBottom: 11,
-    opacity: 0.7,
   },
   sheetHeader: {
     minHeight: 48,

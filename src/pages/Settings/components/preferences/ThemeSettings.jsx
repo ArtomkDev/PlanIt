@@ -52,6 +52,7 @@ const ThemeSettings = () => {
 
   const handleCustomColorSave = (hex) => {
     setSelectedColor(hex);
+    setPickerVisible(false);
   };
 
   const renderColorOption = (colorKey) => {

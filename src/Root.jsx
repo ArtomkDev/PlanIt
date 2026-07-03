@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as LinkingExpo from 'expo-linking';
 
 import { auth } from "./config/firebase";
@@ -205,11 +206,13 @@ export default function RootApp() {
               <Stack.Screen name="MainLayout">
                 {(props) => (
                   <EditorProvider>
-                    <MainLayout
-                      {...props}
-                      guest={guest}
-                      onExitGuest={handleExitGuest}
-                    />
+                    <BottomSheetModalProvider>
+                      <MainLayout
+                        {...props}
+                        guest={guest}
+                        onExitGuest={handleExitGuest}
+                      />
+                    </BottomSheetModalProvider>
                   </EditorProvider>
                 )}
               </Stack.Screen>

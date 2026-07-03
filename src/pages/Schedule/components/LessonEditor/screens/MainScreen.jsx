@@ -219,7 +219,15 @@ export default function LessonEditorMainScreen({
 
   if (!selectedSubjectId) {
     return (
-      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+        bounces={false}
+        overScrollMode="never"
+        showsVerticalScrollIndicator={false}
+      >
         <SettingsGroup 
           themeColors={themeColors} 
           title={t('schedule.main_screen.subject', lang)}
@@ -240,7 +248,17 @@ export default function LessonEditorMainScreen({
   const { array: linksArr } = getArrayData("links", "materials");
 
   return (
-    <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      ref={scrollViewRef}
+      style={styles.content}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      nestedScrollEnabled
+      bounces={false}
+      overScrollMode="never"
+      showsVerticalScrollIndicator={false}
+      automaticallyAdjustKeyboardInsets
+    >
       
       <SettingsGroup 
         themeColors={themeColors} 
@@ -401,8 +419,12 @@ export default function LessonEditorMainScreen({
 }
 
 const styles = StyleSheet.create({
-  content: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
-  scrollContent: { paddingBottom: 40 },
+  content: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 120,
+  },
   headerActionButton: {
     width: 34,
     height: 30,

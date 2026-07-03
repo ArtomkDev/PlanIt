@@ -1,181 +1,292 @@
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import {
-  View,
-  StyleSheet,
-  Platform,
-  KeyboardAvoidingView,
-  Pressable,
+  BackHandler,
+  FlatList,
   Keyboard,
-  Animated,
-  PanResponder,
-  Dimensions,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
 } from "react-native";
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  useBottomSheetSpringConfigs,
+} from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-const IS_IOS = Platform.OS === "ios";
+const DEFAULT_SNAP_POINTS = ["48%", "90%"];
+const DESKTOP_BREAKPOINT = 768;
 
-const BottomSheet = forwardRef(({ 
-  onClose, 
-  onMinimize, 
-  children, 
-  header, 
-  backgroundColor = "#fff", 
-  handleColor = "#ccc" 
-}, ref) => {
-  const panY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+const BottomSheet = forwardRef(function BottomSheet(
+  {
+    visible = true,
+    onClose,
+    onMinimize,
+    onChange,
+    children,
+    header,
+    backgroundColor = "#fff",
+    handleColor = "rgba(120,120,128,0.55)",
+    snapPoints = DEFAULT_SNAP_POINTS,
+    initialSnapIndex,
+    maxWidth = 720,
+    backdropOpacity = 0.52,
+    closeOnBackdropPress = true,
+    enablePanDownToClose = true,
+    enableContentPanningGesture = false,
+    keyboardBehavior = "interactive",
+    stackBehavior = "push",
+    contentStyle,
+    sheetStyle,
+    accessibilityLabel,
+    closeAccessibilityLabel = "Close dialog",
+    testID,
+  },
+  ref
+) {
+  const modalRef = useRef(null);
+  const visibleRef = useRef(visible);
+  const dismissReasonRef = useRef(null);
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isDesktop = Platform.OS === "web" && width >= DESKTOP_BREAKPOINT;
+
+  const snapPointsKey = JSON.stringify(snapPoints);
+  const resolvedSnapPoints = useMemo(
+    () => (Array.isArray(snapPoints) && snapPoints.length ? snapPoints : DEFAULT_SNAP_POINTS),
+    [snapPointsKey]
+  );
+  const openIndex = Math.max(
+    0,
+    Math.min(initialSnapIndex ?? resolvedSnapPoints.length - 1, resolvedSnapPoints.length - 1)
+  );
+
+  const animationConfigs = useBottomSheetSpringConfigs({
+    damping: 30,
+    stiffness: 260,
+    mass: 0.82,
+    overshootClamping: false,
+    restDisplacementThreshold: 0.5,
+    restSpeedThreshold: 0.5,
+  });
 
   useEffect(() => {
-    Animated.spring(panY, {
-      toValue: 0,
-      useNativeDriver: Platform.OS !== "web",
-      damping: 20,
-      stiffness: 90,
-      mass: 1,
-    }).start();
-  }, []);
+    visibleRef.current = visible;
+    if (visible) {
+      dismissReasonRef.current = null;
+      modalRef.current?.present();
+    } else {
+      dismissReasonRef.current = "controlled";
+      modalRef.current?.dismiss();
+    }
+  }, [visible]);
 
-  const closeWithAnimation = () => {
-    Keyboard.dismiss();
-    Animated.timing(panY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 150,
-      useNativeDriver: Platform.OS !== "web",
-    }).start(() => onClose());
-  };
+  const requestDismiss = useCallback(
+    (reason = "close") => {
+      dismissReasonRef.current = reason;
+      Keyboard.dismiss();
+      modalRef.current?.dismiss();
+    },
+    []
+  );
 
-  const minimizeWithAnimation = () => {
-    Keyboard.dismiss();
-    Animated.timing(panY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 100,
-      useNativeDriver: Platform.OS !== "web",
-    }).start(() => {
-      if (onMinimize) {
-        onMinimize();
-      } else {
-        onClose();
-      }
+  useImperativeHandle(
+    ref,
+    () => ({
+      close: () => requestDismiss("close"),
+      dismiss: () => requestDismiss("close"),
+      minimize: () => requestDismiss("minimize"),
+      expand: () => modalRef.current?.snapToIndex(resolvedSnapPoints.length - 1),
+      collapse: () => modalRef.current?.snapToIndex(0),
+      snapToIndex: (index) => modalRef.current?.snapToIndex(index),
+      snapToPosition: (position) => modalRef.current?.snapToPosition(position),
+    }),
+    [requestDismiss, resolvedSnapPoints.length]
+  );
+
+  useEffect(() => {
+    if (!visible) return undefined;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      requestDismiss(onMinimize ? "minimize" : "close");
+      return true;
     });
-  };
+    return () => subscription.remove();
+  }, [onMinimize, requestDismiss, visible]);
 
-  useImperativeHandle(ref, () => ({
-    close: closeWithAnimation,
-    minimize: minimizeWithAnimation,
-  }));
+  useEffect(() => {
+    if (!visible || Platform.OS !== "web" || typeof document === "undefined") return undefined;
+    const onKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      requestDismiss(onMinimize ? "minimize" : "close");
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onMinimize, requestDismiss, visible]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true, 
-      onStartShouldSetPanResponderCapture: () => false, 
+  const handleDismiss = useCallback(() => {
+    const reason = dismissReasonRef.current;
+    dismissReasonRef.current = null;
+    
+    if (!visibleRef.current || reason === "controlled") return;
+    if (reason === "minimize" || (!reason && onMinimize)) {
+      onMinimize?.();
+      return;
+    }
+    onClose?.();
+  }, [onClose, onMinimize]);
 
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-      },
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-      },
+  const renderBackdrop = useCallback(
+    (props) => (
+      <BottomSheetBackdrop
+        {...props}
+        accessibilityRole="button"
+        accessibilityLabel={closeAccessibilityLabel}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={backdropOpacity}
+        pressBehavior={closeOnBackdropPress ? "close" : "none"}
+        onPress={() => {
+          if (closeOnBackdropPress) {
+            dismissReasonRef.current = onMinimize ? "minimize" : "close";
+            Keyboard.dismiss();
+          }
+        }}
+      />
+    ),
+    [backdropOpacity, closeAccessibilityLabel, closeOnBackdropPress, onMinimize]
+  );
 
-      onPanResponderGrant: () => {
-        panY.stopAnimation();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        let newY = gestureState.dy;
-        if (newY < 0) {
-          newY = -Math.pow(Math.abs(newY), 0.8);
-        }
-        panY.setValue(newY);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 120 || (gestureState.vy > 0.5 && gestureState.dy > 40)) {
-          minimizeWithAnimation(); 
-        } else {
-          Animated.spring(panY, {
-            toValue: 0,
-            useNativeDriver: Platform.OS !== "web",
-            bounciness: 6,
-            speed: 14,
-          }).start();
-        }
-      },
-    })
-  ).current;
+  const desktopWidth = Math.min(maxWidth, Math.max(320, width - 32));
+  const maxDynamicContentSize = Math.max(240, height - insets.top - 16);
 
   return (
-    <KeyboardAvoidingView behavior="padding" enabled={IS_IOS} style={styles.overlay}>
-      <Pressable onPress={minimizeWithAnimation} style={styles.backdrop} />
-
-      <Animated.View
-        style={[
-          styles.sheetContainer,
-          { backgroundColor },
-          { transform: [{ translateY: panY }] },
-        ]}
+    <BottomSheetModal
+      ref={modalRef}
+      name={testID}
+      index={openIndex}
+      snapPoints={resolvedSnapPoints}
+      stackBehavior={stackBehavior}
+      animateOnMount
+      enableDynamicSizing={false}
+      enableDismissOnClose
+      enablePanDownToClose={enablePanDownToClose}
+      enableContentPanningGesture={enableContentPanningGesture}
+      enableHandlePanningGesture
+      enableOverDrag
+      overDragResistanceFactor={3.2}
+      keyboardBehavior={keyboardBehavior}
+      keyboardBlurBehavior="restore"
+      enableBlurKeyboardOnGesture
+      android_keyboardInputMode="adjustResize"
+      maxDynamicContentSize={maxDynamicContentSize}
+      topInset={Math.max(insets.top, 8)}
+      bottomInset={isDesktop ? 16 : 0}
+      detached={isDesktop}
+      animationConfigs={animationConfigs}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={[styles.background, { backgroundColor }]}
+      handleStyle={[styles.handleArea, { backgroundColor }]}
+      handleIndicatorStyle={[styles.handle, { backgroundColor: handleColor }]}
+      style={[
+        styles.sheet,
+        { backgroundColor },
+        isDesktop && { width: desktopWidth, marginLeft: (width - desktopWidth) / 2 },
+        sheetStyle,
+      ]}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityViewIsModal
+      onChange={onChange}
+      onDismiss={handleDismiss}
+    >
+      <View
+        style={[styles.content, { backgroundColor }, contentStyle]}
+        testID={testID}
       >
-        <View 
-            {...panResponder.panHandlers} 
-            style={[styles.dragZone, { backgroundColor }]} 
-            collapsable={false}
-        >
-          <View style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: handleColor }]} />
-          </View>
-          
-          <View pointerEvents="box-none">
-            {header}
-          </View>
-        </View>
+        {header}
+        {children}
+      </View>
+    </BottomSheetModal>
+  );
+});
 
-        <View style={styles.contentContainer}>
-          {children}
-        </View>
-      </Animated.View>
-    </KeyboardAvoidingView>
+export const SheetScrollView = forwardRef(function SheetScrollView(
+  { bounces = false, overScrollMode = "never", nestedScrollEnabled = true, ...props },
+  ref
+) {
+  return (
+    <ScrollView
+      ref={ref}
+      bounces={bounces}
+      overScrollMode={overScrollMode}
+      nestedScrollEnabled={nestedScrollEnabled}
+      directionalLockEnabled
+      {...props}
+    />
+  );
+});
+
+export const SheetFlatList = forwardRef(function SheetFlatList(
+  { bounces = false, overScrollMode = "never", nestedScrollEnabled = true, ...props },
+  ref
+) {
+  return (
+    <FlatList
+      ref={ref}
+      bounces={bounces}
+      overScrollMode={overScrollMode}
+      nestedScrollEnabled={nestedScrollEnabled}
+      {...props}
+    />
   );
 });
 
 const styles = StyleSheet.create({
-  overlay: { 
-    flex: 1, 
-    justifyContent: "flex-end" 
-  },
-  backdrop: { 
-    ...StyleSheet.absoluteFillObject, 
-    backgroundColor: "rgba(0,0,0,0.5)" 
-  },
-  sheetContainer: {
-    flex: 1,
-    marginTop: "10%",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  sheet: {
     overflow: "hidden",
-    elevation: 10,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    ...(Platform.OS === "web"
+      ? { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 }
+      : null),
     ...Platform.select({
-      web: { boxShadow: "0px -5px 10px rgba(0,0,0,0.3)" },
+      web: { boxShadow: "0 -18px 60px rgba(0,0,0,0.22)" },
       default: {
+        elevation: 24,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: -5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 28,
       },
     }),
   },
-  dragZone: { 
-    paddingTop: 10,
-    zIndex: 10,
+  background: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    ...(Platform.OS === "web" ? { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 } : null),
   },
-  handleContainer: { 
-    alignItems: "center", 
-    paddingBottom: 15,
-    paddingTop: 5,
+  handleArea: {
+    height: 36,
+    paddingVertical: 0,
+    justifyContent: "center",
   },
-  handle: { 
-    width: 45, 
-    height: 6, 
-    borderRadius: 3, 
-    opacity: 0.5 
+  handle: {
+    width: 42,
+    height: 5,
+    borderRadius: 3,
   },
-  contentContainer: { 
-    flex: 1 
+  content: {
+    flex: 1,
+    overflow: "hidden",
   },
 });
 

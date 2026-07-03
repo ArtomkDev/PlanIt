@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, TouchableOpacity, FlatList, 
-  ActivityIndicator, Modal 
+  View, Text, StyleSheet, TouchableOpacity
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
@@ -14,6 +13,7 @@ import { useSchedule } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import { t } from '../../utils/i18n';
 import MorphingLoader from '../ui/MorphingLoader';
+import BottomSheet, { SheetFlatList } from '../ui/BottomSheet';
 
 const LOCAL_KEY = 'guest_schedule';
 
@@ -164,13 +164,22 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
     }
   };
 
-  if (!isVisible) return null;
-
   return (
-    <Modal visible={isVisible} transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
-          
+    <BottomSheet
+      visible={isVisible}
+      onClose={handleSkip}
+      snapPoints={["58%", "82%"]}
+      initialSnapIndex={0}
+      maxWidth={600}
+      backgroundColor={themeColors.backgroundColor}
+      handleColor={themeColors.textColor3}
+      closeOnBackdropPress={false}
+      enablePanDownToClose={false}
+      accessibilityLabel={t('migration_modal.title', lang)}
+      closeAccessibilityLabel={t('common.close', lang)}
+      testID="migration-sheet"
+      contentStyle={styles.container}
+    >
           <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '20' }]}>
             <CloudArrowUp size={40} color={themeColors.accentColor} weight="fill" />
           </View>
@@ -183,7 +192,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
           </Text>
 
           <View style={styles.listContainer}>
-            <FlatList
+            <SheetFlatList
               data={localSchedules}
               keyExtractor={item => item.id}
               renderItem={({ item }) => {
@@ -237,30 +246,14 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   container: {
-    width: '100%',
-    borderRadius: 24,
     padding: 24,
     alignItems: 'center',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
   },
   iconContainer: {
     width: 80,

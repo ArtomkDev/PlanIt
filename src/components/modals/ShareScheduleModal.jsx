@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, Switch, ActivityIndicator, Keyboard} from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Switch, ActivityIndicator, Share } from "react-native";
 import { ShareNetwork, Copy, CheckCircle, X, BookOpen, GraduationCap, Palette, User, Link, Note } from "phosphor-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useSchedule } from "../../context/ScheduleProvider";
@@ -7,6 +7,7 @@ import { createSharedSchedule } from "../../services/shareService";
 import TabSwitcher from "../ui/TabSwitcher";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
+import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
 
 export default function ShareScheduleModal({ visible, onClose, scheduleToShare }) {
   const { user, global, lang } = useSchedule();
@@ -105,31 +106,19 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
     { id: "30", label: t("share.duration_30d", lang) },
   ];
 
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-
-  useEffect(() => {
-    if (Platform.OS === "android") {
-      const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardOpen(true));
-      const hideSub = Keyboard.addListener("keyboardDidHide", () => setIsKeyboardOpen(false));
-      return () => {
-        showSub.remove();
-        hideSub.remove();
-      };
-    }
-  }, []);
-
   return (
-    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={resetAndClose}>
-      <KeyboardAvoidingView 
-        behavior="padding" 
-        enabled={Platform.OS === "ios" || isKeyboardOpen}
-        style={styles.keyboardView}
-      >
-        <TouchableOpacity activeOpacity={1} style={styles.overlay} onPress={resetAndClose}>
-          <TouchableOpacity activeOpacity={1} style={[styles.modalContainer, { backgroundColor: themeColors.backgroundColor }]}>
-            
-            <View style={styles.dragIndicator} />
-
+    <BottomSheet
+      visible={visible}
+      onClose={resetAndClose}
+      snapPoints={["58%", "92%"]}
+      initialSnapIndex={1}
+      maxWidth={680}
+      backgroundColor={themeColors.backgroundColor}
+      handleColor={themeColors.textColor3}
+      accessibilityLabel={t("share.modal_title", lang)}
+      closeAccessibilityLabel={t("common.close", lang)}
+      testID="share-schedule-sheet"
+    >
             <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
               <Text style={[styles.title, { color: themeColors.textColor }]}>
                 {t("share.modal_title", lang)}
@@ -139,7 +128,12 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <SheetScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {!generatedCode ? (
                 <>
                   <Text style={[styles.label, { color: themeColors.textColor2 }]}>
@@ -292,19 +286,13 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                   </View>
                 </View>
               )}
-            </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
-    </Modal>
+            </SheetScrollView>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: { flex: 1 },
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  modalContainer: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "95%" },
-  dragIndicator: { width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(150,150,150,0.4)", alignSelf: "center", marginTop: 12, marginBottom: 12 },
+  scrollView: { flex: 1 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   title: { fontSize: 20, fontWeight: "700" },
   content: { padding: 20, paddingBottom: 40 },

@@ -7,7 +7,6 @@ import {
   LayoutAnimation,
   Platform,
   Animated,
-  Modal,
 } from "react-native";
 import { CaretLeft, PencilSimple, CheckCircle, XCircle } from "phosphor-react-native";
 import { useSchedule } from "../../../context/ScheduleProvider";
@@ -828,20 +827,22 @@ export default function LessonEditor({ lesson, onClose }) {
         </View>
       )}
 
-      <Modal
+      <BottomSheet
+        ref={sheetRef}
         visible={!isMinimized}
-        transparent={true}
-        animationType="none"
-        onRequestClose={onClose}
+        onClose={onClose}
+        onMinimize={() => setIsMinimized(true)}
+        snapPoints={["62%", "92%"]}
+        initialSnapIndex={1}
+        maxWidth={800}
+        backgroundColor={themeColors.backgroundColor}
+        handleColor={themeColors.borderColor || "#ccc"}
+        header={renderHeader()}
+        enableContentPanningGesture={false}
+        accessibilityLabel={getHeaderTitle()}
+        closeAccessibilityLabel={t('common.close', lang)}
+        testID="lesson-editor-sheet"
       >
-        <BottomSheet
-          ref={sheetRef}
-          onClose={onClose}
-          onMinimize={() => setIsMinimized(true)}
-          backgroundColor={themeColors.backgroundColor}
-          handleColor={themeColors.borderColor || "#ccc"}
-          header={renderHeader()}
-        >
           <View style={{ flex: 1 }}>
             {currentScreen === "main" && (
               <LessonEditorMainScreen
@@ -956,8 +957,7 @@ export default function LessonEditor({ lesson, onClose }) {
                 />
             )}
           </View>
-        </BottomSheet>
-      </Modal>
+      </BottomSheet>
       
       {advancedPickerTarget && (
         <AdvancedColorPicker 

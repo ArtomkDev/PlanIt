@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Animated, Modal, AppState } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Animated, AppState } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,6 +19,7 @@ import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
 import OnboardingWizard from '../pages/Onboarding/OnboardingWizard';
 import { syncScheduleToWidget } from '../widgets/widgetService';
 import ImportScheduleModal from '../components/modals/ImportScheduleModal';
+import BottomSheet, { SheetScrollView } from '../components/ui/BottomSheet';
 
 const MainStack = createNativeStackNavigator();
 
@@ -167,9 +168,23 @@ export default function MainLayout({ guest, onExitGuest }) {
         </View>
       </View>
 
-      <Modal visible={showWidgetConfig} animationType="fade" transparent={true}>
-        <View style={styles.widgetModalOverlay}>
-          <View style={[styles.widgetModalContent, { backgroundColor: themeColors.cardBackground || '#1C1C1E' }]}>
+      <BottomSheet
+        visible={showWidgetConfig}
+        onClose={() => setShowWidgetConfig(false)}
+        snapPoints={["44%", "72%"]}
+        initialSnapIndex={0}
+        maxWidth={520}
+        backgroundColor={themeColors.cardBackground || themeColors.backgroundColor || '#1C1C1E'}
+        handleColor={themeColors.textMuted || themeColors.borderColor}
+        accessibilityLabel="Виберіть розклад для віджета"
+        closeAccessibilityLabel={t('common.close', lang)}
+        testID="widget-schedule-sheet"
+      >
+        <SheetScrollView
+          style={styles.widgetModalScroll}
+          contentContainerStyle={styles.widgetModalContent}
+          showsVerticalScrollIndicator={false}
+        >
             <Text style={[styles.widgetModalTitle, { color: themeColors.textColor }]}>
               Виберіть розклад для віджета
             </Text>
@@ -194,9 +209,8 @@ export default function MainLayout({ guest, onExitGuest }) {
             <TouchableOpacity style={styles.widgetCancelBtn} onPress={() => setShowWidgetConfig(false)}>
               <Text style={styles.widgetCancelText}>Скасувати</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        </SheetScrollView>
+      </BottomSheet>
 
       {showOverlay && (
         <Animated.View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: themeColors.backgroundColor, opacity: overlayOpacity }]}>
@@ -271,8 +285,8 @@ const styles = StyleSheet.create({
   fatalDesc: { fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
   forceButton: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, width: '100%', alignItems: 'center' },
   forceButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  widgetModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20, zIndex: 9999 },
-  widgetModalContent: { width: '100%', maxWidth: 400, borderRadius: 20, padding: 24, elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 },
+  widgetModalContent: { padding: 24, paddingBottom: 36 },
+  widgetModalScroll: { flex: 1 },
   widgetModalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
   widgetScheduleOption: { padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(150,150,150,0.1)' },
   widgetScheduleText: { fontSize: 16, fontWeight: '500', textAlign: 'center' },

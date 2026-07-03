@@ -1,16 +1,13 @@
 import React from "react";
 import {
-  Modal,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Linking,
-  Platform,
-  Dimensions,
   Alert
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { 
   X, 
   Clock, 
@@ -28,14 +25,14 @@ import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { t } from "../../../utils/i18n";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 
 export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
   const { schedule, setScheduleDraft, global , lang} = useSchedule();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
+  const insets = useSafeAreaInsets();
   
-  if (!visible || !lesson) return null;
+  if (!lesson) return null;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -116,18 +113,18 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={onClose}
+      onClose={onClose}
+      snapPoints={["50%", "78%"]}
+      initialSnapIndex={1}
+      maxWidth={700}
+      backgroundColor={themeColors.backgroundColor}
+      handleColor={themeColors.textColor3}
+      accessibilityLabel={fullSubject.name || t('schedule.lesson_viewer.untitled', lang)}
+      closeAccessibilityLabel={t('common.close', lang)}
+      testID="lesson-viewer-sheet"
     >
-      <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-
-        <View style={[styles.modalContainer, { backgroundColor: themeColors.backgroundColor }]}>
-          
           <View style={styles.headerContainer}>
             {getHeaderBackground()}
             
@@ -145,7 +142,12 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
             </View>
           </View>
 
-          <ScrollView style={styles.contentScroll} contentContainerStyle={{paddingBottom: 40}}>
+          <SheetScrollView
+            style={styles.contentScroll}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             
             <View style={styles.titleSection}>
               {!!displayType && (
@@ -245,9 +247,18 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
               </View>
             )}
 
-          </ScrollView>
+          </SheetScrollView>
 
-          <View style={[styles.footer, { borderTopColor: themeColors.borderColor }]}>
+          <View
+            style={[
+              styles.footer,
+              {
+                backgroundColor: themeColors.backgroundColor,
+                borderTopColor: themeColors.borderColor,
+                paddingBottom: Math.max(insets.bottom, 12),
+              },
+            ]}
+          >
             <TouchableOpacity 
                 style={[styles.actionButton, { backgroundColor: 'rgba(255, 68, 68, 0.1)' }]}
                 onPress={handleDelete}
@@ -268,31 +279,11 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
             </TouchableOpacity>
           </View>
 
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.6)",
-  },
-  modalContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: SCREEN_HEIGHT * 0.75,
-    overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0px -5px 20px rgba(0,0,0,0.2)' },
-      default: { elevation: 10 }
-    })
-  },
   headerContainer: {
     height: 100,
     position: 'relative',
@@ -336,6 +327,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 40,
     paddingHorizontal: 20,
+  },
+  scrollContent: {
+    paddingBottom: 28,
   },
   titleSection: {
     marginBottom: 20,
@@ -430,8 +424,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    marginTop: 'auto',
+    paddingHorizontal: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
     gap: 12,
   },
@@ -440,7 +435,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 16,
+    minHeight: 48,
+    paddingVertical: 13,
     borderRadius: 16,
   },
   primaryButton: {

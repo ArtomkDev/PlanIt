@@ -1,10 +1,5 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import {
-  Animated,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,7 +9,7 @@ import {
 import { Check, X } from "phosphor-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import AppBlur from "../../../components/ui/AppBlur";
+import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 import themes from "../../../config/themes";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { triggerLightHaptic } from "../../../utils/haptics";
@@ -28,32 +23,9 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
   const { global, schedules, setGlobalDraft, lang } = useSchedule();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const translateY = useRef(new Animated.Value(36)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-
-  useEffect(() => {
-    if (!visible) return;
-
-    translateY.setValue(36);
-    opacity.setValue(0);
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: 0,
-        damping: 22,
-        stiffness: 240,
-        mass: 0.8,
-        useNativeDriver: Platform.OS !== "web",
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: Platform.OS !== "web",
-      }),
-    ]).start();
-  }, [visible, opacity, translateY]);
 
   const selectSchedule = (scheduleId) => {
     if (scheduleId === global?.currentScheduleId) {
@@ -66,38 +38,25 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
     onClose();
   };
 
+  const snapPoints = [Math.min(height * 0.42, 360), Math.min(height * 0.72, 560)];
+
   return (
-    <Modal
-      transparent
+    <BottomSheet
       visible={visible}
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={onClose}
+      onClose={onClose}
+      snapPoints={snapPoints}
+      initialSnapIndex={1}
+      maxWidth={640}
+      backgroundColor={themeColors.backgroundColor2}
+      handleColor={themeColors.textColor3}
+      accessibilityLabel={t("schedule.header.switch_schedule", lang)}
+      closeAccessibilityLabel={t("common.close", lang)}
+      testID="schedule-picker-sheet"
+      contentStyle={[
+        styles.sheetContent,
+        { paddingBottom: Math.max(insets.bottom, 16) },
+      ]}
     >
-      <View style={styles.overlay}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("common.close", lang)}
-          onPress={onClose}
-          style={styles.backdrop}
-        />
-
-        <Animated.View
-          style={[
-            styles.sheet,
-            {
-              maxHeight: Math.min(height * 0.72, 560),
-              paddingBottom: Math.max(insets.bottom, 16),
-              backgroundColor: themeColors.backgroundColor2,
-              opacity,
-              transform: [{ translateY }],
-            },
-          ]}
-        >
-          <AppBlur style={StyleSheet.absoluteFill} intensity={85} />
-
-          <View style={[styles.handle, { backgroundColor: themeColors.textColor3 }]} />
-
           <View style={styles.header}>
             <View style={styles.headerCopy}>
               <Text style={[styles.title, { color: themeColors.textColor }]}>
@@ -119,7 +78,7 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
             </TouchableOpacity>
           </View>
 
-          <ScrollView
+          <SheetScrollView
             style={styles.list}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
@@ -185,47 +144,14 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
+          </SheetScrollView>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(4, 8, 15, 0.48)",
-  },
-  sheet: {
-    minHeight: 240,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: "hidden",
+  sheetContent: {
     paddingHorizontal: 16,
-    ...Platform.select({
-      web: { boxShadow: "0 -12px 40px rgba(0,0,0,0.16)" },
-      default: {
-        elevation: 18,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -8 },
-        shadowOpacity: 0.18,
-        shadowRadius: 24,
-      },
-    }),
-  },
-  handle: {
-    alignSelf: "center",
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 10,
-    marginBottom: 13,
-    opacity: 0.7,
   },
   header: {
     flexDirection: "row",
@@ -254,7 +180,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   list: {
-    flexGrow: 0,
+    flex: 1,
   },
   listContent: {
     gap: 9,
