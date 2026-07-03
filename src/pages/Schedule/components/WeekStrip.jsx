@@ -1,32 +1,169 @@
-import React, { useMemo, useRef, useLayoutEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Animated, Easing, PanResponder } from 'react-native';
-import themes from '../../../config/themes';
-import { useSchedule } from '../../../context/ScheduleProvider';
-import { t } from '../../../utils/i18n';
-import { resolveScheduleColor } from '../../../utils/scheduleColors';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Animated,
+  Easing,
+  PanResponder,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+import themes from "../../../config/themes";
+import { useSchedule } from "../../../context/ScheduleProvider";
+import { triggerLightHaptic } from "../../../utils/haptics";
+import { t } from "../../../utils/i18n";
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+const DayButton = React.memo(({
+  date,
+  dayName,
+  isSelected,
+  isToday,
+  locale,
+  themeColors,
+  onPress,
+}) => {
+  const selectedProgress = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
+  const pressScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    selectedProgress.stopAnimation();
+    const animation = Animated.timing(selectedProgress, {
+      toValue: isSelected ? 1 : 0,
+      duration: 120,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    });
+    animation.start();
+
+    return () => animation.stop();
+  }, [isSelected, selectedProgress]);
+
+  const animatePress = (toValue) => {
+    pressScale.stopAnimation();
+    Animated.timing(pressScale, {
+      toValue,
+      duration: toValue < 1 ? 55 : 90,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const selectedOpacity = selectedProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
+  return (
+    <AnimatedTouchable
+      accessibilityRole="button"
+      accessibilityLabel={date.toLocaleDateString(locale, {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      })}
+      accessibilityState={{ selected: isSelected }}
+      activeOpacity={1}
+      style={[
+        styles.dayContainer,
+        !isSelected && isToday && { backgroundColor: themeColors.accentColorLight },
+        { transform: [{ scale: pressScale }] },
+      ]}
+      onPress={onPress}
+      onPressIn={() => animatePress(0.92)}
+      onPressOut={() => animatePress(1)}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          styles.selectedBackground,
+          {
+            backgroundColor: themeColors.accentColor,
+            opacity: selectedOpacity,
+          },
+        ]}
+      />
+      <View style={styles.dayContent}>
+        <Text
+          style={[
+            styles.dayName,
+            {
+              color: isToday
+                ? themeColors.accentColor
+                : themeColors.textColor2,
+            },
+          ]}
+        >
+          {dayName.replace(".", "")}
+        </Text>
+        <Text
+          style={[
+            styles.dayNumber,
+            {
+              color: isToday
+                ? themeColors.accentColor
+                : themeColors.textColor,
+            },
+          ]}
+        >
+          {date.getDate()}
+        </Text>
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.dayContent, { opacity: selectedOpacity }]}
+        >
+          <Text style={[styles.dayName, { color: themeColors.textOnAccent }]}>
+            {dayName.replace(".", "")}
+          </Text>
+          <Text style={[styles.dayNumber, { color: themeColors.textOnAccent }]}>
+            {date.getDate()}
+          </Text>
+        </Animated.View>
+      </View>
+      {isToday && (
+        <View
+          style={[
+            styles.todayDot,
+            {
+              backgroundColor: isSelected
+                ? themeColors.textOnAccent
+                : themeColors.accentColor,
+            },
+          ]}
+        />
+      )}
+    </AnimatedTouchable>
+  );
+});
 
 const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
-  const { global, schedule, lang } = useSchedule();
-  const [mode, accent] = global?.theme || ['light', 'blue'];
+  const { global, lang } = useSchedule();
+  const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
-  const scheduleColor = useMemo(
-    () => resolveScheduleColor(schedule, themeColors.accentColor),
-    [schedule, themeColors.accentColor]
-  );
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const locale = t("locale", lang);
 
   const DAYS = useMemo(() => {
-    const locale = t('locale', lang);
     const days = [];
-    const baseDate = new Date(2023, 0, 1); 
+    const baseDate = new Date(2023, 0, 1);
     for (let i = 0; i < 7; i++) {
       const date = new Date(baseDate);
       date.setDate(baseDate.getDate() + i);
-      const dayStr = date.toLocaleDateString(locale, { weekday: 'short' });
+      const dayStr = date.toLocaleDateString(locale, { weekday: "short" });
       days.push(dayStr.charAt(0).toUpperCase() + dayStr.slice(1));
     }
     return days;
-  }, [lang]);
+  }, [locale]);
 
   const startDayOfWeek = useMemo(() => {
     if (global?.starting_week) {
@@ -48,12 +185,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
     return d;
   }, [startDayOfWeek]);
 
-  const getDayIndex = useCallback((date) => {
-    const d = new Date(date);
-    return (d.getDay() - startDayOfWeek + 7) % 7;
-  }, [startDayOfWeek]);
-
-  const todayString = useMemo(() => new Date().toDateString(), []);
+  const todayString = new Date().toDateString();
 
   const [displayWeekStart, setDisplayWeekStart] = useState(() => getWeekStart(currentDate));
   const displayWeekStartRef = useRef(displayWeekStart);
@@ -67,18 +199,27 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
   const currentRef = useRef(currentDate);
   currentRef.current = currentDate;
 
-  const animatedIndex = useRef(new Animated.Value(getDayIndex(currentDate))).current;
   const weekOpacity = useRef(new Animated.Value(1)).current;
   const weekTranslateX = useRef(new Animated.Value(0)).current;
+  const weekTransitionId = useRef(0);
+  const pendingSelectionDate = useRef(null);
+  const pendingSelectionTimeout = useRef(null);
+
+  useEffect(() => () => {
+    if (pendingSelectionTimeout.current) {
+      clearTimeout(pendingSelectionTimeout.current);
+    }
+  }, []);
 
   const changeWeek = useCallback((offset) => {
+    triggerLightHaptic();
     const newDate = new Date(currentRef.current);
     newDate.setDate(currentRef.current.getDate() + offset * 7);
     onSelectDate(newDate);
   }, [onSelectDate]);
 
-  const panResponder = useRef(
-    PanResponder.create({
+  const panResponder = useMemo(
+    () => PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
@@ -87,42 +228,38 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
         if (gestureState.dx > 40) changeWeek(-1);
         else if (gestureState.dx < -40) changeWeek(1);
       },
-    })
-  ).current;
+    }),
+    [changeWeek]
+  );
 
   useLayoutEffect(() => {
+    const transitionId = ++weekTransitionId.current;
     const targetWeekTime = getWeekStart(currentDate).getTime();
     const currentDisplayWeekTime = displayWeekStartRef.current.getTime();
-    const targetIndex = getDayIndex(currentDate);
+
+    weekOpacity.stopAnimation();
+    weekTranslateX.stopAnimation();
 
     if (currentDisplayWeekTime === targetWeekTime) {
-      Animated.parallel([
-        Animated.spring(animatedIndex, { toValue: targetIndex, stiffness: 500, damping: 35, mass: 1, useNativeDriver: true }),
-        Animated.spring(weekOpacity, { toValue: 1, stiffness: 400, damping: 30, useNativeDriver: true }),
-        Animated.spring(weekTranslateX, { toValue: 0, stiffness: 400, damping: 30, useNativeDriver: true })
-      ]).start();
+      weekOpacity.setValue(1);
+      weekTranslateX.setValue(0);
 
     } else {
-      weekOpacity.stopAnimation();
-      weekTranslateX.stopAnimation();
-
       const direction = targetWeekTime > currentDisplayWeekTime ? 1 : -1;
 
       Animated.parallel([
         Animated.timing(weekOpacity, { toValue: 0, duration: 120, useNativeDriver: true }),
         Animated.timing(weekTranslateX, { toValue: direction * -30, duration: 150, easing: Easing.in(Easing.quad), useNativeDriver: true })
       ]).start(({ finished }) => {
-        if (!finished) return;
+        if (!finished || weekTransitionId.current !== transitionId) return;
 
         const latestDate = currentRef.current;
         const freshTargetWeek = getWeekStart(latestDate);
-        const freshTargetIndex = getDayIndex(latestDate);
 
         setDisplayWeekStart(freshTargetWeek);
         displayWeekStartRef.current = freshTargetWeek;
 
         weekTranslateX.setValue(direction * 30);
-        animatedIndex.setValue(freshTargetIndex);
 
         Animated.parallel([
           Animated.timing(weekOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
@@ -130,24 +267,43 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
         ]).start();
       });
     }
-  }, [currentDate.getTime(), getWeekStart, getDayIndex, animatedIndex, weekOpacity, weekTranslateX]);
+
+    return () => {
+      if (weekTransitionId.current !== transitionId) return;
+      weekOpacity.stopAnimation();
+      weekTranslateX.stopAnimation();
+    };
+  }, [currentDate.getTime(), getWeekStart, weekOpacity, weekTranslateX]);
 
   const handleDayPress = useCallback((date) => {
+    if (date.toDateString() === currentRef.current.toDateString()) return;
+    triggerLightHaptic();
     const targetDate = new Date(date);
     targetDate.setHours(currentRef.current.getHours(), currentRef.current.getMinutes());
-    onSelectDate(targetDate);
-  }, [onSelectDate]);
+    pendingSelectionDate.current = targetDate;
 
-  const gap = (SCREEN_WIDTH - 32 - 7 * 40) / 6;
-  const circleTranslateX = animatedIndex.interpolate({
-    inputRange: [0, 1, 2, 3, 4, 5, 6],
-    outputRange: [0, 1, 2, 3, 4, 5, 6].map(i => i * (40 + gap))
-  });
+    if (pendingSelectionTimeout.current) {
+      clearTimeout(pendingSelectionTimeout.current);
+    }
+    pendingSelectionTimeout.current = setTimeout(() => {
+      const nextDate = pendingSelectionDate.current;
+      pendingSelectionDate.current = null;
+      pendingSelectionTimeout.current = null;
+      if (nextDate) onSelectDate(nextDate);
+    }, 45);
+  }, [onSelectDate]);
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-      <View style={[styles.weekContainer, { width: SCREEN_WIDTH }]}>
-        
+      <View
+        style={[
+          styles.weekSurface,
+          {
+            backgroundColor: themeColors.backgroundColor2,
+            borderColor: themeColors.borderColor,
+          },
+        ]}
+      >
         <Animated.View style={[
           styles.daysWrapper,
           {
@@ -155,48 +311,24 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
             transform: [{ translateX: weekTranslateX }]
           }
         ]}>
-          
-          <Animated.View style={[
-            styles.selectionIndicator,
-            { 
-              backgroundColor: scheduleColor,
-              transform: [{ translateX: circleTranslateX }]
-            }
-          ]} />
-
           {weekDates.map((date, index) => {
             const isCurrentlySelected = date.toDateString() === currentDate.toDateString();
             const isToday = date.toDateString() === todayString;
             
             return (
-              <TouchableOpacity
-                key={index}
-                style={styles.dayContainer}
+              <DayButton
+                key={date.toISOString()}
+                date={date}
+                dayName={orderedDayNames[index]}
+                isSelected={isCurrentlySelected}
+                isToday={isToday}
+                locale={locale}
+                themeColors={themeColors}
                 onPress={() => handleDayPress(date)}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.dayName, 
-                  { color: isCurrentlySelected ? scheduleColor : themeColors.textColor2 }
-                ]}>
-                  {orderedDayNames[index]}
-                </Text>
-                <View style={[
-                  styles.dateCircle,
-                  !isCurrentlySelected && isToday && { borderWidth: 1, borderColor: scheduleColor }
-                ]}>
-                  <Text style={[
-                    styles.dayNumber, 
-                    { color: isCurrentlySelected ? '#fff' : themeColors.textColor }
-                  ]}>
-                    {date.getDate()}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              />
             );
           })}
         </Animated.View>
-
       </View>
     </View>
   );
@@ -205,47 +337,55 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
 export default WeekStrip;
 
 const styles = StyleSheet.create({
-  container: {},
-  weekContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    overflow: 'hidden', 
-    justifyContent: 'center',
+  container: {
+    paddingHorizontal: 12,
+    paddingTop: 2,
+    paddingBottom: 4,
+  },
+  weekSurface: {
+    borderWidth: 1,
+    borderRadius: 15,
+    padding: 2,
+    overflow: "hidden",
   },
   daysWrapper: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    position: 'relative', 
-  },
-  selectionIndicator: {
-    position: 'absolute',
-    bottom: 0, 
-    left: 2,   
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    flexDirection: "row",
+    gap: 2,
+    width: "100%",
   },
   dayContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
+    flex: 1,
+    minWidth: 0,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectedBackground: {
+    borderRadius: 12,
+  },
+  dayContent: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   dayName: {
-    fontSize: 11,
-    marginBottom: 6,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  dateCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: 8,
+    lineHeight: 10,
+    marginBottom: 1,
+    fontWeight: "800",
+    letterSpacing: 0.25,
+    textTransform: "uppercase",
   },
   dayNumber: {
-    fontSize: 16,
-    fontWeight: '600',
-  }
+    fontSize: 15,
+    lineHeight: 18,
+    fontWeight: "800",
+  },
+  todayDot: {
+    position: "absolute",
+    bottom: 2,
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+  },
 });

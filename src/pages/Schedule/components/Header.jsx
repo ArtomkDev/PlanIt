@@ -1,6 +1,12 @@
-import React, { useMemo, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { CalendarBlank, CaretDown } from "phosphor-react-native";
+import React, { useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { ArrowCounterClockwise, CalendarBlank } from "phosphor-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -8,10 +14,7 @@ import themes from "../../../config/themes";
 import { useSchedule } from "../../../context/ScheduleProvider";
 import { t } from "../../../utils/i18n";
 import { triggerLightHaptic } from "../../../utils/haptics";
-import {
-  resolveScheduleColor,
-  scheduleColorWithAlpha,
-} from "../../../utils/scheduleColors";
+import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import SchedulePickerSheet from "./SchedulePickerSheet";
 
 const isSameDay = (left, right) =>
@@ -19,18 +22,51 @@ const isSameDay = (left, right) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+function ScaleTouchable({ style, onPressIn, onPressOut, children, ...props }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (value) => {
+    Animated.spring(scale, {
+      toValue: value,
+      speed: 28,
+      bounciness: 3,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <AnimatedTouchable
+      {...props}
+      activeOpacity={1}
+      onPressIn={(event) => {
+        animateTo(0.96);
+        onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        animateTo(1);
+        onPressOut?.(event);
+      }}
+      style={[style, { transform: [{ scale }] }]}
+    >
+      {children}
+    </AnimatedTouchable>
+  );
+}
+
 export default function Header({ currentDate, onTodayPress, onTitlePress }) {
-  const { global, schedule, schedules, lang } = useSchedule();
+  const { global, schedule, lang } = useSchedule();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [schedulePickerVisible, setSchedulePickerVisible] = useState(false);
+  const resetIconPress = useRef(new Animated.Value(0)).current;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   const scheduleColor = resolveScheduleColor(schedule, themeColors.accentColor);
   const locale = t("locale", lang);
-  const today = useMemo(() => new Date(), [currentDate]);
-  const isToday = isSameDay(currentDate, today);
+  const isToday = isSameDay(currentDate, new Date());
 
   const formattedDate = useMemo(() => {
     const value = currentDate.toLocaleDateString(locale, {
@@ -41,6 +77,26 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
   }, [currentDate, locale]);
 
   const scheduleName = schedule?.name || t("common.schedule", lang);
+
+  const animateResetIcon = (pressed) => {
+    if (isToday) return;
+    resetIconPress.stopAnimation();
+    Animated.spring(resetIconPress, {
+      toValue: pressed ? 1 : 0,
+      speed: 32,
+      bounciness: pressed ? 0 : 4,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const resetIconRotate = resetIconPress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "-32deg"],
+  });
+  const resetIconScale = resetIconPress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.82],
+  });
 
   const openScheduleSettings = (scheduleId = schedule?.id) => {
     if (!scheduleId) return;
@@ -54,21 +110,20 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
 
   return (
     <>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) + 2 }]}>
         <View style={styles.topRow}>
-          <TouchableOpacity
+          <ScaleTouchable
             accessibilityRole="button"
             accessibilityLabel={t("schedule.header.switch_schedule", lang)}
             accessibilityHint={t("schedule.header.long_press_hint", lang)}
             onPress={() => setSchedulePickerVisible(true)}
             onLongPress={() => openScheduleSettings()}
             delayLongPress={450}
-            activeOpacity={0.72}
             style={[
               styles.scheduleButton,
               {
-                backgroundColor: scheduleColorWithAlpha(scheduleColor, 0.12),
-                borderColor: scheduleColorWithAlpha(scheduleColor, 0.38),
+                backgroundColor: themeColors.backgroundColor2,
+                borderColor: themeColors.borderColor,
               },
             ]}
           >
@@ -79,68 +134,73 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
             >
               {scheduleName}
             </Text>
-            {schedules.length > 1 && (
-              <CaretDown size={15} color={themeColors.textColor2} weight="bold" />
-            )}
-          </TouchableOpacity>
+          </ScaleTouchable>
 
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t("schedule.header.open_calendar", lang)}
-            onPress={onTitlePress}
-            activeOpacity={0.72}
-            style={[
-              styles.calendarButton,
-              {
-                backgroundColor: themeColors.backgroundColor3,
-                borderColor: themeColors.borderColor,
-              },
-            ]}
-          >
-            <CalendarBlank size={20} color={themeColors.accentColor} weight="bold" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.dateRow}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t("schedule.header.open_calendar", lang)}
-            onPress={onTitlePress}
-            activeOpacity={0.7}
-            style={styles.dateButton}
-          >
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={[styles.dateText, { color: themeColors.textColor }]}
+          <View style={styles.dateActions}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("schedule.header.open_calendar", lang)}
+              onPress={onTitlePress}
+              activeOpacity={0.68}
+              style={styles.dateButton}
             >
-              {formattedDate}
-            </Text>
-          </TouchableOpacity>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.dateText, { color: themeColors.textColor }]}
+              >
+                {formattedDate}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityState={{ selected: isToday }}
-            onPress={onTodayPress}
-            activeOpacity={0.72}
-            style={[
-              styles.todayButton,
-              {
-                backgroundColor: isToday
-                  ? themeColors.accentColorLight
-                  : themeColors.accentColor,
-              },
-            ]}
-          >
-            <Text
+            <ScaleTouchable
+              accessibilityRole="button"
+              accessibilityLabel={t("schedule.header.open_calendar", lang)}
+              onPress={onTitlePress}
+              style={styles.iconButton}
+            >
+              <CalendarBlank
+                size={17}
+                color={themeColors.accentColor}
+                weight="bold"
+              />
+            </ScaleTouchable>
+
+            <ScaleTouchable
+              accessibilityRole="button"
+              accessibilityLabel={t("schedule.header.today", lang)}
+              accessibilityState={{ disabled: isToday }}
+              disabled={isToday}
+              onPressIn={() => animateResetIcon(true)}
+              onPressOut={() => animateResetIcon(false)}
+              onPress={() => {
+                animateResetIcon(false);
+                triggerLightHaptic();
+                onTodayPress?.();
+              }}
               style={[
-                styles.todayText,
-                { color: isToday ? themeColors.accentColor : "#fff" },
+                styles.iconButton,
+                { opacity: isToday ? 0.52 : 1 },
               ]}
             >
-              {t("schedule.header.today", lang)}
-            </Text>
-          </TouchableOpacity>
+              <Animated.View
+                style={{
+                  transform: [
+                    { rotate: resetIconRotate },
+                    { scale: resetIconScale },
+                  ],
+                }}
+              >
+                <ArrowCounterClockwise
+                  size={17}
+                  color={
+                    isToday ? themeColors.textColor2 : themeColors.accentColor
+                  }
+                  weight="bold"
+                />
+              </Animated.View>
+            </ScaleTouchable>
+          </View>
         </View>
       </View>
 
@@ -155,21 +215,22 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
 
 const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingBottom: 5,
   },
   topRow: {
-    minHeight: 38,
+    minHeight: 32,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   scheduleButton: {
-    maxWidth: "78%",
-    minHeight: 36,
-    borderRadius: 13,
+    maxWidth: "42%",
+    flexShrink: 1,
+    minHeight: 30,
+    borderRadius: 11,
     borderWidth: 1,
-    paddingHorizontal: 11,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -183,42 +244,34 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 13,
     fontWeight: "700",
-    marginRight: 7,
   },
-  calendarButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dateRow: {
-    minHeight: 48,
-    marginTop: 5,
+  dateActions: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 12,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
   },
   dateButton: {
-    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    minHeight: 30,
     justifyContent: "center",
-    paddingRight: 12,
+    alignItems: "flex-end",
   },
   dateText: {
-    fontSize: 27,
-    lineHeight: 34,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: "800",
-    letterSpacing: -0.7,
+    letterSpacing: -0.35,
+    textAlign: "right",
   },
-  todayButton: {
-    minHeight: 34,
-    borderRadius: 17,
-    paddingHorizontal: 13,
+  iconButton: {
+    width: 30,
+    height: 30,
     alignItems: "center",
     justifyContent: "center",
-  },
-  todayText: {
-    fontSize: 13,
-    fontWeight: "800",
   },
 });

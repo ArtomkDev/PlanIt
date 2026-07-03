@@ -117,6 +117,11 @@ export default function Schedule() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const isUserInteraction = useRef(false);
   const isJumping = useRef(false);
+  const jumpResetTimeout = useRef(null);
+
+  useEffect(() => () => {
+    if (jumpResetTimeout.current) clearTimeout(jumpResetTimeout.current);
+  }, []);
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -150,10 +155,18 @@ export default function Schedule() {
     const diffDays = Math.round((targetDate.getTime() - anchorDate.getTime()) / (1000 * 3600 * 24));
     
     if (Math.abs(diffDays) < HALF_SIZE - 10) {
+        const shouldAnimate = animated && !isJumping.current;
         isJumping.current = true;
         setCurrentDate(new Date(targetDate));
-        flatListRef.current?.scrollToIndex({ index: HALF_SIZE + diffDays, animated });
-        setTimeout(() => { isJumping.current = false; }, animated ? 500 : 50);
+        flatListRef.current?.scrollToIndex({
+          index: HALF_SIZE + diffDays,
+          animated: shouldAnimate,
+        });
+        if (jumpResetTimeout.current) clearTimeout(jumpResetTimeout.current);
+        jumpResetTimeout.current = setTimeout(() => {
+          isJumping.current = false;
+          jumpResetTimeout.current = null;
+        }, shouldAnimate ? 500 : 50);
     } else {
         const newAnchor = new Date(targetDate);
         setAnchorDate(newAnchor);
@@ -312,10 +325,13 @@ export default function Schedule() {
         <View style={StyleSheet.absoluteFill}><AppBlur style={StyleSheet.absoluteFill} intensity={50} /></View>
         <Header 
             currentDate={currentDate} 
-            onTodayPress={goToToday} 
+            onTodayPress={goToToday}
             onTitlePress={() => setCalendarVisible(true)} 
         />
-        <WeekStrip currentDate={currentDate} onSelectDate={(d) => goToDate(d, true)} />
+        <WeekStrip
+          currentDate={currentDate}
+          onSelectDate={(d) => goToDate(d, true)}
+        />
         <Animated.View style={{ height: 1, backgroundColor: themeColors.borderColor, width: '100%' }} />
       </View>
 
