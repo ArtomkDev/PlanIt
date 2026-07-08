@@ -19,14 +19,11 @@ export default function AppBlur({ style, intensity = 80, children }) {
 
   const dynamicOpacity = activeRouteName === 'ScheduleTab' ? 0.7 : 0.1;
   const solidColor = themeColors.backgroundColor2;
-  const transparentColor = mode === 'light' ? 'rgba(255,255,255,0.85)' : 'rgba(20,20,20,0.85)';
 
   useEffect(() => {
     let isMounted = true;
     getDevicePrefs().then((prefs) => {
       if (isMounted) {
-        // If the user has explicitly set a blur preference on this device, use it.
-        // Otherwise, fall back to the cloud global preference, or default to true.
         if (prefs && typeof prefs.blur === 'boolean') {
           setLocalBlurEnabled(prefs.blur);
         } else {
@@ -38,19 +35,11 @@ export default function AppBlur({ style, intensity = 80, children }) {
     return () => {
       isMounted = false;
     };
-  }, [global?.blur]); // Re-run if global blur changes to catch updates where local isn't set yet
+  }, [global?.blur]);
 
-  if (!localBlurEnabled) {
+  if (Platform.OS === "android" || !localBlurEnabled) {
     return (
       <View style={[{ backgroundColor: solidColor }, style]}>
-        {children}
-      </View>
-    );
-  }
-
-  if (Platform.OS === "android") {
-    return (
-      <View style={[{ backgroundColor: transparentColor }, style]}>
         {children}
       </View>
     );

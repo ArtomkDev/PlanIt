@@ -36,7 +36,6 @@ const ThemeSettings = () => {
         blur: isBlurEnabled,
       }));
 
-      // Saves locally so cross-device cloud sync doesn't overwrite explicit local choices
       getDevicePrefs().then((prefs) => {
         saveDevicePrefs({
           ...prefs,
@@ -113,24 +112,26 @@ const ThemeSettings = () => {
           ))}
         </View>
 
-        <View style={[styles.switchRow, { backgroundColor: themeColors.backgroundColor2 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.switchLabel, { color: themeColors.textColor }]}>
-              {t('settings.theme_screen.blur_title', lang)}
-            </Text>
-            <Text style={[styles.switchSubLabel, { color: themeColors.textColor2 }]}>
-              {selectedMode === 'oled'
-                ? t('settings.theme_screen.blur_desc_oled', lang)
-                : t('settings.theme_screen.blur_desc_normal', lang)}
-            </Text>
+        {Platform.OS !== "android" && (
+          <View style={[styles.switchRow, { backgroundColor: themeColors.backgroundColor2 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.switchLabel, { color: themeColors.textColor }]}>
+                {t('settings.theme_screen.blur_title', lang)}
+              </Text>
+              <Text style={[styles.switchSubLabel, { color: themeColors.textColor2 }]}>
+                {selectedMode === 'oled'
+                  ? t('settings.theme_screen.blur_desc_oled', lang)
+                  : t('settings.theme_screen.blur_desc_normal', lang)}
+              </Text>
+            </View>
+            <Switch
+              value={isBlurEnabled}
+              onValueChange={setIsBlurEnabled}
+              trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
+              thumbColor={"#fff"}
+            />
           </View>
-          <Switch
-            value={isBlurEnabled}
-            onValueChange={setIsBlurEnabled}
-            trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
-            thumbColor={"#fff"}
-          />
-        </View>
+        )}
 
         <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
           {t('settings.theme_screen.accent_title', lang)}
@@ -173,7 +174,11 @@ const ThemeSettings = () => {
             {t('settings.theme_screen.preview.header', lang)}
           </Text>
           <Text style={[styles.previewText, { color: themeColors.textColor }]}>
-            {t('settings.theme_screen.preview.blur_label', lang)} {isBlurEnabled ? t('common.enabled', lang) : t('common.disabled', lang)}.{"\n"}
+            {Platform.OS !== "android" && (
+              <Text>
+                {t('settings.theme_screen.preview.blur_label', lang)} {isBlurEnabled ? t('common.enabled', lang) : t('common.disabled', lang)}.{"\n"}
+              </Text>
+            )}
             {t('settings.theme_screen.preview.mode_label', lang)} {selectedMode.toUpperCase()}.
           </Text>
           

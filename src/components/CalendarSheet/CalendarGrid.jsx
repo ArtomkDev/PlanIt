@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useMemo, useRef, useEffect } from "react";
+import { StyleSheet, Text, TouchableOpacity, View, Animated, Easing } from "react-native";
 
 import themes from "../../config/themes";
 import { useSchedule } from "../../context/ScheduleProvider";
@@ -8,6 +8,85 @@ const sameDay = (left, right) =>
   left.getFullYear() === right.getFullYear() &&
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
+
+const DayCell = React.memo(({ day, today, currentSelectedDate, themeColors, onSelectDate }) => {
+  const isToday = sameDay(day.date, today);
+  const isSelected = sameDay(day.date, currentSelectedDate);
+
+  const selectionOpacity = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
+
+  useEffect(() => {
+    selectionOpacity.stopAnimation();
+    Animated.timing(selectionOpacity, {
+      toValue: isSelected ? 1 : 0,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [isSelected]);
+
+  const baseTextColor = day.isCurrentMonth ? themeColors.textColor : themeColors.textColor3;
+
+  return (
+    <View style={styles.daySlot}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        onPress={() => onSelectDate(day.date)}
+        activeOpacity={0.68}
+        style={[
+          styles.dayButton,
+          !isSelected && isToday && {
+            borderColor: themeColors.accentColor,
+            borderWidth: 1.5,
+          },
+        ]}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.selectedBg,
+            {
+              backgroundColor: themeColors.accentColor,
+              opacity: selectionOpacity,
+            },
+          ]}
+        />
+
+        <View style={styles.centerContent}>
+          <Text
+            style={[
+              styles.dayText,
+              { color: baseTextColor, fontWeight: isToday ? "800" : "600" },
+            ]}
+          >
+            {day.date.getDate()}
+          </Text>
+          {isToday && (
+            <View style={[styles.todayDot, { backgroundColor: themeColors.accentColor }]} />
+          )}
+        </View>
+
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.centerContent,
+            { opacity: selectionOpacity },
+          ]}
+        >
+          <Text style={[styles.dayText, { color: "#fff", fontWeight: "800" }]}>
+            {day.date.getDate()}
+          </Text>
+          {isToday && (
+            <View style={[styles.todayDot, { backgroundColor: "#fff" }]} />
+          )}
+        </Animated.View>
+      </TouchableOpacity>
+    </View>
+  );
+});
 
 export default function CalendarGrid({
   days,
@@ -66,48 +145,16 @@ export default function CalendarGrid({
               </View>
             )}
 
-            {week.map((day) => {
-              const isToday = sameDay(day.date, today);
-              const isSelected = sameDay(day.date, currentSelectedDate);
-
-              return (
-                <View key={day.date.toISOString()} style={styles.daySlot}>
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    onPress={() => onSelectDate(day.date)}
-                    activeOpacity={0.68}
-                    style={[
-                      styles.dayButton,
-                      isSelected && { backgroundColor: themeColors.accentColor },
-                      !isSelected && isToday && {
-                        borderColor: themeColors.accentColor,
-                        borderWidth: 1.5,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayText,
-                        {
-                          color: isSelected
-                            ? "#fff"
-                            : day.isCurrentMonth
-                              ? themeColors.textColor
-                              : themeColors.textColor3,
-                          fontWeight: isSelected || isToday ? "800" : "600",
-                        },
-                      ]}
-                    >
-                      {day.date.getDate()}
-                    </Text>
-                    {isToday && !isSelected && (
-                      <View style={[styles.todayDot, { backgroundColor: themeColors.accentColor }]} />
-                    )}
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
+            {week.map((day) => (
+              <DayCell
+                key={day.date.toISOString()}
+                day={day}
+                today={today}
+                currentSelectedDate={currentSelectedDate}
+                themeColors={themeColors}
+                onSelectDate={onSelectDate}
+              />
+            ))}
           </View>
         );
       })}
@@ -169,6 +216,16 @@ const styles = StyleSheet.create({
     maxWidth: 42,
     aspectRatio: 1,
     borderRadius: 15,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectedBg: {
+    borderRadius: 15,
+  },
+  centerContent: {
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
   },

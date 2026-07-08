@@ -1,13 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   useWindowDimensions,
+  PanResponder,
+  Animated,
 } from "react-native";
 import {
-  CalendarBlank,
+  ArrowCounterClockwise,
   CaretDown,
   CaretLeft,
   CaretRight,
@@ -55,6 +57,41 @@ export default function CalendarSheet({
     if (visible) setIsMonthPickerOpen(false);
   }, [visible]);
 
+  const slideOpacity = useRef(new Animated.Value(1)).current;
+  const slideTranslateX = useRef(new Animated.Value(0)).current;
+  const isAnimating = useRef(false);
+
+  useEffect(() => {
+    if (isAnimating.current) {
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(slideOpacity, {
+            toValue: 1,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.spring(slideTranslateX, {
+            toValue: 0,
+            speed: 24,
+            bounciness: 4,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          isAnimating.current = false;
+        });
+      });
+    }
+  }, [viewDate]);
+
+  const isTodaySelected = useMemo(() => {
+    const today = new Date();
+    return (
+      currentDate.getFullYear() === today.getFullYear() &&
+      currentDate.getMonth() === today.getMonth() &&
+      currentDate.getDate() === today.getDate()
+    );
+  }, [currentDate]);
+
   const monthNames = useMemo(
     () => [
       t("common.months.jan", lang),
@@ -90,6 +127,51 @@ export default function CalendarSheet({
   };
 
   const selectToday = () => selectDate(new Date());
+
+  const handleAnimatedMonthChange = (direction) => {
+    if (isAnimating.current) return;
+    isAnimating.current = true;
+    triggerLightHaptic();
+
+    Animated.parallel([
+      Animated.timing(slideOpacity, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideTranslateX, {
+        toValue: direction * -35,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      slideTranslateX.setValue(direction * 35);
+      if (direction === 1) nextMonth();
+      else prevMonth();
+    });
+  };
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+          return (
+            Math.abs(gestureState.dx) > 15 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
+          );
+        },
+        onPanResponderRelease: (evt, gestureState) => {
+          if (gestureState.dx > 40) {
+            handleAnimatedMonthChange(-1);
+          } else if (gestureState.dx < -40) {
+            handleAnimatedMonthChange(1);
+          }
+        },
+      }),
+    [nextMonth, prevMonth]
+  );
+
   const snapPoints = [Math.min(height * 0.58, 450), Math.min(height * 0.82, 640)];
 
   return (
@@ -109,170 +191,198 @@ export default function CalendarSheet({
         { paddingBottom: Math.max(insets.bottom, 12) },
       ]}
     >
-          <View style={styles.sheetHeader}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("common.close", lang)}
-              onPress={onClose}
-              activeOpacity={0.7}
-              style={[styles.roundButton, { backgroundColor: themeColors.backgroundColor3 }]}
-            >
-              <X size={20} color={themeColors.textColor} weight="bold" />
-            </TouchableOpacity>
+      <View style={styles.sheetHeader}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("common.close", lang)}
+          onPress={onClose}
+          activeOpacity={0.7}
+          style={[styles.roundButton, { backgroundColor: themeColors.backgroundColor3 }]}
+        >
+          <X size={20} color={themeColors.textColor} weight="bold" />
+        </TouchableOpacity>
 
-            <View style={styles.headerCopy}>
-              <Text style={[styles.sheetTitle, { color: themeColors.textColor }]}>
-                {t("schedule.calendar.title", lang)}
-              </Text>
-              <Text
-                numberOfLines={1}
-                style={[styles.selectedDate, { color: themeColors.textColor2 }]}
+        <View style={styles.headerCopy}>
+          <Text style={[styles.sheetTitle, { color: themeColors.textColor }]}>
+            {t("schedule.calendar.title", lang)}
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={[styles.selectedDate, { color: themeColors.textColor2 }]}
+          >
+            {selectedDateLabel}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("schedule.header.today", lang)}
+          disabled={isTodaySelected}
+          onPress={selectToday}
+          activeOpacity={0.7}
+          style={[
+            styles.todayButton,
+            {
+              backgroundColor: isTodaySelected
+                ? themeColors.backgroundColor3
+                : themeColors.accentColorLight,
+            },
+          ]}
+        >
+          <ArrowCounterClockwise
+            size={17}
+            color={isTodaySelected ? themeColors.textColor3 : themeColors.accentColor}
+            weight="bold"
+          />
+          <Text
+            style={[
+              styles.todayText,
+              { color: isTodaySelected ? themeColors.textColor3 : themeColors.accentColor },
+            ]}
+          >
+            {t("schedule.header.today", lang)}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.monthNavigation}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("schedule.calendar.previous_month", lang)}
+          onPress={() => handleAnimatedMonthChange(-1)} 
+          activeOpacity={0.7}
+          style={[styles.monthArrow, { backgroundColor: themeColors.backgroundColor4 }]}
+        >
+          <CaretLeft size={21} color={themeColors.textColor} weight="bold" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isMonthPickerOpen }}
+          onPress={() => setIsMonthPickerOpen((value) => !value)}
+          activeOpacity={0.7}
+          style={[
+            styles.monthTitleButton,
+            {
+              backgroundColor: isMonthPickerOpen
+                ? themeColors.accentColorLight
+                : "transparent",
+            },
+          ]}
+        >
+          <Text style={[styles.monthTitle, { color: themeColors.textColor }]}>
+            {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
+          </Text>
+          {isMonthPickerOpen ? (
+            <CaretUp size={17} color={themeColors.accentColor} weight="bold" />
+          ) : (
+            <CaretDown size={17} color={themeColors.accentColor} weight="bold" />
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("schedule.calendar.next_month", lang)}
+          onPress={() => handleAnimatedMonthChange(1)} 
+          activeOpacity={0.7}
+          style={[styles.monthArrow, { backgroundColor: themeColors.backgroundColor4 }]}
+        >
+          <CaretRight size={21} color={themeColors.textColor} weight="bold" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.content}>
+        {isMonthPickerOpen ? (
+          <View style={styles.pickerContainer}>
+            <View style={styles.yearNavigation}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("schedule.calendar.previous_year", lang)}
+                onPress={() => setYear(viewDate.getFullYear() - 1)}
+                activeOpacity={0.7}
+                style={[styles.yearArrow, { backgroundColor: themeColors.backgroundColor4 }]}
               >
-                {selectedDateLabel}
+                <CaretLeft size={20} color={themeColors.textColor} weight="bold" />
+              </TouchableOpacity>
+
+              <Text style={[styles.yearTitle, { color: themeColors.textColor }]}>
+                {viewDate.getFullYear()}
               </Text>
+
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("schedule.calendar.next_year", lang)}
+                onPress={() => setYear(viewDate.getFullYear() + 1)}
+                activeOpacity={0.7}
+                style={[styles.yearArrow, { backgroundColor: themeColors.backgroundColor4 }]}
+              >
+                <CaretRight size={20} color={themeColors.textColor} weight="bold" />
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("schedule.header.today", lang)}
-              onPress={selectToday}
-              activeOpacity={0.7}
-              style={[styles.todayButton, { backgroundColor: themeColors.accentColorLight }]}
-            >
-              <CalendarBlank size={17} color={themeColors.accentColor} weight="bold" />
-              <Text style={[styles.todayText, { color: themeColors.accentColor }]}>
-                {t("schedule.header.today", lang)}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.monthNavigation}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("schedule.calendar.previous_month", lang)}
-              onPress={prevMonth}
-              activeOpacity={0.7}
-              style={[styles.monthArrow, { backgroundColor: themeColors.backgroundColor4 }]}
-            >
-              <CaretLeft size={21} color={themeColors.textColor} weight="bold" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityState={{ expanded: isMonthPickerOpen }}
-              onPress={() => setIsMonthPickerOpen((value) => !value)}
-              activeOpacity={0.7}
-              style={[
-                styles.monthTitleButton,
-                {
-                  backgroundColor: isMonthPickerOpen
-                    ? themeColors.accentColorLight
-                    : "transparent",
-                },
-              ]}
-            >
-              <Text style={[styles.monthTitle, { color: themeColors.textColor }]}>
-                {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
-              </Text>
-              {isMonthPickerOpen ? (
-                <CaretUp size={17} color={themeColors.accentColor} weight="bold" />
-              ) : (
-                <CaretDown size={17} color={themeColors.accentColor} weight="bold" />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("schedule.calendar.next_month", lang)}
-              onPress={nextMonth}
-              activeOpacity={0.7}
-              style={[styles.monthArrow, { backgroundColor: themeColors.backgroundColor4 }]}
-            >
-              <CaretRight size={21} color={themeColors.textColor} weight="bold" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.content}>
-            {isMonthPickerOpen ? (
-              <View style={styles.pickerContainer}>
-                <View style={styles.yearNavigation}>
+            <View style={styles.monthsGrid}>
+              {monthNames.map((name, index) => {
+                const isSelected = index === viewDate.getMonth();
+                return (
                   <TouchableOpacity
+                    key={name}
                     accessibilityRole="button"
-                    accessibilityLabel={t("schedule.calendar.previous_year", lang)}
-                    onPress={() => setYear(viewDate.getFullYear() - 1)}
-                    activeOpacity={0.7}
-                    style={[styles.yearArrow, { backgroundColor: themeColors.backgroundColor4 }]}
+                    accessibilityState={{ selected: isSelected }}
+                    accessibilityLabel={`${name} ${viewDate.getFullYear()}`}
+                    onPress={() => {
+                      setMonth(index);
+                      setIsMonthPickerOpen(false);
+                    }}
+                    activeOpacity={0.72}
+                    style={[
+                      styles.monthItem,
+                      {
+                        backgroundColor: isSelected
+                          ? themeColors.accentColor
+                          : themeColors.backgroundColor4,
+                        borderColor: isSelected
+                          ? themeColors.accentColor
+                          : themeColors.borderColor,
+                      },
+                    ]}
                   >
-                    <CaretLeft size={20} color={themeColors.textColor} weight="bold" />
+                    <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      style={[
+                        styles.monthItemText,
+                        { color: isSelected ? "#fff" : themeColors.textColor },
+                      ]}
+                    >
+                      {name}
+                    </Text>
                   </TouchableOpacity>
-
-                  <Text style={[styles.yearTitle, { color: themeColors.textColor }]}>
-                    {viewDate.getFullYear()}
-                  </Text>
-
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel={t("schedule.calendar.next_year", lang)}
-                    onPress={() => setYear(viewDate.getFullYear() + 1)}
-                    activeOpacity={0.7}
-                    style={[styles.yearArrow, { backgroundColor: themeColors.backgroundColor4 }]}
-                  >
-                    <CaretRight size={20} color={themeColors.textColor} weight="bold" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.monthsGrid}>
-                  {monthNames.map((name, index) => {
-                    const isSelected = index === viewDate.getMonth();
-                    return (
-                      <TouchableOpacity
-                        key={name}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: isSelected }}
-                        accessibilityLabel={`${name} ${viewDate.getFullYear()}`}
-                        onPress={() => {
-                          setMonth(index);
-                          setIsMonthPickerOpen(false);
-                        }}
-                        activeOpacity={0.72}
-                        style={[
-                          styles.monthItem,
-                          {
-                            backgroundColor: isSelected
-                              ? themeColors.accentColor
-                              : themeColors.backgroundColor4,
-                            borderColor: isSelected
-                              ? themeColors.accentColor
-                              : themeColors.borderColor,
-                          },
-                        ]}
-                      >
-                        <Text
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                          style={[
-                            styles.monthItemText,
-                            { color: isSelected ? "#fff" : themeColors.textColor },
-                          ]}
-                        >
-                          {name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            ) : (
-              <CalendarGrid
-                days={calendarDays}
-                weekDayNames={weekDayNames}
-                getWeekNumber={getWeekNumber}
-                currentSelectedDate={currentDate}
-                weekLabel={t("schedule.calendar.week_short", lang)}
-                onSelectDate={selectDate}
-              />
-            )}
+                );
+              })}
+            </View>
           </View>
+        ) : (
+          <Animated.View
+            style={[
+              styles.gridWrapper,
+              {
+                opacity: slideOpacity,
+                transform: [{ translateX: slideTranslateX }],
+              },
+            ]}
+            {...panResponder.panHandlers}
+          >
+            <CalendarGrid
+              days={calendarDays}
+              weekDayNames={weekDayNames}
+              getWeekNumber={getWeekNumber}
+              currentSelectedDate={currentDate}
+              weekLabel={t("schedule.calendar.week_short", lang)}
+              onSelectDate={selectDate}
+            />
+          </Animated.View>
+        )}
+      </View>
     </BottomSheet>
   );
 }
@@ -356,6 +466,10 @@ const styles = StyleSheet.create({
   pickerContainer: {
     flex: 1,
     paddingTop: 8,
+  },
+  gridWrapper: {
+    flex: 1,
+    justifyContent: "center",
   },
   yearNavigation: {
     height: 54,
