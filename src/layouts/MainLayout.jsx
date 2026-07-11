@@ -17,9 +17,8 @@ import MorphingLoader from '../components/ui/MorphingLoader';
 
 import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
 import OnboardingWizard from '../pages/Onboarding/OnboardingWizard';
-import { syncScheduleToWidget } from '../widgets/widgetService';
 import ImportScheduleModal from '../components/modals/ImportScheduleModal';
-import BottomSheet, { SheetScrollView } from '../components/ui/BottomSheet';
+import SchedulePickerSheet from '../pages/Schedule/components/SchedulePickerSheet';
 
 const MainStack = createNativeStackNavigator();
 
@@ -35,7 +34,9 @@ export default function MainLayout({ guest, onExitGuest }) {
     lang,
     resetApplication,
     conflictQueue,
-    handleResolveConflict
+    handleResolveConflict,
+    widgetScheduleId,
+    selectWidgetSchedule
   } = useSchedule();
 
   const navigation = useNavigation();
@@ -95,12 +96,7 @@ export default function MainLayout({ guest, onExitGuest }) {
     });
 
     return () => subscription.remove();
-  }, [navigation]);
-
-  const handleSelectWidgetSchedule = async (sch) => {
-    await syncScheduleToWidget(sch);
-    setShowWidgetConfig(false);
-  };
+  }, []);
 
   useEffect(() => {
     if (!isBlocking && !hasSchedules) {
@@ -146,6 +142,16 @@ export default function MainLayout({ guest, onExitGuest }) {
     setTimeout(() => setImportCode(""), 500);
   };
 
+  const handleAddScheduleFromWidgetPicker = () => {
+    navigation.navigate("Tabs", {
+      screen: "SettingsTab",
+      params: {
+        screen: "ScheduleEditorScreen",
+        params: { isNew: true },
+      },
+    });
+  };
+
   const [currentTheme, currentAccent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(currentTheme, currentAccent);
   const isLightMode = currentTheme === 'light';
@@ -168,49 +174,15 @@ export default function MainLayout({ guest, onExitGuest }) {
         </View>
       </View>
 
-      <BottomSheet
+      <SchedulePickerSheet
         visible={showWidgetConfig}
         onClose={() => setShowWidgetConfig(false)}
-        snapPoints={["44%", "72%"]}
-        initialSnapIndex={0}
-        maxWidth={520}
-        backgroundColor={themeColors.cardBackground || themeColors.backgroundColor || '#1C1C1E'}
-        handleColor={themeColors.textMuted || themeColors.borderColor}
-        accessibilityLabel="Виберіть розклад для віджета"
-        closeAccessibilityLabel={t('common.close', lang)}
+        selectedScheduleId={widgetScheduleId}
+        onSelectSchedule={selectWidgetSchedule}
+        onAddSchedule={handleAddScheduleFromWidgetPicker}
+        variant="widget"
         testID="widget-schedule-sheet"
-      >
-        <SheetScrollView
-          style={styles.widgetModalScroll}
-          contentContainerStyle={styles.widgetModalContent}
-          showsVerticalScrollIndicator={false}
-        >
-            <Text style={[styles.widgetModalTitle, { color: themeColors.textColor }]}>
-              Виберіть розклад для віджета
-            </Text>
-            
-            {schedules && schedules.length > 0 ? schedules.map(sch => (
-              <TouchableOpacity
-                key={sch.id}
-                style={[styles.widgetScheduleOption, { backgroundColor: themeColors.backgroundColor || '#2C2C2E' }]}
-                onPress={() => handleSelectWidgetSchedule(sch)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.widgetScheduleText, { color: themeColors.textColor }]}>
-                  {sch.name || 'Без назви'}
-                </Text>
-              </TouchableOpacity>
-            )) : (
-              <Text style={{ color: themeColors.textMuted, textAlign: 'center', marginBottom: 20 }}>
-                У вас ще немає жодного розкладу
-              </Text>
-            )}
-
-            <TouchableOpacity style={styles.widgetCancelBtn} onPress={() => setShowWidgetConfig(false)}>
-              <Text style={styles.widgetCancelText}>Скасувати</Text>
-            </TouchableOpacity>
-        </SheetScrollView>
-      </BottomSheet>
+      />
 
       {showOverlay && (
         <Animated.View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: themeColors.backgroundColor, opacity: overlayOpacity }]}>
@@ -284,12 +256,5 @@ const styles = StyleSheet.create({
   fatalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
   fatalDesc: { fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
   forceButton: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, width: '100%', alignItems: 'center' },
-  forceButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  widgetModalContent: { padding: 24, paddingBottom: 36 },
-  widgetModalScroll: { flex: 1 },
-  widgetModalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
-  widgetScheduleOption: { padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(150,150,150,0.1)' },
-  widgetScheduleText: { fontSize: 16, fontWeight: '500', textAlign: 'center' },
-  widgetCancelBtn: { marginTop: 12, padding: 16 },
-  widgetCancelText: { color: '#FF453A', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }
+  forceButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' }
 });

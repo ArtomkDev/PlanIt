@@ -9,6 +9,7 @@ let pendingSchedule = undefined;
 const DIMENSIONS_KEY = 'widget_dimensions';
 const SCHEDULE_KEY = 'widget_active_schedule';
 const OFFSET_KEY = 'widget_date_offset';
+export const WIDGET_SELECTED_SCHEDULE_ID_KEY = 'widget_selected_schedule_id';
 
 async function getStoredDimensions() {
   try {
@@ -66,4 +67,24 @@ export const syncScheduleToWidget = (schedule) => {
       console.error('Widget sync error:', error);
     }
   }, 500);
+};
+
+export const getWidgetSelectedScheduleId = async () => {
+  try {
+    return await AsyncStorage.getItem(WIDGET_SELECTED_SCHEDULE_ID_KEY);
+  } catch (_) {
+    return null;
+  }
+};
+
+export const setWidgetSelectedScheduleId = async (scheduleId) => {
+  try {
+    if (scheduleId) {
+      await AsyncStorage.setItem(WIDGET_SELECTED_SCHEDULE_ID_KEY, scheduleId);
+    } else {
+      await AsyncStorage.removeItem(WIDGET_SELECTED_SCHEDULE_ID_KEY);
+    }
+  } catch (error) {
+    console.error('Widget schedule selection error:', error);
+  }
 };

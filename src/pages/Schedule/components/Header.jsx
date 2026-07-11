@@ -108,6 +108,14 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
     });
   };
 
+  const openNewSchedule = () => {
+    setSchedulePickerVisible(false);
+    navigation.navigate("SettingsTab", {
+      screen: "ScheduleEditorScreen",
+      params: { isNew: true },
+    });
+  };
+
   return (
     <>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) + 2 }]}>
@@ -208,6 +216,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
         visible={schedulePickerVisible}
         onClose={() => setSchedulePickerVisible(false)}
         onEditSchedule={openScheduleSettings}
+        onAddSchedule={openNewSchedule}
       />
     </>
   );

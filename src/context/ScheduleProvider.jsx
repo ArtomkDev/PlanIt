@@ -10,7 +10,11 @@ import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromS
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs, clearLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import useAppLanguage from "../hooks/useAppLanguage";
-import { syncScheduleToWidget } from "../widgets/widgetService";
+import {
+  getWidgetSelectedScheduleId,
+  setWidgetSelectedScheduleId,
+  syncScheduleToWidget,
+} from "../widgets/widgetService";
 
 let requestWidgetUpdate = null;
 let ScheduleWidget = null;
@@ -175,6 +179,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [widgetScheduleId, setWidgetScheduleId] = useState(undefined);
 
   const [isDirty, setIsDirty] = useState(false);
   const isDirtyRef = useRef(false);
@@ -440,20 +445,48 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     return activeSchedules.find((s) => s.id === currentScheduleId) || null;
   }, [activeSchedules, currentScheduleId]);
 
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    let isMounted = true;
+    getWidgetSelectedScheduleId().then((storedId) => {
+      if (isMounted) setWidgetScheduleId(storedId || null);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const widgetSchedule = useMemo(() => {
+    if (!activeSchedules.length) return null;
+    if (!widgetScheduleId) return schedule;
+    return activeSchedules.find((s) => s.id === widgetScheduleId) || schedule;
+  }, [activeSchedules, schedule, widgetScheduleId]);
+
   const prevWidgetScheduleStr = useRef(null);
 
   useEffect(() => {
     if (Platform.OS !== 'android' || isLoading) return;
+    if (widgetScheduleId === undefined) return;
 
-    const currentScheduleStr = schedule ? JSON.stringify(schedule) : null;
+    const currentScheduleStr = widgetSchedule ? JSON.stringify(widgetSchedule) : null;
 
     if (prevWidgetScheduleStr.current !== currentScheduleStr) {
       prevWidgetScheduleStr.current = currentScheduleStr;
       setTimeout(() => {
-        syncScheduleToWidget(schedule);
+        syncScheduleToWidget(widgetSchedule);
       }, 0);
     }
-  }, [schedule, isLoading]);
+  }, [widgetSchedule, widgetScheduleId, isLoading]);
+
+  const selectWidgetSchedule = useCallback(async (scheduleId) => {
+    const selected = activeSchedules.find((item) => item.id === scheduleId) || null;
+    if (!selected) return;
+
+    setWidgetScheduleId(scheduleId);
+    await setWidgetSelectedScheduleId(scheduleId);
+  }, [activeSchedules]);
 
   const setScheduleDraft = useCallback((updater) => {
     const currentId = devicePrefsRef.current.currentScheduleId || dataRef.current?.global?.currentScheduleId;
@@ -922,6 +955,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     user, guest, schedule,
     global: mergedGlobal,
     schedules: activeSchedules,
+    widgetScheduleId,
+    selectWidgetSchedule,
     setData, setScheduleDraft, setGlobalDraft, addSchedule, removeSchedule, saveNow,
     safeLogout,
     reloadAllSchedules, resetApplication, hardDeleteEverything, deleteGuestSchedules, isDirty, isSaving, isCloudSaving,

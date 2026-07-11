@@ -6,7 +6,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { Check, X } from "phosphor-react-native";
+import { Check, PlusCircle, X } from "phosphor-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
@@ -19,23 +19,54 @@ import {
   scheduleColorWithAlpha,
 } from "../../../utils/scheduleColors";
 
-export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }) {
+export default function SchedulePickerSheet({
+  visible,
+  onClose,
+  onEditSchedule,
+  onAddSchedule,
+  onSelectSchedule,
+  selectedScheduleId,
+  variant = "home",
+  testID = "schedule-picker-sheet",
+}) {
   const { global, schedules, setGlobalDraft, lang } = useSchedule();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const isWidgetPicker = variant === "widget";
+  const titleKey = isWidgetPicker
+    ? "schedule.header.widget_schedule"
+    : "schedule.header.home_schedule";
+  const subtitleKey = isWidgetPicker
+    ? "schedule.header.widget_hint"
+    : onEditSchedule
+      ? "schedule.header.home_edit_hint"
+      : "schedule.header.home_hint";
 
   const selectSchedule = (scheduleId) => {
-    if (scheduleId === global?.currentScheduleId) {
+    const currentSelectedId = selectedScheduleId ?? global?.currentScheduleId;
+    const shouldSaveFallbackSelection = onSelectSchedule && !selectedScheduleId;
+
+    if (scheduleId === currentSelectedId && !shouldSaveFallbackSelection) {
       onClose();
       return;
     }
 
     triggerLightHaptic();
-    setGlobalDraft((previous) => ({ ...previous, currentScheduleId: scheduleId }));
+    if (onSelectSchedule) {
+      onSelectSchedule(scheduleId);
+    } else {
+      setGlobalDraft((previous) => ({ ...previous, currentScheduleId: scheduleId }));
+    }
     onClose();
+  };
+
+  const handleAddSchedule = () => {
+    triggerLightHaptic();
+    onClose();
+    onAddSchedule?.();
   };
 
   const snapPoints = [Math.min(height * 0.42, 360), Math.min(height * 0.72, 560)];
@@ -49,9 +80,9 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
       maxWidth={640}
       backgroundColor={themeColors.backgroundColor2}
       handleColor={themeColors.textColor3}
-      accessibilityLabel={t("schedule.header.switch_schedule", lang)}
+      accessibilityLabel={t(titleKey, lang)}
       closeAccessibilityLabel={t("common.close", lang)}
-      testID="schedule-picker-sheet"
+      testID={testID}
       contentStyle={[
         styles.sheetContent,
         { paddingBottom: Math.max(insets.bottom, 16) },
@@ -60,10 +91,10 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
           <View style={styles.header}>
             <View style={styles.headerCopy}>
               <Text style={[styles.title, { color: themeColors.textColor }]}>
-                {t("schedule.header.switch_schedule", lang)}
+                {t(titleKey, lang)}
               </Text>
               <Text style={[styles.subtitle, { color: themeColors.textColor2 }]}>
-                {t("schedule.header.long_press_hint", lang)}
+                {t(subtitleKey, lang)}
               </Text>
             </View>
 
@@ -84,7 +115,7 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
             showsVerticalScrollIndicator={false}
           >
             {schedules.map((item) => {
-              const isActive = item.id === global?.currentScheduleId;
+              const isActive = item.id === (selectedScheduleId ?? global?.currentScheduleId);
               const name = item.name || t("settings.schedule_switcher.untitled", lang);
               const itemColor = resolveScheduleColor(item, themeColors.accentColor);
 
@@ -94,7 +125,7 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
                   accessibilityRole="radio"
                   accessibilityState={{ checked: isActive }}
                   onPress={() => selectSchedule(item.id)}
-                  onLongPress={() => onEditSchedule?.(item.id)}
+                  onLongPress={onEditSchedule ? () => onEditSchedule(item.id) : undefined}
                   delayLongPress={450}
                   activeOpacity={0.75}
                   style={[
@@ -144,6 +175,33 @@ export default function SchedulePickerSheet({ visible, onClose, onEditSchedule }
                 </TouchableOpacity>
               );
             })}
+
+            {!!onAddSchedule && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={handleAddSchedule}
+                activeOpacity={0.75}
+                style={[
+                  styles.addRow,
+                  {
+                    backgroundColor: themeColors.backgroundColor4,
+                    borderColor: themeColors.accentColor,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.addIcon,
+                    { backgroundColor: scheduleColorWithAlpha(themeColors.accentColor, 0.16) },
+                  ]}
+                >
+                  <PlusCircle size={22} color={themeColors.accentColor} weight="bold" />
+                </View>
+                <Text style={[styles.addText, { color: themeColors.accentColor }]}>
+                  {t("settings.schedule_switcher.add_new", lang)}
+                </Text>
+              </TouchableOpacity>
+            )}
           </SheetScrollView>
     </BottomSheet>
   );
@@ -218,5 +276,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 10,
+  },
+  addRow: {
+    minHeight: 58,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  addIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  addText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "800",
   },
 });

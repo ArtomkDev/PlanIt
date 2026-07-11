@@ -285,8 +285,6 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                   label={t('settings.schedule_editor.color', lang)}
                   desc={t('settings.schedule_editor.color_hint', lang)}
                   icon={Palette}
-                  iconColor={localData.color}
-                  iconBgColor={scheduleColorWithAlpha(localData.color, 0.16)}
                   themeColors={themeColors}
                   onPress={() => setColorPickerVisible(true)}
                   rightContent={(
