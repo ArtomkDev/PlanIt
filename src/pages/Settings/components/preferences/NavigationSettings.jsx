@@ -7,98 +7,147 @@ import themes from '../../../../config/themes';
 import { t } from '../../../../utils/i18n';
 import { NAVIGATION_METRICS, NAVIGATION_STYLE_KEYS } from '../../../../navigation/navigationMetrics';
 
+const hexToRgba = (color, opacity) => {
+  if (typeof color !== 'string' || !color.startsWith('#')) {
+    return color;
+  }
+
+  const hex = color.replace('#', '');
+  const normalized = hex.length === 3
+    ? hex.split('').map((char) => char + char).join('')
+    : hex.slice(0, 6);
+  const intValue = Number.parseInt(normalized, 16);
+
+  if (Number.isNaN(intValue)) {
+    return color;
+  }
+
+  const r = (intValue >> 16) & 255;
+  const g = (intValue >> 8) & 255;
+  const b = intValue & 255;
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
+const PREVIEW_VARIANTS = {
+  classic: {
+    barSide: 0,
+    barBottom: 0,
+    barRadius: 0,
+    getIndicatorStyle: ({ metrics, themeColors, scale }) => ({
+      width: Math.round(metrics.indicator.width * scale),
+      height: Math.max(2, Math.round(metrics.indicator.height * scale)),
+      borderRadius: metrics.indicator.radius,
+      backgroundColor: themeColors.accentColor,
+      top: 0,
+    }),
+    activeIconColor: ({ themeColors }) => themeColors.accentColor,
+    activeLabelColor: ({ themeColors }) => themeColors.accentColor,
+  },
+  floating: {
+    barSide: 16,
+    barBottom: 8,
+    barRadius: 22,
+    getIndicatorStyle: ({ metrics, showLabels, themeColors, scale }) => {
+      const height = Math.round(
+        (showLabels ? metrics.indicator.heightWithLabels : metrics.indicator.heightIconsOnly) * scale
+      );
+
+      return {
+        width: metrics.indicator.width,
+        height,
+        borderRadius: Math.round(metrics.indicator.radius * scale),
+        backgroundColor: hexToRgba(themeColors.accentColor, 0.22),
+        top: '50%',
+        transform: [{ translateY: -height / 2 }],
+      };
+    },
+    activeIconColor: ({ themeColors }) => themeColors.accentColor,
+    activeLabelColor: ({ themeColors }) => themeColors.accentColor,
+  },
+  dot: {
+    barSide: 0,
+    barBottom: 0,
+    barRadius: 0,
+    getIndicatorStyle: ({ metrics, showLabels, themeColors, scale }) => ({
+      width: Math.round(metrics.indicator.size * scale),
+      height: Math.round(metrics.indicator.size * scale),
+      borderRadius: Math.round(metrics.indicator.radius * scale),
+      backgroundColor: themeColors.accentColor,
+      top: Math.round((showLabels ? metrics.indicator.topWithLabels : metrics.indicator.topIconsOnly) * scale),
+    }),
+    activeIconColor: ({ themeColors }) => themeColors.accentColor,
+    activeLabelColor: ({ themeColors }) => themeColors.accentColor,
+  },
+};
+
 function NavigationPreview({ variant, selected, showLabels, themeColors, lang }) {
-  const isIsland = variant === 'island';
-  const isMaterial = variant === 'material';
-  const isClassic = variant === 'classic';
-  const metrics = NAVIGATION_METRICS[variant];
-  const previewScale = 0.8;
+  const metrics = NAVIGATION_METRICS[variant] || NAVIGATION_METRICS.classic;
+  const preview = PREVIEW_VARIANTS[variant] || PREVIEW_VARIANTS.classic;
+  const scale = 0.78;
   const previewBarHeight = Math.round(
-    (showLabels ? metrics.heightWithLabels : metrics.heightIconsOnly) * previewScale
+    (showLabels ? metrics.heightWithLabels : metrics.heightIconsOnly) * scale
   );
-  const previewRadius = Math.round(metrics.radius * previewScale);
-  const previewSide = isClassic ? 0 : 10;
-  const previewBottom = isClassic ? 0 : 6;
-  const previewMaterialIndicatorHeight = isMaterial
-    ? Math.round(metrics.indicatorHeight * previewScale)
-    : 0;
-  const previewMaterialIndicatorTop = isMaterial
-    ? (showLabels
-        ? Math.round(metrics.indicatorTopWithLabels * previewScale)
-        : Math.round((previewBarHeight - previewMaterialIndicatorHeight) / 2))
-    : 0;
+  const previewRadius = preview.barRadius || Math.round(metrics.radius * scale);
+  const surfaceColor = hexToRgba(themeColors.backgroundColor2, 0.92);
+  const activeIconColor = preview.activeIconColor({ themeColors });
+  const activeLabelColor = preview.activeLabelColor({ themeColors });
 
   return (
     <View style={[styles.previewCanvas, { backgroundColor: themeColors.backgroundColor }]}>
       <View style={styles.previewContent}>
-        <View style={[styles.previewLine, { backgroundColor: themeColors.borderColor, width: '58%' }]} />
-        <View style={[styles.previewLine, { backgroundColor: themeColors.borderColor, width: '78%' }]} />
+        <View style={[styles.previewMiniCard, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
+          <View style={[styles.previewLine, { backgroundColor: themeColors.borderColor, width: '52%' }]} />
+          <View style={[styles.previewLine, { backgroundColor: themeColors.borderColor, width: '72%' }]} />
+        </View>
       </View>
 
       <View
         style={[
-          styles.previewBar,
+          styles.previewBarShadow,
+          variant === 'floating' && styles.previewFloatingShadow,
           {
             height: previewBarHeight,
-            left: previewSide,
-            right: previewSide,
-            bottom: previewBottom,
+            left: preview.barSide,
+            right: preview.barSide,
+            bottom: preview.barBottom,
             borderRadius: previewRadius,
-            backgroundColor: themeColors.backgroundColor2,
-            borderColor: themeColors.borderColor,
+            backgroundColor: surfaceColor,
           },
-          !isClassic && styles.previewFloatingBar,
         ]}
       >
-        <View style={[
-          styles.previewItem,
-          isIsland && styles.previewActiveIsland,
-          isIsland && {
-            borderRadius: Math.round(metrics.indicatorRadius * previewScale),
-            backgroundColor: themeColors.accentColor,
-          },
-        ]}>
-          {isClassic && (
+        <View
+          style={[
+            styles.previewBar,
+            {
+              borderRadius: previewRadius,
+              backgroundColor: surfaceColor,
+              borderColor: themeColors.borderColor,
+            },
+            variant === 'floating' ? styles.previewFloatingBar : styles.previewAttachedBar,
+          ]}
+        >
+          <View style={styles.previewItem}>
             <View
               style={[
-                styles.previewClassicLine,
-                {
-                  width: Math.round(metrics.indicatorWidth * previewScale),
-                  height: metrics.indicatorHeight,
-                  borderRadius: metrics.indicatorRadius,
-                  backgroundColor: themeColors.accentColor,
-                },
+                styles.previewIndicator,
+                preview.getIndicatorStyle({ metrics, showLabels, themeColors, scale }),
               ]}
             />
-          )}
-          {isMaterial && (
-            <View
-              style={[
-                styles.previewMaterialPill,
-                {
-                  width: Math.round(metrics.indicatorWidth * previewScale),
-                  height: previewMaterialIndicatorHeight,
-                  top: previewMaterialIndicatorTop,
-                  borderRadius: Math.round(metrics.indicatorRadius * previewScale),
-                  backgroundColor: themeColors.accentColorLight,
-                },
-              ]}
-            />
-          )}
-          <CalendarDots size={17} color={isIsland ? '#fff' : themeColors.accentColor} weight="fill" />
-          {showLabels && (
-            <Text style={[styles.previewLabel, { color: isIsland ? '#fff' : themeColors.accentColor }]}>
-              {t('common.schedule', lang)}
-            </Text>
-          )}
-        </View>
-        <View style={styles.previewItem}>
-          <GearSix size={17} color={themeColors.textColor2} />
-          {showLabels && (
-            <Text style={[styles.previewLabel, { color: themeColors.textColor2 }]}>
-              {t('common.settings', lang)}
-            </Text>
-          )}
+            <CalendarDots size={17} color={activeIconColor} weight="fill" />
+            {showLabels && (
+              <Text numberOfLines={1} style={[styles.previewLabel, { color: activeLabelColor }]}>
+                {t('common.schedule', lang)}
+              </Text>
+            )}
+          </View>
+          <View style={styles.previewItem}>
+            <GearSix size={17} color={themeColors.textColor2} />
+            {showLabels && (
+              <Text numberOfLines={1} style={[styles.previewLabel, { color: themeColors.textColor2 }]}>
+                {t('common.settings', lang)}
+              </Text>
+            )}
+          </View>
         </View>
       </View>
 
@@ -248,7 +297,7 @@ const styles = StyleSheet.create({
   introTitle: {
     fontSize: 24,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: 0,
     marginBottom: 6,
   },
   introText: {
@@ -298,7 +347,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   previewCanvas: {
-    height: 82,
+    height: 88,
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
@@ -306,22 +355,47 @@ const styles = StyleSheet.create({
   previewContent: {
     paddingHorizontal: 12,
     paddingTop: 10,
+  },
+  previewMiniCard: {
+    width: '72%',
+    height: 30,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
     gap: 5,
   },
   previewLine: {
     height: 4,
     borderRadius: 3,
-    opacity: 0.7,
+    opacity: 0.75,
+  },
+  previewBarShadow: {
+    position: 'absolute',
+  },
+  previewFloatingShadow: {
+    ...Platform.select({
+      web: { boxShadow: '0 8px 20px rgba(0,0,0,0.14)' },
+      default: {
+        shadowColor: '#000',
+        shadowOpacity: 0.14,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 5 },
+        elevation: 8,
+      },
+    }),
   },
   previewBar: {
-    position: 'absolute',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    flex: 1,
     flexDirection: 'row',
+    overflow: 'hidden',
     paddingHorizontal: 6,
+  },
+  previewAttachedBar: {
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   previewFloatingBar: {
     borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
   },
   previewItem: {
     flex: 1,
@@ -330,20 +404,14 @@ const styles = StyleSheet.create({
     gap: 1,
     position: 'relative',
   },
-  previewActiveIsland: {
-    marginVertical: 3,
-    marginHorizontal: 4,
-  },
-  previewClassicLine: {
+  previewIndicator: {
     position: 'absolute',
-    top: 0,
-  },
-  previewMaterialPill: {
-    position: 'absolute',
+    alignSelf: 'center',
   },
   previewLabel: {
     fontSize: 8,
     fontWeight: '700',
+    letterSpacing: 0,
     maxWidth: 85,
   },
   selectedBadge: {
