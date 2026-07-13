@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSchedule } from '../context/ScheduleProvider';
+import { useScheduleData } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import AppBlur from '../components/ui/AppBlur';
 import AdBanner from '../components/AdBanner/AdBanner';
@@ -283,7 +283,7 @@ function TabItem({
 }
 
 export default function PlanItTabBar({ state, descriptors, navigation, insets, onLayout }) {
-  const { global } = useSchedule();
+  const { global } = useScheduleData();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
   const styleVariant = NAVIGATION_METRICS[global?.navigationStyle] ? global.navigationStyle : 'classic';

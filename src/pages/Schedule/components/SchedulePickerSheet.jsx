@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 import themes from "../../../config/themes";
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { triggerLightHaptic } from "../../../utils/haptics";
 import { t } from "../../../utils/i18n";
 import {
@@ -29,7 +29,8 @@ export default function SchedulePickerSheet({
   variant = "home",
   testID = "schedule-picker-sheet",
 }) {
-  const { global, schedules, setGlobalDraft, lang } = useSchedule();
+  const { global, schedules, lang } = useScheduleData();
+  const { setGlobalDraft } = useScheduleActions();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
 

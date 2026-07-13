@@ -5,7 +5,7 @@ import tinycolor from "tinycolor2";
 
 import BottomSheet, { SheetScrollView } from "./BottomSheet";
 import themes from "../../config/themes";
-import { useSchedule } from "../../context/ScheduleProvider";
+import { useScheduleData } from "../../context/ScheduleProvider";
 
 const HUE_COLORS = [
   "#ff0000",
@@ -20,7 +20,7 @@ const HUE_INDICATOR_WIDTH = 40;
 const HUE_INDICATOR_HEIGHT = 32;
 
 export default function AdvancedColorPicker({ visible, initialColor, onSave, onClose }) {
-  const { global } = useSchedule();
+  const { global } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   const [hsv, setHsv] = useState(() => tinycolor(initialColor).toHsv());

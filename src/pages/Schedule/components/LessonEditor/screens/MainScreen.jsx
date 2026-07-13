@@ -21,7 +21,7 @@ import SettingsRow from "../../../../../components/ui/SettingsKit/SettingsRow";
 import GradientBackground from "../../../../../components/ui/GradientBackground";
 import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons"; 
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -46,7 +46,7 @@ export default function LessonEditorMainScreen({
   onTimeChange,
   onClearSubject
 }) {
-  const { lang } = useSchedule();
+  const { lang } = useScheduleData();
   const [expandedField, setExpandedField] = useState(null);
   const scrollViewRef = useRef(null);
 

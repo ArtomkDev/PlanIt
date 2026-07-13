@@ -19,7 +19,7 @@ import {
   Trash, 
   PencilSimple 
 } from "phosphor-react-native";
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
@@ -28,7 +28,8 @@ import { t } from "../../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 
 export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
-  const { schedule, setScheduleDraft, global , lang} = useSchedule();
+  const { schedule, global, lang } = useScheduleData();
+  const { setScheduleDraft } = useScheduleActions();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
   const insets = useSafeAreaInsets();
   

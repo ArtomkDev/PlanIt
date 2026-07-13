@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import pkg from './package.json';
 
 const versionParts = pkg.version.split('.');
@@ -37,11 +36,7 @@ export default {
         backgroundColor: "#ffffff"
       },
       edgeToEdgeEnabled: true,
-      userInterfaceStyle: "automatic",
-      keystore: "./android/app/my-release-key.keystore",
-      keystoreAlias: process.env.ANDROID_KEYSTORE_ALIAS,
-      keystorePassword: process.env.ANDROID_KEYSTORE_PASSWORD,
-      keyPassword: process.env.ANDROID_KEY_PASSWORD
+      userInterfaceStyle: "automatic"
     },
     web: {
       favicon: "./assets/favicon.png"

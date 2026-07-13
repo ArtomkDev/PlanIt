@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BottomSheet from "../ui/BottomSheet";
 import themes from "../../config/themes";
-import { useSchedule } from "../../context/ScheduleProvider";
+import { useScheduleData } from "../../context/ScheduleProvider";
 import { triggerLightHaptic } from "../../utils/haptics";
 import { t } from "../../utils/i18n";
 import CalendarGrid from "./CalendarGrid";
@@ -33,7 +33,7 @@ export default function CalendarSheet({
   currentDate,
   customSchedule,
 }) {
-  const { global, schedule: activeSchedule, lang } = useSchedule();
+  const { global, schedule: activeSchedule, lang } = useScheduleData();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);

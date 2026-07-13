@@ -5,13 +5,13 @@ import { reauthenticateWithCredential, EmailAuthProvider, verifyBeforeUpdateEmai
 import { doc, setDoc } from 'firebase/firestore';
 
 import { db, auth } from '../../../../../config/firebase';
-import { useSchedule } from '../../../../../context/ScheduleProvider';
+import { useScheduleData } from '../../../../../context/ScheduleProvider';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
 import { t } from '../../../../../utils/i18n';
 
 export default function ChangeEmailScreen() {
-  const { global, lang} = useSchedule();
+  const { global, lang} = useScheduleData();
   const navigation = useNavigation();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];

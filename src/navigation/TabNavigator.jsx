@@ -5,7 +5,7 @@ import { View } from 'react-native';
 import { CalendarDots, GearSix } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import themes from '../config/themes';
-import { useSchedule } from '../context/ScheduleProvider';
+import { useScheduleData, useScheduleLayout } from '../context/ScheduleProvider';
 import MorphingLoader from '../components/ui/MorphingLoader';
 import PlanItTabBar from './PlanItTabBar';
 import { t } from '../utils/i18n';
@@ -30,14 +30,14 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function SettingsStack({ screenProps }) {
-  const { global } = useSchedule();
+  const { global } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       <Stack.Navigator
-        detachInactiveScreens={false}
+        detachInactiveScreens={true}
         screenOptions={{
           headerShown: false,
           gestureEnabled: true,
@@ -69,7 +69,8 @@ function SettingsStack({ screenProps }) {
 }
 
 export default function TabNavigator({ screenProps }) {
-  const { global, lang, isLoading, tabBarHeight, setTabBarHeight } = useSchedule();
+  const { global, lang, isLoading } = useScheduleData();
+  const { tabBarHeight, setTabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -85,10 +86,8 @@ export default function TabNavigator({ screenProps }) {
 
   const handleLayout = useCallback((event) => {
     const { height } = event.nativeEvent.layout;
-    if (height > 0 && height !== tabBarHeight) {
-      setTabBarHeight(height);
-    }
-  }, [tabBarHeight, setTabBarHeight]);
+    if (height > 0) setTabBarHeight(height);
+  }, [setTabBarHeight]);
 
   if (isLoading) {
     return (
@@ -100,7 +99,7 @@ export default function TabNavigator({ screenProps }) {
 
   return (
     <Tab.Navigator
-      detachInactiveScreens={false}
+      detachInactiveScreens={true}
       tabBar={(props) => (
         <PlanItTabBar {...props} insets={insets} onLayout={handleLayout} />
       )}
@@ -112,7 +111,7 @@ export default function TabNavigator({ screenProps }) {
         tabBarActiveTintColor: themeColors.accentColor,
         tabBarInactiveTintColor: themeColors.textColor2,
         tabBarHideOnKeyboard: true,
-        lazy: false,
+        lazy: true,
         animation: 'none',
         headerShown: false,
       }}

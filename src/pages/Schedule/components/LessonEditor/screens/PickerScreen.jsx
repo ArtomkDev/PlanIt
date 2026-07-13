@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from "react-native";
 import { X, PlusCircle, Trash } from "phosphor-react-native";
 
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { ICON_CATEGORIES } from "../../../../../config/subjectIcons";
 import { t } from "../../../../../utils/i18n";
 
@@ -25,7 +25,7 @@ export default function LessonEditorPickerScreen({
   themeColors,
   layout = 'list',
 }) {
-  const { lang } = useSchedule();
+  const { lang } = useScheduleData();
   const [tempSelected, setTempSelected] = useState([]);
 
   useEffect(() => {

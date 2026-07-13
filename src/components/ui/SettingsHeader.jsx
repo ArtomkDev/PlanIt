@@ -5,12 +5,12 @@ import { CaretLeft } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBlur from './AppBlur';
 import themes from '../../config/themes';
-import { useSchedule } from '../../context/ScheduleProvider';
+import { useScheduleData } from '../../context/ScheduleProvider';
 
 export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY, showBackButton = true, rightButton }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { global } = useSchedule();
+  const { global } = useScheduleData();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);

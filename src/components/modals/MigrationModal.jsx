@@ -9,7 +9,7 @@ import { CloudArrowUp, CheckSquare, Square } from 'phosphor-react-native';
 import { db } from '../../config/firebase';
 import createDefaultData from '../../config/createDefaultData';
 import { generateId } from '../../utils/idGenerator';
-import { useSchedule } from '../../context/ScheduleProvider';
+import { useScheduleData } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import { t } from '../../utils/i18n';
 import MorphingLoader from '../ui/MorphingLoader';
@@ -18,7 +18,7 @@ import BottomSheet, { SheetFlatList } from '../ui/BottomSheet';
 const LOCAL_KEY = 'guest_schedule';
 
 export default function MigrationModal({ userId, onComplete = () => {} }) {
-  const { global, lang } = useSchedule();
+  const { global, lang } = useScheduleData();
   
   const [currentTheme, currentAccent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(currentTheme, currentAccent);

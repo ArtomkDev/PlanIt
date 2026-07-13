@@ -11,7 +11,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { removeDevice, removeAllOtherDevices, getDeviceId } from "../../../../utils/deviceService";
-import { useSchedule } from "../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import { db } from "../../../../config/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
@@ -23,7 +23,7 @@ import SettingsRow from "../../../../components/ui/SettingsKit/SettingsRow";
 import SettingsActionRow from "../../../../components/ui/SettingsKit/SettingsActionRow";
 
 export default function DeviceManager() {
-  const { user, global, lang } = useSchedule();
+  const { user, global, lang } = useScheduleData();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDeviceId, setCurrentDeviceId] = useState(null);

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { Trash, Clock } from "phosphor-react-native";
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../context/ScheduleProvider";
 import { getUserSharedSchedules, deleteSharedSchedule } from "../../../services/shareService";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 
 export default function SharedSchedulesManager() {
-  const { user, global, lang } = useSchedule();
+  const { user, global, lang } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 

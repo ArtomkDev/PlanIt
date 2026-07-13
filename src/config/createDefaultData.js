@@ -27,7 +27,7 @@ export default function createDefaultData() {
 
   return { 
       global, 
-      schedules: [],
+      schedules: [newSchedule],
       deletedSchedules: []
   };
 }

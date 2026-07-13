@@ -9,7 +9,7 @@ import {
   Animated,
 } from "react-native";
 import { CaretLeft, PencilSimple, CheckCircle, XCircle } from "phosphor-react-native";
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
 import { SUBJECT_ICONS } from "../../../config/subjectIcons"; 
@@ -91,13 +91,14 @@ const buildLessonTimes = (startTime, duration, breaks, daySchedule) => {
 };
 
 export default function LessonEditor({ lesson, onClose }) {
-  const { global, schedule, scheduleDraft, setScheduleDraft , lang} = useSchedule();
+  const { global, schedule, lang } = useScheduleData();
+  const { setScheduleDraft } = useScheduleActions();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
-  const dataSource = scheduleDraft || schedule;
+  const dataSource = schedule;
 
   const [localData, setLocalData] = useState({
     subjects: deepClone(dataSource?.subjects),

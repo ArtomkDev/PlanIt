@@ -4,13 +4,13 @@ import { useNavigation } from '@react-navigation/native';
 import { reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
 
 import { auth } from '../../../../../config/firebase';
-import { useSchedule } from '../../../../../context/ScheduleProvider';
+import { useScheduleData } from '../../../../../context/ScheduleProvider';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
 import { t } from '../../../../../utils/i18n';
 
 export default function ChangePasswordScreen() {
-  const { global, lang } = useSchedule();
+  const { global, lang } = useScheduleData();
   const navigation = useNavigation();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];

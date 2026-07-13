@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { XCircle } from "phosphor-react-native";
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 export default function LessonEditorInputScreen({
@@ -11,7 +11,7 @@ export default function LessonEditorInputScreen({
   onSave,
   themeColors,
 }) {
-  const { lang } = useSchedule();
+  const { lang } = useScheduleData();
 
   const [value, setValue] = useState(initialValue || "");
 

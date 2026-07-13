@@ -146,7 +146,7 @@ const MorphingLoader = ({ size = 60, style }) => {
   useEffect(() => {
     isMounted.current = true;
 
-    Animated.sequence([
+    const entranceSequence = Animated.sequence([
       Animated.delay(250),
       Animated.spring(entranceAnim, {
         toValue: 1,
@@ -154,18 +154,20 @@ const MorphingLoader = ({ size = 60, style }) => {
         tension: 55,
         useNativeDriver: false,
       })
-    ]).start();
+    ]);
+    entranceSequence.start();
 
-    Animated.loop(
+    const rotationLoop = Animated.loop(
       Animated.timing(rotationAnim, {
         toValue: 1,
         duration: 8000,
         easing: Easing.linear,
         useNativeDriver: false,
       })
-    ).start();
+    );
+    rotationLoop.start();
 
-    Animated.loop(
+    const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
@@ -180,9 +182,15 @@ const MorphingLoader = ({ size = 60, style }) => {
           useNativeDriver: false,
         })
       ])
-    ).start();
+    );
+    pulseLoop.start();
 
-    return () => { isMounted.current = false; };
+    return () => {
+      isMounted.current = false;
+      entranceSequence.stop();
+      rotationLoop.stop();
+      pulseLoop.stop();
+    };
   }, [entranceAnim, rotationAnim, pulseAnim]);
 
   useEffect(() => {

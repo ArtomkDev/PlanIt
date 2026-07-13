@@ -1,10 +1,10 @@
 import { useCallback } from "react";
-import { useSchedule } from "../context/ScheduleProvider";
+import { useScheduleActions } from "../context/ScheduleProvider";
 import { createDefaultTeacher, createDefaultSubject, createDefaultLink, createDefaultGradient } from "../config/createDefaults";
 import useUniqueId from "./useUniqueId";
 
 export default function useEntityManager() {
-  const { setScheduleDraft } = useSchedule();
+  const { setScheduleDraft } = useScheduleActions();
   const generateId = useUniqueId();
 
   const addItem = useCallback((key, factory) => {

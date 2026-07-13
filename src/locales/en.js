@@ -536,6 +536,7 @@ export default {
     error_not_found: "Code not found",
     error_inactive: "This access was disabled by the author",
     error_expired: "Link has expired",
+    error_invalid_schedule: "This schedule could not be imported because the shared data is damaged or unsupported.",
     manager_empty: "You haven't shared any schedules yet",
     code_label: "Code",
     status_active: "Active",

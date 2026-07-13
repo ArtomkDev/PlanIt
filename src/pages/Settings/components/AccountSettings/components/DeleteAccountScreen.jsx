@@ -6,13 +6,13 @@ import { reauthenticateWithCredential, EmailAuthProvider, deleteUser } from 'fir
 import { auth } from '../../../../../config/firebase';
 import { deleteAllUserData, setAccountBeingDeleted } from '../../../../../config/firestore';
 import { setIgnoreDeviceRemoval } from '../../../../../utils/deviceService';
-import { useSchedule } from '../../../../../context/ScheduleProvider';
+import { useScheduleData } from '../../../../../context/ScheduleProvider';
 import themes from '../../../../../config/themes';
 import { t } from '../../../../../utils/i18n';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
 
 export default function DeleteAccountScreen() {
-  const { global, lang} = useSchedule();
+  const { global, lang} = useScheduleData();
   const navigation = useNavigation();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];

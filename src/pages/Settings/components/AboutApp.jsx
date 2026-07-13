@@ -7,7 +7,7 @@ import {
 import Constants from 'expo-constants';
 
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
-import { useSchedule } from '../../../context/ScheduleProvider';
+import { useScheduleData } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 
@@ -15,7 +15,7 @@ import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
 
 export default function AboutApp() {
-  const { lang, global } = useSchedule();
+  const { lang, global } = useScheduleData();
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);

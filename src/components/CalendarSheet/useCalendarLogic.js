@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useSchedule } from '../../context/ScheduleProvider';
+import { useScheduleData } from '../../context/ScheduleProvider';
 import { t } from '../../utils/i18n';
 
 export function useCalendarLogic(initialDate, schedule) {
-  const { global , lang} = useSchedule();
+  const { lang } = useScheduleData();
 
   const [viewDate, setViewDate] = useState(new Date(initialDate));
 

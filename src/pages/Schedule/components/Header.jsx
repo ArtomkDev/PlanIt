@@ -11,7 +11,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import themes from "../../../config/themes";
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../context/ScheduleProvider";
 import { t } from "../../../utils/i18n";
 import { triggerLightHaptic } from "../../../utils/haptics";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
@@ -56,7 +56,7 @@ function ScaleTouchable({ style, onPressIn, onPressOut, children, ...props }) {
 }
 
 export default function Header({ currentDate, onTodayPress, onTitlePress }) {
-  const { global, schedule, lang } = useSchedule();
+  const { global, schedule, lang } = useScheduleData();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [schedulePickerVisible, setSchedulePickerVisible] = useState(false);

@@ -2,14 +2,15 @@ import React, { useEffect, useState, useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Switch, Platform } from "react-native";
 import { PencilSimple, Check } from "phosphor-react-native";
 import themes from "../../../../config/themes";
-import { useSchedule } from "../../../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "../../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import AdvancedColorPicker from "../../../../components/ui/AdvancedColorPicker";
 import { t } from "../../../../utils/i18n";
 import { saveDevicePrefs, getDevicePrefs } from "../../../../utils/storage";
 
 const ThemeSettings = () => {
-  const { global, setGlobalDraft, lang } = useSchedule();
+  const { global, lang } = useScheduleData();
+  const { setGlobalDraft } = useScheduleActions();
   
   const [currentMode, currentAccent] = global?.theme || ["light", "blue"];
   const currentBlur = global?.blur ?? true;

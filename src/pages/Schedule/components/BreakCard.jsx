@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { t } from "../../../utils/i18n";
 import GradientBackground from "../../../components/ui/GradientBackground";
+import { useNowTick } from "../../../hooks/useNowTick";
 
 function getDiffMinutes(start, end) {
     if (!start || !end) return 0;
@@ -21,10 +22,11 @@ function getDiffMinutes(start, end) {
     return diff;
 }
 
-function checkBreakState(lStartStr, bStartStr, bEndStr, targetDate) {
+function checkBreakState(lStartStr, bStartStr, bEndStr, targetDate, nowValue) {
     if (!lStartStr || !bStartStr || !bEndStr || !targetDate) return { isVisible: false, isBreakNow: false, timeLeft: null };
 
-    const now = new Date();
+    if (!nowValue) return { isVisible: false, isBreakNow: false, timeLeft: null };
+    const now = new Date(nowValue);
     const target = new Date(targetDate);
     target.setHours(0, 0, 0, 0);
     const today = new Date(now);
@@ -144,17 +146,15 @@ const AnimatedBreakCard = React.memo(({ isVisible, isBreakNow, timeLeft, duratio
 });
 
 export default function BreakCard({ lessonStart, breakStart, breakEnd, targetDate, themeColors, lang, subjectColor, activeGrad }) {
-  const [state, setState] = useState(() => checkBreakState(lessonStart, breakStart, breakEnd, targetDate));
-
-  useEffect(() => {
-    if (!targetDate) return;
-    const timer = setInterval(() => {
-      setState(checkBreakState(lessonStart, breakStart, breakEnd, targetDate));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [lessonStart, breakStart, breakEnd, targetDate]);
-
   const durationMinutes = useMemo(() => getDiffMinutes(breakStart, breakEnd), [breakStart, breakEnd]);
+  const timerNow = useNowTick(
+    targetDate,
+    !!targetDate && !!lessonStart && !!breakStart && !!breakEnd && durationMinutes > 0 && durationMinutes <= 720
+  );
+  const state = useMemo(
+    () => checkBreakState(lessonStart, breakStart, breakEnd, targetDate, timerNow),
+    [lessonStart, breakStart, breakEnd, targetDate, timerNow]
+  );
 
   if (!targetDate || !lessonStart || !breakStart || !breakEnd || durationMinutes <= 0 || durationMinutes > 720) return null;
 

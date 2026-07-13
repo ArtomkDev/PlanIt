@@ -26,7 +26,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-import { useSchedule } from '../../../context/ScheduleProvider';
+import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 import SettingsHeader from '../../../components/ui/SettingsHeader';
@@ -57,7 +57,9 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const params = route.params || propsRoute?.params || {};
   const { scheduleId, isInitialSetup, isNew } = params;
 
-  const { global, schedules, schedule: currentActiveSchedule, setData, setGlobalDraft, addSchedule, lang, tabBarHeight } = useSchedule();
+  const { global, schedules, schedule: currentActiveSchedule, lang } = useScheduleData();
+  const { setData, setGlobalDraft, addSchedule } = useScheduleActions();
+  const { tabBarHeight } = useScheduleLayout();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 

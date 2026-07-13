@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Animated, Platform } from "react-native";
 import { Clock, Hourglass, User, MapPin } from "phosphor-react-native";
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
+import { useNowTick } from "../../../hooks/useNowTick";
 import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
@@ -65,8 +66,8 @@ const isLightColor = (color) => {
       }
       if (hex.length >= 6) {
         r = parseInt(hex.substring(0, 2), 16);
-        g = parseInt(hex.substring(2, 2), 16);
-        b = parseInt(hex.substring(4, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
       }
     }
   } catch (e) {
@@ -77,10 +78,11 @@ const isLightColor = (color) => {
   return yiq > 160;
 };
 
-function getTimerState(startStr, endStr, targetDate) {
+function getTimerState(startStr, endStr, targetDate, nowValue) {
   if (!startStr || !endStr || !targetDate) return { isActive: false, timeLeft: null };
   
-  const now = new Date();
+  if (!nowValue) return { isActive: false, timeLeft: null };
+  const now = new Date(nowValue);
   const target = new Date(targetDate);
   target.setHours(0, 0, 0, 0);
   const today = new Date(now);
@@ -114,20 +116,6 @@ function getTimerState(startStr, endStr, targetDate) {
      return { isActive: true, timeLeft: `${m}:${s < 10 ? '0' : ''}${s}` };
   }
   return { isActive: false, timeLeft: null };
-}
-
-function useLessonTimer(startStr, endStr, targetDate) {
-  const [timerState, setTimerState] = useState(() => getTimerState(startStr, endStr, targetDate));
-  
-  useEffect(() => {
-    if (!startStr || !endStr || !targetDate) return;
-    const intervalId = setInterval(() => {
-      setTimerState(getTimerState(startStr, endStr, targetDate));
-    }, 1000);
-    return () => clearInterval(intervalId);
-  }, [startStr, endStr, targetDate]);
-  
-  return timerState;
 }
 
 function useLessonData(lesson, schedule, isDark) {
@@ -189,17 +177,24 @@ const ActiveHighlight = React.memo(({ isActive, isDark }) => {
   const opacityAnim = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
+    let highlightLoop = null;
+
     if (isActive) {
-      Animated.loop(
+      highlightLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(opacityAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
           Animated.timing(opacityAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true })
         ])
-      ).start();
+      );
+      highlightLoop.start();
     } else {
       opacityAnim.setValue(0);
     }
-  }, [isActive]);
+
+    return () => {
+      highlightLoop?.stop();
+    };
+  }, [isActive, opacityAnim]);
 
   if (!isActive) return null;
 
@@ -284,7 +279,11 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
     subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad, subjectColor, activePillText
   } = useLessonData(lesson, schedule, isDark);
 
-  const { timeLeft, isActive } = useLessonTimer(lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate);
+  const timerNow = useNowTick(targetDate, !!lesson?.timeInfo?.start && !!lesson?.timeInfo?.end);
+  const { timeLeft, isActive } = useMemo(
+    () => getTimerState(lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow),
+    [lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow]
+  );
 
   const handlePress = () => onPress?.({ ...lesson, subject, teacher, displayType, displayRoom, displayBuilding });
   const handleLongPress = () => onLongPress?.({ ...lesson, subject, teacher });
@@ -360,7 +359,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
 });
 
 export default function LessonCard(props) {
-  const { schedule } = useSchedule();
+  const { schedule } = useScheduleData();
   const { currentDate } = useDaySchedule(); 
   const { isDark } = useSystemThemeColors();
 

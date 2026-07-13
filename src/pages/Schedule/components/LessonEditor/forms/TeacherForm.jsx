@@ -10,11 +10,11 @@ import {
   Platform 
 } from "react-native";
 import { User, Phone } from "phosphor-react-native";
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal, onBack, themeColors }) {
-  const { lang } = useSchedule();
+  const { lang } = useScheduleData();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");

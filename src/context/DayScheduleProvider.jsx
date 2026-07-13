@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useMemo } from "react";
-import { useSchedule } from "./ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "./ScheduleProvider";
 
 const DayScheduleContext = createContext(null);
 
 export const DayScheduleProvider = ({ children, date }) => {
-  const { schedule, reloadAllSchedules } = useSchedule();
+  const { schedule } = useScheduleData();
+  const { reloadAllSchedules } = useScheduleActions();
 
   const normalizeDate = (d) => {
     const nd = new Date(d);

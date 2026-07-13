@@ -8,7 +8,7 @@ import * as Linking from 'expo-linking';
 
 import AutoSaveManager from '../services/AutoSaveManager';
 import TabNavigator from '../navigation/TabNavigator';
-import { useSchedule } from '../context/ScheduleProvider';
+import { useScheduleActions, useScheduleData, useScheduleSync } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import { t } from '../utils/i18n';
 import MigrationModal from '../components/modals/MigrationModal';
@@ -29,15 +29,19 @@ export default function MainLayout({ guest, onExitGuest }) {
     schedule,
     schedules,
     isLoading,
-    cloudSyncState,
     error,
     lang,
-    resetApplication,
+    widgetScheduleId,
+  } = useScheduleData();
+  const {
+    cloudSyncState,
     conflictQueue,
     handleResolveConflict,
-    widgetScheduleId,
-    selectWidgetSchedule
-  } = useSchedule();
+  } = useScheduleSync();
+  const {
+    resetApplication,
+    selectWidgetSchedule,
+  } = useScheduleActions();
 
   const navigation = useNavigation();
   const url = Linking.useURL();

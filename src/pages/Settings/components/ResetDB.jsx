@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSchedule } from '../../../context/ScheduleProvider';
+import { useScheduleActions, useScheduleData } from '../../../context/ScheduleProvider';
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
@@ -32,13 +32,15 @@ const DangerActionCard = ({ title, description, buttonText, onPress, isLoading, 
 
 export default function ResetDB() {
   const {
-    resetApplication,
-    deleteGuestSchedules,
     guest,
     global,
     isLoading,
     lang
-  } = useSchedule();
+  } = useScheduleData();
+  const {
+    resetApplication,
+    deleteGuestSchedules,
+  } = useScheduleActions();
 
   const [isResetting, setIsResetting] = useState(false);
 

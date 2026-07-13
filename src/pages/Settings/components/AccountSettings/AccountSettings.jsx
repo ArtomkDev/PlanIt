@@ -7,7 +7,7 @@ import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth'
 import Constants from 'expo-constants';
 
 import { auth } from '../../../../config/firebase';
-import { useSchedule } from '../../../../context/ScheduleProvider';
+import { useScheduleData } from '../../../../context/ScheduleProvider';
 import themes from '../../../../config/themes';
 import { t } from '../../../../utils/i18n';
 import MorphingLoader from '../../../../components/ui/MorphingLoader';
@@ -31,7 +31,7 @@ if (Platform.OS !== 'web' && !isExpoGo) {
 }
 
 export default function AccountSettings() {
-  const { global, user: contextUser, lang } = useSchedule();
+  const { global, user: contextUser, lang } = useScheduleData();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   

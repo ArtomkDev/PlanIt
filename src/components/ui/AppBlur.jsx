@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { View, Platform, StyleSheet } from "react-native";
 import { BlurView } from "expo-blur";
 import { useNavigationState } from "@react-navigation/native";
-import { useSchedule } from "../../context/ScheduleProvider";
+import { useScheduleData } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
-import { getDevicePrefs } from "../../utils/storage";
 
 export default function AppBlur({ style, intensity = 80, children }) {
-  const { global } = useSchedule();
-  const [localBlurEnabled, setLocalBlurEnabled] = useState(true);
+  const { global } = useScheduleData();
+  const blurEnabled = global?.blur ?? true;
   
   const themeSetting = global?.theme || ["light", "blue"];
   const [mode, accent] = Array.isArray(themeSetting) ? themeSetting : ["light", "blue"];
@@ -20,24 +19,7 @@ export default function AppBlur({ style, intensity = 80, children }) {
   const dynamicOpacity = activeRouteName === 'ScheduleTab' ? 0.7 : 0.1;
   const solidColor = themeColors.backgroundColor2;
 
-  useEffect(() => {
-    let isMounted = true;
-    getDevicePrefs().then((prefs) => {
-      if (isMounted) {
-        if (prefs && typeof prefs.blur === 'boolean') {
-          setLocalBlurEnabled(prefs.blur);
-        } else {
-          setLocalBlurEnabled(global?.blur ?? true);
-        }
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [global?.blur]);
-
-  if (Platform.OS === "android" || !localBlurEnabled) {
+  if (Platform.OS === "android" || !blurEnabled) {
     return (
       <View style={[{ backgroundColor: solidColor }, style]}>
         {children}

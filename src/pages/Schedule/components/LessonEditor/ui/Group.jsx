@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { Plus, ArrowsCounterClockwise } from "phosphor-react-native";
 import Animated, { FadeIn, LinearTransition, Easing } from "react-native-reanimated";
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 const isWeb = Platform.OS === "web";
@@ -12,7 +12,7 @@ const customLayoutTransition = isWeb
   : LinearTransition.duration(200).easing(Easing.out(Easing.quad));
 
 export default function Group({ title, children, onAdd, onReset, themeColors, showScopeToggle, scope, onScopeChange }) {
-  const { lang } = useSchedule();
+  const { lang } = useScheduleData();
 
   const handleScopeChange = () => {
     onScopeChange(scope === "local" ? "global" : "local");

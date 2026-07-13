@@ -71,13 +71,16 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
   const verifyOpacity = useRef(new Animated.Value(currentView === 'verify' ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const breathLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(breathAnim, { toValue: 1, duration: 4000, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
         Animated.timing(breathAnim, { toValue: 0, duration: 4000, useNativeDriver: true, easing: Easing.inOut(Easing.sin) })
       ])
-    ).start();
-  }, []);
+    );
+    breathLoop.start();
+
+    return () => breathLoop.stop();
+  }, [breathAnim]);
 
   useEffect(() => {
     Animated.parallel([

@@ -17,7 +17,7 @@ import {
 } from "react-native";
 
 import themes from "../../../config/themes";
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../context/ScheduleProvider";
 import { triggerLightHaptic } from "../../../utils/haptics";
 import { t } from "../../../utils/i18n";
 
@@ -148,7 +148,7 @@ const DayButton = React.memo(({
 });
 
 const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
-  const { global, lang } = useSchedule();
+  const { global, lang } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
   const locale = t("locale", lang);

@@ -29,6 +29,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 const db = initializeFirestore(app, {
+  // The Firebase Web SDK persistentLocalCache relies on browser IndexedDB.
+  // In Expo/React Native native runtimes that storage layer is not stable,
+  // so schedule startup/offline state is persisted through AsyncStorage instead.
   localCache: memoryLocalCache() 
 });
 

@@ -7,7 +7,7 @@ import {
   SignOut, Trash, Info, ShareNetwork, SquaresFour
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
-import { useSchedule } from '../../context/ScheduleProvider';
+import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/ui/SettingsHeader';
 import { t } from '../../utils/i18n';
@@ -17,7 +17,9 @@ import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
 
 export default function Settings({ guest, onExitGuest }) {
   const navigation = useNavigation();
-  const { user, global, schedule, lang, safeLogout, tabBarHeight } = useSchedule();
+  const { user, global, schedule, lang } = useScheduleData();
+  const { safeLogout } = useScheduleActions();
+  const { tabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 

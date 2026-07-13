@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Animated, Easing } from "react-native";
 
 import themes from "../../config/themes";
-import { useSchedule } from "../../context/ScheduleProvider";
+import { useScheduleData } from "../../context/ScheduleProvider";
 
 const sameDay = (left, right) =>
   left.getFullYear() === right.getFullYear() &&
@@ -96,7 +96,7 @@ export default function CalendarGrid({
   weekDayNames,
   weekLabel,
 }) {
-  const { global } = useSchedule();
+  const { global } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   const today = useMemo(() => new Date(), []);

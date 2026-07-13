@@ -1,0 +1,164 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verifiedSignedIn() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwnerAndVerified(userId) {
+      return verifiedSignedIn()
+        && request.auth.uid == userId;
+    }
+
+    function isShareCode(shareCode) {
+      return shareCode.matches('^[A-Z0-9]{6,32}$');
+    }
+
+    function isActivePublicShare(data) {
+      return data.isActive == true
+        && data.expiresAt is timestamp
+        && data.expiresAt > request.time;
+    }
+
+    function ownsShare(data) {
+      return verifiedSignedIn() && data.ownerId == request.auth.uid;
+    }
+
+    function hasField(data, field) {
+      return data.keys().hasAny([field]);
+    }
+
+    function stringWithMax(value, max) {
+      return value is string && value.size() <= max;
+    }
+
+    function optionalStringWithMax(data, field, max) {
+      return !hasField(data, field) || stringWithMax(data[field], max);
+    }
+
+    function intInRange(value, min, max) {
+      return value is int && value >= min && value <= max;
+    }
+
+    function listWithMax(value, max) {
+      return value is list && value.size() <= max;
+    }
+
+    function optionalListWithMax(data, field, max) {
+      return !hasField(data, field) || listWithMax(data[field], max);
+    }
+
+    function validScheduleData(data) {
+      return data.keys().hasAll(["name", "repeat", "duration", "start_time", "subjects", "schedule"])
+        && data.keys().hasOnly([
+          "name",
+          "repeat",
+          "duration",
+          "breaks",
+          "start_time",
+          "starting_week",
+          "subjects",
+          "teachers",
+          "links",
+          "gradients",
+          "schedule",
+          "color"
+        ])
+        && stringWithMax(data.name, 80)
+        && intInRange(data.repeat, 1, 12)
+        && intInRange(data.duration, 1, 600)
+        && stringWithMax(data.start_time, 5)
+        && optionalStringWithMax(data, "starting_week", 40)
+        && optionalStringWithMax(data, "color", 32)
+        && optionalListWithMax(data, "breaks", 40)
+        && listWithMax(data.subjects, 250)
+        && optionalListWithMax(data, "teachers", 250)
+        && optionalListWithMax(data, "links", 250)
+        && optionalListWithMax(data, "gradients", 100)
+        && listWithMax(data.schedule, 7);
+    }
+
+    function validSharedScheduleDoc(data, shareCode) {
+      return data.keys().hasAll([
+          "id",
+          "ownerId",
+          "ownerName",
+          "scheduleName",
+          "scheduleData",
+          "createdAt",
+          "expiresAt",
+          "isActive"
+        ])
+        && data.keys().hasOnly([
+          "id",
+          "ownerId",
+          "ownerName",
+          "scheduleName",
+          "scheduleData",
+          "createdAt",
+          "expiresAt",
+          "isActive"
+        ])
+        && data.id == shareCode
+        && stringWithMax(data.ownerId, 128)
+        && stringWithMax(data.ownerName, 120)
+        && stringWithMax(data.scheduleName, 120)
+        && data.createdAt is number
+        && data.expiresAt is timestamp
+        && data.isActive is bool
+        && data.scheduleData is map
+        && validScheduleData(data.scheduleData);
+    }
+
+    function validSharedScheduleCreate(shareCode) {
+      return isShareCode(shareCode)
+        && verifiedSignedIn()
+        && validSharedScheduleDoc(request.resource.data, shareCode)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.isActive == true
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(31, "d");
+    }
+
+    function validSharedScheduleUpdate(shareCode) {
+      return isShareCode(shareCode)
+        && ownsShare(resource.data)
+        && validSharedScheduleDoc(request.resource.data, shareCode)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.ownerId == request.auth.uid
+        && (request.resource.data.isActive == false || request.resource.data.expiresAt > request.time)
+        && request.resource.data.expiresAt <= request.time + duration.value(31, "d");
+    }
+
+    match /schedules/{userId} {
+      allow read, write: if isOwnerAndVerified(userId);
+    }
+
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwnerAndVerified(userId);
+    }
+
+    match /shared_schedules/{shareCode} {
+      allow get: if isShareCode(shareCode)
+        && (isActivePublicShare(resource.data) || ownsShare(resource.data));
+
+      allow list: if ownsShare(resource.data);
+
+      allow create: if validSharedScheduleCreate(shareCode);
+
+      allow update: if validSharedScheduleUpdate(shareCode);
+
+      allow delete: if isShareCode(shareCode) && ownsShare(resource.data);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

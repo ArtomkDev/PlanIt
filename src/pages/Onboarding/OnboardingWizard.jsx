@@ -13,7 +13,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-import { useSchedule } from '../../context/ScheduleProvider';
+import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
 import { t } from '../../utils/i18n';
 import themes from '../../config/themes';
 import defaultSchedule from '../../config/defaultSchedule';
@@ -33,7 +33,8 @@ const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpaci
 export default function OnboardingWizard() {
   const { width } = useWindowDimensions();
   const colorScheme = useColorScheme();
-  const { lang, global, addSchedule, setGlobalDraft } = useSchedule();
+  const { lang, global } = useScheduleData();
+  const { addSchedule, setGlobalDraft } = useScheduleActions();
 
   const rawTheme = global?.theme?.[0];
   const defaultMode = colorScheme === 'dark' ? 'dark' : 'light';

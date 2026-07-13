@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, View, Platform } from "react-native";
-import { useSchedule } from "../../../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData, useScheduleSync } from "../../../../context/ScheduleProvider";
 import themes from "../../../../config/themes";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import { t, SUPPORTED_LANGUAGES } from "../../../../utils/i18n";
@@ -8,7 +8,9 @@ import { t, SUPPORTED_LANGUAGES } from "../../../../utils/i18n";
 import SettingsSelectionRow from "../../../../components/ui/SettingsKit/SettingsSelectionRow";
 
 const LanguageSettings = () => {
-  const { global, setGlobalDraft, saveNow, isDirty } = useSchedule();
+  const { global } = useScheduleData();
+  const { setGlobalDraft, saveNow } = useScheduleActions();
+  const { isDirty } = useScheduleSync();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);

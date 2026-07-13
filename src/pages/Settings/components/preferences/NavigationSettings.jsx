@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { CalendarDots, Check, GearSix } from 'phosphor-react-native';
 import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
-import { useSchedule } from '../../../../context/ScheduleProvider';
+import { useScheduleActions, useScheduleData } from '../../../../context/ScheduleProvider';
 import themes from '../../../../config/themes';
 import { t } from '../../../../utils/i18n';
 import { NAVIGATION_METRICS, NAVIGATION_STYLE_KEYS } from '../../../../navigation/navigationMetrics';
@@ -161,7 +161,8 @@ function NavigationPreview({ variant, selected, showLabels, themeColors, lang })
 }
 
 export default function NavigationSettings() {
-  const { global, setGlobalDraft, lang } = useSchedule();
+  const { global, lang } = useScheduleData();
+  const { setGlobalDraft } = useScheduleActions();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
   const selectedStyle = NAVIGATION_STYLE_KEYS.includes(global?.navigationStyle)

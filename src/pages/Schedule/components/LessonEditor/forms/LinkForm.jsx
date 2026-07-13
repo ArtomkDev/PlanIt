@@ -10,11 +10,11 @@ import {
   Platform 
 } from "react-native";
 import { TextT, Link as LinkIcon } from "phosphor-react-native";
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack, themeColors }) {
-  const { lang } = useSchedule();
+  const { lang } = useScheduleData();
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");

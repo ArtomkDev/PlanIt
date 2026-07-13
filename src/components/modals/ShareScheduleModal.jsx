@@ -2,15 +2,16 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Switch, ActivityIndicator, Share } from "react-native";
 import { ShareNetwork, Copy, CheckCircle, X, BookOpen, GraduationCap, Palette, User, Link, Note } from "phosphor-react-native";
 import * as Clipboard from "expo-clipboard";
-import { useSchedule } from "../../context/ScheduleProvider";
+import { useScheduleData } from "../../context/ScheduleProvider";
 import { createSharedSchedule } from "../../services/shareService";
+import { sanitizeSharedSchedule } from "../../utils/scheduleValidation";
 import TabSwitcher from "../ui/TabSwitcher";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
 
 export default function ShareScheduleModal({ visible, onClose, scheduleToShare }) {
-  const { user, global, lang } = useSchedule();
+  const { user, global, lang } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -30,26 +31,12 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
     setLoading(true);
 
     try {
-      const sanitizedDays = Object.keys(scheduleToShare.days || {}).reduce((acc, dayKey) => {
-        const dayLessons = scheduleToShare.days[dayKey] || [];
-        acc[dayKey] = dayLessons.map((lesson) => {
-          const baseLesson = { ...lesson };
-          if (!shareTeachers) delete baseLesson.teacher;
-          if (!shareLinks) delete baseLesson.link;
-          if (!shareNotes) delete baseLesson.note;
-          if (!shareGradients) {
-            delete baseLesson.gradient;
-            delete baseLesson.color;
-          }
-          return baseLesson;
-        });
-        return acc;
-      }, {});
-
-      const processedSchedule = {
-        ...scheduleToShare,
-        days: sanitizedDays,
-      };
+      const processedSchedule = sanitizeSharedSchedule(scheduleToShare, {
+        shareTeachers,
+        shareGradients,
+        shareLinks,
+        shareNotes,
+      });
 
       const customOwnerName = shareAuthorName 
         ? (user.displayName || user.email || "User") 

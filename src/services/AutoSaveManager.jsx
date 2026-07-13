@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet } from "react-native";
-import { useSchedule } from "../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData, useScheduleSync } from "../context/ScheduleProvider";
 import { t } from "../utils/i18n";
 
 export default function AutoSaveManager() {
-  const { saveNow, isCloudSaving, isDirty, user, global, schedule, isOnline, conflictQueue, cloudSyncState, lang } = useSchedule();
+  const { saveNow } = useScheduleActions();
+  const { isCloudSaving, isDirty, isOnline, conflictQueue, cloudSyncState } = useScheduleSync();
+  const { user, global, schedule, lang } = useScheduleData();
   
   const [statusMessage, setStatusMessage] = useState("");
   

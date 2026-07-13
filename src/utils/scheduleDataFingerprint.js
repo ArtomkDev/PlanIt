@@ -1,0 +1,137 @@
+const normalizePrimitive = (value) => {
+  if (value === undefined || value === null) return "";
+  if (Array.isArray(value)) return value.join(",");
+  if (typeof value === "object") return "";
+  return String(value);
+};
+
+const countLessons = (scheduleGrid) => {
+  if (!Array.isArray(scheduleGrid)) return 0;
+
+  return scheduleGrid.reduce((total, day) => {
+    if (!day || typeof day !== "object") return total;
+
+    return total + Object.keys(day).reduce((dayTotal, weekKey) => {
+      const weekLessons = day[weekKey];
+      return dayTotal + (Array.isArray(weekLessons) ? weekLessons.length : 0);
+    }, 0);
+  }, 0);
+};
+
+const getArrayItemsFingerprint = (items, keys) => {
+  if (!Array.isArray(items)) return "";
+
+  return items
+    .map((item = {}) => keys.map((key) => normalizePrimitive(item[key])).join(","))
+    .sort()
+    .join(";");
+};
+
+const getLessonsFingerprint = (scheduleGrid) => {
+  if (!Array.isArray(scheduleGrid)) return "";
+
+  const lessonParts = [];
+  scheduleGrid.forEach((day, dayIndex) => {
+    if (!day || typeof day !== "object") return;
+
+    Object.keys(day).forEach((weekKey) => {
+      const weekLessons = day[weekKey];
+      if (!Array.isArray(weekLessons)) return;
+
+      weekLessons.forEach((lesson = {}, lessonIndex) => {
+        lessonParts.push([
+          dayIndex,
+          weekKey,
+          lessonIndex,
+          lesson.id,
+          lesson.subjectId,
+          lesson.type,
+          lesson.room,
+          lesson.building,
+          lesson.start,
+          lesson.end,
+          lesson.startTime,
+          lesson.endTime,
+          lesson.timeInfo?.start,
+          lesson.timeInfo?.end,
+          Array.isArray(lesson.teachers) ? lesson.teachers.join(",") : lesson.teacher,
+          Array.isArray(lesson.links) ? lesson.links.join(",") : lesson.link,
+          lesson.note,
+          lesson.color,
+          lesson.gradient,
+        ].map(normalizePrimitive).join(","));
+      });
+    });
+  });
+
+  return lessonParts.join(";");
+};
+
+const getGlobalFingerprint = (global = {}) => {
+  const keys = [
+    "version",
+    "baseVersion",
+    "lastModified",
+    "lastSynced",
+    "watermark",
+    "currentScheduleId",
+    "language",
+    "theme",
+    "blur",
+    "navigationStyle",
+    "navigationLabels",
+    "navigationAnimations",
+    "starting_week",
+  ];
+
+  return keys.map((key) => `${key}:${normalizePrimitive(global?.[key])}`).join(";");
+};
+
+const getScheduleFingerprint = (schedule = {}) => {
+  const keyParts = [
+    schedule.id,
+    schedule.version || 0,
+    schedule.baseVersion || 0,
+    schedule.lastModified || 0,
+    schedule.lastSynced || 0,
+    schedule.isDeleted ? 1 : 0,
+    schedule.deletedAt || 0,
+    schedule.name || "",
+    schedule.repeat || "",
+    schedule.start_time || "",
+    schedule.duration || "",
+    Array.isArray(schedule.breaks) ? schedule.breaks.join(",") : "",
+    Array.isArray(schedule.subjects) ? schedule.subjects.length : 0,
+    getArrayItemsFingerprint(schedule.subjects, ["id", "name", "shortName", "type", "room", "building", "color", "colorGradient"]),
+    Array.isArray(schedule.teachers) ? schedule.teachers.length : 0,
+    getArrayItemsFingerprint(schedule.teachers, ["id", "name", "shortName", "email", "phone"]),
+    Array.isArray(schedule.links) ? schedule.links.length : 0,
+    getArrayItemsFingerprint(schedule.links, ["id", "name", "url"]),
+    Array.isArray(schedule.gradients) ? schedule.gradients.length : 0,
+    getArrayItemsFingerprint(schedule.gradients, ["id", "name", "colors"]),
+    countLessons(schedule.schedule),
+    getLessonsFingerprint(schedule.schedule),
+  ];
+
+  return keyParts.map(normalizePrimitive).join(":");
+};
+
+export const getScheduleDataFingerprint = (data) => {
+  if (!data) return "null";
+
+  const schedules = Array.isArray(data.schedules) ? data.schedules : [];
+  const schedulesFingerprint = schedules
+    .map(getScheduleFingerprint)
+    .sort()
+    .join("|");
+
+  return [
+    `global{${getGlobalFingerprint(data.global || {})}`,
+    `schedules:${schedules.length}`,
+    schedulesFingerprint,
+  ].join("}");
+};
+
+export const hasScheduleDataChanged = (previousData, nextData) => (
+  getScheduleDataFingerprint(previousData) !== getScheduleDataFingerprint(nextData)
+);

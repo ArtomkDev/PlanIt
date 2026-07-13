@@ -21,7 +21,7 @@ import { useNavigation } from "@react-navigation/native";
 import Animated, { FadeInDown, ZoomOut } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import themes from "../../../config/themes"; 
 import { t } from "../../../utils/i18n";
@@ -41,12 +41,14 @@ const ScheduleSwitcher = () => {
     user,
     guest, 
     global, 
-    setGlobalDraft, 
     schedules, 
-    addSchedule, 
-    removeSchedule, 
     lang 
-  } = useSchedule();
+  } = useScheduleData();
+  const {
+    setGlobalDraft,
+    addSchedule,
+    removeSchedule,
+  } = useScheduleActions();
   
   const navigation = useNavigation();
   const [mode, accent] = global?.theme || ["light", "blue"];

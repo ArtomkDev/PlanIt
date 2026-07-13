@@ -7,14 +7,21 @@ import {
   onSnapshot,
   getDocFromServer,
   getDocsFromServer,
-  setDoc
+  setDoc,
+  query,
+  where
 } from "firebase/firestore";
 import { db } from "./firebase";
 import createDefaultData from './createDefaultData';
 import { logCrashlyticsError } from '../utils/analytics/crashlytics';
 import { getDeviceId } from '../utils/deviceService';
+import { getScheduleDataFingerprint } from '../utils/scheduleDataFingerprint';
 
 let isAccountBeingDeleted = false;
+const DEVICE_SYNC_CLEANUP_THROTTLE_MS = 30 * 60 * 1000;
+const DEVICE_WATERMARK_SCAN_TTL_MS = 60 * 60 * 1000;
+const DEAD_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
+const cleanupStateByUser = new Map();
 
 const parseTimestamp = (ts) => {
   if (!ts) return null;
@@ -36,8 +43,43 @@ const ensureVersioning = (data) => {
   };
 };
 
-export const updateDeviceSyncTimeAndCleanUp = async (userId) => {
-  if (isAccountBeingDeleted) return;
+const getDeviceSyncWatermark = async (userId, now = Date.now()) => {
+  const devicesRef = collection(db, 'users', userId, 'devices');
+  const devicesSnap = await getDocs(devicesRef);
+
+  let watermark = now;
+  let activeDevices = 0;
+
+  devicesSnap.docs.forEach(docSnap => {
+    const syncTime = docSnap.data().lastSyncTime || 0;
+    if (now - syncTime < DEAD_DEVICE_MS) {
+      activeDevices++;
+      if (syncTime < watermark) watermark = syncTime;
+    }
+  });
+
+  return activeDevices === 0 ? now : watermark;
+};
+
+const getCleanupWatermark = async (userId, now = Date.now()) => {
+  const globalRef = doc(db, 'users', userId, 'global', 'settings');
+  const globalSnap = await getDoc(globalRef);
+  const globalData = globalSnap.exists() ? globalSnap.data() : {};
+  const cachedWatermark = Number(globalData.watermark) || 0;
+  const cachedAt = parseTimestamp(globalData.watermarkUpdatedAt) || 0;
+
+  if (cachedWatermark > 0 && now - cachedAt < DEVICE_WATERMARK_SCAN_TTL_MS) {
+    return { globalRef, watermark: cachedWatermark, scannedDevices: false };
+  }
+
+  return {
+    globalRef,
+    watermark: await getDeviceSyncWatermark(userId, now),
+    scannedDevices: true,
+  };
+};
+
+const runDeviceSyncTimeAndCleanUp = async (userId) => {
   try {
     const deviceId = await getDeviceId();
     if (!deviceId) return;
@@ -46,26 +88,13 @@ export const updateDeviceSyncTimeAndCleanUp = async (userId) => {
     const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
     await setDoc(deviceRef, { lastSyncTime: now }, { merge: true });
 
-    const devicesRef = collection(db, 'users', userId, 'devices');
-    const devicesSnap = await getDocs(devicesRef);
-    
-    let watermark = now;
-    let activeDevices = 0;
-    const DEAD_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
-
-    devicesSnap.docs.forEach(docSnap => {
-      const syncTime = docSnap.data().lastSyncTime || 0;
-      if (now - syncTime < DEAD_DEVICE_MS) {
-        activeDevices++;
-        if (syncTime < watermark) watermark = syncTime;
-      }
-    });
-
-    if (activeDevices === 0) watermark = now;
+    // A stale watermark can only delay tombstone deletion; advancing it requires a rare device scan.
+    const { globalRef, watermark, scannedDevices } = await getCleanupWatermark(userId, now);
     const safeWatermark = watermark + 2000;
 
     const schedulesRef = collection(db, 'users', userId, 'schedules');
-    const schedulesSnap = await getDocs(schedulesRef);
+    const deletedSchedulesQuery = query(schedulesRef, where('isDeleted', '==', true));
+    const schedulesSnap = await getDocs(deletedSchedulesQuery);
     
     const batch = writeBatch(db);
     let hasDeletions = false;
@@ -78,9 +107,11 @@ export const updateDeviceSyncTimeAndCleanUp = async (userId) => {
       }
     });
 
-    if (hasDeletions) {
-      const globalRef = doc(db, 'users', userId, 'global', 'settings');
-      batch.set(globalRef, { watermark }, { merge: true });
+    if (scannedDevices) {
+      batch.set(globalRef, { watermark, watermarkUpdatedAt: now }, { merge: true });
+    }
+
+    if (hasDeletions || scannedDevices) {
       await batch.commit();
     }
   } catch (error) {
@@ -88,17 +119,81 @@ export const updateDeviceSyncTimeAndCleanUp = async (userId) => {
   }
 };
 
+export const updateDeviceSyncTimeAndCleanUp = async (userId, options = {}) => {
+  if (isAccountBeingDeleted || !userId) return;
+
+  const { force = false } = options;
+  const now = Date.now();
+  const state = cleanupStateByUser.get(userId) || {
+    lastStartedAt: 0,
+    inFlight: null,
+    timeoutId: null,
+  };
+
+  if (state.inFlight) {
+    return state.inFlight;
+  }
+
+  const msSinceLastRun = now - (state.lastStartedAt || 0);
+  if (!force && msSinceLastRun < DEVICE_SYNC_CLEANUP_THROTTLE_MS) {
+    if (!state.timeoutId) {
+      state.timeoutId = setTimeout(() => {
+        const latestState = cleanupStateByUser.get(userId) || {};
+        latestState.timeoutId = null;
+        cleanupStateByUser.set(userId, latestState);
+        updateDeviceSyncTimeAndCleanUp(userId, { force: true });
+      }, DEVICE_SYNC_CLEANUP_THROTTLE_MS - msSinceLastRun);
+    }
+    cleanupStateByUser.set(userId, state);
+    return;
+  }
+
+  if (state.timeoutId) {
+    clearTimeout(state.timeoutId);
+    state.timeoutId = null;
+  }
+
+  state.lastStartedAt = now;
+  state.inFlight = runDeviceSyncTimeAndCleanUp(userId).finally(() => {
+    const latestState = cleanupStateByUser.get(userId) || state;
+    latestState.inFlight = null;
+    cleanupStateByUser.set(userId, latestState);
+  });
+  cleanupStateByUser.set(userId, state);
+
+  return state.inFlight;
+};
+
 export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   let globalData = null;
   let schedulesList = null;
   let globalFromCache = true;
   let schedulesFromCache = true;
+  let globalHasPendingWrites = false;
+  let schedulesHasPendingWrites = false;
   let globalSnapshotCount = 0;
+  let lastEmittedFingerprint = null;
+  let lastEmittedFromCache = null;
 
   const checkAndEmit = () => {
     if (globalData !== null && schedulesList !== null) {
       const isFromCache = globalFromCache || schedulesFromCache;
-      onDataUpdate({ global: globalData, schedules: schedulesList }, isFromCache);
+      const hasPendingWrites = globalHasPendingWrites || schedulesHasPendingWrites;
+      const payload = { global: globalData, schedules: schedulesList };
+      const fingerprint = getScheduleDataFingerprint(payload);
+      const hasDataChanged = fingerprint !== lastEmittedFingerprint;
+      const cacheStateChanged = isFromCache !== lastEmittedFromCache;
+
+      if (!hasDataChanged && !cacheStateChanged) return;
+
+      lastEmittedFingerprint = fingerprint;
+      lastEmittedFromCache = isFromCache;
+
+      onDataUpdate(payload, isFromCache, {
+        hasDataChanged,
+        cacheStateChanged,
+        hasPendingWrites,
+      });
     }
   };
 
@@ -107,6 +202,7 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   const unsubGlobal = onSnapshot(globalRef, (docSnap) => {
     const currentCount = ++globalSnapshotCount;
     globalFromCache = docSnap.metadata.fromCache; 
+    globalHasPendingWrites = docSnap.metadata.hasPendingWrites;
 
     if (docSnap.exists()) {
       const data = docSnap.data();
@@ -140,6 +236,7 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   
   const unsubSchedules = onSnapshot(schedulesRef, (querySnapshot) => {
     schedulesFromCache = querySnapshot.metadata.fromCache; 
+    schedulesHasPendingWrites = querySnapshot.metadata.hasPendingWrites;
     
     schedulesList = querySnapshot.docs.map(docSnap => ({
       id: docSnap.id,
@@ -258,32 +355,27 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
     batch.set(deviceRef, { lastSyncTime: now }, { merge: true });
   }
 
-  const devicesRef = collection(db, 'users', userId, 'devices');
-  const devicesSnap = await getDocs(devicesRef);
-  
-  let watermark = now;
-  let activeDevices = 0;
-  const DEAD_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
-
-  devicesSnap.docs.forEach(docSnap => {
-    const syncTime = docSnap.data().lastSyncTime || 0;
-    if (now - syncTime < DEAD_DEVICE_MS) {
-      activeDevices++;
-      if (syncTime < watermark) watermark = syncTime;
-    }
-  });
-
-  if (activeDevices === 0) watermark = now;
+  const shouldScanWatermark = !isPartialUpdate;
+  const incomingWatermark = data.global?.watermark;
+  const watermark = shouldScanWatermark
+    ? await getDeviceSyncWatermark(userId, now)
+    : (typeof incomingWatermark === 'number' ? incomingWatermark : 0);
   const safeWatermark = watermark + 2000;
 
   let hasGlobalUpdates = false;
   let globalUpdateData = {};
 
   if (data.global) {
-    globalUpdateData = { ...data.global, watermark };
+    globalUpdateData = { ...data.global };
+    if (shouldScanWatermark || typeof incomingWatermark === 'number') {
+      globalUpdateData.watermark = watermark;
+      if (shouldScanWatermark) {
+        globalUpdateData.watermarkUpdatedAt = now;
+      }
+    }
     hasGlobalUpdates = true;
-  } else {
-    globalUpdateData = { watermark };
+  } else if (shouldScanWatermark) {
+    globalUpdateData = { watermark, watermarkUpdatedAt: now };
     hasGlobalUpdates = true;
   }
 
@@ -317,7 +409,8 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
       if (schedule && schedule.id) {
         const scheduleDocRef = doc(db, 'users', userId, 'schedules', schedule.id);
         
-        if (schedule.isDeleted && (schedule.deletedAt || schedule.lastModified || 0) <= safeWatermark) {
+        // Partial autosaves avoid device scans; tombstones are hard-deleted by the throttled cleanup path.
+        if (!isPartialUpdate && schedule.isDeleted && (schedule.deletedAt || schedule.lastModified || 0) <= safeWatermark) {
           batch.delete(scheduleDocRef);
         } else {
           batch.set(scheduleDocRef, schedule, { merge: true });

@@ -4,15 +4,16 @@ import {
   ActivityIndicator, Platform, Keyboard
 } from "react-native";
 import { DownloadSimple, X } from "phosphor-react-native";
-import { useSchedule } from "../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "../../context/ScheduleProvider";
 import { fetchSharedSchedule } from "../../services/shareService";
-import { generateId } from "../../utils/idGenerator";
+import { sanitizeImportedSchedule } from "../../utils/scheduleValidation";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
 
 export default function ImportScheduleModal({ visible, onClose, initialCode = "" }) {
-  const { global, lang, addSchedule, setGlobalDraft } = useSchedule();
+  const { global, lang } = useScheduleData();
+  const { addSchedule, setGlobalDraft } = useScheduleActions();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -33,7 +34,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
     let interval;
     if (visible && !previewData && !initialCode) {
       const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      const targetLength = 6;
+      const targetLength = 10;
       let finalCode = "";
       
       for (let i = 0; i < targetLength; i++) {
@@ -77,6 +78,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
       setPreviewData(data);
     } catch (err) {
       if (err.message === "not_found") setError(t("share.error_not_found", lang));
+      else if (err.message === "invalid_code") setError(t("share.error_not_found", lang));
       else if (err.message === "inactive") setError(t("share.error_inactive", lang));
       else if (err.message === "expired") setError(t("share.error_expired", lang));
       else setError(t("common.error", lang));
@@ -87,16 +89,18 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
 
   const handleImport = () => {
     if (!previewData) return;
-    const newSchedule = {
-      ...previewData.scheduleData,
-      id: generateId(),
-      isCloud: false,
-      lastModified: Date.now(),
-    };
-    
-    addSchedule(newSchedule);
-    setGlobalDraft(prev => ({ ...prev, currentScheduleId: newSchedule.id }));
-    resetAndClose();
+    try {
+      const newSchedule = sanitizeImportedSchedule(previewData.scheduleData);
+      addSchedule(newSchedule);
+      setGlobalDraft(prev => ({ ...prev, currentScheduleId: newSchedule.id }));
+      resetAndClose();
+    } catch (err) {
+      if (err.message === "invalid_shared_schedule") {
+        setError(t("share.error_invalid_schedule", lang));
+      } else {
+        setError(t("common.error", lang));
+      }
+    }
   };
 
   const resetAndClose = () => {
@@ -154,7 +158,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                       value={code}
                       onChangeText={(text) => { setCode(text.toUpperCase()); setError(null); }}
                       autoCapitalize="characters"
-                      maxLength={8}
+                      maxLength={10}
                       autoCorrect={false}
                       autoFocus={Platform.OS === "ios"}
                     />

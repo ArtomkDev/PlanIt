@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import tinycolor from "tinycolor2";
 import GradientBackground from "../../../../../components/ui/GradientBackground";
 import TabSwitcher from "../../../../../components/ui/TabSwitcher";
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 const HUE_COLORS = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000'];
@@ -85,7 +85,7 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
 };
 
 export default function LessonEditorGradientEditScreen({ themeColors, gradientToEdit, onSave }) {
-  const { global , lang} = useSchedule();
+  const { global , lang} = useScheduleData();
 
   const getInitialColor = (index, fallback) => {
     if (gradientToEdit && gradientToEdit.colors && gradientToEdit.colors[index]) {

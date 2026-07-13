@@ -1,36 +1,80 @@
-import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, deleteDoc, runTransaction } from "firebase/firestore";
+import * as Crypto from "expo-crypto";
 import { db } from "../config/firebase";
 
+const SHARE_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const SHARE_CODE_LENGTH = 10;
+const MAX_SHARE_CODE_ATTEMPTS = 8;
+const SHARE_CODE_RE = /^[A-Z0-9]{6,32}$/;
+const COLLISION_ERROR = "share_code_collision";
+
 export const generateShareCode = () => {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  let code = "";
+
+  while (code.length < SHARE_CODE_LENGTH) {
+    const bytes = Crypto.getRandomBytes(SHARE_CODE_LENGTH);
+
+    for (const byte of bytes) {
+      if (byte >= 252) continue;
+      code += SHARE_CODE_ALPHABET[byte % SHARE_CODE_ALPHABET.length];
+      if (code.length === SHARE_CODE_LENGTH) break;
+    }
+  }
+
+  return code;
+};
+
+const normalizeShareCode = (shareCode) => {
+  const normalized = String(shareCode || "").trim().toUpperCase();
+  if (!SHARE_CODE_RE.test(normalized)) {
+    throw new Error("invalid_code");
+  }
+  return normalized;
 };
 
 export const createSharedSchedule = async (user, scheduleData, durationDays) => {
   if (!user || !scheduleData) throw new Error("Missing user or schedule data");
 
-  const shareCode = generateShareCode();
+  const safeDurationDays = Math.min(30, Math.max(1, Number(durationDays) || 7));
   const createdAt = Date.now();
-  const expiresAtDate = new Date(createdAt + durationDays * 24 * 60 * 60 * 1000);
+  const expiresAtDate = new Date(createdAt + safeDurationDays * 24 * 60 * 60 * 1000);
 
-  const sharedDoc = {
-    id: shareCode,
-    ownerId: user.uid,
-    ownerName: user.displayName || user.email || "User",
-    scheduleName: scheduleData.name || "Untitled",
-    scheduleData: scheduleData,
-    createdAt,
-    expiresAt: expiresAtDate,
-    isActive: true,
-  };
+  for (let attempt = 0; attempt < MAX_SHARE_CODE_ATTEMPTS; attempt += 1) {
+    const shareCode = generateShareCode();
+    const docRef = doc(db, "shared_schedules", shareCode);
+    const sharedDoc = {
+      id: shareCode,
+      ownerId: user.uid,
+      ownerName: user.displayName || user.email || "User",
+      scheduleName: scheduleData.name || "Untitled",
+      scheduleData,
+      createdAt,
+      expiresAt: expiresAtDate,
+      isActive: true,
+    };
 
-  await setDoc(doc(db, "shared_schedules", shareCode), sharedDoc);
-  return shareCode;
+    try {
+      await runTransaction(db, async (transaction) => {
+        const existing = await transaction.get(docRef);
+        if (existing.exists()) {
+          throw new Error(COLLISION_ERROR);
+        }
+        transaction.set(docRef, sharedDoc);
+      });
+      return shareCode;
+    } catch (error) {
+      if (error?.message === COLLISION_ERROR) continue;
+      throw error;
+    }
+  }
+
+  throw new Error("share_code_generation_failed");
 };
 
 export const fetchSharedSchedule = async (shareCode) => {
   if (!shareCode) throw new Error("Code is required");
 
-  const docRef = doc(db, "shared_schedules", shareCode.toUpperCase());
+  const docRef = doc(db, "shared_schedules", normalizeShareCode(shareCode));
   const docSnap = await getDoc(docRef);
 
   if (!docSnap.exists()) {
@@ -62,6 +106,6 @@ export const getUserSharedSchedules = async (userId) => {
 };
 
 export const deleteSharedSchedule = async (shareCode) => {
-  const docRef = doc(db, "shared_schedules", shareCode);
+  const docRef = doc(db, "shared_schedules", normalizeShareCode(shareCode));
   await deleteDoc(docRef);
 };

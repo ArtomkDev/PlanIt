@@ -14,7 +14,8 @@ import CalendarSheet from "../../components/CalendarSheet/CalendarSheet";
 import AppBlur from "../../components/ui/AppBlur";
 
 import { DayScheduleProvider } from "../../context/DayScheduleProvider";
-import { useSchedule } from "../../context/ScheduleProvider";
+import { useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
+import { NowTickProvider } from "../../hooks/useNowTick";
 import themes from "../../config/themes";
 
 const HALF_SIZE = 300; 
@@ -99,7 +100,8 @@ const DayPage = memo(({
 });
 
 export default function Schedule() {
-  const { global, schedule, lang, tabBarHeight } = useSchedule();
+  const { global, schedule, lang } = useScheduleData();
+  const { tabBarHeight } = useScheduleLayout();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   
@@ -312,6 +314,7 @@ export default function Schedule() {
   ), [anchorDate, SCREEN_WIDTH, headerHeight, openViewer, openEditor, scrollY]);
 
   return (
+    <NowTickProvider activeDate={currentDate}>
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
       <View
         style={styles.headerContainer}
@@ -382,6 +385,7 @@ export default function Schedule() {
       
       <CalendarSheet visible={calendarVisible} currentDate={currentDate} onClose={() => setCalendarVisible(false)} onDateSelect={date => goToDate(date, true)} />
     </View>
+    </NowTickProvider>
   );
 }
 

@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, Platform } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
-import { useSchedule } from "../../../context/ScheduleProvider";
+import { useScheduleData, useScheduleLayout } from "../../../context/ScheduleProvider";
 import LessonCard from "./LessonCard";
 import BreakCard from "./BreakCard";
 import themes from "../../../config/themes";
@@ -60,7 +60,8 @@ export default function DaySchedule({
   headerHeight = 190,
 }) {
   const { getDaySchedule } = useDaySchedule();
-  const { schedule, global, lang, tabBarHeight } = useSchedule();
+  const { schedule, global, lang } = useScheduleData();
+  const { tabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
   
   const [mode, accent] = global?.theme || ["light", "blue"];

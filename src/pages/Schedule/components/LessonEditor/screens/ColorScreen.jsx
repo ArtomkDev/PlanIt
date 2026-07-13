@@ -3,7 +3,7 @@ import { View, StyleSheet } from "react-native";
 import ColorGrid from "../ui/ColorGrid";
 import GradientGrid from "../ui/GradientGrid";
 import TabSwitcher from "../../../../../components/ui/TabSwitcher";
-import { useSchedule } from "../../../../../context/ScheduleProvider";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 
 export default function LessonEditorSubjectColorScreen({
@@ -14,7 +14,7 @@ export default function LessonEditorSubjectColorScreen({
   onEditGradient,
   onAddGradient,
 }) {
-  const { global , lang} = useSchedule();
+  const { global , lang} = useScheduleData();
 
   const [activeTab, setActiveTab] = useState(
     currentSubject?.typeColor === "gradient" ? "gradient" : "color"
