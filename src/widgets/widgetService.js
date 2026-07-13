@@ -2,6 +2,7 @@ import React from 'react';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScheduleWidget } from './ScheduleWidget';
+import { encodeStorageValue } from '../utils/dataCodec';
 
 let syncDebounceTimer = null;
 let pendingSchedule = undefined;
@@ -60,7 +61,7 @@ export const syncScheduleToWidget = (schedule) => {
         return;
       }
 
-      await AsyncStorage.setItem(SCHEDULE_KEY, JSON.stringify(currentSchedule));
+      await AsyncStorage.setItem(SCHEDULE_KEY, encodeStorageValue(currentSchedule));
       const dims = await getStoredDimensions();
       await doWidgetUpdate(currentSchedule, dims.width, dims.height);
     } catch (error) {

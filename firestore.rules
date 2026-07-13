@@ -87,23 +87,17 @@ service cloud.firestore {
         && listWithMax(data.schedule, 7);
     }
 
-    function validSharedScheduleDoc(data, shareCode) {
+    function validEncodedPayload(data) {
+      return data._c == "planit.lz.v1"
+        && stringWithMax(data._p, 900000);
+    }
+
+    function validSharedScheduleBase(data, shareCode) {
       return data.keys().hasAll([
           "id",
           "ownerId",
           "ownerName",
           "scheduleName",
-          "scheduleData",
-          "createdAt",
-          "expiresAt",
-          "isActive"
-        ])
-        && data.keys().hasOnly([
-          "id",
-          "ownerId",
-          "ownerName",
-          "scheduleName",
-          "scheduleData",
           "createdAt",
           "expiresAt",
           "isActive"
@@ -114,9 +108,46 @@ service cloud.firestore {
         && stringWithMax(data.scheduleName, 120)
         && data.createdAt is number
         && data.expiresAt is timestamp
-        && data.isActive is bool
+        && data.isActive is bool;
+    }
+
+    function validLegacySharedScheduleDoc(data, shareCode) {
+      return validSharedScheduleBase(data, shareCode)
+        && data.keys().hasAll(["scheduleData"])
+        && data.keys().hasOnly([
+          "id",
+          "ownerId",
+          "ownerName",
+          "scheduleName",
+          "scheduleData",
+          "createdAt",
+          "expiresAt",
+          "isActive"
+        ])
         && data.scheduleData is map
         && validScheduleData(data.scheduleData);
+    }
+
+    function validEncodedSharedScheduleDoc(data, shareCode) {
+      return validSharedScheduleBase(data, shareCode)
+        && data.keys().hasAll(["_c", "_p"])
+        && data.keys().hasOnly([
+          "id",
+          "ownerId",
+          "ownerName",
+          "scheduleName",
+          "createdAt",
+          "expiresAt",
+          "isActive",
+          "_c",
+          "_p"
+        ])
+        && validEncodedPayload(data);
+    }
+
+    function validSharedScheduleDoc(data, shareCode) {
+      return validLegacySharedScheduleDoc(data, shareCode)
+        || validEncodedSharedScheduleDoc(data, shareCode);
     }
 
     function validSharedScheduleCreate(shareCode) {

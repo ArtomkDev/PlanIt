@@ -2,20 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { CloudArrowUp, CheckSquare, Square } from 'phosphor-react-native';
 
 import { db } from '../../config/firebase';
 import createDefaultData from '../../config/createDefaultData';
 import { generateId } from '../../utils/idGenerator';
+import { getLocalSchedule, saveLocalSchedule } from '../../utils/storage';
+import {
+  decodeGlobalDocument,
+  decodeScheduleDocument,
+  encodeGlobalDocument,
+  encodeScheduleDocument,
+} from '../../utils/scheduleDocumentCodec';
 import { useScheduleData } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import { t } from '../../utils/i18n';
 import MorphingLoader from '../ui/MorphingLoader';
 import BottomSheet, { SheetFlatList } from '../ui/BottomSheet';
-
-const LOCAL_KEY = 'guest_schedule';
 
 export default function MigrationModal({ userId, onComplete = () => {} }) {
   const { global, lang } = useScheduleData();
@@ -37,12 +41,11 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
 
   const checkLocalData = async () => {
     try {
-      const raw = await AsyncStorage.getItem(LOCAL_KEY);
-      if (!raw) {
+      const localData = await getLocalSchedule(null);
+      if (!localData) {
         onComplete();
         return;
       }
-      const localData = JSON.parse(raw);
       setLocalDataFull(localData);
 
       const schedules = localData.schedules || [];
@@ -79,10 +82,10 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
           isCloud: true
         }));
         
-        await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify({
+        await saveLocalSchedule({
           ...localDataFull,
           schedules: updatedLocalSchedules
-        }));
+        }, null);
       }
     } catch (error) {
       console.warn('Skip migration error:', error);
@@ -108,7 +111,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
       
       const cloudSchedules = schedulesSnap.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...decodeScheduleDocument(doc.data(), doc.id)
       }));
 
       const existingIds = new Set(cloudSchedules.map(s => s.id));
@@ -130,15 +133,15 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
       const batch = writeBatch(db);
 
       const mergedGlobal = globalSnap.exists() 
-        ? { ...localDataFull.global, ...globalSnap.data() } 
+        ? { ...localDataFull.global, ...decodeGlobalDocument(globalSnap.data()) } 
         : (localDataFull.global || createDefaultData().global);
         
-      batch.set(globalRef, mergedGlobal, { merge: true });
+      batch.set(globalRef, encodeGlobalDocument(mergedGlobal));
 
       mergedSchedules.forEach((schedule) => {
         if (schedule && schedule.id) {
           const scheduleRef = doc(db, 'users', userId, 'schedules', schedule.id);
-          batch.set(scheduleRef, schedule, { merge: true });
+          batch.set(scheduleRef, encodeScheduleDocument(schedule));
         }
       });
 
@@ -148,10 +151,10 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
          return { ...s, isCloud: true };
       });
 
-      await AsyncStorage.setItem(LOCAL_KEY, JSON.stringify({
+      await saveLocalSchedule({
         ...localDataFull,
         schedules: updatedLocalSchedules
-      }));
+      }, null);
 
       setIsVisible(false);
       onComplete();

@@ -3,6 +3,7 @@ import { requestWidgetUpdate } from 'react-native-android-widget';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import { ScheduleWidget } from './ScheduleWidget';
+import { decodeStorageValue, encodeStorageValue, isEncodedStorageValue } from '../utils/dataCodec';
 
 const DIMENSIONS_KEY = 'widget_dimensions';
 const SCHEDULE_KEY = 'widget_active_schedule';
@@ -36,7 +37,13 @@ async function getDimensions(widgetInfo) {
 async function getSchedule() {
   try {
     const raw = await AsyncStorage.getItem(SCHEDULE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+
+    const schedule = decodeStorageValue(raw);
+    if (schedule && !isEncodedStorageValue(raw)) {
+      await AsyncStorage.setItem(SCHEDULE_KEY, encodeStorageValue(schedule));
+    }
+    return schedule;
   } catch (_) { return null; }
 }
 

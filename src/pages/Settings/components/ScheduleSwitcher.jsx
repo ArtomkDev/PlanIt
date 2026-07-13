@@ -19,13 +19,13 @@ import {
 } from "phosphor-react-native";
 import { useNavigation } from "@react-navigation/native";
 import Animated, { FadeInDown, ZoomOut } from "react-native-reanimated";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import themes from "../../../config/themes"; 
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
+import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
 
 import TabSwitcher from "../../../components/ui/TabSwitcher";
 import SettingsSelectionRow from "../../../components/ui/SettingsKit/SettingsSelectionRow";
@@ -80,9 +80,8 @@ const ScheduleSwitcher = () => {
 
   const loadGuestSchedules = async () => {
     try {
-      const raw = await AsyncStorage.getItem('guest_schedule');
-      if (raw) {
-        const data = JSON.parse(raw);
+      const data = await getLocalSchedule(null);
+      if (data) {
         const filtered = (data.schedules || []).filter(s => !s.isDeleted);
         setGuestSchedulesList(filtered);
       }
@@ -165,9 +164,8 @@ const ScheduleSwitcher = () => {
         
         await addSchedule(scheduleCopy);
 
-        const raw = await AsyncStorage.getItem('guest_schedule');
-        if (raw) {
-          let guestData = JSON.parse(raw);
+        const guestData = await getLocalSchedule(null);
+        if (guestData) {
           
           guestData.schedules = guestData.schedules.map(s => {
             if (s.id === oldId) {
@@ -176,7 +174,7 @@ const ScheduleSwitcher = () => {
             return s;
           });
 
-          await AsyncStorage.setItem('guest_schedule', JSON.stringify(guestData));
+          await saveLocalSchedule(guestData, null);
           
           const filtered = guestData.schedules.filter(s => !s.isDeleted);
           setGuestSchedulesList(filtered);
@@ -205,13 +203,12 @@ const ScheduleSwitcher = () => {
         scheduleCopy.lastModified = Date.now();
         scheduleCopy.lastSynced = 0;
 
-        const raw = await AsyncStorage.getItem('guest_schedule');
-        let guestData = raw ? JSON.parse(raw) : { global: {}, schedules: [] };
+        let guestData = await getLocalSchedule(null) || { global: {}, schedules: [] };
         
         if (!guestData.schedules) guestData.schedules = [];
         guestData.schedules.push(scheduleCopy);
         
-        await AsyncStorage.setItem('guest_schedule', JSON.stringify(guestData));
+        await saveLocalSchedule(guestData, null);
         
         const filtered = guestData.schedules.filter(s => !s.isDeleted);
         setGuestSchedulesList(filtered);
@@ -240,16 +237,15 @@ const ScheduleSwitcher = () => {
           style: "destructive", 
           onPress: () => {
             enqueueOperation(async () => {
-              const raw = await AsyncStorage.getItem('guest_schedule');
-              if (raw) {
-                let guestData = JSON.parse(raw);
+              const guestData = await getLocalSchedule(null);
+              if (guestData) {
                 guestData.schedules = guestData.schedules.map(s => {
                   if (s.id === scheduleId) {
                     return { ...s, isDeleted: true, lastModified: Date.now() };
                   }
                   return s;
                 });
-                await AsyncStorage.setItem('guest_schedule', JSON.stringify(guestData));
+                await saveLocalSchedule(guestData, null);
                 setGuestSchedulesList(guestData.schedules.filter(s => !s.isDeleted));
               }
             });
