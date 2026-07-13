@@ -34,7 +34,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
     let interval;
     if (visible && !previewData && !initialCode) {
       const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      const targetLength = 10;
+      const targetLength = 5;
       let finalCode = "";
       
       for (let i = 0; i < targetLength; i++) {
@@ -158,7 +158,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                       value={code}
                       onChangeText={(text) => { setCode(text.toUpperCase()); setError(null); }}
                       autoCapitalize="characters"
-                      maxLength={10}
+                      maxLength={32}
                       autoCorrect={false}
                       autoFocus={Platform.OS === "ios"}
                     />

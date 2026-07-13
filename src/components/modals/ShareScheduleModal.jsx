@@ -19,6 +19,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
   const [loading, setLoading] = useState(false);
   const [generatedCode, setGeneratedCode] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const [shareTeachers, setShareTeachers] = useState(true);
   const [shareGradients, setShareGradients] = useState(true);
@@ -29,6 +30,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
   const handleGenerate = async () => {
     if (!user || !scheduleToShare) return;
     setLoading(true);
+    setErrorMessage(null);
 
     try {
       const processedSchedule = sanitizeSharedSchedule(scheduleToShare, {
@@ -50,6 +52,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
       setGeneratedCode(code);
     } catch (error) {
       console.error(error);
+      setErrorMessage(t("common.error", lang));
     } finally {
       setLoading(false);
     }
@@ -78,6 +81,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
   const resetAndClose = () => {
     setGeneratedCode(null);
     setDuration("7");
+    setErrorMessage(null);
     setShareTeachers(true);
     setShareGradients(true);
     setShareLinks(true);
@@ -237,6 +241,10 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       <Text style={styles.primaryBtnText}>{t("share.generate_btn", lang)}</Text>
                     )}
                   </TouchableOpacity>
+
+                  {errorMessage ? (
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                  ) : null}
                 </>
               ) : (
                 <View style={styles.resultContainer}>
@@ -292,6 +300,7 @@ const styles = StyleSheet.create({
   separator: { height: StyleSheet.hairlineWidth, width: "100%" },
   primaryBtn: { width: "100%", paddingVertical: 16, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 28 },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  errorText: { color: "#FF3B30", fontSize: 14, textAlign: "center", marginTop: 12, fontWeight: "600" },
   resultContainer: { alignItems: "center", paddingVertical: 10 },
   successTitle: { fontSize: 18, fontWeight: "600", marginBottom: 20 },
   codeBox: { paddingVertical: 24, paddingHorizontal: 40, borderRadius: 16, borderWidth: 1, marginBottom: 24, width: "100%", alignItems: "center" },

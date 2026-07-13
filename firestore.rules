@@ -16,13 +16,17 @@ service cloud.firestore {
     }
 
     function isShareCode(shareCode) {
-      return shareCode.matches('^[A-Z0-9]{6,32}$');
+      return shareCode.matches('^[A-Z0-9]{5,32}$');
     }
 
     function isActivePublicShare(data) {
       return data.isActive == true
         && data.expiresAt is timestamp
         && data.expiresAt > request.time;
+    }
+
+    function sharedScheduleExists(shareCode) {
+      return exists(/databases/$(database)/documents/shared_schedules/$(shareCode));
     }
 
     function ownsShare(data) {
@@ -146,13 +150,15 @@ service cloud.firestore {
 
     match /shared_schedules/{shareCode} {
       allow get: if isShareCode(shareCode)
-        && (isActivePublicShare(resource.data) || ownsShare(resource.data));
+        && (!sharedScheduleExists(shareCode)
+          || isActivePublicShare(resource.data)
+          || ownsShare(resource.data));
 
       allow list: if ownsShare(resource.data);
 
       allow create: if validSharedScheduleCreate(shareCode);
 
-      allow update: if validSharedScheduleUpdate(shareCode);
+      allow update: if false;
 
       allow delete: if isShareCode(shareCode) && ownsShare(resource.data);
     }
