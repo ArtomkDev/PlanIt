@@ -183,6 +183,7 @@ export default {
       widget_hint: "Оберіть розклад для віджета. Це не змінить розклад у застосунку.",
       long_press_hint: "Затисніть розклад, щоб відкрити його налаштування",
       open_calendar: "Відкрити календар",
+      open_notifications: "Відкрити сповіщення",
     },
     calendar: {
       title: "Оберіть дату",
@@ -319,6 +320,7 @@ export default {
       login: { title: "Увійти або Створити акаунт", desc: "Синхронізуйте дані в хмарі" },
       account_settings: { title: "Налаштування акаунту", desc: "Керування профілем, безпека, зміна пошти" },
       devices: { title: "Пристрої", desc: "Налаштування авторизованих пристроїв" },
+      notifications: { title: "Сповіщення", desc: "Налаштування повідомлень і майбутніх push" },
       logout: { title: "Вийти з акаунту", desc: "Завершити сесію" },
       reset_db: { title: "Скинути БД", desc: "Повне очищення даних" },
     },
@@ -447,6 +449,32 @@ export default {
       current: "Поточний",
       active_sessions: "Активні сеанси",
       logout_all_others: "Вийти на всіх інших пристроях",
+    },
+
+    notifications: {
+      title: "Сповіщення",
+      inbox_title: "Інбокс сповіщень",
+      settings_title: "Налаштування сповіщень",
+      push_title: "Push-сповіщення",
+      push_desc: "Ці перемикачі лише зберігають вибір для майбутніх push. In-app сповіщення продовжують працювати як зараз.",
+      push_label: "Push",
+      coming_soon: "Готується",
+      types: {
+        account_login: {
+          title: "Вхід в акаунт",
+          desc: "Push-налаштування для сповіщень безпеки, коли у ваш акаунт входять з пристрою.",
+        },
+      },
+      empty: "Сповіщень поки немає",
+      mark_all_read: "Позначити всі як прочитані",
+      account_login_title: "Вхід в акаунт",
+      account_login_message: "Вхід із пристрою {deviceName}",
+      ip_address: "IP-адреса",
+      device: "Пристрій",
+      platform: "Платформа",
+      unknown_ip: "Невідомий IP",
+      unread: "Непрочитано",
+      read: "Прочитано",
     },
 
     reset_db_screen: {

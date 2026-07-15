@@ -26,6 +26,7 @@ import useSystemThemeColors from '../hooks/useSystemThemeColors';
 import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 import MorphingLoader from '../components/ui/MorphingLoader';
+import { setManualLogin } from '../utils/authFlags';
 
 if (
   Platform.OS === 'android' && 
@@ -356,6 +357,7 @@ const AuthScreen = ({ onGuestLogin }) => {
           await auth.currentUser.reload();
           if (auth.currentUser.emailVerified) {
             clearInterval(interval);
+            setManualLogin(true);
             await auth.currentUser.getIdToken(true);
           }
         }
@@ -399,11 +401,13 @@ const AuthScreen = ({ onGuestLogin }) => {
     
     setIsLoading(true);
     try { 
+      setManualLogin(true);
       const cred = await signInWithEmailAndPassword(auth, trimmedEmail, password); 
       if (!cred.user.emailVerified) {
         handleNavigate('verify');
       }
     } catch (error) { 
+      setManualLogin(false);
       let msg = t('auth.errors.wrong_credentials', lang);
       if (error.code === 'auth/user-not-found') msg = t('auth.errors.user_not_found', lang);
       if (error.code === 'auth/wrong-password') msg = t('auth.errors.wrong_password', lang);

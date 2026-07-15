@@ -18,7 +18,7 @@ import MainLayout from "./layouts/MainLayout";
 import { ScheduleProvider } from "./context/ScheduleProvider";
 import { EditorProvider } from "./context/EditorProvider";
 import { registerDevice, listenForDeviceRemoval } from "./utils/deviceService";
-import { setManualLogin } from "./utils/authFlags";
+import { consumeManualLogin, setManualLogin } from "./utils/authFlags";
 import useAppLanguage from './hooks/useAppLanguage';
 import { initAds } from './utils/adInit/adInit';
 
@@ -100,14 +100,14 @@ export default function RootApp() {
         if (firebaseUser.emailVerified) {
           wasLoggedIn.current = true;
           currentUid = firebaseUser.uid;
+          const shouldCreateLoginNotification = consumeManualLogin();
           setUser(firebaseUser);
           setGuest(false);
-          setManualLogin(false);
           setAuthResolved(true); 
           setCrashlyticsUser(firebaseUser.uid);
           
           try {
-            await registerDevice(firebaseUser.uid);
+            await registerDevice(firebaseUser.uid, { createLoginNotification: shouldCreateLoginNotification });
             if (currentUid === firebaseUser.uid) {
               deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
             }
@@ -116,6 +116,7 @@ export default function RootApp() {
           }
         } else {
           currentUid = null;
+          setManualLogin(false);
           setUser(null);
           setGuest(false); 
           setAuthResolved(true);

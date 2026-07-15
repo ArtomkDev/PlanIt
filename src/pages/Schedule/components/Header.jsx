@@ -1,20 +1,23 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { ArrowCounterClockwise, CalendarBlank } from "phosphor-react-native";
+import { ArrowCounterClockwise, Bell, CalendarBlank } from "phosphor-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import themes from "../../../config/themes";
 import { useScheduleData } from "../../../context/ScheduleProvider";
+import { useNotificationDrawer } from "../../../context/NotificationDrawerContext";
 import { t } from "../../../utils/i18n";
 import { triggerLightHaptic } from "../../../utils/haptics";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
+import useNotifications from "../../../hooks/useNotifications";
 import SchedulePickerSheet from "./SchedulePickerSheet";
 
 const isSameDay = (left, right) =>
@@ -56,17 +59,30 @@ function ScaleTouchable({ style, onPressIn, onPressOut, children, ...props }) {
 }
 
 export default function Header({ currentDate, onTodayPress, onTitlePress }) {
-  const { global, schedule, lang } = useScheduleData();
+  const { user, guest, global, schedule, lang } = useScheduleData();
+  const { openNotifications } = useNotificationDrawer();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [schedulePickerVisible, setSchedulePickerVisible] = useState(false);
   const resetIconPress = useRef(new Animated.Value(0)).current;
+  const bellPulse = useRef(new Animated.Value(0)).current;
+  const seenUnreadIdsRef = useRef(new Set());
+  const didLoadNotificationsRef = useRef(false);
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   const scheduleColor = resolveScheduleColor(schedule, themeColors.accentColor);
   const locale = t("locale", lang);
   const isToday = isSameDay(currentDate, new Date());
+  const notificationsEnabled = !!user?.uid && !guest;
+  const {
+    notifications,
+    unreadCount,
+    loading: notificationsLoading,
+  } = useNotifications({
+    userId: user?.uid,
+    enabled: notificationsEnabled,
+  });
 
   const formattedDate = useMemo(() => {
     const value = currentDate.toLocaleDateString(locale, {
@@ -97,6 +113,54 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
     inputRange: [0, 1],
     outputRange: [1, 0.82],
   });
+  const bellIconScale = bellPulse.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [1, 1.18, 1, 1.12, 1],
+  });
+  const bellRingScale = bellPulse.interpolate({
+    inputRange: [0, 0.7, 1],
+    outputRange: [0.8, 1.55, 1.8],
+  });
+  const bellRingOpacity = bellPulse.interpolate({
+    inputRange: [0, 0.18, 0.78, 1],
+    outputRange: [0, 0.35, 0.16, 0],
+  });
+
+  useEffect(() => {
+    if (!notificationsEnabled) {
+      seenUnreadIdsRef.current = new Set();
+      didLoadNotificationsRef.current = false;
+      bellPulse.stopAnimation();
+      bellPulse.setValue(0);
+      return;
+    }
+
+    if (notificationsLoading) return;
+
+    const unreadIds = notifications
+      .filter((notification) => !notification.readAt)
+      .map((notification) => notification.id);
+
+    if (!didLoadNotificationsRef.current) {
+      seenUnreadIdsRef.current = new Set(unreadIds);
+      didLoadNotificationsRef.current = true;
+      return;
+    }
+
+    const hasNewUnread = unreadIds.some((id) => !seenUnreadIdsRef.current.has(id));
+    seenUnreadIdsRef.current = new Set(unreadIds);
+
+    if (hasNewUnread) {
+      bellPulse.stopAnimation();
+      bellPulse.setValue(0);
+      Animated.timing(bellPulse, {
+        toValue: 1,
+        duration: 1700,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start(() => bellPulse.setValue(0));
+    }
+  }, [bellPulse, notifications, notificationsEnabled, notificationsLoading]);
 
   const openScheduleSettings = (scheduleId = schedule?.id) => {
     if (!scheduleId) return;
@@ -114,6 +178,12 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
       screen: "ScheduleEditorScreen",
       params: { isNew: true },
     });
+  };
+
+  const openNotificationInbox = () => {
+    if (!notificationsEnabled) return;
+    triggerLightHaptic();
+    openNotifications();
   };
 
   return (
@@ -173,6 +243,45 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
                 weight="bold"
               />
             </ScaleTouchable>
+
+            {notificationsEnabled && (
+              <ScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel={t("schedule.header.open_notifications", lang)}
+                onPress={openNotificationInbox}
+                style={styles.iconButton}
+              >
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.notificationRing,
+                    {
+                      borderColor: themeColors.accentColor,
+                      opacity: bellRingOpacity,
+                      transform: [{ scale: bellRingScale }],
+                    },
+                  ]}
+                />
+                <Animated.View style={{ transform: [{ scale: bellIconScale }] }}>
+                  <Bell
+                    size={17}
+                    color={themeColors.accentColor}
+                    weight={unreadCount > 0 ? "fill" : "bold"}
+                  />
+                </Animated.View>
+                {unreadCount > 0 && (
+                  <View
+                    style={[
+                      styles.notificationDot,
+                      {
+                        backgroundColor: themeColors.accentColor,
+                        borderColor: themeColors.backgroundColor,
+                      },
+                    ]}
+                  />
+                )}
+              </ScaleTouchable>
+            )}
 
             <ScaleTouchable
               accessibilityRole="button"
@@ -274,7 +383,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
     fontWeight: "800",
-    letterSpacing: -0.35,
+    letterSpacing: 0,
     textAlign: "right",
   },
   iconButton: {
@@ -282,5 +391,22 @@ const styles = StyleSheet.create({
     height: 30,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+  },
+  notificationRing: {
+    position: "absolute",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  notificationDot: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
   },
 });

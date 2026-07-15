@@ -183,6 +183,7 @@ export default {
       widget_hint: "Choose the schedule shown in the widget. This will not change the app schedule.",
       long_press_hint: "Long press a schedule to open its settings",
       open_calendar: "Open calendar",
+      open_notifications: "Open notifications",
     },
     calendar: {
       title: "Choose a date",
@@ -319,6 +320,7 @@ export default {
       login: { title: "Log In or Create Account", desc: "Sync your data to the cloud" },
       account_settings: { title: "Account Settings", desc: "Profile management, security, email" },
       devices: { title: "Devices", desc: "Authorized devices settings" },
+      notifications: { title: "Notifications", desc: "Notification preferences and future push options" },
       logout: { title: "Log Out", desc: "End current session" },
       reset_db: { title: "Reset Database", desc: "Complete data wipe" },
     },
@@ -447,6 +449,32 @@ export default {
       current: "Current",
       active_sessions: "Active Sessions",
       logout_all_others: "Log out on all other devices",
+    },
+
+    notifications: {
+      title: "Notifications",
+      inbox_title: "Notification inbox",
+      settings_title: "Notification settings",
+      push_title: "Push notifications",
+      push_desc: "These switches only save your future push preferences. In-app notifications keep working as usual.",
+      push_label: "Push",
+      coming_soon: "Coming soon",
+      types: {
+        account_login: {
+          title: "Account sign-in",
+          desc: "Push preference for security alerts when your account is used on a device.",
+        },
+      },
+      empty: "No notifications yet",
+      mark_all_read: "Mark all as read",
+      account_login_title: "Account sign-in",
+      account_login_message: "Signed in from {deviceName}",
+      ip_address: "IP address",
+      device: "Device",
+      platform: "Platform",
+      unknown_ip: "Unknown IP",
+      unread: "Unread",
+      read: "Read",
     },
 
     reset_db_screen: {

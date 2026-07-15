@@ -5,6 +5,7 @@ import Constants from 'expo-constants';
 import useSystemThemeColors from '../../hooks/useSystemThemeColors';
 import useAppLanguage from '../../hooks/useAppLanguage';
 import { t } from '../../utils/i18n';
+import { setManualLogin } from '../../utils/authFlags';
 
 import { auth } from '../../config/firebase';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup, OAuthProvider, linkWithPopup } from 'firebase/auth';
@@ -35,7 +36,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
     }
 
     setLoadingProvider('google');
+    const shouldTrackLogin = !isLinking;
     try {
+      if (shouldTrackLogin) setManualLogin(true);
+
       if (Platform.OS === 'web') {
         const provider = new GoogleAuthProvider();
         if (isLinking) {
@@ -52,6 +56,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
         const idToken = response?.data?.idToken || response?.idToken;
         
         if (!idToken) {
+          if (shouldTrackLogin) setManualLogin(false);
           setLoadingProvider(null);
           return;
         }
@@ -65,6 +70,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
       }
       onAuthSuccess?.();
     } catch (error) {
+      if (shouldTrackLogin) setManualLogin(false);
       onAuthError?.(error);
     } finally {
       setLoadingProvider(null);
@@ -81,7 +87,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
     }
 
     setLoadingProvider('apple');
+    const shouldTrackLogin = !isLinking;
     try {
+      if (shouldTrackLogin) setManualLogin(true);
+
       if (Platform.OS === 'web') {
         const provider = new OAuthProvider('apple.com');
         if (isLinking) {
@@ -109,6 +118,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
       }
       onAuthSuccess?.();
     } catch (error) {
+      if (shouldTrackLogin) setManualLogin(false);
       if (error.code !== 'ERR_REQUEST_CANCELED') {
         onAuthError?.(error);
       }

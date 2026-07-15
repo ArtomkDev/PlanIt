@@ -555,6 +555,14 @@ export const deleteAllUserData = async (userId) => {
     } catch (e) {}
 
     try {
+      const notificationsBatch = writeBatch(db);
+      const notificationsRef = collection(db, 'users', userId, 'notifications');
+      const notificationsSnapshot = await getDocs(notificationsRef);
+      notificationsSnapshot.docs.forEach((docSnap) => notificationsBatch.delete(docSnap.ref));
+      await notificationsBatch.commit();
+    } catch (e) {}
+
+    try {
       const userBatch = writeBatch(db);
       userBatch.delete(doc(db, 'users', userId, 'global', 'settings'));
       userBatch.delete(doc(db, 'users', userId));

@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Table, Palette, Translate, SignIn, UserCircle, Cpu, 
-  SignOut, Trash, Info, ShareNetwork, SquaresFour
+  SignOut, Trash, Info, ShareNetwork, SquaresFour, Bell
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../context/ScheduleProvider';
@@ -124,6 +124,7 @@ export default function Settings({ guest, onExitGuest }) {
       ] : [
         { label: t('settings.menu.account_settings.title', lang), screen: 'AccountSettings', icon: UserCircle, desc: t('settings.menu.account_settings.desc', lang) },
         { label: t('settings.menu.devices.title', lang), screen: 'DeviceManagement', icon: Cpu, desc: t('settings.menu.devices.desc', lang) },
+        { label: t('settings.menu.notifications.title', lang), screen: 'NotificationsScreen', icon: Bell, desc: t('settings.menu.notifications.desc', lang) },
         { label: t('settings.menu.logout.title', lang), action: handleSignOut, icon: SignOut, desc: t('settings.menu.logout.desc', lang), danger: true },
       ],
     },

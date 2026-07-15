@@ -1,5 +1,13 @@
 import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from "react";
-import { StyleSheet, View, FlatList, Platform, useWindowDimensions, Animated, TouchableOpacity, AppState } from "react-native";
+import {
+  AppState,
+  Animated,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Plus } from "phosphor-react-native"; 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -100,7 +108,7 @@ const DayPage = memo(({
 });
 
 export default function Schedule() {
-  const { global, schedule, lang } = useScheduleData();
+  const { global, schedule } = useScheduleData();
   const { tabBarHeight } = useScheduleLayout();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -329,7 +337,7 @@ export default function Schedule() {
         <Header 
             currentDate={currentDate} 
             onTodayPress={goToToday}
-            onTitlePress={() => setCalendarVisible(true)} 
+            onTitlePress={() => setCalendarVisible(true)}
         />
         <WeekStrip
           currentDate={currentDate}
@@ -384,6 +392,7 @@ export default function Schedule() {
       </DayScheduleProvider>
       
       <CalendarSheet visible={calendarVisible} currentDate={currentDate} onClose={() => setCalendarVisible(false)} onDateSelect={date => goToDate(date, true)} />
+
     </View>
     </NowTickProvider>
   );

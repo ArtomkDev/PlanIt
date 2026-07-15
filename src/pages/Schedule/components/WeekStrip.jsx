@@ -295,7 +295,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-      <View
+      <Animated.View
         style={[
           styles.weekSurface,
           {
@@ -329,7 +329,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
             );
           })}
         </Animated.View>
-      </View>
+      </Animated.View>
     </View>
   );
 });

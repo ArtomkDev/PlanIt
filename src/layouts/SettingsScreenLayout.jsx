@@ -7,7 +7,7 @@ import themes from '../config/themes';
 import SettingsHeader from '../components/ui/SettingsHeader';
 import { t } from '../utils/i18n';
 
-export default function SettingsScreenLayout({ children, contentContainerStyle }) {
+export default function SettingsScreenLayout({ children, contentContainerStyle, title: titleOverride }) {
   const { global , lang } = useScheduleData();
   const { tabBarHeight } = useScheduleLayout();
   const route = useRoute();
@@ -30,12 +30,13 @@ export default function SettingsScreenLayout({ children, contentContainerStyle }
     'Language': t('settings.menu.language.title', lang),
     'ResetDB': t('settings.menu.reset_db.title', lang),
     'DeviceManagement': t('settings.menu.devices.title', lang),
+    'NotificationsScreen': t('settings.notifications.settings_title', lang),
     'AccountSettings': t('settings.menu.account_settings.title', lang),
     'ChangeEmail': t('settings.account_settings.change_email_screen.title', lang),
     'DeleteAccount': t('settings.account_settings.delete_screen.title', lang),
   };
   
-  const title = routeTitles[route.name] || route.name;
+  const title = titleOverride || routeTitles[route.name] || route.name;
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = 50 + insets.top;
