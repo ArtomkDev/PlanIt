@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { CalendarDots, GearSix } from 'phosphor-react-native';
+import { CalendarDots, CheckSquare, GearSix } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import themes from '../config/themes';
 import { useScheduleData, useScheduleLayout } from '../context/ScheduleProvider';
@@ -19,6 +19,7 @@ import MorphingLoader from '../components/ui/MorphingLoader';
 import PlanItTabBar from './PlanItTabBar';
 import { t } from '../utils/i18n';
 import Schedule from '../pages/Schedule/Schedule';
+import Tasks from '../pages/Tasks/Tasks';
 import Settings from '../pages/Settings/Settings';
 import ThemeSettings from '../pages/Settings/components/preferences/ThemeSettings';
 import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
@@ -318,6 +319,16 @@ export default function TabNavigator({ screenProps }) {
                   tabBarLabel: t('common.schedule', lang),
                   tabBarIcon: ({ color, size, focused }) => (
                     <CalendarDots size={size} color={color} weight={focused ? 'fill' : 'regular'} />
+                  ),
+                }}
+              />
+              <Tab.Screen
+                name="TasksTab"
+                component={Tasks}
+                options={{
+                  tabBarLabel: t('common.tasks', lang),
+                  tabBarIcon: ({ color, size, focused }) => (
+                    <CheckSquare size={size} color={color} weight={focused ? 'fill' : 'regular'} />
                   ),
                 }}
               />

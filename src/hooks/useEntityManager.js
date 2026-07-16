@@ -69,6 +69,23 @@ export default function useEntityManager() {
         });
       }
 
+      if (Array.isArray(next.tasks)) {
+        if (key === 'subjects') {
+          next.tasks = next.tasks.map(task => {
+            if (!task || task.subjectId !== idToRemove) return task;
+            return { ...task, subjectId: null };
+          });
+        } else if (key === 'links') {
+          next.tasks = next.tasks.map(task => {
+            if (!task || !Array.isArray(task.links)) return task;
+            const nextLinks = task.links.filter(lid => lid !== idToRemove);
+            return nextLinks.length > 0
+              ? { ...task, links: nextLinks }
+              : { ...task, links: [] };
+          });
+        }
+      }
+
       return next;
     });
   }, [setScheduleDraft]);

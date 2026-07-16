@@ -86,6 +86,7 @@ service cloud.firestore {
           "teachers",
           "links",
           "gradients",
+          "tasks",
           "schedule",
           "color"
         ])
@@ -101,6 +102,7 @@ service cloud.firestore {
         && optionalListWithMax(data, "teachers", 250)
         && optionalListWithMax(data, "links", 250)
         && optionalListWithMax(data, "gradients", 100)
+        && optionalListWithMax(data, "tasks", 500)
         && listWithMax(data.schedule, 7);
     }
 

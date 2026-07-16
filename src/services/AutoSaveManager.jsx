@@ -6,7 +6,7 @@ import { t } from "../utils/i18n";
 export default function AutoSaveManager() {
   const { saveNow } = useScheduleActions();
   const { isCloudSaving, isDirty, isOnline, conflictQueue, cloudSyncState } = useScheduleSync();
-  const { user, global, schedule, lang } = useScheduleData();
+  const { user, global, schedule, schedules, lang } = useScheduleData();
   
   const [statusMessage, setStatusMessage] = useState("");
   
@@ -39,7 +39,7 @@ export default function AutoSaveManager() {
     return () => {
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
-  }, [schedule, global, isDirty, isOnline, isCloudSaving, cloudSyncState, conflictQueue.length, saveNow, user]);
+  }, [schedule, schedules, global, isDirty, isOnline, isCloudSaving, cloudSyncState, conflictQueue.length, saveNow, user]);
 
   useEffect(() => {
     if (isDirty && isOnline && !isCloudSaving && cloudSyncState === 'synced' && conflictQueue.length === 0) {

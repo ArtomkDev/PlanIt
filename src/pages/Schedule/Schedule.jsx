@@ -26,6 +26,7 @@ import { useScheduleData, useScheduleLayout } from "../../context/ScheduleProvid
 import { NowTickProvider } from "../../hooks/useNowTick";
 import themes from "../../config/themes";
 import { buildLessonTimes } from "../../utils/scheduleTime";
+import { getAppHeaderHeight } from "../../config/layoutMetrics";
 
 const HALF_SIZE = 300; 
 const TOTAL_SIZE = HALF_SIZE * 2 + 1;
@@ -97,7 +98,7 @@ export default function Schedule() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
-  const [headerHeight, setHeaderHeight] = useState(190);
+  const headerHeight = getAppHeaderHeight(insets.top);
   const [editingLesson, setEditingLesson] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);
 
@@ -285,15 +286,7 @@ export default function Schedule() {
   return (
     <NowTickProvider activeDate={currentDate}>
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
-      <View
-        style={styles.headerContainer}
-        onLayout={(event) => {
-          const measuredHeight = Math.ceil(event.nativeEvent.layout.height);
-          setHeaderHeight((previous) =>
-            Math.abs(previous - measuredHeight) > 1 ? measuredHeight : previous
-          );
-        }}
-      >
+      <View style={[styles.headerContainer, { height: headerHeight }]}>
         <View style={StyleSheet.absoluteFill}><AppBlur style={StyleSheet.absoluteFill} intensity={50} /></View>
         <Header 
             currentDate={currentDate} 

@@ -8,6 +8,7 @@ import BreakCard from "./BreakCard";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { buildLessonTimes } from "../../../utils/scheduleTime";
+import { APP_HEADER_CONTENT_GAP, getAppHeaderHeight } from "../../../config/layoutMetrics";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -17,7 +18,7 @@ export default function DaySchedule({
   onLessonLongPress, 
   onEmptyPress,
   scrollY,
-  headerHeight = 190,
+  headerHeight,
 }) {
   const { getDaySchedule } = useDaySchedule();
   const { schedule, global, lang } = useScheduleData();
@@ -29,6 +30,7 @@ export default function DaySchedule({
 
   const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
   const BOTTOM_SPACER_HEIGHT = safeTabBarHeight + 65; 
+  const resolvedHeaderHeight = headerHeight ?? getAppHeaderHeight(insets.top);
 
   const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
   
@@ -40,7 +42,7 @@ export default function DaySchedule({
 
   return (
     <Animated.ScrollView 
-      contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 16 }]}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: resolvedHeaderHeight + APP_HEADER_CONTENT_GAP }]}
       showsVerticalScrollIndicator={false}
       overScrollMode="always"
       onScroll={Animated.event(

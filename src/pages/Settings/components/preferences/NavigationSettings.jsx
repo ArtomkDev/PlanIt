@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { CalendarDots, Check, GearSix } from 'phosphor-react-native';
+import { CalendarDots, Check, CheckSquare, GearSix } from 'phosphor-react-native';
 import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
 import { useScheduleActions, useScheduleData } from '../../../../context/ScheduleProvider';
 import themes from '../../../../config/themes';
@@ -137,6 +137,14 @@ function NavigationPreview({ variant, selected, showLabels, themeColors, lang })
             {showLabels && (
               <Text numberOfLines={1} style={[styles.previewLabel, { color: activeLabelColor }]}>
                 {t('common.schedule', lang)}
+              </Text>
+            )}
+          </View>
+          <View style={styles.previewItem}>
+            <CheckSquare size={17} color={themeColors.textColor2} />
+            {showLabels && (
+              <Text numberOfLines={1} style={[styles.previewLabel, { color: themeColors.textColor2 }]}>
+                {t('common.tasks', lang)}
               </Text>
             )}
           </View>

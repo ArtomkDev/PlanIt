@@ -88,6 +88,29 @@ const getLessonsFingerprint = (scheduleGrid) => {
   return lessonParts.join(";");
 };
 
+const getTasksFingerprint = (tasks) => {
+  if (!Array.isArray(tasks)) return "";
+
+  return tasks
+    .map((task = {}) => {
+      const taskLinks = Array.isArray(task.links)
+        ? task.links.map(normalizePrimitive).sort().join(",")
+        : "";
+
+      return [
+        task.id,
+        task.subjectId,
+        task.text,
+        task.completed === true ? 1 : 0,
+        task.createdAt,
+        task.updatedAt,
+        taskLinks,
+      ].map(normalizePrimitive).join(",");
+    })
+    .sort()
+    .join(";");
+};
+
 const getGlobalFingerprint = (global = {}) => {
   const keys = [
     "version",
@@ -137,6 +160,8 @@ const getScheduleFingerprint = (schedule = {}) => {
     getArrayItemsFingerprint(schedule.links, ["id", "name", "url"]),
     Array.isArray(schedule.gradients) ? schedule.gradients.length : 0,
     getArrayItemsFingerprint(schedule.gradients, ["id", "name", "colors"]),
+    Array.isArray(schedule.tasks) ? schedule.tasks.length : 0,
+    getTasksFingerprint(schedule.tasks),
     countLessons(schedule.schedule),
     getLessonsFingerprint(schedule.schedule),
   ];
