@@ -107,7 +107,10 @@ export default function RootApp() {
           setCrashlyticsUser(firebaseUser.uid);
           
           try {
-            await registerDevice(firebaseUser.uid, { createLoginNotification: shouldCreateLoginNotification });
+            await registerDevice(firebaseUser.uid, {
+              createLoginNotification: shouldCreateLoginNotification,
+              lang,
+            });
             if (currentUid === firebaseUser.uid) {
               deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
             }

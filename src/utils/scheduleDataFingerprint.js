@@ -5,6 +5,25 @@ const normalizePrimitive = (value) => {
   return String(value);
 };
 
+const getReminderFingerprint = (reminder) => {
+  if (!reminder || typeof reminder !== "object" || Array.isArray(reminder)) return "";
+  const enabled = reminder.enabled === true || reminder.enabled === "true";
+  if (!enabled) {
+    return reminder.enabled === false || reminder.enabled === "false" ? "off" : "";
+  }
+  return `on:${normalizePrimitive(reminder.minutesBefore)}`;
+};
+
+const getNotificationPreferencesFingerprint = (preferences) => {
+  if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) return "";
+  const pushByType = preferences.pushByType || {};
+
+  return Object.keys(pushByType)
+    .sort()
+    .map((type) => `${type}:${pushByType[type] === true ? 1 : 0}`)
+    .join(",");
+};
+
 const countLessons = (scheduleGrid) => {
   if (!Array.isArray(scheduleGrid)) return 0;
 
@@ -22,7 +41,9 @@ const getArrayItemsFingerprint = (items, keys) => {
   if (!Array.isArray(items)) return "";
 
   return items
-    .map((item = {}) => keys.map((key) => normalizePrimitive(item[key])).join(","))
+    .map((item = {}) => keys.map((key) => (
+      key === "reminder" ? getReminderFingerprint(item[key]) : normalizePrimitive(item[key])
+    )).join(","))
     .sort()
     .join(";");
 };
@@ -82,9 +103,15 @@ const getGlobalFingerprint = (global = {}) => {
     "navigationLabels",
     "navigationAnimations",
     "starting_week",
+    "notificationPreferences",
   ];
 
-  return keys.map((key) => `${key}:${normalizePrimitive(global?.[key])}`).join(";");
+  return keys.map((key) => {
+    const value = key === "notificationPreferences"
+      ? getNotificationPreferencesFingerprint(global?.[key])
+      : normalizePrimitive(global?.[key]);
+    return `${key}:${value}`;
+  }).join(";");
 };
 
 const getScheduleFingerprint = (schedule = {}) => {
@@ -100,9 +127,10 @@ const getScheduleFingerprint = (schedule = {}) => {
     schedule.repeat || "",
     schedule.start_time || "",
     schedule.duration || "",
+    getReminderFingerprint(schedule.reminder),
     Array.isArray(schedule.breaks) ? schedule.breaks.join(",") : "",
     Array.isArray(schedule.subjects) ? schedule.subjects.length : 0,
-    getArrayItemsFingerprint(schedule.subjects, ["id", "name", "shortName", "type", "room", "building", "color", "colorGradient"]),
+    getArrayItemsFingerprint(schedule.subjects, ["id", "name", "shortName", "type", "room", "building", "color", "colorGradient", "reminder"]),
     Array.isArray(schedule.teachers) ? schedule.teachers.length : 0,
     getArrayItemsFingerprint(schedule.teachers, ["id", "name", "shortName", "email", "phone"]),
     Array.isArray(schedule.links) ? schedule.links.length : 0,

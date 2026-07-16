@@ -16,6 +16,10 @@ import {
   syncScheduleToWidget,
 } from "../widgets/widgetService";
 import { getScheduleDataFingerprint, hasScheduleDataChanged } from "../utils/scheduleDataFingerprint";
+import {
+  cancelLessonRemindersForSchedule,
+  reconcileLessonRemindersForSchedule,
+} from "../services/notificationService";
 
 let requestWidgetUpdate = null;
 let ScheduleWidget = null;
@@ -48,6 +52,13 @@ const hasDirtyScheduleData = (scheduleData) => {
   );
 
   return isGlobalDirty || hasDirtySchedules;
+};
+
+const getActiveScheduleFromData = (scheduleData, prefs = {}) => {
+  const schedules = (scheduleData?.schedules || []).filter((item) => !item.isDeleted);
+  const currentScheduleId = prefs.currentScheduleId || scheduleData?.global?.currentScheduleId;
+  if (!currentScheduleId || schedules.length === 0) return null;
+  return schedules.find((item) => item.id === currentScheduleId) || null;
 };
 
 const isSameGlobalDraft = (currentGlobal = {}, nextGlobal = {}) => {
@@ -524,6 +535,35 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     return activeSchedules.find((s) => s.id === currentScheduleId) || null;
   }, [activeSchedules, currentScheduleId]);
 
+  const reminderScheduleIdRef = useRef(null);
+  const reminderSyncSeqRef = useRef(0);
+
+  useEffect(() => {
+    if (isLoading) return undefined;
+
+    const previousScheduleId = reminderScheduleIdRef.current;
+    const nextScheduleId = schedule?.id || null;
+    reminderScheduleIdRef.current = nextScheduleId;
+
+    if (previousScheduleId && previousScheduleId !== nextScheduleId) {
+      cancelLessonRemindersForSchedule(previousScheduleId).catch(() => {});
+    }
+
+    const syncSeq = reminderSyncSeqRef.current + 1;
+    reminderSyncSeqRef.current = syncSeq;
+    const scheduleSnapshot = schedule;
+
+    const timeoutId = setTimeout(() => {
+      if (reminderSyncSeqRef.current !== syncSeq || !scheduleSnapshot) return;
+      reconcileLessonRemindersForSchedule(scheduleSnapshot, {
+        lang,
+        notificationPreferences: mergedGlobal?.notificationPreferences,
+      }).catch(() => {});
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [schedule, isLoading, lang, mergedGlobal?.notificationPreferences]);
+
   useEffect(() => {
     if (Platform.OS !== 'android') return;
 
@@ -902,18 +942,31 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [pendingImmediateSave, conflictQueue.length, saveNow]);
 
+  const refreshActiveLessonReminders = useCallback(() => {
+    const activeSchedule = getActiveScheduleFromData(dataRef.current, devicePrefsRef.current);
+    if (!activeSchedule) return;
+
+    reconcileLessonRemindersForSchedule(activeSchedule, {
+      lang: devicePrefsRef.current.language || dataRef.current?.global?.language || lang,
+      notificationPreferences: dataRef.current?.global?.notificationPreferences,
+    }).catch(() => {});
+  }, [lang]);
+
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "background" || nextAppState === "inactive") {
         if (isDirtyRef.current && isOnline && cloudSyncState === 'synced') {
           saveNow();
         }
-      } else if (nextAppState === "active" && user && !guest && isOnline) {
-        updateDeviceSyncTimeAndCleanUp(user.uid);
+      } else if (nextAppState === "active") {
+        refreshActiveLessonReminders();
+        if (user && !guest && isOnline) {
+          updateDeviceSyncTimeAndCleanUp(user.uid);
+        }
       }
     });
     return () => subscription.remove();
-  }, [isOnline, cloudSyncState, saveNow, user, guest]);
+  }, [isOnline, cloudSyncState, saveNow, user, guest, refreshActiveLessonReminders]);
 
   const resetApplication = useCallback(async () => {
     setIsLoading(true);

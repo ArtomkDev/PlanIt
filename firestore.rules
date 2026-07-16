@@ -57,6 +57,21 @@ service cloud.firestore {
       return !hasField(data, field) || listWithMax(data[field], max);
     }
 
+    function validReminder(value) {
+      return value is map
+        && value.keys().hasOnly(["enabled", "minutesBefore"])
+        && value.keys().hasAll(["enabled"])
+        && value.enabled is bool
+        && (
+          (value.enabled == false && !value.keys().hasAny(["minutesBefore"]))
+          || (value.enabled == true && intInRange(value.minutesBefore, 0, 1440))
+        );
+    }
+
+    function optionalReminder(data, field) {
+      return !hasField(data, field) || validReminder(data[field]);
+    }
+
     function validScheduleData(data) {
       return data.keys().hasAll(["name", "repeat", "duration", "start_time", "subjects", "schedule"])
         && data.keys().hasOnly([
@@ -66,6 +81,7 @@ service cloud.firestore {
           "breaks",
           "start_time",
           "starting_week",
+          "reminder",
           "subjects",
           "teachers",
           "links",
@@ -79,6 +95,7 @@ service cloud.firestore {
         && stringWithMax(data.start_time, 5)
         && optionalStringWithMax(data, "starting_week", 40)
         && optionalStringWithMax(data, "color", 32)
+        && optionalReminder(data, "reminder")
         && optionalListWithMax(data, "breaks", 40)
         && listWithMax(data.subjects, 250)
         && optionalListWithMax(data, "teachers", 250)

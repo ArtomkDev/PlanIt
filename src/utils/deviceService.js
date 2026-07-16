@@ -14,13 +14,19 @@ import * as Device from "expo-device";
 import { Platform } from "react-native";
 import * as Crypto from "expo-crypto";
 import { signOut } from "firebase/auth";
-import { createLoginNotification } from "../services/notificationService";
+import {
+  NOTIFICATION_TYPES,
+  createLoginNotification,
+  getCurrentDevicePushRegistration,
+  getUserNotificationContext,
+  isNotificationPushEnabled,
+  syncDevicePushRegistration,
+} from "../services/notificationService";
 
 let isAccountBeingDeleted = false;
 const UNKNOWN_IP = "Unknown IP";
 const PUBLIC_IP_ENDPOINT = "https://api.ipify.org?format=json";
 const PUBLIC_IP_TIMEOUT_MS = 3500;
-const LOGIN_NOTIFICATION_COOLDOWN_MS = 3 * 60 * 1000;
 
 export function setIgnoreDeviceRemoval(status) {
   isAccountBeingDeleted = status;
@@ -53,19 +59,6 @@ export function getDeviceInfo() {
     model: Device.modelName ?? "Unknown",
   };
 }
-
-const parseTimeMs = (value) => {
-  if (!value) return null;
-  if (typeof value === "number") return value;
-  if (typeof value === "string") {
-    const ms = Date.parse(value);
-    return Number.isNaN(ms) ? null : ms;
-  }
-  if (value instanceof Date) return value.getTime();
-  if (typeof value.toMillis === "function") return value.toMillis();
-  if (value.seconds) return value.seconds * 1000;
-  return null;
-};
 
 export async function getPublicIpAddress() {
   try {
@@ -102,24 +95,22 @@ export async function registerDevice(userId, options = {}) {
   const now = new Date();
   const nowIso = now.toISOString();
   const ipAddress = await getPublicIpAddress();
-  let shouldCreateLoginNotification = !!options.createLoginNotification;
+  const shouldCreateLoginNotification = options.createLoginNotification === true;
+  const notificationContext = await getUserNotificationContext(userId);
+  const notificationPreferences = notificationContext.notificationPreferences || {};
+  const shouldRequestPushPermissions = options.requestNotificationPermissions === true
+    || (
+      options.requestNotificationPermissions !== false
+      && Platform.OS !== "web"
+      && (
+        isNotificationPushEnabled(notificationPreferences, NOTIFICATION_TYPES.ACCOUNT_LOGIN)
+        || isNotificationPushEnabled(notificationPreferences, NOTIFICATION_TYPES.LESSON_REMINDER)
+      )
+    );
   let loginNotificationAt = null;
-
-  try {
-    const deviceSnap = await getDoc(ref);
-    if (deviceSnap.exists()) {
-      const lastNotificationMs = parseTimeMs(deviceSnap.data().lastLoginNotificationAt);
-      if (
-        lastNotificationMs &&
-        now.getTime() - lastNotificationMs < LOGIN_NOTIFICATION_COOLDOWN_MS
-      ) {
-        shouldCreateLoginNotification = false;
-      }
-    }
-  } catch (error) {
-    console.error(error);
-    shouldCreateLoginNotification = false;
-  }
+  const pushRegistration = await getCurrentDevicePushRegistration({
+    request: shouldRequestPushPermissions,
+  });
 
   if (shouldCreateLoginNotification) {
     try {
@@ -129,6 +120,9 @@ export async function registerDevice(userId, options = {}) {
         platform: deviceInfo.platform,
         ipAddress,
         createdAt: nowIso,
+        lang: options.lang || notificationContext.language,
+        notificationPreferences,
+        sourceExpoPushToken: pushRegistration?.expoPushToken,
         metadata: {
           brand: deviceInfo.brand || null,
           model: deviceInfo.model || null,
@@ -150,6 +144,10 @@ export async function registerDevice(userId, options = {}) {
 
   if (loginNotificationAt) {
     deviceUpdate.lastLoginNotificationAt = loginNotificationAt;
+  }
+
+  if (pushRegistration) {
+    Object.assign(deviceUpdate, pushRegistration);
   }
   
   await setDoc(ref, deviceUpdate, { merge: true });
@@ -283,4 +281,11 @@ export async function removeAllOtherDevices(userId) {
       await removeDevice(userId, d.id);
     }
   }
+}
+
+export async function refreshCurrentDevicePushRegistration(userId, options = {}) {
+  if (!userId) return null;
+
+  const deviceId = await getDeviceId(userId);
+  return syncDevicePushRegistration(userId, deviceId, options);
 }

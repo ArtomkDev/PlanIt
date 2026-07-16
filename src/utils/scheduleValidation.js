@@ -1,4 +1,8 @@
 import { generateId } from "./idGenerator";
+import {
+  normalizeScheduleReminder,
+  normalizeSubjectReminder,
+} from "./reminderSettings";
 
 const LIMITS = {
   name: 80,
@@ -231,6 +235,7 @@ const sanitizeSubject = (subject, options) => {
   pushIfDefined(result, "room", cleanOptionalString(subject.room, LIMITS.room));
   pushIfDefined(result, "building", cleanOptionalString(subject.building, LIMITS.building));
   pushIfDefined(result, "icon", cleanOptionalString(subject.icon, LIMITS.icon));
+  pushIfDefined(result, "reminder", normalizeSubjectReminder(subject.reminder));
 
   if (options.shareTeachers !== false) {
     pushIfDefined(result, "teacher", cleanId(subject.teacher));
@@ -407,6 +412,7 @@ const sanitizeScheduleCore = (input, options = {}, metadata) => {
     breaks: sanitizeBreaks(input.breaks),
     start_time: cleanTime(input.start_time) || "08:30",
     starting_week: cleanIsoDate(input.starting_week),
+    reminder: normalizeScheduleReminder(input.reminder),
     subjects: Array.isArray(input.subjects)
       ? input.subjects.slice(0, LIMITS.subjects).map((item) => sanitizeSubject(item, options)).filter(Boolean)
       : [],

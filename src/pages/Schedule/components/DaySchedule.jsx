@@ -7,49 +7,9 @@ import LessonCard from "./LessonCard";
 import BreakCard from "./BreakCard";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
+import { buildLessonTimes } from "../../../utils/scheduleTime";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-function addMinutes(timeStr, minsToAdd) {
-  if (!timeStr) return null;
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  if (isNaN(hours) || isNaN(minutes)) return null;
-
-  let totalMinutes = hours * 60 + minutes + (minsToAdd || 0);
-  totalMinutes = (totalMinutes + 24 * 60) % (24 * 60); 
-
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-const getBreakDuration = (breaksArray, index) => {
-  if (!Array.isArray(breaksArray) || breaksArray.length === 0) return 0;
-  return Number(breaksArray[index % breaksArray.length]) || 0;
-};
-
-function buildLessonTimes(startTime, duration, breaks, daySchedule) {
-  if (!startTime || !duration || !Array.isArray(daySchedule)) return [];
-  let times = [];
-  let currentStart = startTime;
-
-  for (let i = 0; i < daySchedule.length; i++) {
-    const item = daySchedule[i];
-    const isInstance = typeof item === 'object' && item !== null;
-
-    const customStart = isInstance ? item.startTime : null;
-    const customEnd = isInstance ? item.endTime : null;
-
-    const actualStart = customStart ? customStart : currentStart;
-    const actualEnd = customEnd ? customEnd : addMinutes(actualStart, duration);
-
-    times.push({ start: actualStart, end: actualEnd });
-
-    const currentBreak = getBreakDuration(breaks, i);
-    currentStart = addMinutes(actualEnd, currentBreak);
-  }
-
-  return times;
-}
 
 export default function DaySchedule({ 
   targetDate, 

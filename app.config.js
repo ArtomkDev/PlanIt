@@ -53,6 +53,7 @@ export default {
     },
     plugins: [
       "expo-localization",
+      "expo-notifications",
       "@react-native-google-signin/google-signin",
       "expo-apple-authentication",
       "@react-native-community/datetimepicker",

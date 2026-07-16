@@ -10,7 +10,8 @@ import {
   Platform,
   LayoutAnimation,
   UIManager,
-  useWindowDimensions
+  useWindowDimensions,
+  Alert
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { 
@@ -21,7 +22,8 @@ import {
   Coffee, 
   Trash, 
   Plus,
-  Palette
+  Palette,
+  Bell
 } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -35,6 +37,17 @@ import { generateId } from '../../../utils/idGenerator';
 import CalendarSheet from '../../../components/CalendarSheet/CalendarSheet';
 import AdvancedColorPicker from '../../../components/ui/AdvancedColorPicker';
 import { resolveScheduleColor, scheduleColorWithAlpha } from '../../../utils/scheduleColors';
+import {
+  CUSTOM_REMINDER_FALLBACK_MINUTES,
+  REMINDER_PRESET_MINUTES,
+  clampReminderMinutes,
+  getScheduleReminderSelectionId,
+  normalizeScheduleReminder,
+} from '../../../utils/reminderSettings';
+import {
+  NOTIFICATION_TYPES,
+  ensureNotificationPushPermissionsForType,
+} from '../../../services/notificationService';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
@@ -68,6 +81,8 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     return schedules.find(s => s.id === scheduleId) || currentActiveSchedule;
   }, [schedules, scheduleId, currentActiveSchedule, isNew]);
 
+  const initialReminder = normalizeScheduleReminder(targetSchedule?.reminder);
+
   const [localData, setLocalData] = useState({
     id: targetSchedule?.id || generateId(),
     name: targetSchedule?.name || "",
@@ -77,7 +92,13 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     duration: String(targetSchedule?.duration || "45"),
     breaks: targetSchedule?.breaks?.map(String) || ["10", "10", "10", "10", "10"],
     starting_week: targetSchedule?.starting_week || new Date().toISOString(),
+    reminder: initialReminder,
   });
+  const [customReminderMinutes, setCustomReminderMinutes] = useState(
+    initialReminder.enabled && !REMINDER_PRESET_MINUTES.includes(initialReminder.minutesBefore)
+      ? String(initialReminder.minutesBefore)
+      : String(CUSTOM_REMINDER_FALLBACK_MINUTES)
+  );
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const currentScrollY = useRef(0);
@@ -95,8 +116,9 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const [isDurationExpanded, setIsDurationExpanded] = useState(false);
   const [isTimeExpanded, setIsTimeExpanded] = useState(false);
   const [isBreaksExpanded, setIsBreaksExpanded] = useState(false);
+  const [isReminderExpanded, setIsReminderExpanded] = useState(false);
 
-  const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded;
+  const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded || isReminderExpanded;
   const finalBottomPadding = baseBottomPadding + (isAnyExpanded ? screenHeight * 0.5 : 0);
 
   const scrollToElement = (section, card, yOffset = 0, delay = 150) => {
@@ -117,7 +139,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isWeeksExpanded;
     setIsWeeksExpanded(willExpand);
     if (willExpand) {
-      setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false);
+      setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
       scrollToElement('general', 'weeks', 0, 150);
     }
   };
@@ -127,7 +149,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isDurationExpanded;
     setIsDurationExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false);
+      setIsWeeksExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
       scrollToElement('time', 'duration', 0, 150);
     }
   };
@@ -137,7 +159,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isTimeExpanded;
     setIsTimeExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsBreaksExpanded(false);
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
       scrollToElement('time', 'startTime', 0, 150);
     }
   };
@@ -147,9 +169,78 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isBreaksExpanded;
     setIsBreaksExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false);
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsReminderExpanded(false);
       scrollToElement('time', 'breaks', 0, 150);
     }
+  };
+
+  const toggleReminderExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    const willExpand = !isReminderExpanded;
+    setIsReminderExpanded(willExpand);
+    if (willExpand) {
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false);
+      scrollToElement('general', 'reminder', 0, 150);
+    }
+  };
+
+  const interpolate = (template, params) => (
+    Object.entries(params).reduce(
+      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value)),
+      template
+    )
+  );
+
+  const formatReminderValue = (reminder) => {
+    const normalized = normalizeScheduleReminder(reminder);
+    if (!normalized.enabled) return t('schedule.reminders.off', lang);
+    return interpolate(t('schedule.reminders.before_minutes', lang), {
+      minutes: normalized.minutesBefore,
+    });
+  };
+
+  const ensureReminderPermission = async () => {
+    const permission = await ensureNotificationPushPermissionsForType(
+      NOTIFICATION_TYPES.LESSON_REMINDER,
+      {
+        request: true,
+        notificationPreferences: global?.notificationPreferences,
+      }
+    );
+    if (permission.disabledByPreference) return true;
+    if (!permission.granted && permission.status !== 'unsupported') {
+      Alert.alert(t('common.warning', lang), t('schedule.reminders.permission_denied', lang));
+      return false;
+    }
+    return true;
+  };
+
+  const handleReminderSelection = async (selection) => {
+    if (selection === 'off') {
+      setLocalData(prev => ({ ...prev, reminder: { enabled: false } }));
+      return;
+    }
+
+    const canEnable = await ensureReminderPermission();
+    if (!canEnable) return;
+
+    if (selection === 'custom') {
+      const minutes = clampReminderMinutes(customReminderMinutes, CUSTOM_REMINDER_FALLBACK_MINUTES);
+      setCustomReminderMinutes(String(minutes));
+      setLocalData(prev => ({ ...prev, reminder: { enabled: true, minutesBefore: minutes } }));
+      return;
+    }
+
+    const minutes = clampReminderMinutes(selection);
+    setLocalData(prev => ({ ...prev, reminder: { enabled: true, minutesBefore: minutes } }));
+  };
+
+  const handleCustomReminderChange = (text) => {
+    const numericText = text.replace(/[^0-9]/g, '').slice(0, 4);
+    const minutes = numericText === '' ? 0 : clampReminderMinutes(numericText, 0);
+    const displayValue = numericText === '' ? '' : String(minutes);
+    setCustomReminderMinutes(displayValue);
+    setLocalData(prev => ({ ...prev, reminder: { enabled: true, minutesBefore: minutes } }));
   };
 
   const handleBreakChange = (text, index) => {
@@ -227,6 +318,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const displayTitle = isNew ? t('settings.schedule_switcher.add_new', lang) : (targetSchedule?.name || t('settings.schedule_editor.edit_schedule', lang));
   const isCustomRepeat = !['1', '2', '3', '4'].includes(String(localData.repeat));
   const isCustomDuration = !['45', '60', '80', '90'].includes(String(localData.duration));
+  const reminderSelectionId = getScheduleReminderSelectionId(localData.reminder);
   const isSingleWeek = Number(localData.repeat) <= 1;
 
   const startDateObj = new Date(localData.starting_week);
@@ -302,6 +394,70 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                   )}
                 />
               </View>
+
+              <View onLayout={e => cardYs.current['reminder'] = e.nativeEvent.layout.y}>
+                <SettingsRow
+                  label={t('schedule.reminders.title', lang)}
+                  value={formatReminderValue(localData.reminder)}
+                  icon={Bell}
+                  themeColors={themeColors}
+                  onPress={toggleReminderExpand}
+                />
+              </View>
+
+              {isReminderExpanded && (
+                <View style={styles.expandedContent}>
+                  <View style={styles.reminderChoiceGrid}>
+                    {[
+                      { id: 'off', label: t('schedule.reminders.off', lang) },
+                      ...REMINDER_PRESET_MINUTES.map((minutesBefore) => ({
+                        id: String(minutesBefore),
+                        label: String(minutesBefore),
+                      })),
+                      { id: 'custom', label: t('common.custom', lang) },
+                    ].map((option) => {
+                      const selected = reminderSelectionId === option.id;
+                      return (
+                        <TouchableOpacity
+                          key={option.id}
+                          style={[
+                            styles.reminderChoice,
+                            {
+                              backgroundColor: selected ? themeColors.accentColor : themeColors.backgroundColor,
+                              borderColor: selected ? themeColors.accentColor : themeColors.borderColor,
+                            },
+                          ]}
+                          onPress={() => handleReminderSelection(option.id)}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={[styles.reminderChoiceText, { color: selected ? '#fff' : themeColors.textColor }]}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {reminderSelectionId === 'custom' && (
+                    <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.accentColor }]}>
+                      <TextInput
+                        style={[styles.nameInput, { color: themeColors.textColor }]}
+                        value={customReminderMinutes}
+                        onChangeText={handleCustomReminderChange}
+                        placeholder={t('schedule.reminders.custom_placeholder', lang)}
+                        placeholderTextColor={themeColors.textColor2}
+                        keyboardType="number-pad"
+                        maxLength={4}
+                        returnKeyType="done"
+                        onFocus={() => scrollToElement('general', 'reminder', 90, 300)}
+                      />
+                      <Text style={[styles.inputSuffix, { color: themeColors.textColor2 }]}>
+                        {t('schedule.main_screen.minutes', lang)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
 
               <View onLayout={e => cardYs.current['weeks'] = e.nativeEvent.layout.y}>
                 <SettingsRow
@@ -556,12 +712,37 @@ const styles = StyleSheet.create({
 
   customInputContainer: { 
     height: 52, 
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center', 
     paddingHorizontal: 16, 
     borderRadius: 12, 
     borderWidth: 1,
     marginTop: 12
   }, 
+  inputSuffix: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  reminderChoiceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reminderChoice: {
+    minWidth: 64,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  reminderChoiceText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
 
   expandedSubtitle: {
     fontSize: 12, 

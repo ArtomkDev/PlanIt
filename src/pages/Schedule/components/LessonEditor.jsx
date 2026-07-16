@@ -28,66 +28,20 @@ import LinkEditor from "./LessonEditor/forms/LinkForm";
 import AdvancedColorPicker from "../../../components/ui/AdvancedColorPicker";
 
 import { t } from "../../../utils/i18n";
+import {
+  addMinutes,
+  buildLessonTimes,
+  getBreakDuration,
+  getDurationMinutes,
+  parseTimeToMinutes,
+} from "../../../utils/scheduleTime";
 
 const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
 const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 
-const getDurationMinutes = (start, end) => {
-    if (!start || !end) return null;
-    const [sh, sm] = start.split(":").map(Number);
-    const [eh, em] = end.split(":").map(Number);
-    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null;
-    let diff = (eh * 60 + em) - (sh * 60 + sm);
-    if (diff < 0) diff += 24 * 60;
-    return diff;
-};
-
-const addMinutes = (timeStr, minsToAdd) => {
-    if (!timeStr || typeof timeStr !== 'string') return null;
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return null;
-
-    let totalMinutes = hours * 60 + minutes + (Number(minsToAdd) || 0);
-    totalMinutes = (totalMinutes + 24 * 60) % (24 * 60);
-
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
 const timeToMins = (timeStr) => {
-    if (!timeStr || typeof timeStr !== 'string') return 999999; 
-    const [h, m] = timeStr.split(":").map(Number);
-    if (isNaN(h) || isNaN(m)) return 999999;
-    return h * 60 + m;
-};
-
-const getBreakDuration = (breaksArray, index) => {
-    if (!Array.isArray(breaksArray) || breaksArray.length === 0) return 0;
-    return Number(breaksArray[index % breaksArray.length]) || 0;
-};
-
-const buildLessonTimes = (startTime, duration, breaks, daySchedule) => {
-    if (!startTime || !duration || !Array.isArray(daySchedule)) return [];
-    let times = [];
-    let currentStart = startTime;
-
-    for (let i = 0; i < daySchedule.length; i++) {
-        const item = daySchedule[i];
-        const isInstance = typeof item === 'object' && item !== null;
-
-        const customStart = isInstance ? item.startTime : null;
-        const customEnd = isInstance ? item.endTime : null;
-
-        const actualStart = customStart ? customStart : currentStart;
-        const actualEnd = customEnd ? customEnd : addMinutes(actualStart, duration);
-
-        times.push({ start: actualStart, end: actualEnd });
-
-        const currentBreak = getBreakDuration(breaks, i);
-        currentStart = addMinutes(actualEnd, currentBreak);
-    }
-    return times;
+    const minutes = parseTimeToMinutes(timeStr);
+    return minutes === null ? 999999 : minutes;
 };
 
 export default function LessonEditor({ lesson, onClose }) {
@@ -406,6 +360,25 @@ export default function LessonEditor({ lesson, onClose }) {
       const nextSubjects = [...prev.subjects];
       const subjIndex = nextSubjects.findIndex((s) => s.id === selectedSubjectId);
       if (subjIndex !== -1) nextSubjects[subjIndex] = { ...nextSubjects[subjIndex], ...updates };
+      return { ...prev, subjects: nextSubjects };
+    });
+  };
+
+  const handleUpdateSubjectReminder = (nextReminder) => {
+    if (!selectedSubjectId) return;
+    setLocalData((prev) => {
+      const nextSubjects = [...prev.subjects];
+      const subjIndex = nextSubjects.findIndex((s) => s.id === selectedSubjectId);
+      if (subjIndex === -1) return prev;
+
+      const nextSubject = { ...nextSubjects[subjIndex] };
+      if (nextReminder === undefined) {
+        delete nextSubject.reminder;
+      } else {
+        nextSubject.reminder = nextReminder;
+      }
+
+      nextSubjects[subjIndex] = nextSubject;
       return { ...prev, subjects: nextSubjects };
     });
   };
@@ -863,6 +836,8 @@ export default function LessonEditor({ lesson, onClose }) {
                 defaultTime={storedDefaultTime}
                 onTimeChange={handleTimeChange}
                 onClearSubject={() => setSelectedSubjectId(null)}
+                scheduleReminder={schedule?.reminder}
+                onSubjectReminderChange={handleUpdateSubjectReminder}
               />
             )}
 

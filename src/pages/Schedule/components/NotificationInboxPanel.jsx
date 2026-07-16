@@ -1,10 +1,13 @@
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  LayoutAnimation,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from "react-native";
 import {
@@ -48,6 +51,27 @@ const interpolate = (template, values) => {
   );
 };
 
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const CARD_EXPAND_ANIMATION = {
+  duration: 220,
+  create: { type: "easeInEaseOut", property: "opacity" },
+  update: { type: "easeInEaseOut" },
+  delete: { type: "easeInEaseOut", property: "opacity" },
+};
+
+const configureCardLayoutAnimation = () => {
+  if (!LayoutAnimation?.configureNext) return;
+
+  try {
+    LayoutAnimation.configureNext(CARD_EXPAND_ANIMATION);
+  } catch {
+    // Some web/native runtimes can no-op LayoutAnimation; expansion still works.
+  }
+};
+
 export default function NotificationInboxPanel() {
   const { user, global, lang } = useScheduleData();
   const { drawerContentInset } = useNotificationDrawer();
@@ -58,6 +82,7 @@ export default function NotificationInboxPanel() {
   });
   const [markingAll, setMarkingAll] = useState(false);
   const [readingId, setReadingId] = useState(null);
+  const [expandedNotificationIds, setExpandedNotificationIds] = useState(() => new Set());
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -100,6 +125,25 @@ export default function NotificationInboxPanel() {
     }
   }, [readingId, user]);
 
+  const handleNotificationPress = useCallback((notification) => {
+    if (!notification?.id) return;
+
+    configureCardLayoutAnimation();
+    setExpandedNotificationIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      if (nextIds.has(notification.id)) {
+        nextIds.delete(notification.id);
+      } else {
+        nextIds.add(notification.id);
+      }
+      return nextIds;
+    });
+
+    if (!notification.readAt) {
+      handleMarkAsRead(notification);
+    }
+  }, [handleMarkAsRead]);
+
   const getTitle = (notification) => {
     if (notification.type === NOTIFICATION_TYPES.ACCOUNT_LOGIN) {
       return t("settings.notifications.account_login_title", lang);
@@ -118,65 +162,89 @@ export default function NotificationInboxPanel() {
 
   const renderNotification = (notification) => {
     const isUnread = !notification.readAt;
+    const isExpanded = expandedNotificationIds.has(notification.id);
     const deviceName = notification.deviceName || t("settings.device_screen.unknown_device", lang);
-    const platform = notification.platform || "Unknown";
+    const platform = notification.platform || t("settings.notifications.unknown_platform", lang);
     const ipAddress = notification.ipAddress || t("settings.notifications.unknown_ip", lang);
     const DeviceIcon = platform === "Web" ? Monitor : DeviceMobile;
+    const message = getMessage(notification);
+    const formattedDate = formatDate(notification.createdAt);
 
     return (
       <TouchableOpacity
         key={notification.id}
-        activeOpacity={isUnread ? 0.72 : 1}
-        disabled={!isUnread}
-        onPress={() => handleMarkAsRead(notification)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+        activeOpacity={0.74}
+        onPress={() => handleNotificationPress(notification)}
         style={[
           styles.notificationCard,
+          isExpanded && styles.notificationCardExpanded,
           {
             backgroundColor: themeColors.backgroundColor2,
             borderColor: isUnread ? themeColors.accentColor + "55" : themeColors.borderColor,
           },
         ]}
       >
+        {isUnread && (
+          <View style={[styles.unreadRail, { backgroundColor: themeColors.accentColor }]} />
+        )}
+
         <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + "15" }]}>
-          <SignIn size={22} color={themeColors.accentColor} weight={isUnread ? "fill" : "regular"} />
+          <SignIn size={19} color={themeColors.accentColor} weight={isUnread ? "fill" : "regular"} />
         </View>
 
-        <View style={styles.notificationContent}>
+        <View style={[styles.notificationContent, isUnread && styles.notificationContentUnread]}>
           <View style={styles.notificationHeader}>
-            <Text style={[styles.notificationTitle, { color: themeColors.textColor }]} numberOfLines={2}>
+            {isUnread && (
+              <View style={[styles.unreadDot, { backgroundColor: themeColors.accentColor }]} />
+            )}
+            <Text
+              style={[styles.notificationTitle, { color: themeColors.textColor }]}
+              numberOfLines={isExpanded ? undefined : 1}
+            >
               {getTitle(notification)}
             </Text>
-            {isUnread && (
-              <View style={[styles.statusBadge, { backgroundColor: themeColors.accentColor + "18" }]}>
-                <Text style={[styles.statusText, { color: themeColors.accentColor }]}>
-                  {t("settings.notifications.unread", lang)}
-                </Text>
-              </View>
-            )}
           </View>
 
-          {!!getMessage(notification) && (
-            <Text style={[styles.message, { color: themeColors.textColor2 }]} numberOfLines={2}>
-              {getMessage(notification)}
+          {!!message && (
+            <Text
+              style={[styles.message, isExpanded && styles.messageExpanded, { color: themeColors.textColor2 }]}
+              numberOfLines={isExpanded ? undefined : 1}
+            >
+              {message}
             </Text>
           )}
 
           <View style={styles.detailBlock}>
-            <View style={styles.detailLine}>
-              <DeviceIcon size={14} color={themeColors.textColor2} />
-              <Text style={[styles.detailText, { color: themeColors.textColor2 }]} numberOfLines={1}>
-                {t("settings.notifications.device", lang)}: {deviceName}
-              </Text>
-            </View>
-            <Text style={[styles.detailText, { color: themeColors.textColor2 }]} numberOfLines={1}>
-              {t("settings.notifications.platform", lang)}: {platform}
-            </Text>
-            <Text style={[styles.detailText, { color: themeColors.textColor2 }]} numberOfLines={1}>
-              {t("settings.notifications.ip_address", lang)}: {ipAddress}
-            </Text>
-            <Text style={[styles.detailText, { color: themeColors.textColor2 }]} numberOfLines={1}>
-              {formatDate(notification.createdAt)}
-            </Text>
+            {isExpanded ? (
+              <>
+                <View style={styles.detailLine}>
+                  <DeviceIcon size={13} color={themeColors.textColor2} />
+                  <Text style={[styles.detailText, { color: themeColors.textColor2 }]}>
+                    {t("settings.notifications.device", lang)}: {deviceName}
+                  </Text>
+                </View>
+                <Text style={[styles.detailText, styles.detailTextIndented, { color: themeColors.textColor2 }]}>
+                  {t("settings.notifications.platform", lang)}: {platform}
+                </Text>
+                <Text style={[styles.detailText, styles.detailTextIndented, { color: themeColors.textColor2 }]}>
+                  {t("settings.notifications.ip_address", lang)}: {ipAddress}
+                </Text>
+                {!!formattedDate && (
+                  <Text style={[styles.detailText, styles.detailTextIndented, { color: themeColors.textColor2 }]}>
+                    {formattedDate}
+                  </Text>
+                )}
+              </>
+            ) : (
+              <View style={styles.detailLine}>
+                <DeviceIcon size={13} color={themeColors.textColor2} />
+                <Text style={[styles.detailText, { color: themeColors.textColor2 }]} numberOfLines={1}>
+                  {platform} - {ipAddress}{formattedDate ? ` - ${formattedDate}` : ""}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -317,9 +385,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   content: {
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 28,
-    gap: 12,
+    gap: 9,
   },
   notificationCard: {
     width: "100%",
@@ -327,65 +395,90 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "flex-start",
+    position: "relative",
+    overflow: "hidden",
     borderRadius: 8,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    minHeight: 104,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  notificationCardExpanded: {
+    paddingBottom: 13,
   },
   iconContainer: {
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 11,
+  },
+  unreadRail: {
+    position: "absolute",
+    top: 10,
+    bottom: 10,
+    left: 0,
+    width: 3,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
   },
   notificationContent: {
     flex: 1,
     minWidth: 0,
   },
+  notificationContentUnread: {
+    paddingRight: 27,
+  },
   notificationHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
+    alignItems: "center",
+    gap: 7,
   },
   notificationTitle: {
     flex: 1,
-    fontSize: 18,
+    minWidth: 0,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: "700",
   },
-  statusBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
+  unreadDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   message: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 3,
+  },
+  messageExpanded: {
+    marginTop: 5,
   },
   detailBlock: {
-    marginTop: 8,
-    gap: 3,
+    marginTop: 6,
+    gap: 4,
   },
   detailLine: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
+    minWidth: 0,
   },
   detailText: {
-    fontSize: 13,
+    flex: 1,
+    minWidth: 0,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "500",
   },
+  detailTextIndented: {
+    flex: 0,
+    paddingLeft: 19,
+  },
   readIcon: {
-    paddingLeft: 10,
-    paddingTop: 2,
+    position: "absolute",
+    top: 11,
+    right: 12,
   },
   emptyState: {
     minHeight: 180,

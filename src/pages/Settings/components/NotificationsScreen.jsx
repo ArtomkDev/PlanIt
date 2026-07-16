@@ -1,11 +1,17 @@
 import React, { useCallback } from "react";
-import { Platform, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Platform, StyleSheet, Switch, Text, View } from "react-native";
 import { Bell, SignIn } from "phosphor-react-native";
 
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import SettingsGroup from "../../../components/ui/SettingsKit/SettingsGroup";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { NOTIFICATION_TYPE_CONFIG } from "../../../config/notificationTypes";
+import {
+  createNotificationPreferencesWithPush,
+  ensureNotificationPushPermissionsForType,
+  isNotificationPushEnabled,
+} from "../../../services/notificationService";
+import { refreshCurrentDevicePushRegistration } from "../../../utils/deviceService";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 
@@ -17,29 +23,49 @@ const getTypeIcon = (type) => {
 };
 
 export default function NotificationsScreen() {
-  const { global, lang } = useScheduleData();
+  const { user, global, lang } = useScheduleData();
   const { setGlobalDraft } = useScheduleActions();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const pushByType = global?.notificationPreferences?.pushByType || {};
 
-  const updatePushPreference = useCallback((type, value) => {
+  const updatePushPreference = useCallback(async (type, value) => {
+    const nextPreferences = createNotificationPreferencesWithPush(
+      global?.notificationPreferences,
+      type,
+      value
+    );
+
+    if (value === true) {
+      const permission = await ensureNotificationPushPermissionsForType(type, {
+        request: true,
+        notificationPreferences: nextPreferences,
+      });
+
+      if (!permission.granted && permission.status !== "unsupported") {
+        Alert.alert(
+          t("common.warning", lang),
+          t("settings.notifications.permission_denied", lang)
+        );
+        return;
+      }
+
+      if (user?.uid && permission.status !== "unsupported") {
+        refreshCurrentDevicePushRegistration(user.uid, { request: false }).catch(() => {});
+      }
+    }
+
     setGlobalDraft((previous) => ({
       ...previous,
       notificationPreferences: {
-        ...(previous?.notificationPreferences || {}),
-        pushByType: {
-          ...(previous?.notificationPreferences?.pushByType || {}),
-          [type]: value,
-        },
+        ...createNotificationPreferencesWithPush(previous?.notificationPreferences, type, value),
       },
     }));
-  }, [setGlobalDraft]);
+  }, [global?.notificationPreferences, lang, setGlobalDraft, user?.uid]);
 
   const renderTypeRow = (item) => {
     const Icon = getTypeIcon(item.type);
-    const isEnabled = !!pushByType[item.type];
+    const isEnabled = isNotificationPushEnabled(global?.notificationPreferences, item.type);
 
     return (
       <View
@@ -63,11 +89,6 @@ export default function NotificationsScreen() {
             <Text style={[styles.typeTitle, { color: themeColors.textColor }]} numberOfLines={2}>
               {t(item.titleKey, lang)}
             </Text>
-            <View style={[styles.comingSoonBadge, { backgroundColor: themeColors.accentColor + "16" }]}>
-              <Text style={[styles.comingSoonText, { color: themeColors.accentColor }]}>
-                {t("settings.notifications.coming_soon", lang)}
-              </Text>
-            </View>
           </View>
           <Text style={[styles.typeDesc, { color: themeColors.textColor2 }]} numberOfLines={3}>
             {t(item.descKey, lang)}
@@ -176,16 +197,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginTop: 4,
-  },
-  comingSoonBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  comingSoonText: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
   },
   pushControl: {
     alignItems: "flex-end",

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManager, TouchableOpacity } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManager, TouchableOpacity, TextInput, Alert } from "react-native";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { 
   BookOpen, 
@@ -11,6 +11,7 @@ import {
   Palette, 
   Image as ImageIcon, 
   Clock,
+  Bell,
   Plus,
   ArrowsCounterClockwise
 } from "phosphor-react-native";
@@ -23,6 +24,19 @@ import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons"; 
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
+import {
+  CUSTOM_REMINDER_FALLBACK_MINUTES,
+  REMINDER_PRESET_MINUTES,
+  clampReminderMinutes,
+  getReminderSelectionId,
+  normalizeScheduleReminder,
+  normalizeSubjectReminder,
+} from "../../../../../utils/reminderSettings";
+import {
+  NOTIFICATION_TYPES,
+  ensureNotificationPushPermissionsForType,
+} from "../../../../../services/notificationService";
+import { getDurationMinutes } from "../../../../../utils/scheduleTime";
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -44,10 +58,13 @@ export default function LessonEditorMainScreen({
   instanceData,
   defaultTime,
   onTimeChange,
-  onClearSubject
+  onClearSubject,
+  scheduleReminder,
+  onSubjectReminderChange
 }) {
-  const { lang } = useScheduleData();
+  const { global, lang } = useScheduleData();
   const [expandedField, setExpandedField] = useState(null);
+  const [customSubjectReminderMinutes, setCustomSubjectReminderMinutes] = useState(String(CUSTOM_REMINDER_FALLBACK_MINUTES));
   const scrollViewRef = useRef(null);
 
   const safeGetLabel = getLabel || ((type, val) => t('schedule.main_screen.not_defined', lang));
@@ -60,17 +77,18 @@ export default function LessonEditorMainScreen({
   
   const isTimeModified = currentStart !== defaultTime?.start || currentEnd !== defaultTime?.end;
 
-  const getDurationMinutes = (start, end) => {
-    if (!start || !end) return null;
-    const [sh, sm] = start.split(":").map(Number);
-    const [eh, em] = end.split(":").map(Number);
-    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null;
-    let diff = (eh * 60 + em) - (sh * 60 + sm);
-    if (diff < 0) diff += 24 * 60;
-    return diff;
-  };
-  
   const duration = getDurationMinutes(currentStart, currentEnd);
+  const scheduleDefaultReminder = normalizeScheduleReminder(scheduleReminder);
+  const subjectReminder = normalizeSubjectReminder(currentSubject?.reminder);
+  const reminderSelectionId = currentSubject?.reminder === undefined
+    ? "default"
+    : getReminderSelectionId(currentSubject.reminder);
+
+  useEffect(() => {
+    if (subjectReminder?.enabled && !REMINDER_PRESET_MINUTES.includes(subjectReminder.minutesBefore)) {
+      setCustomSubjectReminderMinutes(String(subjectReminder.minutesBefore));
+    }
+  }, [currentSubject?.id, subjectReminder?.enabled, subjectReminder?.minutesBefore]);
 
   const toggleExpand = (field) => {
     if (Platform.OS === 'android') {
@@ -87,6 +105,88 @@ export default function LessonEditorMainScreen({
             return nextField;
         });
     }
+  };
+
+  const interpolate = (template, params) => (
+    Object.entries(params).reduce(
+      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
+      template
+    )
+  );
+
+  const formatReminderValue = (reminder) => {
+    const normalized = normalizeScheduleReminder(reminder);
+    if (!normalized.enabled) return t('schedule.reminders.off', lang);
+    return interpolate(t('schedule.reminders.before_minutes', lang), {
+      minutes: normalized.minutesBefore,
+    });
+  };
+
+  const formatSubjectReminderValue = () => {
+    if (reminderSelectionId === "default") {
+      return interpolate(t('schedule.reminders.default_with_value', lang), {
+        value: formatReminderValue(scheduleDefaultReminder),
+      });
+    }
+
+    if (reminderSelectionId === "off") return t('schedule.reminders.off', lang);
+
+    return formatReminderValue(subjectReminder);
+  };
+
+  const ensureReminderPermission = async () => {
+    const permission = await ensureNotificationPushPermissionsForType(
+      NOTIFICATION_TYPES.LESSON_REMINDER,
+      {
+        request: true,
+        notificationPreferences: global?.notificationPreferences,
+      }
+    );
+    if (permission.disabledByPreference) return true;
+    if (!permission.granted && permission.status !== "unsupported") {
+      Alert.alert(t('common.warning', lang), t('schedule.reminders.permission_denied', lang));
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubjectReminderSelection = async (selection) => {
+    if (!onSubjectReminderChange) return;
+
+    if (selection === "default") {
+      onSubjectReminderChange(undefined);
+      return;
+    }
+
+    if (selection === "off") {
+      onSubjectReminderChange({ enabled: false });
+      return;
+    }
+
+    const canEnable = await ensureReminderPermission();
+    if (!canEnable) return;
+
+    if (selection === "custom") {
+      const minutes = clampReminderMinutes(customSubjectReminderMinutes, CUSTOM_REMINDER_FALLBACK_MINUTES);
+      setCustomSubjectReminderMinutes(String(minutes));
+      onSubjectReminderChange({ enabled: true, minutesBefore: minutes });
+      return;
+    }
+
+    onSubjectReminderChange({
+      enabled: true,
+      minutesBefore: clampReminderMinutes(selection),
+    });
+  };
+
+  const handleSubjectCustomReminderChange = (text) => {
+    if (!onSubjectReminderChange) return;
+
+    const numericText = text.replace(/[^0-9]/g, '').slice(0, 4);
+    const minutes = numericText === '' ? 0 : clampReminderMinutes(numericText, 0);
+    const displayValue = numericText === '' ? '' : String(minutes);
+    setCustomSubjectReminderMinutes(displayValue);
+    onSubjectReminderChange({ enabled: true, minutesBefore: minutes });
   };
 
   const renderTimeValue = (val, isHighlight) => (
@@ -260,8 +360,8 @@ export default function LessonEditorMainScreen({
       automaticallyAdjustKeyboardInsets
     >
       
-      <SettingsGroup 
-        themeColors={themeColors} 
+      <SettingsGroup
+        themeColors={themeColors}
         title={t('schedule.main_screen.subject', lang)} 
         headerRight={renderHeaderRight(false, null, null, null, onClearSubject)}
       >
@@ -272,6 +372,73 @@ export default function LessonEditorMainScreen({
           themeColors={themeColors}
           icon={BookOpen}
         />
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('schedule.reminders.title', lang)}
+      >
+        <SettingsRow
+          label={t('schedule.reminders.mode', lang)}
+          value={formatSubjectReminderValue()}
+          onPress={() => toggleExpand("reminder")}
+          themeColors={themeColors}
+          icon={Bell}
+        />
+
+        {expandedField === "reminder" && (
+          <View style={styles.reminderOptions}>
+            <View style={styles.reminderChoiceGrid}>
+              {[
+                { id: "default", label: t('schedule.reminders.default', lang) },
+                { id: "off", label: t('schedule.reminders.off', lang) },
+                ...REMINDER_PRESET_MINUTES.map((minutesBefore) => ({
+                  id: String(minutesBefore),
+                  label: String(minutesBefore),
+                })),
+                { id: "custom", label: t('common.custom', lang) },
+              ].map((option) => {
+                const selected = reminderSelectionId === option.id;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.reminderChoice,
+                      {
+                        backgroundColor: selected ? themeColors.accentColor : themeColors.backgroundColor,
+                        borderColor: selected ? themeColors.accentColor : themeColors.borderColor,
+                      },
+                    ]}
+                    onPress={() => handleSubjectReminderSelection(option.id)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.reminderChoiceText, { color: selected ? "#fff" : themeColors.textColor }]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {reminderSelectionId === "custom" && (
+              <View style={[styles.reminderInputWrapper, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.accentColor }]}>
+                <TextInput
+                  style={[styles.reminderInput, { color: themeColors.textColor }]}
+                  value={customSubjectReminderMinutes}
+                  onChangeText={handleSubjectCustomReminderChange}
+                  placeholder={t('schedule.reminders.custom_placeholder', lang)}
+                  placeholderTextColor={themeColors.textColor2}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  returnKeyType="done"
+                />
+                <Text style={[styles.inputSuffix, { color: themeColors.textColor2 }]}>
+                  {t('schedule.main_screen.minutes', lang)}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </SettingsGroup>
 
       <SettingsGroup 
@@ -437,6 +604,49 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     paddingBottom: 16,
+  },
+  reminderOptions: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  reminderChoiceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reminderChoice: {
+    minWidth: 64,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  reminderChoiceText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reminderInputWrapper: {
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    marginTop: 12,
+  },
+  reminderInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    paddingVertical: 0,
+  },
+  inputSuffix: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   durationContainer: {
     paddingVertical: 16,
