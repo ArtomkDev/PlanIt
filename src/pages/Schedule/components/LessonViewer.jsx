@@ -16,6 +16,8 @@ import {
   Phone, 
   Link as LinkIcon, 
   ArrowUpRight, 
+  CheckSquare,
+  Plus,
   Trash, 
   PencilSimple 
 } from "phosphor-react-native";
@@ -27,7 +29,14 @@ import { getIconComponent } from "../../../config/subjectIcons";
 import { t } from "../../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 
-export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
+export default function LessonViewer({
+  visible,
+  lesson,
+  relatedTasks = [],
+  onClose,
+  onEdit,
+  onAddTask,
+}) {
   const { schedule, global, lang } = useScheduleData();
   const { setScheduleDraft } = useScheduleActions();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
@@ -37,9 +46,13 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const subjects = Array.isArray(schedule?.subjects) ? schedule.subjects : [];
+  const teachers = Array.isArray(schedule?.teachers) ? schedule.teachers : [];
+  const links = Array.isArray(schedule?.links) ? schedule.links : [];
+  const gradients = Array.isArray(schedule?.gradients) ? schedule.gradients : [];
 
   const subjectId = lesson.subjectId;
-  const fullSubject = schedule.subjects.find(s => s.id === subjectId) || {};
+  const fullSubject = subjects.find(s => s.id === subjectId) || {};
 
   const instanceData = lesson.data || {};
 
@@ -56,17 +69,17 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
   const validTeacherIds = Array.isArray(rawTeacherIds) 
       ? rawTeacherIds.filter(id => id && id !== 0 && id !== "0") 
       : [];
-  const displayTeachers = schedule.teachers.filter(t => validTeacherIds.includes(t.id));
+  const displayTeachers = teachers.filter(t => validTeacherIds.includes(t.id));
 
   const hasLocalLinks = instanceData.links !== undefined;
   const rawLinkIds = hasLocalLinks ? instanceData.links : (fullSubject.links || []);
   
   const validLinkIds = Array.isArray(rawLinkIds) ? rawLinkIds : [];
-  const displayLinks = schedule.links.filter(l => validLinkIds.includes(l.id));
+  const displayLinks = links.filter(l => validLinkIds.includes(l.id));
 
   const getHeaderBackground = () => {
     if (fullSubject.typeColor === "gradient" && fullSubject.colorGradient) {
-      const grad = schedule.gradients.find(g => g.id === fullSubject.colorGradient);
+      const grad = gradients.find(g => g.id === fullSubject.colorGradient);
       if (grad) return <GradientBackground gradient={grad} style={styles.headerBackground} />;
     }
     const color = themes.accentColors[fullSubject.color] || themeColors.accentColor;
@@ -112,6 +125,8 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
       ]
     );
   };
+
+  const visibleRelatedTasks = Array.isArray(relatedTasks) ? relatedTasks.slice(0, 3) : [];
 
   return (
     <BottomSheet
@@ -248,6 +263,42 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
               </View>
             )}
 
+            {visibleRelatedTasks.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
+                  {t('schedule.lesson_viewer.related_tasks', lang)}
+                </Text>
+                {visibleRelatedTasks.map((task, index) => (
+                  <View
+                    key={task?.id || index}
+                    style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
+                  >
+                    <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
+                      <CheckSquare
+                        size={18}
+                        color={task?.completed ? themeColors.accentColor : themeColors.textColor}
+                        weight={task?.completed ? "fill" : "regular"}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.rowTitle,
+                          {
+                            color: themeColors.textColor,
+                            textDecorationLine: task?.completed ? "line-through" : "none",
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {task?.text || t('tasks.empty_text', lang)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
           </SheetScrollView>
 
           <View
@@ -260,23 +311,59 @@ export default function LessonViewer({ visible, lesson, onClose, onEdit }) {
               },
             ]}
           >
+            {!!onAddTask && (
+              <TouchableOpacity
+                  style={[styles.actionButton, styles.primaryButton, styles.addTaskButton, { backgroundColor: themeColors.accentColor }]}
+                  onPress={() => onAddTask(lesson)}
+              >
+                  <Plus size={20} color="#fff" style={{marginRight: 8}} weight="bold" />
+                  <Text style={[styles.actionButtonText, { color: '#fff' }]} numberOfLines={1}>
+                    {t('schedule.lesson_viewer.add_task', lang)}
+                  </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity 
-                style={[styles.actionButton, { backgroundColor: 'rgba(255, 68, 68, 0.1)' }]}
+                style={[
+                  styles.actionButton,
+                  onAddTask ? styles.secondaryActionButton : null,
+                  { backgroundColor: 'rgba(255, 68, 68, 0.1)' },
+                ]}
                 onPress={handleDelete}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.delete', lang)}
             >
-                <Trash size={20} color="#ff4444" style={{marginRight: 8}} weight="bold" />
-                <Text style={[styles.actionButtonText, { color: '#ff4444' }]}>{t('common.delete', lang)}</Text>
+                <Trash size={20} color="#ff4444" style={onAddTask ? null : {marginRight: 8}} weight="bold" />
+                {!onAddTask && (
+                  <Text style={[styles.actionButtonText, { color: '#ff4444' }]}>{t('common.delete', lang)}</Text>
+                )}
             </TouchableOpacity>
 
             <TouchableOpacity 
-                style={[styles.actionButton, styles.primaryButton, { backgroundColor: themeColors.accentColor }]}
+                style={[
+                  styles.actionButton,
+                  onAddTask ? styles.secondaryActionButton : styles.primaryButton,
+                  {
+                    backgroundColor: onAddTask ? themeColors.backgroundColor2 : themeColors.accentColor,
+                    borderColor: onAddTask ? themeColors.borderColor : "transparent",
+                  },
+                ]}
                 onPress={() => {
                     onClose();
                     onEdit({ ...lesson, subject: fullSubject, data: instanceData });
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.edit', lang)}
             >
-                <PencilSimple size={20} color="#fff" style={{marginRight: 8}} weight="bold" />
-                <Text style={[styles.actionButtonText, { color: '#fff' }]}>{t('common.edit', lang)}</Text>
+                <PencilSimple
+                  size={20}
+                  color={onAddTask ? themeColors.accentColor : "#fff"}
+                  style={onAddTask ? null : {marginRight: 8}}
+                  weight="bold"
+                />
+                {!onAddTask && (
+                  <Text style={[styles.actionButtonText, { color: '#fff' }]}>{t('common.edit', lang)}</Text>
+                )}
             </TouchableOpacity>
           </View>
 
@@ -439,6 +526,17 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingVertical: 13,
     borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "transparent",
+  },
+  addTaskButton: {
+    flex: 1.65,
+    minWidth: 0,
+  },
+  secondaryActionButton: {
+    flex: 0,
+    width: 50,
+    paddingHorizontal: 0,
   },
   primaryButton: {
     shadowColor: "#000",

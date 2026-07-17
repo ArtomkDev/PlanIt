@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ArrowUpRight,
@@ -19,6 +18,7 @@ import {
   CalendarDots,
   CaretDown,
   CheckSquare,
+  Clock,
   ClipboardText,
   Link as LinkIcon,
   Plus,
@@ -33,6 +33,16 @@ import themes from "../../config/themes";
 import { getIconComponent } from "../../config/subjectIcons";
 import { t } from "../../utils/i18n";
 import { resolveScheduleColor, scheduleColorWithAlpha } from "../../utils/scheduleColors";
+import {
+  addScheduleRecordToMap,
+  withStartingWeekFallback,
+} from "../../utils/scheduleRecordMerge";
+import {
+  formatOccurrenceDayLabel,
+  normalizeLessonRef,
+  uniqueIds,
+} from "../../utils/taskLessonLinking";
+import { calculateScheduleWeek, parseTimeToMinutes } from "../../utils/scheduleTime";
 import {
   APP_HEADER_BODY_HEIGHT,
   APP_HEADER_CONTENT_GAP,
@@ -60,6 +70,8 @@ const TASK_CARD_COLLAPSED_MIN_HEIGHT = 56;
 const TASK_CARD_EXPANDED_PADDING_VERTICAL = 12;
 const TASK_CARD_COLLAPSED_PADDING_VERTICAL = 10;
 const TASK_DETAILS_TOP_GAP = 8;
+const COMPLETED_CARD_OVERLAY_OPACITY = 0.68;
+const TODAY_MARKER_KEY = "today-marker";
 const taskIconPatternCache = {};
 
 const getTaskIconPatternPositions = (width, height) => {
@@ -95,12 +107,6 @@ const getTaskIconPatternPositions = (width, height) => {
   taskIconPatternCache[key] = positions;
   return positions;
 };
-
-const uniqueIds = (value) => (
-  Array.isArray(value)
-    ? [...new Set(value.filter(Boolean))]
-    : []
-);
 
 const areSameIds = (left, right) => (
   left.length === right.length && left.every((id, index) => id === right[index])
@@ -140,6 +146,19 @@ const getGradientColors = (gradient) => (
 
 const getGradientColor = (gradient) => getGradientColors(gradient)[0] || null;
 
+const getDimmedCardColor = (color, opacity = COMPLETED_CARD_OVERLAY_OPACITY) => {
+  const parsed = tinycolor(color);
+  if (!parsed.isValid()) return color;
+  return tinycolor.mix(parsed, "#000", opacity * 100).toHexString();
+};
+
+const getDimmedGradientForText = (gradient, opacity = COMPLETED_CARD_OVERLAY_OPACITY) => {
+  const colors = getGradientColors(gradient);
+  return colors.length > 0
+    ? { colors: colors.map((color) => getDimmedCardColor(color, opacity)) }
+    : gradient;
+};
+
 const getReadableTextColor = (backgroundColor, fallback = "#fff") => {
   const parsed = tinycolor(backgroundColor);
   if (!parsed.isValid()) return fallback;
@@ -165,14 +184,220 @@ const getTaskTextColor = (backgroundColor, gradient, fallback) => {
 
 const withAlpha = (color, alpha) => tinycolor(color).setAlpha(alpha).toRgbString();
 
-const formatTaskDate = (value, lang) => {
-  const timestamp = parseTaskTimestamp(value);
-  if (!timestamp) return "";
+const formatTaskCardDate = (value, lang) => {
+  if (!value) return "";
 
-  return new Date(timestamp).toLocaleDateString(lang === "uk" ? "uk-UA" : "en-US", {
+  const date = typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)
+    ? new Date(`${value.slice(0, 10)}T00:00:00`)
+    : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString(lang === "uk" ? "uk-UA" : "en-US", {
+    weekday: "short",
     day: "numeric",
     month: "short",
   });
+};
+
+const parseTaskDayDate = (value) => {
+  if (!value) return null;
+  const date = typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)
+    ? new Date(`${value.slice(0, 10)}T00:00:00`)
+    : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const getLocalDayKey = (date) => (
+  [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-")
+);
+
+const getLessonRefWeekNumber = (lessonRef) => {
+  const match = String(lessonRef?.weekKey || "").match(/^week(\d+)$/);
+  if (!match) return null;
+
+  const weekNumber = Number(match[1]);
+  return Number.isFinite(weekNumber) && weekNumber > 0 ? weekNumber : null;
+};
+
+const formatTaskWeekLabel = (weekNumber, lang) => (
+  t("tasks.editor.week_label", lang).replace("{week}", String(weekNumber))
+);
+
+const getTranslatedValue = (key, lang, fallback) => {
+  const value = t(key, lang);
+  return value === key ? fallback : value;
+};
+
+const getTodayLabel = (lang) => (
+  getTranslatedValue("tasks.editor.today", lang, lang === "uk" ? "Сьогодні" : "Today")
+);
+
+const formatTaskCountLabel = (count, lang) => (
+  t("tasks.count", lang).replace("{count}", String(count || 0))
+);
+
+const formatPendingTaskCountLabel = (count, lang) => (
+  lang === "uk" ? `${count || 0} не виконано` : `${count || 0} open`
+);
+
+const formatTasksHeaderSummary = (totalCount, pendingCount, lang) => (
+  `${formatTaskCountLabel(totalCount, lang)} · ${formatPendingTaskCountLabel(pendingCount, lang)}`
+);
+
+const getTaskLessonTimeLabel = (lessonRef) => {
+  const ref = normalizeLessonRef(lessonRef);
+  return ref ? [ref.start, ref.end].filter(Boolean).join(" - ") : "";
+};
+
+const getTaskGroupMeta = (entry, lang) => {
+  const lessonRef = normalizeLessonRef(entry?.task?.lessonRef, entry?.scheduleId);
+  const lessonDate = lessonRef?.date || entry?.task?.lessonRef?.date;
+  const createdAt = parseTaskTimestamp(entry?.task?.createdAt);
+  const date = parseTaskDayDate(lessonDate || createdAt);
+  const scheduleName = entry?.scheduleName || t("settings.schedule_switcher.untitled", lang);
+  const scheduleId = lessonRef?.scheduleId || entry?.scheduleId || "__schedule__";
+  const repeatWeeks = Math.max(1, Number(entry?.sourceSchedule?.repeat) || 1);
+  const refWeekNumber = getLessonRefWeekNumber(lessonRef);
+  const calculatedWeekNumber = date && repeatWeeks > 1
+    ? calculateScheduleWeek(entry?.sourceSchedule, date)
+    : null;
+  const weekNumber = refWeekNumber || calculatedWeekNumber;
+  const showWeek = Number.isFinite(weekNumber) && weekNumber > 0 && (
+    repeatWeeks > 1 || weekNumber > 1
+  );
+  const weekKey = showWeek ? `week${weekNumber}` : "week:none";
+
+  if (!date) {
+    return {
+      key: `group:__unknown__:${scheduleId}:${weekKey}`,
+      dateLabel: t("settings.device_screen.unknown_date", lang),
+      scheduleId,
+      scheduleName,
+      scheduleColor: entry?.scheduleColor,
+      sortTime: 0,
+      weekLabel: showWeek ? formatTaskWeekLabel(weekNumber, lang) : "",
+      weekNumber: showWeek ? weekNumber : null,
+    };
+  }
+
+  const dayKey = getLocalDayKey(date);
+
+  return {
+    key: `group:${dayKey}:${scheduleId}:${weekKey}`,
+    dateLabel: formatOccurrenceDayLabel(date, lang) || formatTaskCardDate(date, lang),
+    scheduleId,
+    scheduleName,
+    scheduleColor: entry?.scheduleColor,
+    sortTime: date.getTime(),
+    weekLabel: showWeek ? formatTaskWeekLabel(weekNumber, lang) : "",
+    weekNumber: showWeek ? weekNumber : null,
+  };
+};
+
+const getActiveScheduleSortRank = (scheduleId, activeScheduleId) => (
+  scheduleId && activeScheduleId && scheduleId === activeScheduleId ? 0 : 1
+);
+
+const compareTaskScheduleNames = (leftName, rightName, lang) => (
+  String(leftName || "").localeCompare(String(rightName || ""), lang === "uk" ? "uk-UA" : "en-US", {
+    sensitivity: "base",
+  })
+);
+
+const buildTaskListRows = (entries, lang, activeScheduleId) => {
+  const rows = [];
+  const groups = [];
+  const groupByKey = new Map();
+  const today = parseTaskDayDate(new Date());
+  const todaySortTime = today?.getTime?.() || Date.now();
+  let todayMarkerInserted = false;
+  const pushTodayMarker = () => {
+    if (todayMarkerInserted) return;
+    rows.push({
+      type: "todayMarker",
+      key: TODAY_MARKER_KEY,
+      label: getTodayLabel(lang),
+      sortTime: todaySortTime,
+    });
+    todayMarkerInserted = true;
+  };
+
+  entries.forEach((entry, entryIndex) => {
+    const groupMeta = getTaskGroupMeta(entry, lang);
+    const groupKey = groupMeta.key;
+
+    if (!groupByKey.has(groupKey)) {
+      const group = {
+        key: groupKey,
+        meta: groupMeta,
+        firstIndex: entryIndex,
+        items: [],
+      };
+      groupByKey.set(groupKey, group);
+      groups.push(group);
+    }
+
+    groupByKey.get(groupKey).items.push({
+      entry,
+      entryIndex,
+    });
+  });
+
+  groups
+    .sort((left, right) => (
+      right.meta.sortTime - left.meta.sortTime
+      || getActiveScheduleSortRank(left.meta.scheduleId, activeScheduleId)
+        - getActiveScheduleSortRank(right.meta.scheduleId, activeScheduleId)
+      || compareTaskScheduleNames(left.meta.scheduleName, right.meta.scheduleName, lang)
+      || (left.meta.weekNumber || 0) - (right.meta.weekNumber || 0)
+      || left.firstIndex - right.firstIndex
+    ))
+    .forEach((group) => {
+      if (!todayMarkerInserted && group.meta.sortTime <= todaySortTime) {
+        pushTodayMarker();
+      }
+
+      rows.push({
+        type: "daySeparator",
+        key: `separator:${group.key}`,
+        meta: group.meta,
+      });
+
+      group.items
+        .sort((left, right) => {
+          const leftRef = normalizeLessonRef(left.entry?.task?.lessonRef, left.entry?.scheduleId);
+          const rightRef = normalizeLessonRef(right.entry?.task?.lessonRef, right.entry?.scheduleId);
+          const leftStart = parseTimeToMinutes(leftRef?.start);
+          const rightStart = parseTimeToMinutes(rightRef?.start);
+          const leftSort = leftStart === null ? Number.POSITIVE_INFINITY : leftStart;
+          const rightSort = rightStart === null ? Number.POSITIVE_INFINITY : rightStart;
+
+          return (
+            leftSort - rightSort
+            || parseTaskTimestamp(right.entry?.task?.createdAt) - parseTaskTimestamp(left.entry?.task?.createdAt)
+            || left.entryIndex - right.entryIndex
+          );
+        })
+        .forEach(({ entry }, itemIndex) => {
+          rows.push({
+            type: "task",
+            key: `task:${group.key}:${entry.scheduleId}:${entry.task?.id || itemIndex}`,
+            entry,
+          });
+        });
+    });
+
+  pushTodayMarker();
+
+  return rows;
 };
 
 function EmptyState({ icon: Icon = ClipboardText, title, description, themeColors, topInset }) {
@@ -183,6 +408,66 @@ function EmptyState({ icon: Icon = ClipboardText, title, description, themeColor
       </View>
       <Text style={[styles.emptyTitle, { color: themeColors.textColor }]}>{title}</Text>
       <Text style={[styles.emptyDescription, { color: themeColors.textColor2 }]}>{description}</Text>
+    </View>
+  );
+}
+
+function TaskDaySeparator({ meta, themeColors }) {
+  const scheduleColor = meta?.scheduleColor || themeColors.accentColor;
+
+  return (
+    <View style={styles.daySeparatorWrap}>
+      <View
+        style={[
+          styles.daySeparatorPill,
+          {
+            backgroundColor: scheduleColorWithAlpha(scheduleColor, 0.10),
+            borderColor: scheduleColorWithAlpha(scheduleColor, 0.18),
+          },
+        ]}
+      >
+        <View style={[styles.daySeparatorAccent, { backgroundColor: scheduleColor }]} />
+        <View style={styles.daySeparatorTextBlock}>
+          <Text style={[styles.daySeparatorDateText, { color: themeColors.textColor }]} numberOfLines={1}>
+            {meta?.dateLabel}
+          </Text>
+          <View style={styles.daySeparatorSchedule}>
+            <Text style={[styles.daySeparatorScheduleText, { color: themeColors.textColor2 }]} numberOfLines={1}>
+              {meta?.scheduleName}
+            </Text>
+          </View>
+        </View>
+        {!!meta?.weekLabel && (
+          <View style={[styles.daySeparatorWeekPill, { backgroundColor: scheduleColorWithAlpha(scheduleColor, 0.16) }]}>
+            <Text style={[styles.daySeparatorWeekText, { color: scheduleColor }]} numberOfLines={1}>
+              {meta.weekLabel}
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function TaskTodayMarker({ label, themeColors }) {
+  return (
+    <View style={styles.todayMarkerWrap}>
+      <View style={[styles.todayMarkerLine, { backgroundColor: themeColors.borderColor }]} />
+      <View
+        style={[
+          styles.todayMarkerPill,
+          {
+            backgroundColor: scheduleColorWithAlpha(themeColors.accentColor, 0.18),
+            borderColor: scheduleColorWithAlpha(themeColors.accentColor, 0.36),
+          },
+        ]}
+      >
+        <CalendarDots size={15} color={themeColors.accentColor} weight="bold" />
+        <Text style={[styles.todayMarkerText, { color: themeColors.accentColor }]} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
+      <View style={[styles.todayMarkerLine, { backgroundColor: themeColors.borderColor }]} />
     </View>
   );
 }
@@ -286,26 +571,37 @@ const TaskIconPattern = React.memo(({ Icon, color, opacity, collapseProgress }) 
   );
 });
 
-function TaskCard({ entry, themeColors, themeMode, lang, showScheduleName, onPress, onToggle }) {
-  const { task, subject, links, scheduleName, scheduleColor, activeGradient } = entry;
+function TaskCard({
+  entry,
+  themeColors,
+  themeMode,
+  lang,
+  onPress,
+  onToggle,
+  onLinkedLessonPress,
+}) {
+  const { task, subject, links, scheduleId, scheduleColor, activeGradient } = entry;
   const completed = task?.completed === true;
   const collapseProgress = useRef(new Animated.Value(completed ? 1 : 0)).current;
-  const createdLabel = formatTaskDate(task?.createdAt, lang);
+  const normalizedLessonRef = normalizeLessonRef(task?.lessonRef, scheduleId);
+  const lessonTimeLabel = getTaskLessonTimeLabel(normalizedLessonRef);
+  const canOpenLinkedLesson = Boolean(
+    onLinkedLessonPress
+    && normalizedLessonRef?.date
+    && normalizedLessonRef.lessonIndex !== undefined
+    && normalizedLessonRef.lessonIndex !== null
+  );
   const subjectColor = themes.accentColors[subject?.color] || subject?.color;
   const cardColor = activeGradient
     ? getGradientColor(activeGradient) || subjectColor || scheduleColor || themeColors.accentColor
     : subjectColor || scheduleColor || themeColors.backgroundColor2;
   const isDarkTheme = themeMode === "dark" || themeMode === "oled";
-  const textOnCard = getTaskTextColor(cardColor, activeGradient, isDarkTheme ? "#fff" : "#111827");
+  const textCardColor = completed ? getDimmedCardColor(cardColor) : cardColor;
+  const textGradient = completed ? getDimmedGradientForText(activeGradient) : activeGradient;
+  const textOnCard = getTaskTextColor(textCardColor, textGradient, isDarkTheme ? "#fff" : "#111827");
   const mutedTextOnCard = withAlpha(textOnCard, 0.82);
   const chipBackground = withAlpha(textOnCard, textOnCard === "#fff" ? 0.17 : 0.13);
   const usesLightText = textOnCard === "#fff";
-  const shadeColors = usesLightText
-    ? ["rgba(0,0,0,0.26)", "rgba(0,0,0,0.14)", "rgba(0,0,0,0.34)"]
-    : ["rgba(255,255,255,0.08)", "rgba(255,255,255,0.02)", "rgba(0,0,0,0.08)"];
-  const completedShadeColors = usesLightText
-    ? ["rgba(0,0,0,0.30)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.38)"]
-    : ["rgba(255,255,255,0.05)", "rgba(0,0,0,0.02)", "rgba(0,0,0,0.12)"];
   const borderColor = textOnCard === "#fff"
     ? (completed ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.24)")
     : (completed ? "rgba(17,24,39,0.26)" : "rgba(17,24,39,0.18)");
@@ -342,6 +638,12 @@ function TaskCard({ entry, themeColors, themeMode, lang, showScheduleName, onPre
     marginTop: collapseProgress.interpolate({
       inputRange: [0, 1],
       outputRange: [TASK_DETAILS_TOP_GAP, 0],
+    }),
+  };
+  const completedOverlayStyle = {
+    opacity: collapseProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, COMPLETED_CARD_OVERLAY_OPACITY],
     }),
   };
   const uncheckedIconStyle = {
@@ -418,13 +720,9 @@ function TaskCard({ entry, themeColors, themeMode, lang, showScheduleName, onPre
         opacity={iconPatternOpacity}
         collapseProgress={collapseProgress}
       />
-      <LinearGradient
+      <Animated.View
         pointerEvents="none"
-        colors={completed ? completedShadeColors : shadeColors}
-        locations={[0, 0.48, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        style={[styles.completedCardOverlay, completedOverlayStyle]}
       />
       <View
         pointerEvents="none"
@@ -451,35 +749,40 @@ function TaskCard({ entry, themeColors, themeMode, lang, showScheduleName, onPre
 
       <View style={styles.cardBody}>
         <View style={styles.metaRow}>
-          {showScheduleName && (
-            <View style={[styles.schedulePill, { backgroundColor: chipBackground }]}>
-              <View style={[styles.scheduleDot, { backgroundColor: scheduleColor }]} />
-              <Text style={[styles.scheduleName, { color: textOnCard }]} numberOfLines={1}>
-                {scheduleName}
-              </Text>
-            </View>
-          )}
-
           <Text
             style={[
               styles.subjectName,
               { color: textOnCard },
-              showScheduleName ? styles.subjectNameWithSchedule : styles.subjectNameSingle,
+              styles.subjectNameSingle,
             ]}
             numberOfLines={1}
           >
             {titleLabel}
           </Text>
 
-          {!!createdLabel && (
-            <Text
+          {!!lessonTimeLabel && (
+            <TouchableOpacity
+              activeOpacity={0.72}
+              disabled={!canOpenLinkedLesson}
+              onPress={(event) => {
+                event?.stopPropagation?.();
+                onLinkedLessonPress?.();
+              }}
+              hitSlop={8}
               style={[
-                styles.createdAt,
-                { color: mutedTextOnCard },
+                styles.lessonTimeButton,
+                {
+                  backgroundColor: chipBackground,
+                  borderColor: withAlpha(textOnCard, textOnCard === "#fff" ? 0.36 : 0.24),
+                  opacity: canOpenLinkedLesson ? 1 : 0.78,
+                },
               ]}
             >
-              {createdLabel}
-            </Text>
+              <Clock size={13} color={textOnCard} weight="bold" />
+              <Text style={[styles.lessonTimeText, { color: textOnCard }]} numberOfLines={1}>
+                {lessonTimeLabel}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -517,9 +820,9 @@ function TaskCard({ entry, themeColors, themeMode, lang, showScheduleName, onPre
   );
 }
 
-export default function Tasks() {
+export default function Tasks({ route, navigation }) {
   const { global, schedule, schedules, lang } = useScheduleData();
-  const { setScheduleDraft, setData } = useScheduleActions();
+  const { setScheduleDraft, setData, setGlobalDraft } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
 
@@ -532,18 +835,28 @@ export default function Tasks() {
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [draftTask, setDraftTask] = useState(null);
+  const [draftScheduleId, setDraftScheduleId] = useState(null);
   const [filterVisible, setFilterVisible] = useState(false);
   const headerTopInset = getAppHeaderTopInset(insets.top);
   const headerHeight = getAppHeaderHeight(insets.top);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState([]);
+  const handledCreateIntentRef = useRef(null);
+  const listRef = useRef(null);
+  const didInitialTodayScrollRef = useRef(false);
+  const createTaskIntent = route?.params?.createTaskIntent;
 
   const scheduleById = useMemo(() => {
     const map = new Map();
-    schedules.forEach((item) => {
-      if (item?.id) map.set(item.id, item);
-    });
+    const addScheduleToMap = (item) => {
+      addScheduleRecordToMap(map, item, global);
+    };
+
+    schedules.forEach(addScheduleToMap);
+    addScheduleToMap(schedule);
+
     return map;
-  }, [schedules]);
+  }, [global, schedule, schedules]);
 
   const normalizedSelectedScheduleIds = useMemo(() => (
     normalizeSelectedScheduleIds(selectedScheduleIds, schedules, fallbackScheduleId)
@@ -563,10 +876,14 @@ export default function Tasks() {
   ), [normalizedSelectedScheduleIds, scheduleById]);
 
   const singleSelectedSchedule = selectedSchedules.length === 1 ? selectedSchedules[0] : null;
-  const newTaskSchedule = singleSelectedSchedule || schedule;
+  const activeScheduleWithFallback = schedule?.id
+    ? scheduleById.get(schedule.id) || withStartingWeekFallback(schedule, global)
+    : null;
+  const newTaskSchedule = singleSelectedSchedule || activeScheduleWithFallback;
+  const draftSourceSchedule = draftScheduleId ? scheduleById.get(draftScheduleId) : null;
   const editorSourceSchedule = editingEntry
     ? scheduleById.get(editingEntry.scheduleId) || editingEntry.sourceSchedule
-    : newTaskSchedule;
+    : (draftSourceSchedule || newTaskSchedule);
 
   const flatTasks = useMemo(() => {
     const untitledSchedule = t("settings.schedule_switcher.untitled", lang);
@@ -603,18 +920,43 @@ export default function Tasks() {
       .sort(sortTaskEntriesNewestFirst);
   }, [lang, selectedSchedules, themeColors.accentColor]);
 
+  const taskRows = useMemo(() => (
+    buildTaskListRows(flatTasks, lang, activeScheduleId)
+  ), [activeScheduleId, flatTasks, lang]);
+
+  const todayMarkerIndex = useMemo(() => (
+    taskRows.findIndex((row) => row.type === "todayMarker")
+  ), [taskRows]);
+
+  const pendingTaskCount = useMemo(() => (
+    flatTasks.filter((entry) => entry?.task?.completed !== true).length
+  ), [flatTasks]);
+
   const taskListVersion = useMemo(() => (
     flatTasks
       .map((entry) => [
         entry.scheduleId,
         entry.task?.id,
+        entry.task?.createdAt,
         entry.task?.updatedAt,
         entry.task?.completed === true ? 1 : 0,
         entry.task?.text,
         entry.task?.subjectId,
+        entry.task?.lessonRef?.subjectId,
+        entry.task?.lessonRef?.date,
+        entry.task?.lessonRef?.weekKey,
+        entry.task?.lessonRef?.lessonIndex,
+        entry.task?.lessonRef?.start,
+        entry.task?.lessonRef?.end,
       ].join(":"))
       .join("|")
   ), [flatTasks]);
+
+  const headerTaskSummary = useMemo(() => (
+    flatTasks.length > 0
+      ? formatTasksHeaderSummary(flatTasks.length, pendingTaskCount, lang)
+      : t("tasks.subtitle", lang)
+  ), [flatTasks.length, lang, pendingTaskCount]);
 
   const selectedCountLabel = useMemo(() => {
     if (singleSelectedSchedule) {
@@ -660,14 +1002,57 @@ export default function Tasks() {
   }, [activeScheduleId, setData, setScheduleDraft]);
 
   const openNewTask = useCallback(() => {
+    const sourceSchedule = newTaskSchedule;
     setEditingEntry(null);
+    setDraftTask(null);
+    setDraftScheduleId(sourceSchedule?.id || null);
     setEditorVisible(true);
-  }, []);
+  }, [newTaskSchedule]);
 
   const openTask = useCallback((entry) => {
     setEditingEntry(entry);
+    setDraftTask(null);
+    setDraftScheduleId(null);
     setEditorVisible(true);
   }, []);
+
+  const closeEditor = useCallback(() => {
+    setEditorVisible(false);
+    setDraftTask(null);
+    setDraftScheduleId(null);
+  }, []);
+
+  useEffect(() => {
+    const requestId = createTaskIntent?.requestId;
+    if (!requestId || handledCreateIntentRef.current === requestId) return;
+    if (!schedules.length) return;
+
+    handledCreateIntentRef.current = requestId;
+
+    const targetScheduleId = createTaskIntent.scheduleId || fallbackScheduleId;
+    const targetSchedule = scheduleById.get(targetScheduleId);
+
+    if (!targetSchedule?.id) {
+      navigation?.setParams?.({ createTaskIntent: undefined });
+      return;
+    }
+
+    const lessonRef = normalizeLessonRef(createTaskIntent.lessonRef, targetSchedule.id);
+    const draft = {
+      subjectId: createTaskIntent.subjectId || null,
+      text: "",
+      links: uniqueIds(createTaskIntent.linkIds),
+      ...(lessonRef ? { lessonRef } : {}),
+    };
+
+    setSelectedScheduleIds(normalizeSelectedScheduleIds([targetSchedule.id], schedules, fallbackScheduleId));
+    setDraftScheduleId(targetSchedule.id);
+    setDraftTask(draft);
+    setEditingEntry(null);
+    setFilterVisible(false);
+    setEditorVisible(true);
+    navigation?.setParams?.({ createTaskIntent: undefined });
+  }, [createTaskIntent, fallbackScheduleId, navigation, scheduleById, schedules]);
 
   const toggleCompleted = useCallback((entry) => {
     const now = Date.now();
@@ -687,18 +1072,35 @@ export default function Tasks() {
   const saveTask = useCallback(({ scheduleId, task: savedTask, links: nextLinks }) => {
     if (!scheduleId || !savedTask?.id) return;
 
+    const previousScheduleId = editingEntry?.scheduleId;
+    if (previousScheduleId && previousScheduleId !== scheduleId) {
+      updateScheduleById(previousScheduleId, (previousSchedule) => ({
+        ...previousSchedule,
+        tasks: (Array.isArray(previousSchedule?.tasks) ? previousSchedule.tasks : [])
+          .filter((item) => item?.id !== savedTask.id),
+      }));
+    }
+
     updateScheduleById(scheduleId, (previousSchedule) => {
       const previousTasks = Array.isArray(previousSchedule?.tasks) ? previousSchedule.tasks : [];
       const sanitizedTask = {
         ...savedTask,
         links: uniqueIds(savedTask.links),
+        lessonRef: normalizeLessonRef(savedTask.lessonRef, scheduleId),
       };
       const existingIndex = previousTasks.findIndex((item) => item?.id === sanitizedTask.id);
       const nextTasks = [...previousTasks];
 
       if (existingIndex >= 0) {
-        nextTasks[existingIndex] = { ...nextTasks[existingIndex], ...sanitizedTask };
+        const mergedTask = { ...nextTasks[existingIndex], ...sanitizedTask };
+        if (!normalizeLessonRef(sanitizedTask.lessonRef, scheduleId)) {
+          delete mergedTask.lessonRef;
+        }
+        nextTasks[existingIndex] = mergedTask;
       } else {
+        if (!normalizeLessonRef(sanitizedTask.lessonRef, scheduleId)) {
+          delete sanitizedTask.lessonRef;
+        }
         nextTasks.push(sanitizedTask);
       }
 
@@ -708,7 +1110,7 @@ export default function Tasks() {
         tasks: nextTasks,
       };
     });
-  }, [updateScheduleById]);
+  }, [editingEntry?.scheduleId, updateScheduleById]);
 
   const deleteTask = useCallback((scheduleId, taskId) => {
     if (!scheduleId || !taskId) return;
@@ -719,17 +1121,82 @@ export default function Tasks() {
     }));
   }, [updateScheduleById]);
 
-  const renderTask = useCallback(({ item }) => (
-    <TaskCard
-      entry={item}
-      themeColors={themeColors}
-      themeMode={mode}
-      lang={lang}
-      showScheduleName={normalizedSelectedScheduleIds.length > 1}
-      onPress={() => openTask(item)}
-      onToggle={() => toggleCompleted(item)}
-    />
-  ), [lang, mode, normalizedSelectedScheduleIds.length, openTask, themeColors, toggleCompleted]);
+  const scrollToTodayMarker = useCallback((animated = false) => {
+    if (todayMarkerIndex < 0 || !listRef.current) return;
+
+    try {
+      listRef.current.scrollToIndex({
+        index: todayMarkerIndex,
+        animated,
+        viewPosition: 0.18,
+      });
+    } catch (error) {
+      // FlatList can briefly reject scrollToIndex before it measures enough rows.
+    }
+  }, [todayMarkerIndex]);
+
+  useEffect(() => {
+    if (didInitialTodayScrollRef.current || flatTasks.length === 0 || todayMarkerIndex < 0) return undefined;
+
+    const timer = setTimeout(() => {
+      didInitialTodayScrollRef.current = true;
+      scrollToTodayMarker(false);
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [flatTasks.length, scrollToTodayMarker, todayMarkerIndex]);
+
+  const handleScrollToIndexFailed = useCallback((info) => {
+    if (info?.index !== todayMarkerIndex || !listRef.current) return;
+
+    const estimatedOffset = Math.max(0, (info.averageItemLength || 74) * info.index);
+    listRef.current.scrollToOffset({ offset: estimatedOffset, animated: false });
+
+    setTimeout(() => {
+      scrollToTodayMarker(false);
+    }, 80);
+  }, [scrollToTodayMarker, todayMarkerIndex]);
+
+  const openLinkedLesson = useCallback((entry) => {
+    const lessonRef = normalizeLessonRef(entry?.task?.lessonRef, entry?.scheduleId);
+    if (!lessonRef?.date || lessonRef.lessonIndex === undefined || lessonRef.lessonIndex === null) return;
+
+    const targetScheduleId = lessonRef.scheduleId || entry?.scheduleId;
+    if (targetScheduleId && targetScheduleId !== activeScheduleId) {
+      setGlobalDraft((previous) => ({ ...previous, currentScheduleId: targetScheduleId }));
+    }
+
+    navigation?.navigate("ScheduleTab", {
+      lessonViewIntent: {
+        requestId: Date.now(),
+        scheduleId: targetScheduleId,
+        lessonRef,
+      },
+    });
+  }, [activeScheduleId, navigation, setGlobalDraft]);
+
+  const renderTask = useCallback(({ item }) => {
+    if (item.type === "todayMarker") {
+      return <TaskTodayMarker label={item.label} themeColors={themeColors} />;
+    }
+
+    if (item.type === "daySeparator") {
+      return <TaskDaySeparator meta={item.meta} themeColors={themeColors} />;
+    }
+
+    const entry = item.entry;
+    return (
+      <TaskCard
+        entry={entry}
+        themeColors={themeColors}
+        themeMode={mode}
+        lang={lang}
+        onPress={() => openTask(entry)}
+        onToggle={() => toggleCompleted(entry)}
+        onLinkedLessonPress={() => openLinkedLesson(entry)}
+      />
+    );
+  }, [lang, mode, openLinkedLesson, openTask, themeColors, toggleCompleted]);
 
   const renderContent = () => {
     if (!schedules.length) {
@@ -757,10 +1224,12 @@ export default function Tasks() {
 
     return (
       <FlatList
-        data={flatTasks}
+        ref={listRef}
+        data={taskRows}
         extraData={`${taskListVersion}:${normalizedSelectedScheduleIds.join(",")}:${mode}:${accent}`}
         renderItem={renderTask}
-        keyExtractor={(item, index) => `${item.scheduleId}:${item.task?.id || index}`}
+        keyExtractor={(item) => item.key}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.listContent,
@@ -783,10 +1252,8 @@ export default function Tasks() {
               <Text style={[styles.title, { color: themeColors.textColor }]}>
                 {t("common.tasks", lang)}
               </Text>
-              <Text style={[styles.subtitle, { color: themeColors.textColor2 }]}>
-                {flatTasks.length > 0
-                  ? t("tasks.count", lang).replace("{count}", String(flatTasks.length))
-                  : t("tasks.subtitle", lang)}
+              <Text style={[styles.subtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+                {headerTaskSummary}
               </Text>
             </View>
 
@@ -832,11 +1299,12 @@ export default function Tasks() {
       {editorVisible && editorSourceSchedule && (
         <View style={[StyleSheet.absoluteFill, { bottom: safeTabBarHeight }]} pointerEvents="box-none">
           <TaskEditor
-            task={editingEntry?.task || null}
+            task={editingEntry?.task || draftTask || null}
             sourceSchedule={editorSourceSchedule}
+            selectedScheduleIds={normalizedSelectedScheduleIds}
             onSave={saveTask}
             onDelete={deleteTask}
-            onClose={() => setEditorVisible(false)}
+            onClose={closeEditor}
           />
         </View>
       )}
@@ -920,6 +1388,97 @@ const styles = StyleSheet.create({
   listContent: {
     paddingTop: 4,
   },
+  daySeparatorWrap: {
+    minHeight: 54,
+    marginTop: 10,
+    marginBottom: 8,
+    justifyContent: "center",
+  },
+  daySeparatorPill: {
+    alignSelf: "stretch",
+    minHeight: 50,
+    borderRadius: 15,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  daySeparatorAccent: {
+    width: 4,
+    height: 30,
+    borderRadius: 2,
+    marginRight: 10,
+  },
+  daySeparatorTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
+  },
+  daySeparatorDateText: {
+    flexShrink: 1,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: "900",
+    letterSpacing: 0,
+    textTransform: "uppercase",
+  },
+  daySeparatorSchedule: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  daySeparatorScheduleText: {
+    flexShrink: 1,
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: "800",
+  },
+  daySeparatorWeekPill: {
+    minHeight: 24,
+    maxWidth: 126,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  daySeparatorWeekText: {
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "900",
+    letterSpacing: 0,
+    textTransform: "uppercase",
+  },
+  todayMarkerWrap: {
+    minHeight: 46,
+    marginTop: 10,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  todayMarkerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    opacity: 0.8,
+  },
+  todayMarkerPill: {
+    minHeight: 34,
+    borderRadius: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 13,
+    marginHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  todayMarkerText: {
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: "900",
+    letterSpacing: 0,
+    textTransform: "uppercase",
+  },
   card: {
     flexDirection: "row",
     borderRadius: 18,
@@ -946,6 +1505,11 @@ const styles = StyleSheet.create({
   },
   cardIconPattern: {
     zIndex: 0,
+  },
+  completedCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000",
+    zIndex: 1,
   },
   cardIconPatternItem: {
     position: "absolute",
@@ -995,38 +1559,27 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  subjectNameWithSchedule: {
-    flex: 1,
-    minWidth: 130,
-  },
   subjectNameSingle: {
     flex: 1,
     minWidth: 0,
     fontSize: 15,
   },
-  createdAt: {
-    fontSize: 12,
-    fontWeight: "700",
+  lessonTimeButton: {
     marginLeft: "auto",
-  },
-  schedulePill: {
-    maxWidth: "62%",
-    minHeight: 25,
-    borderRadius: 8,
+    minHeight: 27,
+    maxWidth: 126,
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 8,
     flexDirection: "row",
     alignItems: "center",
+    gap: 5,
   },
-  scheduleDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  scheduleName: {
+  lessonTimeText: {
     flexShrink: 1,
     fontSize: 12,
-    fontWeight: "800",
+    lineHeight: 15,
+    fontWeight: "900",
   },
   taskText: {
     fontSize: 16,

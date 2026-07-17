@@ -22,10 +22,18 @@ import CalendarSheet from "../../components/CalendarSheet/CalendarSheet";
 import AppBlur from "../../components/ui/AppBlur";
 
 import { DayScheduleProvider } from "../../context/DayScheduleProvider";
-import { useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import { NowTickProvider } from "../../hooks/useNowTick";
 import themes from "../../config/themes";
-import { buildLessonTimes } from "../../utils/scheduleTime";
+import {
+  buildLessonTimes,
+} from "../../utils/scheduleTime";
+import {
+  createTaskDraftFromLesson,
+  createTaskDraftFromLessonContext,
+  normalizeLessonRef,
+  resolveOccurrenceFromLessonRef,
+} from "../../utils/taskLessonLinking";
 import { getAppHeaderHeight } from "../../config/layoutMetrics";
 
 const HALF_SIZE = 300; 
@@ -69,8 +77,9 @@ const DayPage = memo(({
     );
 });
 
-export default function Schedule() {
+export default function Schedule({ route, navigation }) {
   const { global, schedule } = useScheduleData();
+  const { setGlobalDraft } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -90,6 +99,8 @@ export default function Schedule() {
   const isUserInteraction = useRef(false);
   const isJumping = useRef(false);
   const jumpResetTimeout = useRef(null);
+  const handledLessonViewIntentRef = useRef(null);
+  const lessonViewIntent = route?.params?.lessonViewIntent;
 
   useEffect(() => () => {
     if (jumpResetTimeout.current) clearTimeout(jumpResetTimeout.current);
@@ -155,6 +166,111 @@ export default function Schedule() {
     setViewerVisible(false);
     setTimeout(() => { setEditingLesson(lesson); setEditorVisible(true); }, 100);
   }, []);
+
+  const buildSelectedLessonTaskContext = useCallback((lesson) => {
+    if (!schedule?.id || !lesson) return null;
+
+    const draft = createTaskDraftFromLesson(schedule, lesson, currentDate);
+    if (!draft?.lessonRef) return null;
+
+    return {
+      scheduleId: schedule.id,
+      subjectId: draft.subjectId,
+      lessonRef: draft.lessonRef,
+      linkIds: draft.linkIds,
+    };
+  }, [currentDate, schedule]);
+
+  const buildLessonTaskContext = useCallback((lesson) => {
+    if (!schedule?.id || !lesson) return null;
+
+    const draft = createTaskDraftFromLessonContext(schedule, lesson, currentDate);
+    if (!draft) return null;
+
+    return {
+      scheduleId: schedule.id,
+      subjectId: draft.subjectId,
+      lessonRef: draft.lessonRef,
+      linkIds: draft.linkIds,
+    };
+  }, [currentDate, schedule]);
+
+  const handleAddTaskFromLesson = useCallback((lesson) => {
+    const context = buildLessonTaskContext(lesson);
+    if (!context) return;
+
+    setViewerVisible(false);
+    navigation?.navigate("TasksTab", {
+      createTaskIntent: {
+        requestId: Date.now(),
+        scheduleId: context.scheduleId,
+        subjectId: context.subjectId,
+        lessonRef: context.lessonRef,
+        linkIds: context.linkIds,
+      },
+    });
+  }, [buildLessonTaskContext, navigation]);
+
+  const openLessonViewerFromRef = useCallback((lessonRefInput) => {
+    const lessonRef = normalizeLessonRef(lessonRefInput, schedule?.id);
+    if (!schedule?.id || !lessonRef?.date) return false;
+
+    const targetDate = new Date(`${lessonRef.date}T00:00:00`);
+    if (Number.isNaN(targetDate.getTime())) return false;
+
+    const occurrence = resolveOccurrenceFromLessonRef(schedule, lessonRef);
+    if (!occurrence) return false;
+
+    setViewerVisible(false);
+    goToDate(targetDate, false);
+
+    setTimeout(() => {
+      setViewingLesson({
+        subjectId: occurrence.subjectId,
+        index: occurrence.lessonIndex,
+        timeInfo: occurrence.timeInfo,
+        data: occurrence.lessonData,
+        lesson: occurrence.lesson,
+      });
+      setViewerVisible(true);
+    }, 120);
+
+    return true;
+  }, [goToDate, schedule]);
+
+  useEffect(() => {
+    const requestId = lessonViewIntent?.requestId;
+    if (!requestId || handledLessonViewIntentRef.current === requestId) return;
+    if (!schedule?.id) return;
+
+    const targetScheduleId = lessonViewIntent.scheduleId || lessonViewIntent.lessonRef?.scheduleId;
+    if (targetScheduleId && targetScheduleId !== schedule.id) {
+      setGlobalDraft((previous) => ({ ...previous, currentScheduleId: targetScheduleId }));
+      return;
+    }
+
+    handledLessonViewIntentRef.current = requestId;
+    openLessonViewerFromRef(lessonViewIntent.lessonRef);
+    navigation?.setParams?.({ lessonViewIntent: undefined });
+  }, [lessonViewIntent, navigation, openLessonViewerFromRef, schedule?.id, setGlobalDraft]);
+
+  const relatedTasks = useMemo(() => {
+    const context = buildSelectedLessonTaskContext(viewingLesson);
+    const lessonRef = context?.lessonRef;
+    if (!lessonRef || !Array.isArray(schedule?.tasks)) return [];
+    if (lessonRef.lessonIndex === undefined || lessonRef.lessonIndex === null) return [];
+
+    return schedule.tasks
+      .filter((task) => {
+        const taskRef = task?.lessonRef;
+        if (!taskRef || typeof taskRef !== "object") return false;
+        if (taskRef.scheduleId && taskRef.scheduleId !== lessonRef.scheduleId) return false;
+        if (taskRef.date && taskRef.date !== lessonRef.date) return false;
+        if (taskRef.weekKey && taskRef.weekKey !== lessonRef.weekKey) return false;
+        return Number(taskRef.lessonIndex) === Number(lessonRef.lessonIndex);
+      })
+      .slice(0, 3);
+  }, [buildSelectedLessonTaskContext, schedule?.tasks, viewingLesson]);
 
   const findLessonById = useCallback((id) => {
     if (!schedule || !schedule.schedule) return null;
@@ -342,7 +458,14 @@ export default function Schedule() {
       )}
       
       <DayScheduleProvider date={currentDate}>
-        <LessonViewer visible={viewerVisible} lesson={viewingLesson} onClose={() => setViewerVisible(false)} onEdit={openEditor} />
+        <LessonViewer
+          visible={viewerVisible}
+          lesson={viewingLesson}
+          relatedTasks={relatedTasks}
+          onClose={() => setViewerVisible(false)}
+          onEdit={openEditor}
+          onAddTask={handleAddTaskFromLesson}
+        />
       </DayScheduleProvider>
       
       <CalendarSheet visible={calendarVisible} currentDate={currentDate} onClose={() => setCalendarVisible(false)} onDateSelect={date => goToDate(date, true)} />

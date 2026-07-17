@@ -96,6 +96,18 @@ const getTasksFingerprint = (tasks) => {
       const taskLinks = Array.isArray(task.links)
         ? task.links.map(normalizePrimitive).sort().join(",")
         : "";
+      const lessonRef = task.lessonRef && typeof task.lessonRef === "object" && !Array.isArray(task.lessonRef)
+        ? [
+          task.lessonRef.scheduleId,
+          task.lessonRef.subjectId,
+          task.lessonRef.date,
+          task.lessonRef.dayIndex,
+          task.lessonRef.weekKey,
+          task.lessonRef.lessonIndex,
+          task.lessonRef.start,
+          task.lessonRef.end,
+        ].map(normalizePrimitive).join(",")
+        : "";
 
       return [
         task.id,
@@ -105,6 +117,7 @@ const getTasksFingerprint = (tasks) => {
         task.createdAt,
         task.updatedAt,
         taskLinks,
+        lessonRef,
       ].map(normalizePrimitive).join(",");
     })
     .sort()
@@ -150,6 +163,7 @@ const getScheduleFingerprint = (schedule = {}) => {
     schedule.repeat || "",
     schedule.start_time || "",
     schedule.duration || "",
+    schedule.taskAutoLinkMode || "",
     getReminderFingerprint(schedule.reminder),
     Array.isArray(schedule.breaks) ? schedule.breaks.join(",") : "",
     Array.isArray(schedule.subjects) ? schedule.subjects.length : 0,

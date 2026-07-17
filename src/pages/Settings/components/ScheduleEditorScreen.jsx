@@ -23,7 +23,8 @@ import {
   Trash, 
   Plus,
   Palette,
-  Bell
+  Bell,
+  CheckSquare
 } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -48,6 +49,10 @@ import {
   NOTIFICATION_TYPES,
   ensureNotificationPushPermissionsForType,
 } from '../../../services/notificationService';
+import {
+  TASK_AUTO_LINK_MODES,
+  getTaskAutoLinkMode,
+} from '../../../utils/taskLessonLinking';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
@@ -93,6 +98,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     breaks: targetSchedule?.breaks?.map(String) || ["10", "10", "10", "10", "10"],
     starting_week: targetSchedule?.starting_week || new Date().toISOString(),
     reminder: initialReminder,
+    taskAutoLinkMode: getTaskAutoLinkMode(targetSchedule),
   });
   const [customReminderMinutes, setCustomReminderMinutes] = useState(
     initialReminder.enabled && !REMINDER_PRESET_MINUTES.includes(initialReminder.minutesBefore)
@@ -117,8 +123,9 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const [isTimeExpanded, setIsTimeExpanded] = useState(false);
   const [isBreaksExpanded, setIsBreaksExpanded] = useState(false);
   const [isReminderExpanded, setIsReminderExpanded] = useState(false);
+  const [isTaskAutoLinkExpanded, setIsTaskAutoLinkExpanded] = useState(false);
 
-  const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded || isReminderExpanded;
+  const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded || isReminderExpanded || isTaskAutoLinkExpanded;
   const finalBottomPadding = baseBottomPadding + (isAnyExpanded ? screenHeight * 0.5 : 0);
 
   const scrollToElement = (section, card, yOffset = 0, delay = 150) => {
@@ -139,7 +146,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isWeeksExpanded;
     setIsWeeksExpanded(willExpand);
     if (willExpand) {
-      setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
+      setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false); setIsTaskAutoLinkExpanded(false);
       scrollToElement('general', 'weeks', 0, 150);
     }
   };
@@ -149,7 +156,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isDurationExpanded;
     setIsDurationExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
+      setIsWeeksExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false); setIsTaskAutoLinkExpanded(false);
       scrollToElement('time', 'duration', 0, 150);
     }
   };
@@ -159,7 +166,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isTimeExpanded;
     setIsTimeExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false); setIsTaskAutoLinkExpanded(false);
       scrollToElement('time', 'startTime', 0, 150);
     }
   };
@@ -169,7 +176,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isBreaksExpanded;
     setIsBreaksExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsReminderExpanded(false);
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsReminderExpanded(false); setIsTaskAutoLinkExpanded(false);
       scrollToElement('time', 'breaks', 0, 150);
     }
   };
@@ -179,8 +186,18 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isReminderExpanded;
     setIsReminderExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false);
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsTaskAutoLinkExpanded(false);
       scrollToElement('general', 'reminder', 0, 150);
+    }
+  };
+
+  const toggleTaskAutoLinkExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    const willExpand = !isTaskAutoLinkExpanded;
+    setIsTaskAutoLinkExpanded(willExpand);
+    if (willExpand) {
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
+      scrollToElement('general', 'taskAutoLink', 0, 150);
     }
   };
 
@@ -197,6 +214,13 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     return interpolate(t('schedule.reminders.before_minutes', lang), {
       minutes: normalized.minutesBefore,
     });
+  };
+
+  const getTaskAutoLinkLabel = (mode) => {
+    if (mode === TASK_AUTO_LINK_MODES.SELECTED) return t('settings.schedule_editor.task_auto_link_selected', lang);
+    if (mode === TASK_AUTO_LINK_MODES.NEXT_SAME) return t('settings.schedule_editor.task_auto_link_next_same', lang);
+    if (mode === TASK_AUTO_LINK_MODES.OFF) return t('settings.schedule_editor.task_auto_link_off', lang);
+    return t('settings.schedule_editor.task_auto_link_next_same', lang);
   };
 
   const ensureReminderPermission = async () => {
@@ -456,6 +480,37 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                       </Text>
                     </View>
                   )}
+                </View>
+              )}
+
+              <View onLayout={e => cardYs.current['taskAutoLink'] = e.nativeEvent.layout.y}>
+                <SettingsRow
+                  label={t('settings.schedule_editor.task_auto_link', lang)}
+                  desc={t('settings.schedule_editor.task_auto_link_hint', lang)}
+                  value={getTaskAutoLinkLabel(localData.taskAutoLinkMode)}
+                  icon={CheckSquare}
+                  themeColors={themeColors}
+                  onPress={toggleTaskAutoLinkExpand}
+                />
+              </View>
+
+              {isTaskAutoLinkExpanded && (
+                <View style={styles.expandedContent}>
+                  <TabSwitcher
+                    tabs={[
+                      { id: TASK_AUTO_LINK_MODES.SELECTED, label: t('settings.schedule_editor.task_auto_link_selected', lang) },
+                      { id: TASK_AUTO_LINK_MODES.NEXT_SAME, label: t('settings.schedule_editor.task_auto_link_next_same', lang) },
+                      { id: TASK_AUTO_LINK_MODES.OFF, label: t('settings.schedule_editor.task_auto_link_off', lang) },
+                    ]}
+                    activeTab={localData.taskAutoLinkMode}
+                    onTabPress={(id) => setLocalData(prev => ({ ...prev, taskAutoLinkMode: id }))}
+                    themeColors={themeColors}
+                    containerBackgroundColor={themeColors.backgroundColor}
+                    containerBorderColor={themeColors.borderColor}
+                  />
+                  <Text style={[styles.expandedHintText, { color: themeColors.textColor2 }]}>
+                    {t('settings.schedule_editor.task_auto_link_desc', lang)}
+                  </Text>
                 </View>
               )}
 
@@ -742,6 +797,11 @@ const styles = StyleSheet.create({
   reminderChoiceText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  expandedHintText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
   },
 
   expandedSubtitle: {
