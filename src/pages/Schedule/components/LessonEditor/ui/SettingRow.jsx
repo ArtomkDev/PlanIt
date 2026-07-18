@@ -2,6 +2,7 @@ import React from "react";
 import { TouchableOpacity, Text, StyleSheet, View, Platform } from "react-native";
 import { CaretRight } from "phosphor-react-native";
 import Animated, { FadeIn, Easing } from "react-native-reanimated";
+import { triggerHaptic } from "../../../../../utils/haptics";
 
 const isWeb = Platform.OS === "web";
 
@@ -14,11 +15,22 @@ export default function SettingRow({
   icon: Icon,
   rightContent 
 }) {
+  const handlePress = () => {
+    if (!onPress) return;
+    triggerHaptic("selection");
+    onPress?.();
+  };
+
+  const handleLongPress = () => {
+    triggerHaptic("longPress");
+    onLongPress?.();
+  };
+
   return (
     <TouchableOpacity 
       style={styles.row} 
-      onPress={onPress} 
-      onLongPress={onLongPress}
+      onPress={handlePress}
+      onLongPress={onLongPress ? handleLongPress : undefined}
       delayLongPress={250}
       activeOpacity={0.7}
     >

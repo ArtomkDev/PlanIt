@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from "react-native";
 import GradientBackground from "../../../../../components/ui/GradientBackground";
+import { triggerHaptic } from "../../../../../utils/haptics";
 
 export default function GradientGrid({ gradients, selected, onSelect, onEdit, onAddGradient, themeColors }) {
   return (
@@ -16,8 +17,14 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
         return (
           <TouchableOpacity
             style={styles.gradientTile}
-            onPress={() => onSelect(item.id)}
-            onLongPress={() => onEdit?.(item)}
+            onPress={() => {
+              triggerHaptic(isSelected ? "selection" : "success");
+              onSelect(item.id);
+            }}
+            onLongPress={() => {
+              triggerHaptic("longPress");
+              onEdit?.(item);
+            }}
             activeOpacity={0.8}
           >
             <GradientBackground
@@ -31,7 +38,10 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
       ListFooterComponent={
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
-          onPress={onAddGradient}
+          onPress={() => {
+            triggerHaptic("open");
+            onAddGradient?.();
+          }}
           activeOpacity={0.8}
         >
           <Text style={styles.addButtonText}>+ Створити градієнт</Text>

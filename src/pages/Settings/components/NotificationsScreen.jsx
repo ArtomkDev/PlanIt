@@ -14,6 +14,7 @@ import {
 import { refreshCurrentDevicePushRegistration } from "../../../utils/deviceService";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
+import { triggerHaptic } from "../../../utils/haptics";
 
 const isAndroid = Platform.OS === "android";
 
@@ -43,6 +44,7 @@ export default function NotificationsScreen() {
       });
 
       if (!permission.granted && permission.status !== "unsupported") {
+        triggerHaptic("warning");
         Alert.alert(
           t("common.warning", lang),
           t("settings.notifications.permission_denied", lang)
@@ -61,6 +63,7 @@ export default function NotificationsScreen() {
         ...createNotificationPreferencesWithPush(previous?.notificationPreferences, type, value),
       },
     }));
+    triggerHaptic(value ? "toggleOn" : "toggleOff");
   }, [global?.notificationPreferences, lang, setGlobalDraft, user?.uid]);
 
   const renderTypeRow = (item) => {

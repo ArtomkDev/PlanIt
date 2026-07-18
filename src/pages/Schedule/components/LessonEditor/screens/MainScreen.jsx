@@ -24,6 +24,7 @@ import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons"; 
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
+import { triggerHaptic } from "../../../../../utils/haptics";
 import {
   CUSTOM_REMINDER_FALLBACK_MINUTES,
   REMINDER_PRESET_MINUTES,
@@ -91,6 +92,7 @@ export default function LessonEditorMainScreen({
   }, [currentSubject?.id, subjectReminder?.enabled, subjectReminder?.minutesBefore]);
 
   const toggleExpand = (field) => {
+    triggerHaptic(expandedField === field ? "sheetClose" : "expand");
     if (Platform.OS === 'android') {
         setExpandedField(field);
     } else {
@@ -154,25 +156,32 @@ export default function LessonEditorMainScreen({
     if (!onSubjectReminderChange) return;
 
     if (selection === "default") {
+      triggerHaptic("selection");
       onSubjectReminderChange(undefined);
       return;
     }
 
     if (selection === "off") {
+      triggerHaptic("toggleOff");
       onSubjectReminderChange({ enabled: false });
       return;
     }
 
     const canEnable = await ensureReminderPermission();
-    if (!canEnable) return;
+    if (!canEnable) {
+      triggerHaptic("warning");
+      return;
+    }
 
     if (selection === "custom") {
+      triggerHaptic("open");
       const minutes = clampReminderMinutes(customSubjectReminderMinutes, CUSTOM_REMINDER_FALLBACK_MINUTES);
       setCustomSubjectReminderMinutes(String(minutes));
       onSubjectReminderChange({ enabled: true, minutesBefore: minutes });
       return;
     }
 
+    triggerHaptic("toggleOn");
     onSubjectReminderChange({
       enabled: true,
       minutesBefore: clampReminderMinutes(selection),
@@ -293,7 +302,10 @@ export default function LessonEditorMainScreen({
                 width: 'auto' 
               }
             ]}
-            onPress={() => onScopeChangeHandler(scope === "local" ? "global" : "local")}
+            onPress={() => {
+              triggerHaptic(scope === "local" ? "toggleOff" : "toggleOn");
+              onScopeChangeHandler(scope === "local" ? "global" : "local");
+            }}
             activeOpacity={0.7}
           >
             <Text style={{ fontSize: 12, fontWeight: "600", color: scope === "local" ? "#fff" : themeColors.textColor }}>
@@ -303,13 +315,27 @@ export default function LessonEditorMainScreen({
         )}
 
         {onAdd && (
-          <TouchableOpacity style={[styles.headerActionButton, { backgroundColor: themeColors.backgroundColor2 }]} onPress={onAdd} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={[styles.headerActionButton, { backgroundColor: themeColors.backgroundColor2 }]}
+            onPress={() => {
+              triggerHaptic("open");
+              onAdd();
+            }}
+            activeOpacity={0.7}
+          >
             <Plus size={18} color={themeColors.textColor} weight="bold" />
           </TouchableOpacity>
         )}
 
         {onReset && (
-          <TouchableOpacity style={[styles.headerActionButton, { backgroundColor: themeColors.backgroundColor2 }]} onPress={onReset} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={[styles.headerActionButton, { backgroundColor: themeColors.backgroundColor2 }]}
+            onPress={() => {
+              triggerHaptic("warning");
+              onReset();
+            }}
+            activeOpacity={0.7}
+          >
             <ArrowsCounterClockwise size={18} color={themeColors.textColor} weight="bold" />
           </TouchableOpacity>
         )}

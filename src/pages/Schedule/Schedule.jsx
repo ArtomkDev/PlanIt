@@ -35,6 +35,7 @@ import {
   resolveOccurrenceFromLessonRef,
 } from "../../utils/taskLessonLinking";
 import { getAppHeaderHeight } from "../../config/layoutMetrics";
+import { triggerHaptic } from "../../utils/haptics";
 
 const HALF_SIZE = 300; 
 const TOTAL_SIZE = HALF_SIZE * 2 + 1;
@@ -165,6 +166,11 @@ export default function Schedule({ route, navigation }) {
   const openEditor = useCallback((lesson) => { 
     setViewerVisible(false);
     setTimeout(() => { setEditingLesson(lesson); setEditorVisible(true); }, 100);
+  }, []);
+
+  const openNewLessonEditor = useCallback(() => {
+    setEditingLesson({ index: null, subjectId: null });
+    setEditorVisible(true);
   }, []);
 
   const buildSelectedLessonTaskContext = useCallback((lesson) => {
@@ -394,10 +400,10 @@ export default function Schedule({ route, navigation }) {
          offset={offset} anchorDate={anchorDate} width={SCREEN_WIDTH}
          headerHeight={headerHeight}
          openViewer={openViewer} openEditor={openEditor}
-         handleAddLesson={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }} 
+         handleAddLesson={openNewLessonEditor}
          scrollY={scrollY}
       />
-  ), [anchorDate, SCREEN_WIDTH, headerHeight, openViewer, openEditor, scrollY]);
+  ), [anchorDate, SCREEN_WIDTH, headerHeight, openViewer, openEditor, openNewLessonEditor, scrollY]);
 
   return (
     <NowTickProvider activeDate={currentDate}>
@@ -439,7 +445,10 @@ export default function Schedule({ route, navigation }) {
       {schedule && (
         <TouchableOpacity 
           style={[styles.fab, { backgroundColor: themeColors.accentColor, bottom: dynamicBottomOffset }]}
-          onPress={() => { setEditingLesson({ index: null, subjectId: null }); setEditorVisible(true); }}
+          onPress={() => {
+            triggerHaptic("open");
+            openNewLessonEditor();
+          }}
           activeOpacity={0.8}
         >
           <Plus size={32} color="#fff" weight="bold" />

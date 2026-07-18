@@ -51,6 +51,7 @@ import {
 } from "../../config/layoutMetrics";
 import TaskEditor from "./components/TaskEditor";
 import TaskScheduleFilterSheet from "./components/TaskScheduleFilterSheet";
+import { triggerHaptic } from "../../utils/haptics";
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const TASK_ICON_CELL_SIZE = 46;
@@ -689,20 +690,40 @@ function TaskCard({
     try {
       const supported = await Linking.canOpenURL(link.url);
       if (supported) {
+        triggerHaptic("open");
         await Linking.openURL(link.url);
       } else {
+        triggerHaptic("error");
         Alert.alert(t("common.error", lang), t("tasks.errors.link_open_failed", lang));
       }
     } catch (error) {
+      triggerHaptic("error");
       console.warn("Could not open task link", error);
       Alert.alert(t("common.error", lang), t("tasks.errors.link_open_failed", lang));
     }
   };
 
+  const handleCardPress = () => {
+    triggerHaptic("open");
+    onPress?.();
+  };
+
+  const handleToggle = (event) => {
+    event?.stopPropagation?.();
+    triggerHaptic(completed ? "selection" : "success");
+    onToggle?.();
+  };
+
+  const handleLinkedLessonPress = (event) => {
+    event?.stopPropagation?.();
+    triggerHaptic("open");
+    onLinkedLessonPress?.();
+  };
+
   return (
     <AnimatedTouchableOpacity
       activeOpacity={0.86}
-      onPress={onPress}
+      onPress={handleCardPress}
       style={[
         styles.card,
         animatedCardStyle,
@@ -731,7 +752,7 @@ function TaskCard({
 
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={onToggle}
+        onPress={handleToggle}
         hitSlop={10}
         style={styles.checkboxButton}
         accessibilityRole="checkbox"
@@ -765,8 +786,7 @@ function TaskCard({
               activeOpacity={0.72}
               disabled={!canOpenLinkedLesson}
               onPress={(event) => {
-                event?.stopPropagation?.();
-                onLinkedLessonPress?.();
+                handleLinkedLessonPress(event);
               }}
               hitSlop={8}
               style={[
@@ -802,7 +822,10 @@ function TaskCard({
                 <TouchableOpacity
                   key={link.id}
                   activeOpacity={0.75}
-                  onPress={() => handleLinkPress(link)}
+                  onPress={(event) => {
+                    event?.stopPropagation?.();
+                    handleLinkPress(link);
+                  }}
                   style={[styles.linkChip, { backgroundColor: chipBackground }]}
                 >
                   <LinkIcon size={14} color={textOnCard} weight="bold" />
@@ -1003,6 +1026,7 @@ export default function Tasks({ route, navigation }) {
 
   const openNewTask = useCallback(() => {
     const sourceSchedule = newTaskSchedule;
+    triggerHaptic("open");
     setEditingEntry(null);
     setDraftTask(null);
     setDraftScheduleId(sourceSchedule?.id || null);
@@ -1259,7 +1283,10 @@ export default function Tasks({ route, navigation }) {
 
             <TouchableOpacity
               activeOpacity={0.78}
-              onPress={() => setFilterVisible(true)}
+              onPress={() => {
+                triggerHaptic("open");
+                setFilterVisible(true);
+              }}
               style={[
                 styles.filterButton,
                 {

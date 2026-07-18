@@ -37,6 +37,7 @@ import ChangePasswordScreen from '../pages/Settings/components/AccountSettings/c
 import SharedSchedulesManager from '../pages/Settings/components/SharedSchedulesManager';
 import NavigationSettings from '../pages/Settings/components/preferences/NavigationSettings';
 import NotificationInboxPanel from '../pages/Schedule/components/NotificationInboxPanel';
+import { triggerHaptic } from '../utils/haptics';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -131,6 +132,7 @@ export default function TabNavigator({ screenProps }) {
   });
 
   const animateNotifications = useCallback((open) => {
+    triggerHaptic(open ? "open" : "sheetClose", { key: "notification-drawer" });
     if (open) {
       setNotificationsMounted(true);
     }

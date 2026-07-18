@@ -5,6 +5,7 @@ import { useScheduleActions, useScheduleData } from '../../../context/SchedulePr
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
+import { triggerHaptic } from '../../../utils/haptics';
 
 const DangerActionCard = ({ title, description, buttonText, onPress, isLoading, disabled, themeColors, isExtreme }) => (
   <View style={[styles.card, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
@@ -48,6 +49,7 @@ export default function ResetDB() {
   const themeColors = themes.getColors(mode, accent);
 
   const handleAction = (actionFn, confirmText) => {
+    triggerHaptic("warning");
     const title = t('settings.reset_db_screen.alert_title', lang);
     const msg = t('settings.reset_db_screen.alert_msg', lang);
 
@@ -55,7 +57,9 @@ export default function ResetDB() {
       setIsResetting(true);
       try {
         await actionFn();
+        triggerHaptic("success");
       } catch (error) {
+        triggerHaptic("error");
         console.error(error);
       } finally {
         setIsResetting(false);

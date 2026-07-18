@@ -4,6 +4,7 @@ import { Plus, ArrowsCounterClockwise } from "phosphor-react-native";
 import Animated, { FadeIn, LinearTransition, Easing } from "react-native-reanimated";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
+import { triggerHaptic } from "../../../../../utils/haptics";
 
 const isWeb = Platform.OS === "web";
 
@@ -15,7 +16,18 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
   const { lang } = useScheduleData();
 
   const handleScopeChange = () => {
+    triggerHaptic(scope === "local" ? "toggleOff" : "toggleOn");
     onScopeChange(scope === "local" ? "global" : "local");
+  };
+
+  const handleAdd = () => {
+    triggerHaptic("open");
+    onAdd?.();
+  };
+
+  const handleReset = () => {
+    triggerHaptic("warning");
+    onReset?.();
   };
 
   return (
@@ -47,7 +59,7 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
           {onAdd ? (
             <TouchableOpacity
               style={[styles.actionButton, styles.iconButton, { backgroundColor: themeColors.backgroundColor2 }]}
-              onPress={onAdd}
+              onPress={handleAdd}
               activeOpacity={0.7}
             >
               <Plus size={18} color={themeColors.textColor} weight="bold" />
@@ -55,7 +67,7 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
           ) : onReset ? (
             <TouchableOpacity
               style={[styles.actionButton, styles.iconButton, { backgroundColor: themeColors.backgroundColor2 }]}
-              onPress={onReset}
+              onPress={handleReset}
               activeOpacity={0.7}
             >
               <ArrowsCounterClockwise size={18} color={themeColors.textColor} weight="bold" />

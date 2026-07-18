@@ -9,6 +9,7 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { buildLessonTimes } from "../../../utils/scheduleTime";
 import { APP_HEADER_CONTENT_GAP, getAppHeaderHeight } from "../../../config/layoutMetrics";
+import { triggerHaptic } from "../../../utils/haptics";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -40,6 +41,11 @@ export default function DaySchedule({
     return buildLessonTimes(start_time, duration, breaks, scheduleForDay);
   }, [start_time, duration, breaks, scheduleForDay]);
 
+  const handleEmptyLongPress = () => {
+    triggerHaptic("longPress");
+    onEmptyPress?.();
+  };
+
   return (
     <Animated.ScrollView 
       contentContainerStyle={[styles.scrollContent, { paddingTop: resolvedHeaderHeight + APP_HEADER_CONTENT_GAP }]}
@@ -54,7 +60,7 @@ export default function DaySchedule({
       <TouchableOpacity 
         activeOpacity={1} 
         style={{ minHeight: SCREEN_HEIGHT * 0.6 }} 
-        onLongPress={onEmptyPress}
+        onLongPress={handleEmptyLongPress}
         delayLongPress={500}
       >
         {scheduleForDay.length > 0 ? (

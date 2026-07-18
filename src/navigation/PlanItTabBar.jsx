@@ -5,6 +5,7 @@ import themes from '../config/themes';
 import AppBlur from '../components/ui/AppBlur';
 import AdBanner from '../components/AdBanner/AdBanner';
 import { NAVIGATION_METRICS } from './navigationMetrics';
+import { triggerHaptic } from '../utils/haptics';
 
 const ACTIVE_SPRING = {
   damping: 14,
@@ -194,6 +195,7 @@ function TabItem({
   };
 
   const onPress = () => {
+    triggerHaptic(focused ? "selection" : "tab");
     runIconBounce();
 
     const event = navigation.emit({
@@ -208,6 +210,7 @@ function TabItem({
   };
 
   const onLongPress = () => {
+    triggerHaptic("longPress");
     navigation.emit({ type: 'tabLongPress', target: route.key });
   };
 

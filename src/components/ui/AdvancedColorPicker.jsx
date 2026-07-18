@@ -6,6 +6,7 @@ import tinycolor from "tinycolor2";
 import BottomSheet, { SheetScrollView } from "./BottomSheet";
 import themes from "../../config/themes";
 import { useScheduleData } from "../../context/ScheduleProvider";
+import { triggerHaptic } from "../../utils/haptics";
 
 const HUE_COLORS = [
   "#ff0000",
@@ -50,8 +51,10 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
   const handleHexInputBlur = () => {
     const newColor = tinycolor(hexInput);
     if (newColor.isValid()) {
+      triggerHaptic("selection");
       setHsv(newColor.toHsv());
     } else {
+      triggerHaptic("error");
       setHexInput(tinycolor(hsv).toHexString());
     }
   };
@@ -75,6 +78,7 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
         onMoveShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderGrant: () => {
+          triggerHaptic("dragStart", { key: "advanced-color-sv" });
           const { s, v } = hsvRef.current;
           satValStart.current = {
             x: s * pickerSize.width,
@@ -108,6 +112,7 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
         onMoveShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderGrant: () => {
+          triggerHaptic("dragStart", { key: "advanced-color-hue" });
           hueStart.current = (hsvRef.current.h / 360) * hueSliderWidth;
         },
         onPanResponderMove: (_, gestureState) => {
@@ -128,10 +133,20 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
     left: (hsv.h / 360) * hueSliderWidth - HUE_INDICATOR_WIDTH / 2,
   };
 
+  const handleClose = () => {
+    triggerHaptic("sheetClose");
+    onClose?.();
+  };
+
+  const handleSave = () => {
+    triggerHaptic("success");
+    onSave?.(currentColor);
+  };
+
   return (
     <BottomSheet
       visible={visible}
-      onClose={onClose}
+      onClose={handleClose}
       snapPoints={["66%", "90%"]}
       initialSnapIndex={1}
       maxWidth={620}
@@ -149,7 +164,7 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} hitSlop={10}>
+          <TouchableOpacity onPress={handleClose} hitSlop={10}>
             <Text style={[styles.backText, { color: themeColors.accentColor }]}>{"< Назад"}</Text>
           </TouchableOpacity>
           <Text style={[styles.title, { color: themeColors.textColor }]}>Вибір кольору</Text>
@@ -223,7 +238,7 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
         <TouchableOpacity
           accessibilityRole="button"
           style={[styles.saveButton, { backgroundColor: currentColor }]}
-          onPress={() => onSave(currentColor)}
+          onPress={handleSave}
         >
           <Text style={styles.saveButtonText}>Обрати</Text>
         </TouchableOpacity>

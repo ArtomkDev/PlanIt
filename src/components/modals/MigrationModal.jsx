@@ -20,6 +20,7 @@ import themes from '../../config/themes';
 import { t } from '../../utils/i18n';
 import MorphingLoader from '../ui/MorphingLoader';
 import BottomSheet, { SheetFlatList } from '../ui/BottomSheet';
+import { triggerHaptic } from '../../utils/haptics';
 
 export default function MigrationModal({ userId, onComplete = () => {} }) {
   const { global, lang } = useScheduleData();
@@ -67,14 +68,17 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
   const toggleSelection = (id) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
+      triggerHaptic("toggleOff");
       newSelected.delete(id);
     } else {
+      triggerHaptic("toggleOn");
       newSelected.add(id);
     }
     setSelectedIds(newSelected);
   };
 
   const handleSkip = async () => {
+    triggerHaptic("warning");
     try {
       if (localDataFull) {
         const updatedLocalSchedules = (localDataFull.schedules || []).map(s => ({
@@ -101,6 +105,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
       return;
     }
 
+    triggerHaptic("selection");
     setIsMigrating(true);
     try {
       const globalRef = doc(db, 'users', userId, 'global', 'settings');
@@ -157,8 +162,10 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
       }, null);
 
       setIsVisible(false);
+      triggerHaptic("success");
       onComplete();
     } catch (err) {
+      triggerHaptic("error");
       console.warn('Migration error:', err);
       setIsVisible(false);
       onComplete();

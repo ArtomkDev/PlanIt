@@ -1,6 +1,7 @@
 import React from "react";
 import { View, TouchableOpacity, StyleSheet, FlatList, Platform } from "react-native";
 import themes from "../../../../../config/themes";
+import { triggerHaptic } from "../../../../../utils/haptics";
 
 export default function ColorPicker({ selected, onSelect }) {
   const colors = Object.entries(themes.accentColors);
@@ -19,7 +20,10 @@ export default function ColorPicker({ selected, onSelect }) {
         return (
           <TouchableOpacity
             style={[styles.colorTile, { backgroundColor: color }]}
-            onPress={() => onSelect(key)}
+            onPress={() => {
+              triggerHaptic(isSelected ? "selection" : "success");
+              onSelect(key);
+            }}
             activeOpacity={0.8}
           >
             {isSelected && <View style={styles.selectedMark} />}

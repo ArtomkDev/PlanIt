@@ -24,6 +24,7 @@ import { useNotificationDrawer } from "../../../context/NotificationDrawerContex
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import useNotifications from "../../../hooks/useNotifications";
 import { t } from "../../../utils/i18n";
+import { triggerHaptic } from "../../../utils/haptics";
 import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
@@ -105,7 +106,9 @@ export default function NotificationInboxPanel() {
     try {
       setMarkingAll(true);
       await markAllNotificationsAsRead(user.uid);
+      triggerHaptic("success");
     } catch (error) {
+      triggerHaptic("error");
       console.error(error);
     } finally {
       setMarkingAll(false);
@@ -119,6 +122,7 @@ export default function NotificationInboxPanel() {
       setReadingId(notification.id);
       await markNotificationAsRead(user.uid, notification.id);
     } catch (error) {
+      triggerHaptic("error");
       console.error(error);
     } finally {
       setReadingId(null);
@@ -128,6 +132,7 @@ export default function NotificationInboxPanel() {
   const handleNotificationPress = useCallback((notification) => {
     if (!notification?.id) return;
 
+    triggerHaptic(notification.readAt ? "selection" : "success");
     configureCardLayoutAnimation();
     setExpandedNotificationIds((currentIds) => {
       const nextIds = new Set(currentIds);

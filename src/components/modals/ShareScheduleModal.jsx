@@ -9,6 +9,7 @@ import TabSwitcher from "../ui/TabSwitcher";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
+import { triggerHaptic } from "../../utils/haptics";
 
 export default function ShareScheduleModal({ visible, onClose, scheduleToShare }) {
   const { user, global, lang } = useScheduleData();
@@ -28,7 +29,10 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
   const [shareAuthorName, setShareAuthorName] = useState(true);
 
   const handleGenerate = async () => {
-    if (!user || !scheduleToShare) return;
+    if (!user || !scheduleToShare) {
+      triggerHaptic("warning");
+      return;
+    }
     setLoading(true);
     setErrorMessage(null);
 
@@ -50,7 +54,9 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
         Number(duration)
       );
       setGeneratedCode(code);
+      triggerHaptic("success");
     } catch (error) {
+      triggerHaptic("error");
       console.error(error);
       setErrorMessage(t("common.error", lang));
     } finally {
@@ -61,6 +67,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
   const handleCopy = async () => {
     if (!generatedCode) return;
     await Clipboard.setStringAsync(generatedCode);
+    triggerHaptic("success");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -69,16 +76,19 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
     if (!generatedCode) return;
     const url = `https://planit.app/share/${generatedCode}`;
     try {
+      triggerHaptic("open");
       await Share.share({
         message: `${t("share.share_message", lang)}: ${url}`,
         url: url,
       });
     } catch (error) {
+      triggerHaptic("error");
       console.error(error);
     }
   };
 
   const resetAndClose = () => {
+    triggerHaptic("sheetClose");
     setGeneratedCode(null);
     setDuration("7");
     setErrorMessage(null);
@@ -96,6 +106,11 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
     { id: "7", label: t("share.duration_7d", lang) },
     { id: "30", label: t("share.duration_30d", lang) },
   ];
+
+  const toggleShareOption = (setter) => (value) => {
+    triggerHaptic(value ? "toggleOn" : "toggleOff");
+    setter(value);
+  };
 
   return (
     <BottomSheet
@@ -155,7 +170,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       </View>
                       <Switch
                         value={shareTeachers}
-                        onValueChange={setShareTeachers}
+                        onValueChange={toggleShareOption(setShareTeachers)}
                         trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
                         thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
                       />
@@ -172,7 +187,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       </View>
                       <Switch
                         value={shareGradients}
-                        onValueChange={setShareGradients}
+                        onValueChange={toggleShareOption(setShareGradients)}
                         trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
                         thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
                       />
@@ -189,7 +204,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       </View>
                       <Switch
                         value={shareLinks}
-                        onValueChange={setShareLinks}
+                        onValueChange={toggleShareOption(setShareLinks)}
                         trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
                         thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
                       />
@@ -206,7 +221,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       </View>
                       <Switch
                         value={shareNotes}
-                        onValueChange={setShareNotes}
+                        onValueChange={toggleShareOption(setShareNotes)}
                         trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
                         thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
                       />
@@ -223,7 +238,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       </View>
                       <Switch
                         value={shareAuthorName}
-                        onValueChange={setShareAuthorName}
+                        onValueChange={toggleShareOption(setShareAuthorName)}
                         trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
                         thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
                       />

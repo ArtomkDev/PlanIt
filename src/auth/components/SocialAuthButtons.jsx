@@ -6,6 +6,7 @@ import useSystemThemeColors from '../../hooks/useSystemThemeColors';
 import useAppLanguage from '../../hooks/useAppLanguage';
 import { t } from '../../utils/i18n';
 import { setManualLogin } from '../../utils/authFlags';
+import { triggerHaptic } from '../../utils/haptics';
 
 import { auth } from '../../config/firebase';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup, OAuthProvider, linkWithPopup } from 'firebase/auth';
@@ -28,6 +29,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
 
   const handleGoogleAuth = async () => {
     if (isExpoGo && Platform.OS !== 'web') {
+      triggerHaptic("warning");
       Alert.alert(
         t('auth.errors.expo_go_title', lang), 
         t('auth.errors.expo_go_google_msg', lang)
@@ -35,6 +37,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
       return;
     }
 
+    triggerHaptic("open");
     setLoadingProvider('google');
     const shouldTrackLogin = !isLinking;
     try {
@@ -68,8 +71,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
           await signInWithCredential(auth, credential);
         }
       }
+      triggerHaptic("success");
       onAuthSuccess?.();
     } catch (error) {
+      triggerHaptic("error");
       if (shouldTrackLogin) setManualLogin(false);
       onAuthError?.(error);
     } finally {
@@ -79,6 +84,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
 
   const handleAppleAuth = async () => {
     if (isExpoGo && Platform.OS !== 'web') {
+      triggerHaptic("warning");
       Alert.alert(
         t('auth.errors.expo_go_title', lang), 
         t('auth.errors.expo_go_apple_msg', lang)
@@ -86,6 +92,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
       return;
     }
 
+    triggerHaptic("open");
     setLoadingProvider('apple');
     const shouldTrackLogin = !isLinking;
     try {
@@ -116,10 +123,12 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
           await signInWithCredential(auth, firebaseCredential);
         }
       }
+      triggerHaptic("success");
       onAuthSuccess?.();
     } catch (error) {
       if (shouldTrackLogin) setManualLogin(false);
       if (error.code !== 'ERR_REQUEST_CANCELED') {
+        triggerHaptic("error");
         onAuthError?.(error);
       }
     } finally {

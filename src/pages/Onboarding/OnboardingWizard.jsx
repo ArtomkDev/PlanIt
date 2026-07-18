@@ -24,6 +24,7 @@ import AppBlur from '../../components/ui/AppBlur';
 import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
 import SettingsActionRow from '../../components/ui/SettingsKit/SettingsActionRow';
+import { triggerHaptic } from '../../utils/haptics';
 
 const ICONS = [HandWaving, PencilSimple, CalendarDots, Clock];
 const TOTAL_STEPS = 4;
@@ -90,6 +91,7 @@ export default function OnboardingWizard() {
   const iconRotation = toggleIconRotate.interpolate({ inputRange: [0, 1], outputRange: ['-180deg', '0deg'] });
 
   const handleToggleNav = () => {
+    triggerHaptic(showNavButtons ? "toggleOff" : "toggleOn");
     Animated.sequence([
       Animated.timing(toggleBtnScale, { toValue: 0.85, duration: 100, useNativeDriver: true }),
       Animated.timing(toggleBtnScale, { toValue: 1, duration: 150, useNativeDriver: true })
@@ -102,6 +104,7 @@ export default function OnboardingWizard() {
       currentPosRef.current = value;
       const closestStep = Math.round(value);
       if (closestStep !== step && closestStep >= 0 && closestStep < TOTAL_STEPS) {
+        triggerHaptic("swipe", { key: "onboarding-step" });
         setStep(closestStep);
       }
     });
@@ -130,6 +133,7 @@ export default function OnboardingWizard() {
   widthRef.current = width;
 
   const handleFinish = async () => {
+    triggerHaptic("success");
     const finalRepeat = Math.max(1, Number(weeksCount) || 1);
     const scheduleId = uuidv4();
     addSchedule({
@@ -187,6 +191,7 @@ export default function OnboardingWizard() {
         return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2;
       },
       onPanResponderGrant: () => {
+        triggerHaptic("dragStart", { key: "onboarding-swipe" });
         position.stopAnimation();
         swipeStartPos.current = currentPosRef.current;
       },
@@ -242,7 +247,10 @@ export default function OnboardingWizard() {
 
   const handleBreakChange = (text, index) => setBreaks(prev => { const n = [...prev]; n[index] = text.replace(/[^0-9]/g, ''); return n; });
   const handleAddBreak = () => setBreaks(prev => [...prev, "10"]);
-  const handleRemoveBreak = (index) => setBreaks(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveBreak = (index) => {
+    triggerHaptic("warning");
+    setBreaks(prev => prev.filter((_, i) => i !== index));
+  };
 
   const renderStep0 = () => (
     <View style={styles.stepContent}>
@@ -281,7 +289,7 @@ export default function OnboardingWizard() {
       <View style={[styles.inputGroup, { opacity: isSingleWeek ? 0.5 : 1, marginTop: 10 }]}>
         <Text style={[styles.label, { color: themeColors.textColor }]}>{t('onboarding.starting_week', lang)}</Text>
         <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.starting_week_desc', lang)}</Text>
-        <TouchableOpacity style={[styles.dateCard, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]} onPress={() => setCalendarVisible(true)} activeOpacity={0.7}>
+        <TouchableOpacity style={[styles.dateCard, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]} onPress={() => { triggerHaptic("open"); setCalendarVisible(true); }} activeOpacity={0.7}>
           <View style={[styles.dateCardIcon, { backgroundColor: themeColors.accentColor + '15' }]}>
             <CalendarBlank size={26} color={themeColors.accentColor} weight="fill" />
           </View>
@@ -312,7 +320,7 @@ export default function OnboardingWizard() {
           {isTimeExpanded && (
             <View style={styles.expandedContentPicker}>
               {Platform.OS === 'android' ? (
-                <DateTimePicker value={timeDate} mode="time" is24Hour display="default" themeVariant={mode} onChange={(e, d) => { setIsTimeExpanded(false); if (e.type === 'set' && d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} />
+                <DateTimePicker value={timeDate} mode="time" is24Hour display="default" themeVariant={mode} onChange={(e, d) => { setIsTimeExpanded(false); if (e.type === 'set' && d) { triggerHaptic("success"); setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); } }} />
               ) : (
                 <View style={styles.timePickerContainer}>
                   {Platform.OS !== 'web' ? <DateTimePicker value={timeDate} mode="time" is24Hour display="spinner" themeVariant={mode} onChange={(e, d) => { if (d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} textColor={themeColors.textColor} style={{ height: 120, width: '100%' }} /> : <View style={{ padding: 20, width: '100%', alignItems: 'center' }}><input type="time" value={firstLessonTime} onChange={(e) => setFirstLessonTime(e.target.value)} style={{ fontSize: 24, padding: 12, borderRadius: 12, width: '100%', textAlign: 'center', border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor }} /></View>}

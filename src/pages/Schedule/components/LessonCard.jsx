@@ -8,6 +8,7 @@ import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
+import { triggerHaptic } from "../../../utils/haptics";
 
 const CELL_SIZE = 38;
 const ICON_SIZE = 18;
@@ -285,8 +286,15 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
     [lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow]
   );
 
-  const handlePress = () => onPress?.({ ...lesson, subject, teacher, displayType, displayRoom, displayBuilding });
-  const handleLongPress = () => onLongPress?.({ ...lesson, subject, teacher });
+  const handlePress = () => {
+    triggerHaptic("open");
+    onPress?.({ ...lesson, subject, teacher, displayType, displayRoom, displayBuilding });
+  };
+
+  const handleLongPress = () => {
+    triggerHaptic("longPress");
+    onLongPress?.({ ...lesson, subject, teacher });
+  };
 
   const activePillBg = isDark ? '#ffffff' : '#111111';
 

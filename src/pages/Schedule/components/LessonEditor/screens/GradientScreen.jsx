@@ -7,6 +7,7 @@ import GradientBackground from "../../../../../components/ui/GradientBackground"
 import TabSwitcher from "../../../../../components/ui/TabSwitcher";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
+import { triggerHaptic } from "../../../../../utils/haptics";
 
 const HUE_COLORS = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000'];
 const HUE_INDICATOR_WIDTH = 32;
@@ -38,6 +39,7 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
     onPanResponderTerminationRequest: () => false, 
     onShouldBlockNativeResponder: () => true,      
     onPanResponderGrant: () => {
+      triggerHaptic("dragStart", { key: "inline-gradient-sv" });
       const { s, v } = hsvRef.current;
       satValStart.current = { x: s * pickerSize.width, y: (1 - v) * pickerSize.height };
     },
@@ -61,6 +63,7 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
     onPanResponderTerminationRequest: () => false,
     onShouldBlockNativeResponder: () => true,
     onPanResponderGrant: () => {
+      triggerHaptic("dragStart", { key: "inline-gradient-hue" });
       const { h } = hsvRef.current;
       hueStart.current = (h / 360) * hueSliderWidth;
     },
@@ -140,7 +143,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
           <Text style={[styles.value, { color: themeColors.accentColor }]}>{Math.round(angle)}°</Text>
         </View>
         <View style={styles.sliderTrackWrapper} onStartShouldSetResponder={() => true} onResponderTerminationRequest={() => false}>
-          <Slider style={{ width: "100%", height: 40 }} minimumValue={0} maximumValue={360} value={angle} onValueChange={setAngle} step={1} minimumTrackTintColor={themeColors.accentColor} maximumTrackTintColor={themeColors.backgroundColor3} thumbTintColor={themeColors.accentColor} trackHeight={8} thumbSize={24} />
+          <Slider style={{ width: "100%", height: 40 }} minimumValue={0} maximumValue={360} value={angle} onValueChange={setAngle} onSlidingStart={() => triggerHaptic("dragStart", { key: "gradient-angle-slider" })} step={1} minimumTrackTintColor={themeColors.accentColor} maximumTrackTintColor={themeColors.backgroundColor3} thumbTintColor={themeColors.accentColor} trackHeight={8} thumbSize={24} />
         </View>
       </View>
 

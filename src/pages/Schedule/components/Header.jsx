@@ -15,7 +15,7 @@ import themes from "../../../config/themes";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { useNotificationDrawer } from "../../../context/NotificationDrawerContext";
 import { t } from "../../../utils/i18n";
-import { triggerLightHaptic } from "../../../utils/haptics";
+import { triggerHaptic } from "../../../utils/haptics";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import useNotifications from "../../../hooks/useNotifications";
 import SchedulePickerSheet from "./SchedulePickerSheet";
@@ -151,6 +151,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
     seenUnreadIdsRef.current = new Set(unreadIds);
 
     if (hasNewUnread) {
+      triggerHaptic("notification", { key: "new-unread-notification" });
       bellPulse.stopAnimation();
       bellPulse.setValue(0);
       Animated.timing(bellPulse, {
@@ -164,7 +165,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
 
   const openScheduleSettings = (scheduleId = schedule?.id) => {
     if (!scheduleId) return;
-    triggerLightHaptic();
+    triggerHaptic("longPress");
     setSchedulePickerVisible(false);
     navigation.navigate("SettingsTab", {
       screen: "ScheduleEditorScreen",
@@ -173,6 +174,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
   };
 
   const openNewSchedule = () => {
+    triggerHaptic("open");
     setSchedulePickerVisible(false);
     navigation.navigate("SettingsTab", {
       screen: "ScheduleEditorScreen",
@@ -182,8 +184,17 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
 
   const openNotificationInbox = () => {
     if (!notificationsEnabled) return;
-    triggerLightHaptic();
     openNotifications();
+  };
+
+  const openSchedulePicker = () => {
+    triggerHaptic("open");
+    setSchedulePickerVisible(true);
+  };
+
+  const openCalendar = () => {
+    triggerHaptic("open");
+    onTitlePress?.();
   };
 
   return (
@@ -194,7 +205,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
             accessibilityRole="button"
             accessibilityLabel={t("schedule.header.switch_schedule", lang)}
             accessibilityHint={t("schedule.header.long_press_hint", lang)}
-            onPress={() => setSchedulePickerVisible(true)}
+            onPress={openSchedulePicker}
             onLongPress={() => openScheduleSettings()}
             delayLongPress={450}
             style={[
@@ -218,7 +229,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel={t("schedule.header.open_calendar", lang)}
-              onPress={onTitlePress}
+              onPress={openCalendar}
               activeOpacity={0.68}
               style={styles.dateButton}
             >
@@ -234,7 +245,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
             <ScaleTouchable
               accessibilityRole="button"
               accessibilityLabel={t("schedule.header.open_calendar", lang)}
-              onPress={onTitlePress}
+              onPress={openCalendar}
               style={styles.iconButton}
             >
               <CalendarBlank
@@ -292,7 +303,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
               onPressOut={() => animateResetIcon(false)}
               onPress={() => {
                 animateResetIcon(false);
-                triggerLightHaptic();
+                triggerHaptic("success");
                 onTodayPress?.();
               }}
               style={[

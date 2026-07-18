@@ -18,7 +18,7 @@ import {
 
 import themes from "../../../config/themes";
 import { useScheduleData } from "../../../context/ScheduleProvider";
-import { triggerLightHaptic } from "../../../utils/haptics";
+import { triggerHaptic } from "../../../utils/haptics";
 import { t } from "../../../utils/i18n";
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -212,7 +212,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
   }, []);
 
   const changeWeek = useCallback((offset) => {
-    triggerLightHaptic();
+    triggerHaptic("swipe");
     const newDate = new Date(currentRef.current);
     newDate.setDate(currentRef.current.getDate() + offset * 7);
     onSelectDate(newDate);
@@ -277,7 +277,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
 
   const handleDayPress = useCallback((date) => {
     if (date.toDateString() === currentRef.current.toDateString()) return;
-    triggerLightHaptic();
+    triggerHaptic("selection");
     const targetDate = new Date(date);
     targetDate.setHours(currentRef.current.getHours(), currentRef.current.getMinutes());
     pendingSelectionDate.current = targetDate;

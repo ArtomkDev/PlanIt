@@ -1,5 +1,6 @@
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet, Platform, View } from "react-native";
+import { triggerHaptic } from "../../../utils/haptics";
 
 const isAndroid = Platform.OS === "android";
 
@@ -7,6 +8,11 @@ export default function SettingsActionRow({ icon: Icon, label, onPress, danger =
   const color = danger ? '#FF3B30' : themeColors.accentColor;
   const bg = danger ? '#FF3B3015' : (isAndroid ? themeColors.accentColor + '08' : 'transparent');
   const borderStyle = isAndroid ? 'solid' : (danger ? 'solid' : 'dashed');
+
+  const handlePress = () => {
+    triggerHaptic(danger ? "warning" : "open");
+    onPress?.();
+  };
 
   return (
     <TouchableOpacity 
@@ -18,7 +24,7 @@ export default function SettingsActionRow({ icon: Icon, label, onPress, danger =
           borderStyle 
         }
       ]} 
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.7}
     >
       <View style={styles.content}>

@@ -10,6 +10,7 @@ import { sanitizeImportedSchedule } from "../../utils/scheduleValidation";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
+import { triggerHaptic } from "../../utils/haptics";
 
 export default function ImportScheduleModal({ visible, onClose, initialCode = "" }) {
   const { global, lang } = useScheduleData();
@@ -70,13 +71,18 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
 
   const handleFetch = async () => {
     Keyboard.dismiss();
-    if (!code.trim()) return;
+    if (!code.trim()) {
+      triggerHaptic("warning");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const data = await fetchSharedSchedule(code.trim());
       setPreviewData(data);
+      triggerHaptic("success");
     } catch (err) {
+      triggerHaptic("error");
       if (err.message === "not_found") setError(t("share.error_not_found", lang));
       else if (err.message === "invalid_code") setError(t("share.error_not_found", lang));
       else if (err.message === "inactive") setError(t("share.error_inactive", lang));
@@ -93,8 +99,10 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
       const newSchedule = sanitizeImportedSchedule(previewData.scheduleData);
       addSchedule(newSchedule);
       setGlobalDraft(prev => ({ ...prev, currentScheduleId: newSchedule.id }));
-      resetAndClose();
+      triggerHaptic("success");
+      resetAndClose(false);
     } catch (err) {
+      triggerHaptic("error");
       if (err.message === "invalid_shared_schedule") {
         setError(t("share.error_invalid_schedule", lang));
       } else {
@@ -103,8 +111,9 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
     }
   };
 
-  const resetAndClose = () => {
+  const resetAndClose = (withHaptic = true) => {
     Keyboard.dismiss();
+    if (withHaptic) triggerHaptic("sheetClose");
     setCode("");
     setError(null);
     setPreviewData(null);

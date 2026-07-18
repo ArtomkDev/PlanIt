@@ -13,6 +13,7 @@ import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet
 import themes from "../../../config/themes";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { t } from "../../../utils/i18n";
+import { triggerHaptic } from "../../../utils/haptics";
 import {
   resolveScheduleColor,
   scheduleColorWithAlpha,
@@ -53,19 +54,28 @@ export default function TaskScheduleFilterSheet({
   const toggleSchedule = (scheduleId) => {
     const nextSet = new Set(selectedSet);
     if (nextSet.has(scheduleId)) {
+      triggerHaptic("toggleOff");
       nextSet.delete(scheduleId);
     } else {
+      triggerHaptic("toggleOn");
       nextSet.add(scheduleId);
     }
     commitSelection(Array.from(nextSet));
   };
 
   const selectAll = () => {
+    triggerHaptic("success");
     commitSelection(allScheduleIds);
   };
 
   const clearAll = () => {
+    triggerHaptic("warning");
     commitSelection([]);
+  };
+
+  const handleClose = () => {
+    triggerHaptic("sheetClose");
+    onClose();
   };
 
   const snapPoints = [Math.min(height * 0.46, 380), Math.min(height * 0.74, 580)];
@@ -73,7 +83,7 @@ export default function TaskScheduleFilterSheet({
   return (
     <BottomSheet
       visible={visible}
-      onClose={onClose}
+      onClose={handleClose}
       snapPoints={snapPoints}
       initialSnapIndex={1}
       maxWidth={640}
@@ -103,7 +113,7 @@ export default function TaskScheduleFilterSheet({
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={t("common.close", lang)}
-          onPress={onClose}
+          onPress={handleClose}
           activeOpacity={0.7}
           style={[styles.closeButton, { backgroundColor: themeColors.backgroundColor3 }]}
         >

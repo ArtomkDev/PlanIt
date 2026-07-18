@@ -5,6 +5,7 @@ import { X, PlusCircle, Trash } from "phosphor-react-native";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { ICON_CATEGORIES } from "../../../../../config/subjectIcons";
 import { t } from "../../../../../utils/i18n";
+import { triggerHaptic } from "../../../../../utils/haptics";
 
 import SettingsSelectionRow from "../../../../../components/ui/SettingsKit/SettingsSelectionRow";
 import SettingsActionRow from "../../../../../components/ui/SettingsKit/SettingsActionRow";
@@ -63,7 +64,10 @@ export default function LessonEditorPickerScreen({
             borderWidth: 2 
           }
         ]}
-        onPress={() => handlePressItem(itemKey)}
+        onPress={() => {
+          triggerHaptic(itemKey === 'none' ? "warning" : (isSelected ? "selection" : "success"));
+          handlePressItem(itemKey);
+        }}
         activeOpacity={0.6}
       >
         {itemKey === 'none' ? (
@@ -159,7 +163,10 @@ export default function LessonEditorPickerScreen({
         <View style={[styles.footer, { backgroundColor: themeColors.backgroundColor, borderTopColor: themeColors.borderColor }]}>
           <TouchableOpacity 
               style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} 
-              onPress={() => onSave && onSave(tempSelected)}
+              onPress={() => {
+                triggerHaptic("success");
+                onSave?.(tempSelected);
+              }}
           >
               <Text style={[styles.saveBtnText, { color: '#fff' }]}>{t('common.save', lang)}</Text>
           </TouchableOpacity>

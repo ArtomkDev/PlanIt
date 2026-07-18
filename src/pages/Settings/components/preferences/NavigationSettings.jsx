@@ -6,6 +6,7 @@ import { useScheduleActions, useScheduleData } from '../../../../context/Schedul
 import themes from '../../../../config/themes';
 import { t } from '../../../../utils/i18n';
 import { NAVIGATION_METRICS, NAVIGATION_STYLE_KEYS } from '../../../../navigation/navigationMetrics';
+import { triggerHaptic } from '../../../../utils/haptics';
 
 const hexToRgba = (color, opacity) => {
   if (typeof color !== 'string' || !color.startsWith('#')) {
@@ -179,7 +180,8 @@ export default function NavigationSettings() {
   const showLabels = global?.navigationLabels ?? true;
   const animationsEnabled = global?.navigationAnimations ?? true;
 
-  const updatePreference = (patch) => {
+  const updatePreference = (patch, haptic = "selection") => {
+    triggerHaptic(haptic);
     setGlobalDraft((previous) => ({ ...previous, ...patch }));
   };
 
@@ -210,7 +212,7 @@ export default function NavigationSettings() {
                 accessibilityState={{ checked: selected }}
                 accessibilityLabel={t(`settings.navigation_screen.styles.${variant}.title`, lang)}
                 activeOpacity={0.78}
-                onPress={() => updatePreference({ navigationStyle: variant })}
+                onPress={() => updatePreference({ navigationStyle: variant }, selected ? "selection" : "success")}
                 style={[
                   styles.card,
                   { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor },
@@ -258,7 +260,7 @@ export default function NavigationSettings() {
               testID="navigation-labels-switch"
               accessibilityLabel={t('settings.navigation_screen.labels_title', lang)}
               value={showLabels}
-              onValueChange={(value) => updatePreference({ navigationLabels: value })}
+              onValueChange={(value) => updatePreference({ navigationLabels: value }, value ? "toggleOn" : "toggleOff")}
               trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
               thumbColor="#fff"
             />
@@ -279,7 +281,7 @@ export default function NavigationSettings() {
               testID="navigation-animations-switch"
               accessibilityLabel={t('settings.navigation_screen.animations_title', lang)}
               value={animationsEnabled}
-              onValueChange={(value) => updatePreference({ navigationAnimations: value })}
+              onValueChange={(value) => updatePreference({ navigationAnimations: value }, value ? "toggleOn" : "toggleOff")}
               trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
               thumbColor="#fff"
             />

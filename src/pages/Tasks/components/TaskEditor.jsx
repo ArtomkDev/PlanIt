@@ -37,6 +37,7 @@ import { generateId } from "../../../utils/idGenerator";
 import { t } from "../../../utils/i18n";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import { addScheduleRecordToMap } from "../../../utils/scheduleRecordMerge";
+import { triggerHaptic } from "../../../utils/haptics";
 import {
   areLessonRefsSame,
   buildScheduleGroupedLessonCatalogue,
@@ -276,7 +277,10 @@ function LessonCatalogueScreen({
       <TouchableOpacity
         key={lessonGroup.key}
         activeOpacity={0.76}
-        onPress={() => onOpenLessonGroup(record, lessonGroup)}
+        onPress={() => {
+          triggerHaptic(selected ? "selection" : "open");
+          onOpenLessonGroup(record, lessonGroup);
+        }}
         style={[
           styles.lessonGroupRow,
           {
@@ -310,7 +314,10 @@ function LessonCatalogueScreen({
       {canDetachLessonOccurrence && (
         <TouchableOpacity
           activeOpacity={0.76}
-          onPress={onDetachLessonOccurrence}
+          onPress={() => {
+            triggerHaptic("warning");
+            onDetachLessonOccurrence();
+          }}
           style={[
             styles.lessonActionRow,
             {
@@ -443,7 +450,10 @@ function LessonOccurrenceScreen({
       <TouchableOpacity
         key={`${draft.lessonRef.date}:${draft.lessonRef.weekKey}:${draft.lessonRef.lessonIndex}`}
         activeOpacity={0.76}
-        onPress={() => onSelectOccurrence(schedule, occurrence)}
+        onPress={() => {
+          triggerHaptic(selected ? "selection" : "success");
+          onSelectOccurrence(schedule, occurrence);
+        }}
         style={[
           styles.lessonOptionCard,
           {
@@ -519,7 +529,11 @@ function LessonOccurrenceScreen({
           <TouchableOpacity
             activeOpacity={0.76}
             disabled={!nextOccurrence}
-            onPress={() => nextOccurrence && onSelectOccurrence(schedule, nextOccurrence)}
+            onPress={() => {
+              if (!nextOccurrence) return;
+              triggerHaptic("success");
+              onSelectOccurrence(schedule, nextOccurrence);
+            }}
             style={[
               styles.lessonActionRow,
               {
@@ -542,7 +556,9 @@ function LessonOccurrenceScreen({
 
           <TouchableOpacity
             activeOpacity={0.76}
-            onPress={onChooseDate}
+            onPress={() => {
+              onChooseDate();
+            }}
             style={[
               styles.lessonActionRow,
               {
@@ -684,7 +700,8 @@ export default function TaskEditor({
   );
   const previousEditorSessionKeyRef = useRef(editorSessionKey);
 
-  const handleExpand = () => {
+  const handleExpand = (withHaptic = true) => {
+    if (withHaptic) triggerHaptic("expand");
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
@@ -693,6 +710,7 @@ export default function TaskEditor({
   };
 
   const handleCloseMinimized = () => {
+    triggerHaptic("sheetClose");
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
@@ -732,7 +750,7 @@ export default function TaskEditor({
     setLessonCalendarPurpose(null);
 
     if (isMinimized) {
-      handleExpand();
+      handleExpand(false);
     }
   }, [allSchedules, editorSessionKey, isMinimized, schedule, scheduleById, sourceSchedule, task]);
 
@@ -831,6 +849,7 @@ export default function TaskEditor({
   };
 
   const goBack = () => {
+    triggerHaptic("navigateBack");
     if (currentScreen === "linkEditor") {
       setCurrentScreen("linkPicker");
       return;
@@ -855,6 +874,11 @@ export default function TaskEditor({
 
   const closeSheet = () => {
     sheetRef.current?.close();
+  };
+
+  const handleCancel = () => {
+    triggerHaptic("sheetClose");
+    closeSheet();
   };
 
   const dismissEditor = () => {
@@ -892,12 +916,14 @@ export default function TaskEditor({
       links: localLinks,
     });
 
+    triggerHaptic("success");
     dismissEditor();
   };
 
   const deleteTask = () => {
     if (!task?.id) return;
 
+    triggerHaptic("success");
     onDelete?.(sourceSchedule?.id || targetSchedule.id, task.id);
     dismissEditor();
   };
@@ -914,6 +940,7 @@ export default function TaskEditor({
   };
 
   const handleSaveLink = (updatedLink) => {
+    triggerHaptic("success");
     setLocalLinks((prev) => {
       const exists = prev.some((link) => link.id === updatedLink.id);
       return exists
@@ -1016,6 +1043,7 @@ export default function TaskEditor({
   };
 
   const openAutoLessonPicker = () => {
+    triggerHaptic("open");
     setSelectedLessonGroup(null);
     setLessonDateFilter(null);
     setLessonCalendarPurpose(null);
@@ -1033,6 +1061,7 @@ export default function TaskEditor({
   };
 
   const openTaskDateCalendar = () => {
+    triggerHaptic("open");
     setSelectedLessonGroup(null);
     setLessonDateFilter(null);
     setLessonCalendarPurpose("taskDate");
@@ -1043,11 +1072,13 @@ export default function TaskEditor({
   };
 
   const openLessonGroupDateCalendar = () => {
+    triggerHaptic("open");
     setLessonCalendarPurpose("lessonGroupDate");
     setLessonCalendarVisible(true);
   };
 
   const openLinkedSubjectOccurrencePicker = () => {
+    triggerHaptic("open");
     if (!linkedLessonGroupTarget?.lessonGroup) {
       setLessonPickerMode("manual");
       setLessonOccurrenceQuickActionsVisible(true);
@@ -1068,6 +1099,7 @@ export default function TaskEditor({
   };
 
   const openLinkedSubjectDateCalendar = () => {
+    triggerHaptic("open");
     if (!linkedLessonGroupTarget?.lessonGroup) {
       setLessonPickerMode("manual");
       setLessonOccurrenceQuickActionsVisible(true);
@@ -1162,7 +1194,7 @@ export default function TaskEditor({
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
       {currentScreen === "main" || isInitialLessonPicker ? (
-        <TouchableOpacity onPress={closeSheet} hitSlop={15}>
+        <TouchableOpacity onPress={handleCancel} hitSlop={15}>
           <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t("common.cancel", lang)}</Text>
         </TouchableOpacity>
       ) : (
@@ -1489,7 +1521,7 @@ export default function TaskEditor({
 
             <TouchableOpacity
               style={styles.minimizedContent}
-              onPress={handleExpand}
+              onPress={() => handleExpand()}
               activeOpacity={0.7}
             >
               <View style={[styles.minimizedIcon, { backgroundColor: themeColors.accentColor + "20" }]}>
@@ -1523,7 +1555,10 @@ export default function TaskEditor({
         ref={sheetRef}
         visible={!isMinimized}
         onClose={onClose}
-        onMinimize={() => setIsMinimized(true)}
+        onMinimize={() => {
+          triggerHaptic("minimize");
+          setIsMinimized(true);
+        }}
         snapPoints={["62%", "92%"]}
         initialSnapIndex={1}
         maxWidth={800}
@@ -1570,14 +1605,17 @@ export default function TaskEditor({
               selectedValues={selectedLinks}
               multiSelect
               onSave={(keys) => {
+                triggerHaptic("success");
                 setSelectedLinks(sanitizeIdArray(keys));
                 setCurrentScreen("main");
               }}
               onEdit={(id) => {
+                triggerHaptic("open");
                 setEditingLinkId(id);
                 setCurrentScreen("linkEditor");
               }}
               onAdd={() => {
+                triggerHaptic("open");
                 setEditingLinkId(generateId());
                 setCurrentScreen("linkEditor");
               }}

@@ -28,6 +28,7 @@ import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { t } from "../../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
+import { triggerHaptic } from "../../../utils/haptics";
 
 export default function LessonViewer({
   visible,
@@ -91,11 +92,17 @@ export default function LessonViewer({
   const handleLinkPress = async (url) => {
     if (!url) return;
     const supported = await Linking.canOpenURL(url);
-    if (supported) Linking.openURL(url);
-    else alert(`${t('schedule.lesson_viewer.link_error', lang)}${url}`);
+    if (supported) {
+      triggerHaptic("open");
+      Linking.openURL(url);
+    } else {
+      triggerHaptic("error");
+      alert(`${t('schedule.lesson_viewer.link_error', lang)}${url}`);
+    }
   };
 
   const handleDelete = () => {
+    triggerHaptic("warning");
     Alert.alert(
       t('common.warning', lang),
       (t('common.delete', lang)) + "?",
@@ -105,6 +112,7 @@ export default function LessonViewer({
           text: t('common.delete', lang), 
           style: 'destructive',
           onPress: () => {
+            triggerHaptic("success");
             setScheduleDraft((prev) => {
               const next = { ...prev };
               const dayIndex = getDayIndex(currentDate);
@@ -126,12 +134,17 @@ export default function LessonViewer({
     );
   };
 
+  const handleClose = () => {
+    triggerHaptic("sheetClose");
+    onClose?.();
+  };
+
   const visibleRelatedTasks = Array.isArray(relatedTasks) ? relatedTasks.slice(0, 3) : [];
 
   return (
     <BottomSheet
       visible={visible}
-      onClose={onClose}
+      onClose={handleClose}
       snapPoints={["50%", "78%"]}
       initialSnapIndex={1}
       maxWidth={700}
@@ -152,7 +165,7 @@ export default function LessonViewer({
               ) : (
                 <View />
               )}
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+              <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
                 <X size={24} color="#fff" weight="bold" />
               </TouchableOpacity>
             </View>
@@ -226,7 +239,13 @@ export default function LessonViewer({
                       {teacher.phone ? <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]}>{teacher.phone}</Text> : null}
                     </View>
                     {!!teacher.phone && (
-                        <TouchableOpacity onPress={() => Linking.openURL(`tel:${teacher.phone}`)} hitSlop={10}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            triggerHaptic("open");
+                            Linking.openURL(`tel:${teacher.phone}`);
+                          }}
+                          hitSlop={10}
+                        >
                             <Phone size={22} color={themeColors.accentColor} style={{marginRight: 8}} weight="regular" />
                         </TouchableOpacity>
                     )}
@@ -314,7 +333,10 @@ export default function LessonViewer({
             {!!onAddTask && (
               <TouchableOpacity
                   style={[styles.actionButton, styles.primaryButton, styles.addTaskButton, { backgroundColor: themeColors.accentColor }]}
-                  onPress={() => onAddTask(lesson)}
+                  onPress={() => {
+                    triggerHaptic("success");
+                    onAddTask(lesson);
+                  }}
               >
                   <Plus size={20} color="#fff" style={{marginRight: 8}} weight="bold" />
                   <Text style={[styles.actionButtonText, { color: '#fff' }]} numberOfLines={1}>
@@ -349,6 +371,7 @@ export default function LessonViewer({
                   },
                 ]}
                 onPress={() => {
+                    triggerHaptic("open");
                     onClose();
                     onEdit({ ...lesson, subject: fullSubject, data: instanceData });
                 }}

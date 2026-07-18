@@ -1,6 +1,7 @@
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet, View, Platform } from "react-native";
 import { CaretRight } from "phosphor-react-native";
+import { triggerHaptic } from "../../../utils/haptics";
 
 const isAndroid = Platform.OS === "android";
 
@@ -18,12 +19,19 @@ export default function SettingsRow({
   iconColor,
   iconBgColor,
   iconWeight,
+  skipHaptic = false,
 }) {
   const Component = onPress ? TouchableOpacity : View;
   
   const mainColor = danger ? '#FF3B30' : themeColors.textColor;
   const calculatedIconColor = iconColor || (danger ? '#FF3B30' : themeColors.accentColor);
   const calculatedIconBgColor = iconBgColor || (danger ? '#FF3B3015' : themeColors.accentColor + '15');
+
+  const handlePress = () => {
+    if (!onPress || disabled) return;
+    if (!skipHaptic) triggerHaptic(danger ? "warning" : "selection");
+    onPress();
+  };
   
   return (
     <Component 
@@ -38,7 +46,7 @@ export default function SettingsRow({
           backgroundColor: 'transparent', 
         }
       ]} 
-      onPress={onPress} 
+      onPress={onPress ? handlePress : undefined}
       activeOpacity={0.7}
       disabled={disabled}
     >

@@ -138,6 +138,7 @@ const getGlobalFingerprint = (global = {}) => {
     "navigationStyle",
     "navigationLabels",
     "navigationAnimations",
+    "hapticsEnabled",
     "starting_week",
     "notificationPreferences",
   ];

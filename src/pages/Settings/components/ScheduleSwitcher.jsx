@@ -26,6 +26,7 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
 import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
+import { triggerHaptic } from "../../../utils/haptics";
 
 import TabSwitcher from "../../../components/ui/TabSwitcher";
 import SettingsSelectionRow from "../../../components/ui/SettingsKit/SettingsSelectionRow";
@@ -96,7 +97,8 @@ const ScheduleSwitcher = () => {
     setGlobalDraft((prev) => ({ ...prev, currentScheduleId: newId }));
   };
 
-  const handleEdit = (scheduleId) => {
+  const handleEdit = (scheduleId, withHaptic = true) => {
+    if (withHaptic) triggerHaptic("open");
     navigation.navigate("ScheduleEditorScreen", { scheduleId });
   };
 
@@ -106,19 +108,23 @@ const ScheduleSwitcher = () => {
 
   const handleShare = (scheduleData) => {
     if (!user) {
+      triggerHaptic("warning");
       Alert.alert(t('common.warning', lang), t('share.req_auth', lang));
       return;
     }
+    triggerHaptic("open");
     setScheduleToShare(scheduleData);
     setShareModalVisible(true);
   };
 
   const handleDelete = (scheduleId, scheduleName) => {
     if (schedules.length <= 1) {
+      triggerHaptic("warning");
       Alert.alert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
       return;
     }
 
+    triggerHaptic("warning");
     const message = t('settings.schedule_switcher.delete_confirm_msg', lang).replace('{name}', scheduleName || "Untitled");
 
     Alert.alert(
@@ -126,7 +132,10 @@ const ScheduleSwitcher = () => {
       message,
       [
         { text: t('common.cancel', lang), style: "cancel" },
-        { text: t('common.delete', lang), style: "destructive", onPress: () => removeSchedule(scheduleId) }
+        { text: t('common.delete', lang), style: "destructive", onPress: () => {
+          triggerHaptic("success");
+          removeSchedule(scheduleId);
+        } }
       ]
     );
   };
@@ -152,6 +161,7 @@ const ScheduleSwitcher = () => {
   };
 
   const handleMoveToCloud = (guestSchedule) => {
+    triggerHaptic("selection");
     enqueueOperation(async () => {
       startProcessing(guestSchedule.id);
       try {
@@ -178,8 +188,10 @@ const ScheduleSwitcher = () => {
           
           const filtered = guestData.schedules.filter(s => !s.isDeleted);
           setGuestSchedulesList(filtered);
+          triggerHaptic("success");
         }
       } catch (error) {
+        triggerHaptic("error");
         console.error(error);
       } finally {
         stopProcessing(guestSchedule.id);
@@ -188,10 +200,12 @@ const ScheduleSwitcher = () => {
   };
 
   const handleMoveToLocal = (accountSchedule) => {
+    triggerHaptic("selection");
     enqueueOperation(async () => {
       startProcessing(accountSchedule.id);
       try {
         if (schedulesRef.current.length <= 1) {
+          triggerHaptic("warning");
           Alert.alert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
           return;
         }
@@ -214,7 +228,9 @@ const ScheduleSwitcher = () => {
         setGuestSchedulesList(filtered);
 
         await removeSchedule(oldId);
+        triggerHaptic("success");
       } catch (error) {
+        triggerHaptic("error");
         console.error(error);
       } finally {
         stopProcessing(accountSchedule.id);
@@ -223,6 +239,7 @@ const ScheduleSwitcher = () => {
   };
 
   const handleDeleteGuest = (scheduleId, scheduleName) => {
+    triggerHaptic("warning");
     const untitledName = t('settings.schedule_switcher.untitled', lang);
     const name = scheduleName || untitledName;
     const message = t('settings.schedule_switcher.delete_guest_msg', lang).replace('{name}', name);
@@ -247,6 +264,7 @@ const ScheduleSwitcher = () => {
                 });
                 await saveLocalSchedule(guestData, null);
                 setGuestSchedulesList(guestData.schedules.filter(s => !s.isDeleted));
+                triggerHaptic("success");
               }
             });
           }
@@ -331,7 +349,7 @@ const ScheduleSwitcher = () => {
                           );
                         }
                       }}
-                      onLongPress={() => isAccountTab ? handleEdit(s.id) : null}
+                      onLongPress={() => isAccountTab ? handleEdit(s.id, false) : null}
                       rightContent={
                         isItemProcessing ? (
                           <ActivityIndicator size="small" color={themeColors.accentColor} style={{ marginRight: 8 }} />

@@ -27,6 +27,7 @@ import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 import MorphingLoader from '../components/ui/MorphingLoader';
 import { setManualLogin } from '../utils/authFlags';
+import { triggerHaptic } from '../utils/haptics';
 
 if (
   Platform.OS === 'android' && 
@@ -190,7 +191,13 @@ const InputField = ({ InputIcon, placeholder, secureTextEntry, value, onChangeTe
         }}
       />
       {isPasswordButton && (
-        <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeButton}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic("selection");
+            setIsPasswordVisible(!isPasswordVisible);
+          }}
+          style={styles.eyeButton}
+        >
           {isPasswordVisible ? 
             <EyeClosed size={22} color={colors.textColor2} weight="regular" /> : 
             <Eye size={22} color={colors.textColor2} weight="regular" />
@@ -227,6 +234,7 @@ const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormE
   <TouchableOpacity 
     style={styles.checkboxContainer} 
     onPress={() => {
+      triggerHaptic(acceptedTerms ? "toggleOff" : "toggleOn");
       setAcceptedTerms(!acceptedTerms);
       setFormError('');
     }} 
@@ -238,11 +246,17 @@ const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormE
     }
     <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
       {t('auth.terms.agree_prefix', lang)}
-      <Text style={{ color: colors.accentColor }} onPress={() => Linking.openURL('https://planit-hub.web.app/privacy.html')}>
+      <Text style={{ color: colors.accentColor }} onPress={() => {
+        triggerHaptic("open");
+        Linking.openURL('https://planit-hub.web.app/privacy.html');
+      }}>
         {t('auth.terms.privacy_policy', lang)}
       </Text>
       {t('auth.terms.and', lang)}
-      <Text style={{ color: colors.accentColor }} onPress={() => Linking.openURL('https://planit-hub.web.app/terms.html')}>
+      <Text style={{ color: colors.accentColor }} onPress={() => {
+        triggerHaptic("open");
+        Linking.openURL('https://planit-hub.web.app/terms.html');
+      }}>
         {t('auth.terms.terms_conditions', lang)}
       </Text>
     </Text>
@@ -252,6 +266,7 @@ const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormE
 const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, setAcceptedTerms, isDark, setFormError, formError }) => {
   const checkTerms = (action) => {
     if (!acceptedTerms) {
+      triggerHaptic("warning");
       setFormError(t('auth.errors.accept_terms_strict', lang));
       return;
     }
@@ -330,6 +345,7 @@ const AuthScreen = ({ onGuestLogin }) => {
   };
 
   const handleNavigate = (view) => {
+    triggerHaptic(view === 'welcome' ? "navigateBack" : "navigation");
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setFormError('');
     setSuccessMessage('');
@@ -395,18 +411,29 @@ const AuthScreen = ({ onGuestLogin }) => {
 
   const handleSignIn = async () => {
     const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) return setFormError(t('auth.errors.fill_fields', lang));
-    if (!validateEmail(trimmedEmail)) return setFormError(t('auth.errors.invalid_email_format', lang));
-    if (!acceptedTerms) return setFormError(t('auth.errors.accept_terms_strict', lang));
+    if (!trimmedEmail || !password) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.errors.fill_fields', lang));
+    }
+    if (!validateEmail(trimmedEmail)) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.errors.invalid_email_format', lang));
+    }
+    if (!acceptedTerms) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.errors.accept_terms_strict', lang));
+    }
     
     setIsLoading(true);
     try { 
       setManualLogin(true);
       const cred = await signInWithEmailAndPassword(auth, trimmedEmail, password); 
+      triggerHaptic("success");
       if (!cred.user.emailVerified) {
         handleNavigate('verify');
       }
     } catch (error) { 
+      triggerHaptic("error");
       setManualLogin(false);
       let msg = t('auth.errors.wrong_credentials', lang);
       if (error.code === 'auth/user-not-found') msg = t('auth.errors.user_not_found', lang);
@@ -423,18 +450,32 @@ const AuthScreen = ({ onGuestLogin }) => {
     const trimmedEmail = email.trim();
     const trimmedName = name.trim();
     
-    if (!trimmedName || !trimmedEmail || !password) return setFormError(t('auth.errors.fill_fields', lang));
-    if (!validateEmail(trimmedEmail)) return setFormError(t('auth.errors.invalid_email_format', lang));
-    if (password.length < 6) return setFormError(t('auth.errors.password_too_short', lang));
-    if (!acceptedTerms) return setFormError(t('auth.errors.accept_terms', lang));
+    if (!trimmedName || !trimmedEmail || !password) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.errors.fill_fields', lang));
+    }
+    if (!validateEmail(trimmedEmail)) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.errors.invalid_email_format', lang));
+    }
+    if (password.length < 6) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.errors.password_too_short', lang));
+    }
+    if (!acceptedTerms) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.errors.accept_terms', lang));
+    }
     
     setIsLoading(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
       await updateProfile(cred.user, { displayName: trimmedName });
       await sendEmailVerification(cred.user);
+      triggerHaptic("success");
       handleNavigate('verify');
     } catch (error) { 
+      triggerHaptic("error");
       let msg = t('auth.errors.signup_failed', lang);
       if (error.code === 'auth/email-already-in-use') msg = t('auth.errors.email_in_use', lang);
       if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
@@ -447,13 +488,21 @@ const AuthScreen = ({ onGuestLogin }) => {
 
   const handleForgotPassword = async () => {
     const trimmedEmail = email.trim();
-    if (!trimmedEmail) return setFormError(t('auth.forgot_password.req_email', lang));
-    if (!validateEmail(trimmedEmail)) return setFormError(t('auth.errors.invalid_email_format', lang));
+    if (!trimmedEmail) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.forgot_password.req_email', lang));
+    }
+    if (!validateEmail(trimmedEmail)) {
+      triggerHaptic("warning");
+      return setFormError(t('auth.errors.invalid_email_format', lang));
+    }
     
     try {
       await sendPasswordResetEmail(auth, trimmedEmail);
+      triggerHaptic("success");
       setSuccessMessage(t('auth.forgot_password.success_msg', lang));
     } catch (error) {
+      triggerHaptic("error");
       let msg = t('auth.errors.reset_failed', lang);
       if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
       if (error.code === 'auth/user-not-found') msg = t('auth.errors.user_not_found', lang);
@@ -462,6 +511,7 @@ const AuthScreen = ({ onGuestLogin }) => {
   };
 
   const handleCancelVerification = async () => {
+    triggerHaptic("warning");
     try {
       if (auth.currentUser) {
         await signOut(auth);
@@ -479,12 +529,17 @@ const AuthScreen = ({ onGuestLogin }) => {
   };
 
   const handleResendEmail = async () => {
-    if (resendCooldown > 0) return;
+    if (resendCooldown > 0) {
+      triggerHaptic("warning");
+      return;
+    }
     if (auth.currentUser) {
       try {
         await sendEmailVerification(auth.currentUser);
+        triggerHaptic("success");
         setResendCooldown(60);
       } catch (error) {
+        triggerHaptic("error");
         if (error.code === 'auth/too-many-requests') {
           setResendCooldown(60);
         }
@@ -623,7 +678,12 @@ const AuthScreen = ({ onGuestLogin }) => {
         <View key="social" style={styles.socialGroup}>
           <TouchableOpacity 
             activeOpacity={1} 
-            onPress={() => { if (!acceptedTerms) setFormError(t('auth.errors.accept_terms_strict', lang)); }}
+            onPress={() => {
+              if (!acceptedTerms) {
+                triggerHaptic("warning");
+                setFormError(t('auth.errors.accept_terms_strict', lang));
+              }
+            }}
           >
             <View pointerEvents={acceptedTerms ? 'auto' : 'none'} style={{ opacity: acceptedTerms ? 1 : 0.6 }}>
               <SocialAuthButtons onAuthError={(err) => setFormError(err.message)} />

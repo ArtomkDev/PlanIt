@@ -1,10 +1,10 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Alert, Platform } from 'react-native';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Animated, Alert, Platform, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Table, Palette, Translate, SignIn, UserCircle, Cpu, 
-  SignOut, Trash, Info, ShareNetwork, SquaresFour, Bell
+  SignOut, Trash, Info, ShareNetwork, SquaresFour, Bell, Vibrate
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../context/ScheduleProvider';
@@ -14,11 +14,12 @@ import { t } from '../../utils/i18n';
 import MorphingLoader from '../../components/ui/MorphingLoader';
 import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
+import { triggerHaptic } from '../../utils/haptics';
 
 export default function Settings({ guest, onExitGuest }) {
   const navigation = useNavigation();
   const { user, global, schedule, lang } = useScheduleData();
-  const { safeLogout } = useScheduleActions();
+  const { safeLogout, setGlobalDraft } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -54,6 +55,14 @@ export default function Settings({ guest, onExitGuest }) {
   infoParts.push(platformLabel);
 
   const infoString = infoParts.join(' • ');
+
+  const hapticsEnabled = global?.hapticsEnabled !== false;
+
+  const handleToggleHaptics = useCallback(() => {
+    const nextValue = !hapticsEnabled;
+    triggerHaptic(nextValue ? "toggleOn" : "toggleOff");
+    setGlobalDraft((prev) => ({ ...prev, hapticsEnabled: nextValue }));
+  }, [hapticsEnabled, setGlobalDraft]);
 
   const handleAuthAction = () => {
     if (guest && onExitGuest) {
@@ -108,6 +117,22 @@ export default function Settings({ guest, onExitGuest }) {
       data: [
         { label: t('settings.menu.themes.title', lang), screen: 'Theme', icon: Palette, desc: t('settings.menu.themes.desc', lang) },
         { label: t('settings.menu.navigation.title', lang), screen: 'Navigation', icon: SquaresFour, desc: t('settings.menu.navigation.desc', lang) },
+        {
+          label: t('settings.menu.haptics.title', lang),
+          action: handleToggleHaptics,
+          icon: Vibrate,
+          desc: t('settings.menu.haptics.desc', lang),
+          showCaret: false,
+          skipHaptic: true,
+          rightContent: (
+            <Switch
+              value={hapticsEnabled}
+              onValueChange={handleToggleHaptics}
+              trackColor={{ false: themeColors.borderColor, true: `${themeColors.accentColor}66` }}
+              thumbColor={hapticsEnabled ? themeColors.accentColor : themeColors.backgroundColor2}
+            />
+          ),
+        },
         { 
           label: t('settings.menu.language.title', lang), 
           screen: 'Language', 
@@ -146,7 +171,7 @@ export default function Settings({ guest, onExitGuest }) {
         { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: Trash, desc: t('settings.menu.reset_db.desc', lang), danger: true },
       ],
     },
-  ]), [guest, user, lang]);
+  ]), [guest, user, lang, hapticsEnabled, handleToggleHaptics, themeColors]);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const sectionPositions = useRef([]);
@@ -221,6 +246,9 @@ export default function Settings({ guest, onExitGuest }) {
                   label={item.label}
                   desc={item.desc}
                   value={item.meta}
+                  rightContent={item.rightContent}
+                  showCaret={item.showCaret}
+                  skipHaptic={item.skipHaptic}
                   danger={item.danger}
                   themeColors={themeColors}
                   onPress={() => item.action ? item.action() : navigation.navigate(item.screen, { scheduleId: schedule?.id })}

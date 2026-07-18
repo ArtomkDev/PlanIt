@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet from "../ui/BottomSheet";
 import themes from "../../config/themes";
 import { useScheduleData } from "../../context/ScheduleProvider";
-import { triggerLightHaptic } from "../../utils/haptics";
+import { triggerHaptic } from "../../utils/haptics";
 import { t } from "../../utils/i18n";
 import CalendarGrid from "./CalendarGrid";
 import { useCalendarLogic } from "./useCalendarLogic";
@@ -123,7 +123,7 @@ export default function CalendarSheet({
   );
 
   const selectDate = (date) => {
-    triggerLightHaptic();
+    triggerHaptic("success");
     onDateSelect(date);
     onClose();
   };
@@ -131,7 +131,7 @@ export default function CalendarSheet({
   const selectToday = () => selectDate(new Date());
 
   const skipDate = () => {
-    triggerLightHaptic();
+    triggerHaptic("selection");
     onSkip?.();
     onClose();
   };
@@ -139,7 +139,7 @@ export default function CalendarSheet({
   const handleAnimatedMonthChange = (direction) => {
     if (isAnimating.current) return;
     isAnimating.current = true;
-    triggerLightHaptic();
+    triggerHaptic("swipe");
 
     Animated.parallel([
       Animated.timing(slideOpacity, {
@@ -203,7 +203,10 @@ export default function CalendarSheet({
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={t("common.close", lang)}
-          onPress={onClose}
+          onPress={() => {
+            triggerHaptic("sheetClose");
+            onClose();
+          }}
           activeOpacity={0.7}
           style={[styles.roundButton, { backgroundColor: themeColors.backgroundColor3 }]}
         >
@@ -281,7 +284,10 @@ export default function CalendarSheet({
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityState={{ expanded: isMonthPickerOpen }}
-          onPress={() => setIsMonthPickerOpen((value) => !value)}
+          onPress={() => {
+            triggerHaptic(isMonthPickerOpen ? "sheetClose" : "open");
+            setIsMonthPickerOpen((value) => !value);
+          }}
           activeOpacity={0.7}
           style={[
             styles.monthTitleButton,
@@ -320,7 +326,10 @@ export default function CalendarSheet({
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={t("schedule.calendar.previous_year", lang)}
-                onPress={() => setYear(viewDate.getFullYear() - 1)}
+                onPress={() => {
+                  triggerHaptic("selection");
+                  setYear(viewDate.getFullYear() - 1);
+                }}
                 activeOpacity={0.7}
                 style={[styles.yearArrow, { backgroundColor: themeColors.backgroundColor4 }]}
               >
@@ -334,7 +343,10 @@ export default function CalendarSheet({
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={t("schedule.calendar.next_year", lang)}
-                onPress={() => setYear(viewDate.getFullYear() + 1)}
+                onPress={() => {
+                  triggerHaptic("selection");
+                  setYear(viewDate.getFullYear() + 1);
+                }}
                 activeOpacity={0.7}
                 style={[styles.yearArrow, { backgroundColor: themeColors.backgroundColor4 }]}
               >
@@ -352,6 +364,7 @@ export default function CalendarSheet({
                     accessibilityState={{ selected: isSelected }}
                     accessibilityLabel={`${name} ${viewDate.getFullYear()}`}
                     onPress={() => {
+                      triggerHaptic(isSelected ? "selection" : "success");
                       setMonth(index);
                       setIsMonthPickerOpen(false);
                     }}

@@ -7,6 +7,7 @@ import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import AdvancedColorPicker from "../../../../components/ui/AdvancedColorPicker";
 import { t } from "../../../../utils/i18n";
 import { saveDevicePrefs, getDevicePrefs } from "../../../../utils/storage";
+import { triggerHaptic } from "../../../../utils/haptics";
 
 const ThemeSettings = () => {
   const { global, lang } = useScheduleData();
@@ -55,6 +56,26 @@ const ThemeSettings = () => {
     setPickerVisible(false);
   };
 
+  const handleSelectMode = (modeKey) => {
+    triggerHaptic(selectedMode === modeKey ? "selection" : "success");
+    setSelectedMode(modeKey);
+  };
+
+  const handleSelectColor = (colorKey) => {
+    triggerHaptic(selectedColor === colorKey ? "selection" : "success");
+    setSelectedColor(colorKey);
+  };
+
+  const handleToggleBlur = (value) => {
+    triggerHaptic(value ? "toggleOn" : "toggleOff");
+    setIsBlurEnabled(value);
+  };
+
+  const handleOpenCustomPicker = () => {
+    triggerHaptic("open");
+    setPickerVisible(true);
+  };
+
   const renderColorOption = (colorKey) => {
     const colorValue = themes.accentColors[colorKey];
     const isSelected = selectedColor === colorKey;
@@ -67,7 +88,7 @@ const ThemeSettings = () => {
           { backgroundColor: colorValue },
           isSelected && styles.colorTileSelected,
         ]}
-        onPress={() => setSelectedColor(colorKey)}
+        onPress={() => handleSelectColor(colorKey)}
         activeOpacity={0.7}
       >
         {isSelected && (
@@ -104,7 +125,7 @@ const ThemeSettings = () => {
                   })
                 },
               ]}
-              onPress={() => setSelectedMode(item.key)}
+              onPress={() => handleSelectMode(item.key)}
             >
               <Text style={[styles.themeCardText, { color: themeColors.textColor }]}>
                 {item.label}
@@ -127,7 +148,7 @@ const ThemeSettings = () => {
             </View>
             <Switch
               value={isBlurEnabled}
-              onValueChange={setIsBlurEnabled}
+              onValueChange={handleToggleBlur}
               trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
               thumbColor={"#fff"}
             />
@@ -151,7 +172,7 @@ const ThemeSettings = () => {
                 borderColor: themeColors.textColor
               }
             ]}
-            onPress={() => setPickerVisible(true)}
+            onPress={handleOpenCustomPicker}
           >
             <PencilSimple
               size={20}

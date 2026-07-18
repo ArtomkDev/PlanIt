@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
-import { triggerLightHaptic } from "../../utils/haptics";
+import { triggerHaptic } from "../../utils/haptics";
 
 export default function TabSwitcher({
   tabs,
@@ -46,7 +46,7 @@ export default function TabSwitcher({
 
   const handlePress = (id) => {
     if (activeTab !== id) {
-      triggerLightHaptic();
+      triggerHaptic("tab");
       onTabPress(id);
     }
   };

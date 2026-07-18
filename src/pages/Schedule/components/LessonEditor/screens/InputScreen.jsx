@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-nativ
 import { XCircle } from "phosphor-react-native";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
+import { triggerHaptic } from "../../../../../utils/haptics";
 
 export default function LessonEditorInputScreen({
   title,
@@ -19,6 +20,16 @@ export default function LessonEditorInputScreen({
     setValue(initialValue || "");
   }, [initialValue]);
 
+  const handleSave = () => {
+    triggerHaptic("success");
+    onSave?.(value);
+  };
+
+  const handleClear = () => {
+    triggerHaptic("selection");
+    setValue("");
+  };
+
   return (
     <View style={styles.container}>
       <Text style={[styles.label, { color: themeColors.textColor2 }]}>
@@ -34,10 +45,10 @@ export default function LessonEditorInputScreen({
           placeholderTextColor={themeColors.textColor2}
           autoFocus
           returnKeyType="done"
-          onSubmitEditing={() => onSave && onSave(value)}
+          onSubmitEditing={handleSave}
         />
         {value.length > 0 && (
-          <TouchableOpacity onPress={() => setValue("")} style={styles.clearButton} hitSlop={15}>
+          <TouchableOpacity onPress={handleClear} style={styles.clearButton} hitSlop={15}>
             <XCircle size={22} color={themeColors.textColor2} weight="fill" />
           </TouchableOpacity>
         )}
@@ -47,7 +58,7 @@ export default function LessonEditorInputScreen({
         {onSave && (
           <TouchableOpacity 
             style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} 
-            onPress={() => onSave(value)}
+            onPress={handleSave}
             activeOpacity={0.8}
           >
             <Text style={[styles.saveBtnText, { color: "#fff" }]}>

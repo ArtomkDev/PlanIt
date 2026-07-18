@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBlur from './AppBlur';
 import themes from '../../config/themes';
 import { useScheduleData } from '../../context/ScheduleProvider';
+import { triggerHaptic } from '../../utils/haptics';
 
 export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY, showBackButton = true, rightButton }) {
   const navigation = useNavigation();
@@ -73,6 +74,11 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
   const canGoBack = navigation.canGoBack();
   const shouldShowBack = canGoBack && showBackButton;
 
+  const handleGoBack = () => {
+    triggerHaptic("navigateBack");
+    navigation.goBack();
+  };
+
   return (
     <View style={[styles.container, { height: HEADER_HEIGHT, paddingTop: insets.top }]}>
       
@@ -85,7 +91,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
         
         <View style={styles.leftContainer}>
           {shouldShowBack && (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
               <CaretLeft size={28} color={themeColors.accentColor} weight="bold" />
             </TouchableOpacity>
           )}

@@ -5,6 +5,7 @@ import { GitBranch, DeviceMobile, CloudArrowDown, Copy, CaretRight } from 'phosp
 import useSystemThemeColors from '../../hooks/useSystemThemeColors';
 import AppBlur from '../../components/ui/AppBlur';
 import { t } from '../../utils/i18n';
+import { triggerHaptic } from '../../utils/haptics';
 
 export default function SyncConflictScreen({ 
   conflictQueue, 
@@ -38,7 +39,10 @@ export default function SyncConflictScreen({
             borderColor: colors.borderColor 
           }
         ]} 
-        onPress={onPress}
+        onPress={() => {
+          triggerHaptic(type === 'cloud' ? "warning" : "success");
+          onPress?.();
+        }}
       >
         <View style={styles.actionIconWrapper}>
           <Icon color={type === 'local' ? colors.textOnAccent : colors.textColor} size={20} weight="fill" />

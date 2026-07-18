@@ -1,6 +1,7 @@
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet, View, Platform } from "react-native";
 import { PencilSimple } from "phosphor-react-native";
+import { triggerHaptic } from "../../../utils/haptics";
 
 const isAndroid = Platform.OS === "android";
 
@@ -19,6 +20,21 @@ export default function SettingsSelectionRow({
   const androidBg = isSelected ? (themeColors.accentColor + '15') : themeColors.backgroundColor2;
   const iosBg = themeColors.backgroundColor2;
 
+  const handlePress = () => {
+    triggerHaptic(isSelected ? "selection" : "selection");
+    onPress?.();
+  };
+
+  const handleLongPress = () => {
+    triggerHaptic("longPress");
+    onLongPress?.();
+  };
+
+  const handleEdit = () => {
+    triggerHaptic("open");
+    onEdit?.();
+  };
+
   return (
     <TouchableOpacity
       style={[
@@ -31,9 +47,9 @@ export default function SettingsSelectionRow({
           marginBottom: 0,
         }
       ]}
-      onPress={!isAlreadySelected ? onPress : undefined}
+      onPress={!isAlreadySelected ? handlePress : undefined}
       activeOpacity={isAlreadySelected ? 1 : 0.7}
-      onLongPress={onLongPress}
+      onLongPress={onLongPress ? handleLongPress : undefined}
       delayLongPress={300}
     >
       <View style={styles.leftContainer}>
@@ -58,7 +74,7 @@ export default function SettingsSelectionRow({
         {rightContent}
         
         {onEdit && (
-          <TouchableOpacity hitSlop={15} onPress={onEdit} style={styles.editButton}>
+          <TouchableOpacity hitSlop={15} onPress={handleEdit} style={styles.editButton}>
             <PencilSimple size={20} color={themeColors.textColor2} weight="bold" />
           </TouchableOpacity>
         )}

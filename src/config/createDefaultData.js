@@ -11,6 +11,7 @@ export default function createDefaultData() {
     navigationStyle: 'classic',
     navigationLabels: true,
     navigationAnimations: true,
+    hapticsEnabled: true,
     lastModified: now, 
     lastSynced: 0, 
   };

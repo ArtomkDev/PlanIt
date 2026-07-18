@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 import themes from "../../../config/themes";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
-import { triggerLightHaptic } from "../../../utils/haptics";
+import { triggerHaptic } from "../../../utils/haptics";
 import { t } from "../../../utils/i18n";
 import {
   resolveScheduleColor,
@@ -51,11 +51,12 @@ export default function SchedulePickerSheet({
     const shouldSaveFallbackSelection = onSelectSchedule && !selectedScheduleId;
 
     if (scheduleId === currentSelectedId && !shouldSaveFallbackSelection) {
+      triggerHaptic("sheetClose");
       onClose();
       return;
     }
 
-    triggerLightHaptic();
+    triggerHaptic("success");
     if (onSelectSchedule) {
       onSelectSchedule(scheduleId);
     } else {
@@ -65,9 +66,19 @@ export default function SchedulePickerSheet({
   };
 
   const handleAddSchedule = () => {
-    triggerLightHaptic();
+    triggerHaptic("open");
     onClose();
     onAddSchedule?.();
+  };
+
+  const handleClose = () => {
+    triggerHaptic("sheetClose");
+    onClose();
+  };
+
+  const handleEditSchedule = (scheduleId) => {
+    triggerHaptic("longPress");
+    onEditSchedule?.(scheduleId);
   };
 
   const snapPoints = [Math.min(height * 0.42, 360), Math.min(height * 0.72, 560)];
@@ -75,7 +86,7 @@ export default function SchedulePickerSheet({
   return (
     <BottomSheet
       visible={visible}
-      onClose={onClose}
+      onClose={handleClose}
       snapPoints={snapPoints}
       initialSnapIndex={1}
       maxWidth={640}
@@ -102,7 +113,7 @@ export default function SchedulePickerSheet({
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel={t("common.close", lang)}
-              onPress={onClose}
+              onPress={handleClose}
               activeOpacity={0.7}
               style={[styles.closeButton, { backgroundColor: themeColors.backgroundColor3 }]}
             >
@@ -126,7 +137,7 @@ export default function SchedulePickerSheet({
                   accessibilityRole="radio"
                   accessibilityState={{ checked: isActive }}
                   onPress={() => selectSchedule(item.id)}
-                  onLongPress={onEditSchedule ? () => onEditSchedule(item.id) : undefined}
+                  onLongPress={onEditSchedule ? () => handleEditSchedule(item.id) : undefined}
                   delayLongPress={450}
                   activeOpacity={0.75}
                   style={[

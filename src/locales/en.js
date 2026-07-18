@@ -333,6 +333,7 @@ export default {
       global_schedule: { title: "Global Schedule", desc: "Change global schedule" },
       shared_schedules: { title: "Shared Schedules", desc: "Manage your shared schedule links" },
       themes: { title: "Themes", desc: "Light/dark, accent" },
+      haptics: { title: "Haptic Feedback", desc: "Vibration for taps, gestures, confirmations, and errors" },
       language: { title: "Language", desc: "Select interface language" },
       login: { title: "Log In or Create Account", desc: "Sync your data to the cloud" },
       account_settings: { title: "Account Settings", desc: "Profile management, security, email" },

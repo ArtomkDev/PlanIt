@@ -20,6 +20,7 @@ import {
   cancelLessonRemindersForSchedule,
   reconcileLessonRemindersForSchedule,
 } from "../services/notificationService";
+import { setHapticsEnabled } from "../utils/haptics";
 
 let requestWidgetUpdate = null;
 let ScheduleWidget = null;
@@ -372,6 +373,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       prefsNeedSave = true;
     }
 
+    if (newPrefs.hapticsEnabled === undefined) {
+      newPrefs.hapticsEnabled = data.global?.hapticsEnabled ?? true;
+      prefsNeedSave = true;
+    }
+
     if (data.global && data.global.language === undefined && lang && !isLangLoading) {
       setData(prev => {
         const nextData = {
@@ -516,6 +522,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       navigationAnimations: devicePrefs.navigationAnimations !== undefined
         ? devicePrefs.navigationAnimations
         : (baseGlobal.navigationAnimations ?? true),
+      hapticsEnabled: devicePrefs.hapticsEnabled !== undefined
+        ? devicePrefs.hapticsEnabled
+        : (baseGlobal.hapticsEnabled ?? true),
       currentScheduleId: devicePrefs.currentScheduleId || baseGlobal.currentScheduleId,
       watermark: baseGlobal.watermark || 0,
       language: lang
@@ -523,6 +532,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   }, [data?.global, devicePrefs, lang, systemColorScheme]);
 
   const currentScheduleId = mergedGlobal?.currentScheduleId || null;
+
+  useEffect(() => {
+    setHapticsEnabled(mergedGlobal?.hapticsEnabled !== false);
+  }, [mergedGlobal?.hapticsEnabled]);
 
   const activeSchedules = useMemo(() => {
     return (data?.schedules || []).filter(s => !s.isDeleted);
@@ -665,6 +678,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       navigationAnimations: devicePrefsRef.current.navigationAnimations !== undefined
         ? devicePrefsRef.current.navigationAnimations
         : (currentPrev.global?.navigationAnimations ?? true),
+      hapticsEnabled: devicePrefsRef.current.hapticsEnabled !== undefined
+        ? devicePrefsRef.current.hapticsEnabled
+        : (currentPrev.global?.hapticsEnabled ?? true),
       currentScheduleId: devicePrefsRef.current.currentScheduleId,
       language: devicePrefsRef.current.language
     };
@@ -697,6 +713,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
     if (nextGlobal.navigationAnimations !== undefined && nextGlobal.navigationAnimations !== currentMerged.navigationAnimations) {
       newPrefs.navigationAnimations = nextGlobal.navigationAnimations;
+      prefsChanged = true;
+    }
+
+    if (nextGlobal.hapticsEnabled !== undefined && nextGlobal.hapticsEnabled !== currentMerged.hapticsEnabled) {
+      newPrefs.hapticsEnabled = nextGlobal.hapticsEnabled;
       prefsChanged = true;
     }
 
@@ -994,7 +1015,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         language: devicePrefsRef.current.language,
         navigationStyle: devicePrefsRef.current.navigationStyle,
         navigationLabels: devicePrefsRef.current.navigationLabels,
-        navigationAnimations: devicePrefsRef.current.navigationAnimations
+        navigationAnimations: devicePrefsRef.current.navigationAnimations,
+        hapticsEnabled: devicePrefsRef.current.hapticsEnabled
       };
       syncDevicePrefsUpdate(retainedPrefs);
 

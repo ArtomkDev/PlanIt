@@ -28,6 +28,7 @@ import LinkEditor from "./LessonEditor/forms/LinkForm";
 import AdvancedColorPicker from "../../../components/ui/AdvancedColorPicker";
 
 import { t } from "../../../utils/i18n";
+import { triggerHaptic } from "../../../utils/haptics";
 import {
   addMinutes,
   buildLessonTimes,
@@ -159,7 +160,7 @@ export default function LessonEditor({ lesson, onClose }) {
     }
 
     if (isMinimized) {
-      handleExpand();
+      handleExpand(false);
     }
   }, [lesson]);
 
@@ -176,7 +177,8 @@ export default function LessonEditor({ lesson, onClose }) {
     }
   }, [isMinimized]);
 
-  const handleExpand = () => {
+  const handleExpand = (withHaptic = true) => {
+    if (withHaptic) triggerHaptic("expand");
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
@@ -185,6 +187,7 @@ export default function LessonEditor({ lesson, onClose }) {
   };
   
   const handleCloseMinimized = () => {
+    triggerHaptic("sheetClose");
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
@@ -206,6 +209,7 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const handleBack = () => {
+    triggerHaptic("navigateBack");
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
     if (currentScreen === "teacherEditor") return goToScreen(pickerType ? "picker" : "main"); 
     if (currentScreen === "linkEditor") return goToScreen(pickerType ? "picker" : "main");    
@@ -344,12 +348,14 @@ export default function LessonEditor({ lesson, onClose }) {
     });
     
     if (isMinimized) {
+      triggerHaptic("success");
       Animated.timing(minimizeAnim, {
         toValue: 0,
         duration: 120,
         useNativeDriver: Platform.OS !== "web",
       }).start(() => onClose());
     } else {
+      triggerHaptic("success");
       sheetRef.current?.close();
     }
   };
@@ -468,6 +474,7 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const handleSaveGradient = (newGradient) => {
+    triggerHaptic("success");
     setLocalData((prev) => {
       const grads = [...prev.gradients];
       const idx = grads.findIndex((g) => g.id === newGradient.id);
@@ -495,6 +502,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const handleDirectEdit = (type, id, index) => {
     if (!id) return;
+    triggerHaptic("open");
     setEditingSlotIndex(index); 
     setPickerType(null); 
     
@@ -503,6 +511,7 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const openAdvancedColorPicker = (colorValue, setter) => {
+    triggerHaptic("open");
     setAdvancedPickerTarget({ colorValue, setter });
     setShowAdvancedPicker(true);
   };
@@ -716,7 +725,13 @@ export default function LessonEditor({ lesson, onClose }) {
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
       {currentScreen === "main" ? (
-        <TouchableOpacity onPress={() => sheetRef.current?.close()} hitSlop={15}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic("sheetClose");
+            sheetRef.current?.close();
+          }}
+          hitSlop={15}
+        >
           <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t('common.cancel', lang)}</Text>
         </TouchableOpacity>
       ) : (
@@ -771,7 +786,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
             <TouchableOpacity 
               style={styles.minimizedContent} 
-              onPress={handleExpand}
+              onPress={() => handleExpand()}
               activeOpacity={0.7}
             >
               <View style={[styles.minimizedIcon, { backgroundColor: themeColors.accentColor + '20' }]}>
@@ -805,7 +820,10 @@ export default function LessonEditor({ lesson, onClose }) {
         ref={sheetRef}
         visible={!isMinimized}
         onClose={onClose}
-        onMinimize={() => setIsMinimized(true)}
+        onMinimize={() => {
+          triggerHaptic("minimize");
+          setIsMinimized(true);
+        }}
         snapPoints={["62%", "92%"]}
         initialSnapIndex={1}
         maxWidth={800}
@@ -849,8 +867,11 @@ export default function LessonEditor({ lesson, onClose }) {
                   onSelect={(updates) => {
                       handleUpdateSubject(updates);
                       goToScreen("main");
-                  }} 
-                  onEditGradient={(grad) => { setEditingGradient(grad); goToScreen("gradientEdit"); }} 
+                  }}
+                  onEditGradient={(grad) => {
+                      setEditingGradient(grad);
+                      goToScreen("gradientEdit");
+                  }}
                   onAddGradient={() => {
                       const newG = { id: generateLocalId(), colors: ["#4facfe", "#00f2fe"] };
                       setLocalData(prev => ({ ...prev, gradients: [...prev.gradients, newG] }));
@@ -896,6 +917,7 @@ export default function LessonEditor({ lesson, onClose }) {
                   teacherId={editingItemData} 
                   localTeacherData={localData.teachers.find(t => t.id === editingItemData) || {}}
                   onSaveLocal={(updated) => {
+                      triggerHaptic("success");
                       setLocalData(prev => {
                           const exists = prev.teachers.some(t => t.id === updated.id);
                           return {
@@ -907,7 +929,10 @@ export default function LessonEditor({ lesson, onClose }) {
                       });
                       goToScreen(pickerType ? "picker" : "main"); 
                   }}
-                  onBack={() => goToScreen(pickerType ? "picker" : "main")} 
+                  onBack={() => {
+                    triggerHaptic("navigateBack");
+                    goToScreen(pickerType ? "picker" : "main");
+                  }}
                   themeColors={themeColors}
                 />
             )}
@@ -917,6 +942,7 @@ export default function LessonEditor({ lesson, onClose }) {
                   linkId={editingItemData} 
                   localLinkData={localData.links.find(l => l.id === editingItemData) || {}}
                   onSaveLocal={(updated) => {
+                      triggerHaptic("success");
                       setLocalData(prev => {
                           const exists = prev.links.some(l => l.id === updated.id);
                           return {
@@ -928,7 +954,10 @@ export default function LessonEditor({ lesson, onClose }) {
                       });
                       goToScreen(pickerType ? "picker" : "main");
                   }}
-                  onBack={() => goToScreen(pickerType ? "picker" : "main")} 
+                  onBack={() => {
+                    triggerHaptic("navigateBack");
+                    goToScreen(pickerType ? "picker" : "main");
+                  }}
                   themeColors={themeColors}
                 />
             )}
@@ -939,8 +968,13 @@ export default function LessonEditor({ lesson, onClose }) {
         <AdvancedColorPicker 
           visible={showAdvancedPicker} 
           initialColor={advancedPickerTarget.colorValue} 
-          onSave={(color) => { advancedPickerTarget.setter(color); setShowAdvancedPicker(false); }} 
-          onClose={() => setShowAdvancedPicker(false)}
+          onSave={(color) => {
+            advancedPickerTarget.setter(color);
+            setShowAdvancedPicker(false);
+          }}
+          onClose={() => {
+            setShowAdvancedPicker(false);
+          }}
         />
       )}
     </>
