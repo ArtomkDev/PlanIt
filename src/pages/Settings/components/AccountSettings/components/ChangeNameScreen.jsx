@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { updateProfile } from 'firebase/auth';
 
 import { auth } from '../../../../../config/firebase';
 import { useScheduleData } from '../../../../../context/ScheduleProvider';
+import MorphingLoader from '../../../../../components/ui/MorphingLoader';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
 import { t } from '../../../../../utils/i18n';
@@ -93,7 +94,7 @@ export default function ChangeNameScreen() {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" />
+          <MorphingLoader size={26} />
         ) : (
           <Text style={styles.actionButtonText}>
             {t('common.save', lang) || "Зберегти"}

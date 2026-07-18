@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import useSystemThemeColors from '../../hooks/useSystemThemeColors';
 import useAppLanguage from '../../hooks/useAppLanguage';
+import MorphingLoader from '../../components/ui/MorphingLoader';
 import { t } from '../../utils/i18n';
 import { setManualLogin } from '../../utils/authFlags';
 import { triggerHaptic } from '../../utils/haptics';
@@ -160,7 +161,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
           activeOpacity={isNativeDisabled ? 1 : 0.7}
         >
           {loadingProvider === 'google' ? (
-            <ActivityIndicator color={colors.textColor} />
+            <MorphingLoader size={24} />
           ) : (
             <>
               <FontAwesome5 name="google" size={20} color={isDark ? '#fff' : '#DB4437'} solid />
@@ -181,7 +182,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
             activeOpacity={isNativeDisabled ? 1 : 0.7}
           >
             {loadingProvider === 'apple' ? (
-              <ActivityIndicator color={isDark ? '#000' : '#fff'} />
+              <MorphingLoader size={24} />
             ) : (
               <>
                 <FontAwesome5 name="apple" size={24} color={isDark ? '#000' : '#fff'} solid />

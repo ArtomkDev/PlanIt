@@ -4,8 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator
+  Alert
 } from "react-native";
 import { 
   Check,
@@ -22,6 +21,7 @@ import Animated, { FadeInDown, ZoomOut } from "react-native-reanimated";
 
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
+import MorphingLoader from "../../../components/ui/MorphingLoader";
 import themes from "../../../config/themes"; 
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
@@ -407,7 +407,7 @@ const ScheduleSwitcher = () => {
                         )}
 
                         {isItemProcessing ? (
-                          <ActivityIndicator size="small" color={themeColors.accentColor} style={{ marginRight: 8 }} />
+                          <MorphingLoader size={24} style={{ marginRight: 8 }} />
                         ) : (
                           <View style={styles.actionButtons}>
                             {!guest && isAccountTab && (

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import MorphingLoader from '../components/ui/MorphingLoader';
 
 const AppContext = createContext();
 
@@ -28,7 +29,7 @@ export function AppProvider({ children }) {
   if (isAuthLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#32D74B" />
+        <MorphingLoader size={70} />
       </View>
     );
   }

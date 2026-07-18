@@ -134,7 +134,6 @@ const styles = StyleSheet.create({
     marginTop: 80,
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: 0.8,
   },
   noData: {
     fontSize: 20,

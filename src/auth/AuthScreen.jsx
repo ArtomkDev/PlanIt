@@ -37,6 +37,25 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+const AUTH_LAYOUT_ANIMATION = {
+  duration: 520,
+  create: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+  update: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+  },
+  delete: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+};
+
+const configureAuthLayoutAnimation = () => {
+  LayoutAnimation.configureNext(AUTH_LAYOUT_ANIMATION);
+};
+
 const getIconConfig = (vw, vh) => {
   const cx = (pct) => vw * pct - 140; 
   const cy = (pct) => vh * pct - 140;
@@ -263,6 +282,34 @@ const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormE
   </TouchableOpacity>
 );
 
+const AuthMorphingLoader = ({ compact }) => {
+  const scale = useRef(new Animated.Value(compact ? 0.58 : 1)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: compact ? 0.58 : 1,
+        friction: 9,
+        tension: 72,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [compact, opacity, scale]);
+
+  return (
+    <Animated.View style={[styles.authLoaderMotion, { opacity, transform: [{ scale }] }]}>
+      <MorphingLoader size={70} />
+    </Animated.View>
+  );
+};
+
 const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, setAcceptedTerms, isDark, setFormError, formError }) => {
   const checkTerms = (action) => {
     if (!acceptedTerms) {
@@ -346,7 +393,7 @@ const AuthScreen = ({ onGuestLogin }) => {
 
   const handleNavigate = (view) => {
     triggerHaptic(view === 'welcome' ? "navigateBack" : "navigation");
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    configureAuthLayoutAnimation();
     setFormError('');
     setSuccessMessage('');
     setCurrentView(view);
@@ -424,6 +471,7 @@ const AuthScreen = ({ onGuestLogin }) => {
       return setFormError(t('auth.errors.accept_terms_strict', lang));
     }
     
+    configureAuthLayoutAnimation();
     setIsLoading(true);
     try { 
       setManualLogin(true);
@@ -442,6 +490,7 @@ const AuthScreen = ({ onGuestLogin }) => {
       if (error.code === 'auth/too-many-requests') msg = t('auth.errors.too_many_requests', lang);
       setFormError(msg);
     } finally { 
+      configureAuthLayoutAnimation();
       setIsLoading(false); 
     }
   };
@@ -467,6 +516,7 @@ const AuthScreen = ({ onGuestLogin }) => {
       return setFormError(t('auth.errors.accept_terms', lang));
     }
     
+    configureAuthLayoutAnimation();
     setIsLoading(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
@@ -482,6 +532,7 @@ const AuthScreen = ({ onGuestLogin }) => {
       if (error.code === 'auth/weak-password') msg = t('auth.errors.weak_password', lang);
       setFormError(msg);
     } finally { 
+      configureAuthLayoutAnimation();
       setIsLoading(false); 
     }
   };
@@ -555,7 +606,7 @@ const AuthScreen = ({ onGuestLogin }) => {
     if (currentView === 'verify') {
       elements.push(
         <View key="loader" style={styles.verifyLoaderContainer}>
-          <MorphingLoader size={70} />
+          <AuthMorphingLoader compact={false} />
         </View>
       );
       elements.push(
@@ -658,9 +709,9 @@ const AuthScreen = ({ onGuestLogin }) => {
       );
 
       elements.push(
-        <View key="loader" style={[styles.buttonLoaderContainer, !isLoading && { alignItems: 'stretch' }]}>
+        <View key="loader" style={styles.buttonLoaderContainer}>
           {isLoading ? (
-            <MorphingLoader size={40} />
+            <AuthMorphingLoader compact />
           ) : (
             <TouchableOpacity 
               style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms || (currentView === 'signup' && password.length < 6) ? 0.6 : 1 }]} 
@@ -813,9 +864,10 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   footerText: { fontSize: 14 },
   footerLink: { fontSize: 14, fontWeight: '600' },
-  verifyLoaderContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  authLoaderMotion: { width: 70, height: 70, alignItems: 'center', justifyContent: 'center' },
+  verifyLoaderContainer: { minHeight: 86, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', marginBottom: 24 },
   verifyTextContainer: { alignItems: 'center', width: '100%' },
-  buttonLoaderContainer: { height: 54, justifyContent: 'center', marginTop: 14 },
+  buttonLoaderContainer: { height: 54, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', marginTop: 14 },
   socialGroup: { marginTop: 14 },
   strengthContainer: { width: '100%', height: 3, borderRadius: 2, marginTop: 6, overflow: 'hidden' },
   strengthBar: { height: '100%', borderRadius: 2 },

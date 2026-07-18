@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
   LayoutAnimation,
   Platform,
   ScrollView,
@@ -23,6 +22,7 @@ import themes from "../../../config/themes";
 import { useNotificationDrawer } from "../../../context/NotificationDrawerContext";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import useNotifications from "../../../hooks/useNotifications";
+import MorphingLoader from "../../../components/ui/MorphingLoader";
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
@@ -322,7 +322,7 @@ export default function NotificationInboxPanel() {
       >
         {loading ? (
           <View style={styles.emptyState}>
-            <ActivityIndicator color={themeColors.accentColor} />
+            <MorphingLoader size={42} />
           </View>
         ) : notifications.length === 0 ? (
           <View style={styles.emptyState}>

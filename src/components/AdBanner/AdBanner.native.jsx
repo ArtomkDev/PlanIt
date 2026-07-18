@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
+import MorphingLoader from '../ui/MorphingLoader';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
@@ -21,9 +22,11 @@ export default function AdBanner() {
     return (
       <View style={styles.placeholderContainer}>
         <View style={styles.placeholderBox}>
-          <Text style={styles.placeholderText}>
-            {isExpoGo ? 'AdMob Placeholder (Expo Go)' : 'Loading Ad...'}
-          </Text>
+          {isExpoGo ? (
+            <Text style={styles.placeholderText}>AdMob Placeholder (Expo Go)</Text>
+          ) : (
+            <MorphingLoader size={28} />
+          )}
         </View>
       </View>
     );

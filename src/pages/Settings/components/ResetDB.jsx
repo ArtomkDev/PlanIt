@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Platform, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useScheduleActions, useScheduleData } from '../../../context/ScheduleProvider';
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import themes from '../../../config/themes';
+import MorphingLoader from '../../../components/ui/MorphingLoader';
 import { t } from '../../../utils/i18n';
 import { triggerHaptic } from '../../../utils/haptics';
 
@@ -23,7 +24,7 @@ const DangerActionCard = ({ title, description, buttonText, onPress, isLoading, 
       disabled={isLoading || disabled}
     >
       {isLoading ? (
-        <ActivityIndicator color="#ffffff" size="small" />
+        <MorphingLoader size={24} />
       ) : (
         <Text style={styles.actionButtonText}>{buttonText}</Text>
       )}

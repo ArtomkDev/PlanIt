@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Share } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Share } from "react-native";
 import { ShareNetwork, Copy, CheckCircle, X, BookOpen, GraduationCap, Palette, User, Link, Note } from "phosphor-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useScheduleData } from "../../context/ScheduleProvider";
@@ -10,6 +10,7 @@ import AppSwitch from "../ui/AppSwitch";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
+import MorphingLoader from "../ui/MorphingLoader";
 import { triggerHaptic } from "../../utils/haptics";
 
 export default function ShareScheduleModal({ visible, onClose, scheduleToShare }) {
@@ -247,7 +248,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                     disabled={loading}
                   >
                     {loading ? (
-                      <ActivityIndicator color="#fff" />
+                      <MorphingLoader size={28} />
                     ) : (
                       <Text style={styles.primaryBtnText}>{t("share.generate_btn", lang)}</Text>
                     )}

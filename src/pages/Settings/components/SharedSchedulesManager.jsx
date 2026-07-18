@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { Trash, Clock } from "phosphor-react-native";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { getUserSharedSchedules, deleteSharedSchedule } from "../../../services/shareService";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
+import MorphingLoader from "../../../components/ui/MorphingLoader";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 
@@ -115,7 +116,7 @@ export default function SharedSchedulesManager() {
     <SettingsScreenLayout title={t("share.manager_title", lang)}>
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={themeColors.accentColor} />
+          <MorphingLoader size={58} />
         </View>
       ) : sharedList.length === 0 ? (
         <View style={styles.center}>

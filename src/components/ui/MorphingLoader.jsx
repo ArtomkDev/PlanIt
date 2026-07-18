@@ -1,316 +1,343 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, View, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, View } from 'react-native';
+import Svg, {
+  ClipPath,
+  Defs,
+  G,
+  LinearGradient as SvgLinearGradient,
+  Path,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 
-const GRADIENTS = [
-  ['#FF416C', '#FF4B2B'], ['#36D1DC', '#5B86E5'], ['#FDC830', '#F37335'],
-  ['#8E2DE2', '#4A00E0'], ['#00b09b', '#96c93d'], ['#ec008c', '#fc6767'],
-  ['#1FA2FF', '#12D8FA'], ['#f12711', '#f5af19'], ['#654ea3', '#eaafc8'],
-  ['#11998e', '#38ef7d'], ['#ff9966', '#ff5e62'], ['#7F00FF', '#E100FF'],
-  ['#00C9FF', '#92FE9D'], ['#FC466B', '#3F5EFB'], ['#83a4d4', '#b6fbff'], 
-  ['#9CECFB', '#65C7F7'], ['#0052D4', '#4364F7'], ['#56B4D3', '#348AC7'], 
-  ['#114357', '#F29492'], ['#FF512F', '#DD2476'], ['#FF5F6D', '#FFC371'], 
-  ['#16A085', '#F4D03F'], ['#DCE35B', '#45B649'], ['#e65c00', '#F9D423'], 
-  ['#ED213A', '#93291E'], ['#000000', '#e74c3c'], ['#DA4453', '#89216B'], 
-  ['#a8c0ff', '#3f2b96'], ['#4CB8C4', '#3CD3AD'], ['#1A2980', '#26D0CE'], 
-  ['#FF0099', '#493240'], ['#8E0E00', '#1F1C18'], ['#ee0979', '#ff6a00'],
-  ['#F09819', '#EDDE5D'], ['#8A2387', '#E94057'], ['#2193b0', '#6dd5ed'],
-  ['#FF006E', '#8338EC'], ['#3A86FF', '#FB5607'], ['#FFBE0B', '#FB5607'],
-  ['#06FFA5', '#00D084'], ['#00D4FF', '#0099FF'], ['#FF385A', '#FFB700'],
-  ['#667eea', '#764ba2'], ['#f093fb', '#f5576c'], ['#4facfe', '#00f2fe'],
-  ['#43e97b', '#38f9d7'], ['#fa709a', '#fee140'], ['#30cfd0', '#330867'],
-  ['#a8edea', '#fed6e3'], ['#ff9a56', '#ff6a88'], ['#2e2e78', '#662d91'],
-  ['#00c6ff', '#0072ff'], ['#00b4db', '#0083b0'], ['#ff6e7f', '#bfe9ff'],
-  ['#ffecd2', '#fcb69f'], ['#eb3349', '#f45c43'], ['#FFB347', '#FF6347'], 
-  ['#87CEEB', '#4169E1'], ['#FF1493', '#FF69B4'], ['#00CED1', '#20B2AA'], 
-  ['#FFD700', '#FFA500'], ['#98FB98', '#32CD32'], ['#DDA0DD', '#DA70D6'], 
-  ['#F08080', '#CD5C5C'], ['#20B2AA', '#3CB371'], ['#FF8C00', '#FF4500'], 
-  ['#9932CC', '#8A2BE2']
+const VIEWBOX = 100;
+const CENTER = VIEWBOX / 2;
+const POINTS = 48;
+const BASE_RADIUS = 34;
+const CYCLE_MS = 1040;
+const SHIMMER_MS = 760;
+const BREATH_MS = 1350;
+const CONTINUOUS_ROTATION_MS = 5200;
+const CHANGE_ROTATION_DEG = 42;
+const SPLINE_TENSION = 0.13;
+const ANGLE_OPTIONS = [18, 34, 52, 76, 98, 124, 146, 166, 194, 218, 244, 278, 304, 332];
+
+const clamp01 = (value) => Math.max(0, Math.min(1, value));
+const lerp = (from, to, t) => from + (to - from) * t;
+const clockwiseLerpAngle = (from, to, t) => {
+  const delta = ((to - from) % 360 + 360) % 360;
+  return from + delta * t;
+};
+const smootherStep = (value) => {
+  const t = clamp01(value);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
+
+const wave = (angle, lobes, phase = 0, power = 1.6) => (
+  Math.pow((Math.cos((angle - phase) * lobes) + 1) / 2, power)
+);
+
+const makeRadii = (factory) => (
+  Array.from({ length: POINTS }, (_, index) => {
+    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / POINTS;
+    return Math.max(0.62, Math.min(1.08, factory(angle, index)));
+  })
+);
+
+const SHAPES = [
+  { id: 'orb', radii: makeRadii((angle) => 0.92 + Math.sin(angle * 2.2) * 0.012), rotation: 0, sx: 1, sy: 1 },
+  { id: 'soft_triangle', radii: makeRadii((angle) => 0.75 + wave(angle, 3, -Math.PI / 2, 1.08) * 0.21), rotation: 10, sx: 1.03, sy: 0.98 },
+  { id: 'rounded_star', radii: makeRadii((angle) => 0.75 + wave(angle, 5, -0.12, 1.02) * 0.2 + wave(angle, 10, -0.12, 1.8) * 0.018), rotation: -12, sx: 1, sy: 1 },
+  { id: 'soft_spark', radii: makeRadii((angle) => 0.73 + wave(angle, 4, Math.PI / 4, 1.12) * 0.23), rotation: 22, sx: 0.99, sy: 1.02 },
+  { id: 'liquid_diamond', radii: makeRadii((angle) => 0.73 + wave(angle, 4, 0, 1.08) * 0.23), rotation: 45, sx: 1.04, sy: 0.98 },
+  { id: 'petal', radii: makeRadii((angle) => 0.76 + wave(angle, 2, Math.PI / 5, 1.22) * 0.21 + Math.sin(angle + 0.8) * 0.026), rotation: -26, sx: 1.1, sy: 0.92 },
+  { id: 'drop', radii: makeRadii((angle) => 0.77 + wave(angle, 1, -Math.PI / 2, 1.32) * 0.2 - wave(angle, 1, Math.PI / 2, 1.72) * 0.075), rotation: 18, sx: 0.97, sy: 1.11 },
+  { id: 'squircle', radii: makeRadii((angle) => 0.8 + wave(angle, 4, Math.PI / 4, 0.9) * 0.14), rotation: 4, sx: 1.01, sy: 1.01 },
+  { id: 'smooth_hex', radii: makeRadii((angle) => 0.74 + wave(angle, 6, Math.PI / 6, 1.05) * 0.18), rotation: -20, sx: 1.04, sy: 0.98 },
+  { id: 'comet', radii: makeRadii((angle) => 0.76 + wave(angle, 1, 0.15, 1.24) * 0.22 + Math.sin(angle * 3 - 0.6) * 0.02), rotation: 36, sx: 1.1, sy: 0.93 },
+  { id: 'clover', radii: makeRadii((angle) => 0.72 + wave(angle, 3, Math.PI / 2, 1.1) * 0.18 + wave(angle, 6, 0, 1.6) * 0.05), rotation: -34, sx: 0.98, sy: 1.04 },
+  { id: 'soft_starburst', radii: makeRadii((angle) => 0.73 + wave(angle, 7, 0.12, 1.08) * 0.18), rotation: 14, sx: 1, sy: 1 },
+  { id: 'shield', radii: makeRadii((angle) => 0.77 + wave(angle, 3, -Math.PI / 2, 0.96) * 0.16 - wave(angle, 1, Math.PI / 2, 1.5) * 0.06), rotation: 0, sx: 0.98, sy: 1.08 },
+  { id: 'ribbon', radii: makeRadii((angle) => 0.74 + wave(angle, 2, 0.4, 1.18) * 0.22 + Math.sin(angle * 4) * 0.016), rotation: 30, sx: 1.12, sy: 0.9 },
 ];
 
-const ANGLES = [
-  { id: 'tl-br', start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
-  { id: 'tr-bl', start: { x: 1, y: 0 }, end: { x: 0, y: 1 } },
-  { id: 'bl-tr', start: { x: 0, y: 1 }, end: { x: 1, y: 0 } },
-  { id: 'br-tl', start: { x: 1, y: 1 }, end: { x: 0, y: 0 } },
-  { id: 't-b',   start: { x: 0.5, y: 0 }, end: { x: 0.5, y: 1 } },
-  { id: 'l-r',   start: { x: 0, y: 0.5 }, end: { x: 1, y: 0.5 } },
-  { id: 'tl-br-45', start: { x: 0.1, y: 0.1 }, end: { x: 0.9, y: 0.9 } },
-  { id: 'tr-bl-45', start: { x: 0.9, y: 0.1 }, end: { x: 0.1, y: 0.9 } },
-  { id: 'radial-tl', start: { x: 0, y: 0 }, end: { x: 0.5, y: 0.5 } },
-  { id: 'radial-br', start: { x: 1, y: 1 }, end: { x: 0.5, y: 0.5 } },
-  { id: 'horizontal-soft', start: { x: 0.2, y: 0.5 }, end: { x: 0.8, y: 0.5 } },
-  { id: 'vertical-soft', start: { x: 0.5, y: 0.2 }, end: { x: 0.5, y: 0.8 } },
-  { id: 'circular', start: { x: 0.5, y: 0.5 }, end: { x: 0, y: 0 } },
+const PALETTES = [
+  ['#38BDF8', '#2DD4BF', '#FB7185'],
+  ['#8B5CF6', '#EC4899', '#FDE047'],
+  ['#A7F3D0', '#22D3EE', '#3B82F6'],
+  ['#FF6B6B', '#F59E0B', '#FFD166'],
+  ['#10B981', '#84CC16', '#0EA5E9'],
+  ['#EF4444', '#F97316', '#06B6D4'],
+  ['#6366F1', '#D946EF', '#FACC15'],
+  ['#14B8A6', '#0EA5E9', '#F472B6'],
+  ['#F43F5E', '#FB923C', '#22C55E'],
+  ['#06B6D4', '#A855F7', '#F97316'],
 ];
 
-class SmartRandomizer {
-  constructor(items, idKey = null, maxRecentMemory = 6) {
-    this.allItems = items;
-    this.idKey = idKey;
-    this.recentHistory = [];
-    this.maxMemory = maxRecentMemory;
-    this.shuffledPool = [];
-    this.refillPool();
+const hexToRgb = (hex) => {
+  const value = hex.replace('#', '');
+  const normalized = value.length === 3
+    ? value.split('').map((item) => item + item).join('')
+    : value;
+
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+};
+
+const rgbToHex = ({ r, g, b }) => (
+  `#${[r, g, b].map((value) => Math.round(value).toString(16).padStart(2, '0')).join('')}`
+);
+
+const mixHex = (from, to, t) => {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+
+  return rgbToHex({
+    r: lerp(a.r, b.r, t),
+    g: lerp(a.g, b.g, t),
+    b: lerp(a.b, b.b, t),
+  });
+};
+
+const mixPalette = (from, to, t) => from.map((color, index) => mixHex(color, to[index], t));
+
+const gradientVector = (angle) => {
+  const radians = (angle * Math.PI) / 180;
+  const dx = Math.cos(radians) * 52;
+  const dy = Math.sin(radians) * 52;
+
+  return {
+    x1: CENTER - dx,
+    y1: CENTER - dy,
+    x2: CENTER + dx,
+    y2: CENTER + dy,
+  };
+};
+
+const pickRandomIndex = (length, previousIndex) => {
+  if (length <= 1) return 0;
+
+  let index = previousIndex;
+  let attempts = 0;
+
+  while (index === previousIndex && attempts < 8) {
+    index = Math.floor(Math.random() * length);
+    attempts += 1;
   }
 
-  refillPool() {
-    this.shuffledPool = [...this.allItems];
-    for (let i = this.shuffledPool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [this.shuffledPool[i], this.shuffledPool[j]] = [this.shuffledPool[j], this.shuffledPool[i]];
-    }
+  return index === previousIndex ? (previousIndex + 1) % length : index;
+};
+
+const createRandomFrame = (previousFrame = null) => {
+  const shapeIndex = pickRandomIndex(SHAPES.length, previousFrame?.shapeIndex);
+  const paletteIndex = pickRandomIndex(PALETTES.length, previousFrame?.paletteIndex);
+  const angleIndex = pickRandomIndex(ANGLE_OPTIONS.length, previousFrame?.angleIndex);
+
+  return {
+    shapeIndex,
+    paletteIndex,
+    angleIndex,
+    shape: SHAPES[shapeIndex],
+    palette: PALETTES[paletteIndex],
+    angle: ANGLE_OPTIONS[angleIndex],
+  };
+};
+
+const createFrameQueue = (length = 4) => {
+  const queue = [];
+
+  while (queue.length < length) {
+    queue.push(createRandomFrame(queue[queue.length - 1]));
   }
 
-  getItemId(item) {
-    return this.idKey ? item[this.idKey] : item;
+  return queue;
+};
+
+const ensureFrameQueue = (queue, requiredIndex) => {
+  while (queue.length <= requiredIndex) {
+    queue.push(createRandomFrame(queue[queue.length - 1]));
   }
+};
 
-  isInRecent(item) {
-    const itemId = this.getItemId(item);
-    return this.recentHistory.some(historyItem => 
-      this.getItemId(historyItem) === itemId
-    );
-  }
+const buildPath = (fromFrame, toFrame, morphT, breathT, rotationOffset) => {
+  const pulse = 0.985 + breathT * 0.035;
+  const rotation = rotationOffset + lerp(fromFrame.shape.rotation, toFrame.shape.rotation, morphT);
+  const radians = (rotation * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const sx = lerp(fromFrame.shape.sx, toFrame.shape.sx, morphT);
+  const sy = lerp(fromFrame.shape.sy, toFrame.shape.sy, morphT);
 
-  next() {
-    let validItem = null;
-    let attempts = 0;
-    const maxAttempts = this.shuffledPool.length;
+  const points = fromFrame.shape.radii.map((fromRadius, index) => {
+    const toRadius = toFrame.shape.radii[index];
+    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / POINTS;
+    const radius = lerp(fromRadius, toRadius, morphT) * BASE_RADIUS * pulse;
+    const rawX = Math.cos(angle) * radius * sx;
+    const rawY = Math.sin(angle) * radius * sy;
 
-    while (attempts < maxAttempts) {
-      if (this.shuffledPool.length === 0) {
-        this.refillPool();
-      }
-
-      const candidate = this.shuffledPool.shift();
-      
-      if (!this.isInRecent(candidate)) {
-        validItem = candidate;
-        break;
-      }
-      attempts++;
-    }
-
-    if (!validItem && this.shuffledPool.length > 0) {
-      validItem = this.shuffledPool.shift();
-    }
-
-    if (!validItem) {
-      this.refillPool();
-      validItem = this.shuffledPool.shift();
-    }
-
-    this.recentHistory.push(validItem);
-    if (this.recentHistory.length > this.maxMemory) {
-      this.recentHistory.shift();
-    }
-
-    return validItem;
-  }
-}
-
-const MorphingLoader = ({ size = 60, style }) => {
-  const s = size / 2;
-
-  const SHAPES = [
-    { id: 'perfect_circle',       tl: s,        tr: s,        br: s,        bl: s,        r1: 0,   r2: 0 },
-    { id: 'soft_8_pointed_star',  tl: s * 0.4,  tr: s * 0.4,  br: s * 0.4,  bl: s * 0.4,  r1: 0,   r2: 45 },
-    { id: 'organic_blob_smooth',  tl: s,        tr: s * 0.5,  br: s,        bl: s * 0.5,  r1: 15,  r2: 75 },
-    { id: 'smooth_teardrop',      tl: s * 0.3,  tr: s,        br: s,        bl: s,        r1: -30, r2: 60 },
-    { id: 'elegant_leaf',         tl: s,        tr: s * 0.35, br: s,        bl: s * 0.35, r1: 0,   r2: 90 },
-    { id: 'soft_squarcle',        tl: s * 0.65, tr: s * 0.65, br: s * 0.65, bl: s * 0.65, r1: 0,   r2: 45 },
-    { id: 'asymmetric_oval',      tl: s,        tr: s * 0.7,  br: s,        bl: s * 0.7,  r1: 10,  r2: 100 },
-    { id: 'soft_mandala_base',    tl: s * 0.5,  tr: s * 0.95, br: s * 0.5,  bl: s * 0.95, r1: 0,   r2: 45 },
-    { id: 'curved_petal',         tl: s * 0.35, tr: s,        br: s * 0.35, bl: s,        r1: 15,  r2: 75 },
-    { id: 'magic_crystal_blob',   tl: s * 0.75, tr: s * 0.35, br: s * 0.75, bl: s * 0.35, r1: -25, r2: 65 }
-  ];
-
-  const progress = useRef(new Animated.Value(0)).current;
-  const entranceAnim = useRef(new Animated.Value(0)).current;
-  const rotationAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
-  const isMounted = useRef(true);
-  const [tick, setTick] = useState(0);
-
-  const shapeGen = useRef(new SmartRandomizer(SHAPES, 'id', 7)).current;
-  const colorGen = useRef(new SmartRandomizer(GRADIENTS, null, 15)).current;
-  const angleGen = useRef(new SmartRandomizer(ANGLES, 'id', 8)).current;
-
-  const data = useRef({
-    slot0: { shape: shapeGen.next(), color: colorGen.next(), angle: angleGen.next(), baseRot: 0 },
-    slot1: { shape: shapeGen.next(), color: colorGen.next(), angle: angleGen.next(), baseRot: 135 },
-    goingToOne: true 
-  }).current;
-
-  useEffect(() => {
-    isMounted.current = true;
-
-    const entranceSequence = Animated.sequence([
-      Animated.delay(250),
-      Animated.spring(entranceAnim, {
-        toValue: 1,
-        friction: 7.5,
-        tension: 55,
-        useNativeDriver: false,
-      })
-    ]);
-    entranceSequence.start();
-
-    const rotationLoop = Animated.loop(
-      Animated.timing(rotationAnim, {
-        toValue: 1,
-        duration: 8000,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      })
-    );
-    rotationLoop.start();
-
-    const pulseLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 2800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0,
-          duration: 2800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-        })
-      ])
-    );
-    pulseLoop.start();
-
-    return () => {
-      isMounted.current = false;
-      entranceSequence.stop();
-      rotationLoop.stop();
-      pulseLoop.stop();
+    return {
+      x: CENTER + rawX * cos - rawY * sin,
+      y: CENTER + rawX * sin + rawY * cos,
     };
-  }, [entranceAnim, rotationAnim, pulseAnim]);
+  });
 
-  useEffect(() => {
-    const toValue = data.goingToOne ? 1 : 0;
-    
-    const anim = Animated.timing(progress, {
-      toValue,
-      duration: 1200,
-      delay: 160,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: false,
-    });
+  return points.reduce((path, point, index) => {
+    if (index === 0) return `M ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
 
-    anim.start(({ finished }) => {
-      if (finished && isMounted.current) {
-        if (data.goingToOne) {
-          data.slot0.shape = shapeGen.next();
-          data.slot0.color = colorGen.next();
-          data.slot0.angle = angleGen.next();
-          data.slot0.baseRot = data.slot1.baseRot + 135;
-          data.goingToOne = false;
-        } else {
-          data.slot1.shape = shapeGen.next();
-          data.slot1.color = colorGen.next();
-          data.slot1.angle = angleGen.next();
-          data.slot1.baseRot = data.slot0.baseRot + 135;
-          data.goingToOne = true;
-        }
-        setTick(t => t + 1); 
-      }
-    });
+    const prev = points[index - 1];
+    const prevPrev = points[(index - 2 + POINTS) % POINTS];
+    const next = points[(index + 1) % POINTS];
+    const c1 = {
+      x: prev.x + (point.x - prevPrev.x) * SPLINE_TENSION,
+      y: prev.y + (point.y - prevPrev.y) * SPLINE_TENSION,
+    };
+    const c2 = {
+      x: point.x - (next.x - prev.x) * SPLINE_TENSION,
+      y: point.y - (next.y - prev.y) * SPLINE_TENSION,
+    };
 
-    return () => anim.stop();
-  }, [tick, progress, shapeGen, colorGen, angleGen, data]);
+    return `${path} C ${c1.x.toFixed(2)} ${c1.y.toFixed(2)}, ${c2.x.toFixed(2)} ${c2.y.toFixed(2)}, ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+  }, '') + ` C ${(
+    points[POINTS - 1].x + (points[0].x - points[POINTS - 2].x) * SPLINE_TENSION
+  ).toFixed(2)} ${(
+    points[POINTS - 1].y + (points[0].y - points[POINTS - 2].y) * SPLINE_TENSION
+  ).toFixed(2)}, ${(
+    points[0].x - (points[1].x - points[POINTS - 1].x) * SPLINE_TENSION
+  ).toFixed(2)} ${(
+    points[0].y - (points[1].y - points[POINTS - 1].y) * SPLINE_TENSION
+  ).toFixed(2)}, ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)} Z`;
+};
 
-  const tl = progress.interpolate({ inputRange: [0, 1], outputRange: [data.slot0.shape.tl, data.slot1.shape.tl] });
-  const tr = progress.interpolate({ inputRange: [0, 1], outputRange: [data.slot0.shape.tr, data.slot1.shape.tr] });
-  const br = progress.interpolate({ inputRange: [0, 1], outputRange: [data.slot0.shape.br, data.slot1.shape.br] });
-  const bl = progress.interpolate({ inputRange: [0, 1], outputRange: [data.slot0.shape.bl, data.slot1.shape.bl] });
+const createRenderState = (elapsedMs = 0, frameQueue) => {
+  const frameIndex = Math.floor(elapsedMs / CYCLE_MS);
+  ensureFrameQueue(frameQueue, frameIndex + 1);
 
-  const rot1 = progress.interpolate({ inputRange: [0, 1], outputRange: [`${data.slot0.baseRot + data.slot0.shape.r1}deg`, `${data.slot1.baseRot + data.slot1.shape.r1}deg`] });
-  const rot2 = progress.interpolate({ inputRange: [0, 1], outputRange: [`${data.slot0.baseRot + data.slot0.shape.r2}deg`, `${data.slot1.baseRot + data.slot1.shape.r2}deg`] });
-
-  const negRot1 = progress.interpolate({ inputRange: [0, 1], outputRange: [`${-(data.slot0.baseRot + data.slot0.shape.r1)}deg`, `${-(data.slot1.baseRot + data.slot1.shape.r1)}deg`] });
-  const negRot2 = progress.interpolate({ inputRange: [0, 1], outputRange: [`${-(data.slot0.baseRot + data.slot0.shape.r2)}deg`, `${-(data.slot1.baseRot + data.slot1.shape.r2)}deg`] });
-
-  const scale = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.62, 1] });
-  const rotation = rotationAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const pulse = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1.07] });
-
-  const renderLayer = (rotate, negRotate) => (
-    <Animated.View
-      style={{
-        position: 'absolute',
-        width: size,
-        height: size,
-        borderTopLeftRadius: tl,
-        borderTopRightRadius: tr,
-        borderBottomRightRadius: br,
-        borderBottomLeftRadius: bl,
-        overflow: 'hidden',
-        transform: [{ rotate }],
-      }}
-    >
-      <Animated.View
-        style={{
-          width: size * 1.5,
-          height: size * 1.5,
-          top: -size * 0.25,
-          left: -size * 0.25,
-          transform: [{ rotate: negRotate }], 
-        }}
-      >
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: 1 }]}>
-          <LinearGradient 
-            colors={data.slot0.color} 
-            start={data.slot0.angle.start} 
-            end={data.slot0.angle.end} 
-            style={StyleSheet.absoluteFill} 
-          />
-        </Animated.View>
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
-          <LinearGradient 
-            colors={data.slot1.color} 
-            start={data.slot1.angle.start} 
-            end={data.slot1.angle.end} 
-            style={StyleSheet.absoluteFill} 
-          />
-        </Animated.View>
-      </Animated.View>
-    </Animated.View>
+  const rawMorphT = (elapsedMs % CYCLE_MS) / CYCLE_MS;
+  const morphT = smootherStep(rawMorphT);
+  const colorT = smootherStep(clamp01(rawMorphT * 1.18 - 0.06));
+  const breathT = (Math.sin((elapsedMs / BREATH_MS) * Math.PI * 2) + 1) / 2;
+  const shimmerT = (elapsedMs % SHIMMER_MS) / SHIMMER_MS;
+  const fromFrame = frameQueue[frameIndex];
+  const toFrame = frameQueue[frameIndex + 1];
+  const continuousRotation = (elapsedMs / CONTINUOUS_ROTATION_MS) * 360;
+  const transitionRotation = (frameIndex + morphT) * CHANGE_ROTATION_DEG;
+  const rotationOffset = continuousRotation + transitionRotation;
+  const gradient = gradientVector(
+    clockwiseLerpAngle(fromFrame.angle, toFrame.angle, colorT) + continuousRotation * 0.42
   );
 
+  return {
+    path: buildPath(fromFrame, toFrame, morphT, breathT, rotationOffset),
+    colors: mixPalette(fromFrame.palette, toFrame.palette, colorT),
+    gradient,
+    shimmerX: lerp(-82, 120, shimmerT),
+    shimmerOpacity: lerp(0.2, 0.5, smootherStep(1 - Math.abs(shimmerT - 0.5) * 2)),
+    scale: 0.986 + breathT * 0.04,
+  };
+};
+
+const MorphingLoader = ({ size = 60, style }) => {
+  const resolvedSize = Math.max(18, Number(size) || 60);
+  const isTiny = resolvedSize < 38;
+  const ids = useRef({
+    gradient: `morphGradient${Math.random().toString(36).slice(2)}`,
+    shine: `morphShine${Math.random().toString(36).slice(2)}`,
+    clip: `morphClip${Math.random().toString(36).slice(2)}`,
+  }).current;
+  const startedAt = useRef(Date.now());
+  const frameRef = useRef(null);
+  const frameQueue = useRef(createFrameQueue()).current;
+  const [renderState, setRenderState] = useState(() => createRenderState(0, frameQueue));
+
+  useEffect(() => {
+    const animate = () => {
+      setRenderState(createRenderState(Date.now() - startedAt.current, frameQueue));
+      frameRef.current = requestAnimationFrame(animate);
+    };
+
+    frameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [frameQueue]);
+
   return (
-    <View style={[styles.container, style]}>
-      <Animated.View 
-        style={{ 
-          width: size, 
-          height: size, 
-          opacity: entranceAnim,
-          transform: [
-            { scale: entranceAnim },
-            { scale },
-            { scaleX: pulse },
-            { scaleY: pulse },
-            { rotate: rotation }
-          ] 
-        }}
-      >
-        {renderLayer(rot1, negRot1)}
-        {renderLayer(rot2, negRot2)}
-      </Animated.View>
+    <View
+      pointerEvents="none"
+      accessible={false}
+      style={[
+        styles.container,
+        {
+          width: resolvedSize,
+          height: resolvedSize,
+          transform: [{ scale: renderState.scale }],
+        },
+        style,
+      ]}
+    >
+      <Svg width={resolvedSize} height={resolvedSize} viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}>
+        <Defs>
+          <SvgLinearGradient
+            id={ids.gradient}
+            x1={renderState.gradient.x1}
+            y1={renderState.gradient.y1}
+            x2={renderState.gradient.x2}
+            y2={renderState.gradient.y2}
+            gradientUnits="userSpaceOnUse"
+          >
+            <Stop offset="0" stopColor={renderState.colors[0]} />
+            <Stop offset="0.52" stopColor={renderState.colors[1]} />
+            <Stop offset="1" stopColor={renderState.colors[2]} />
+          </SvgLinearGradient>
+
+          <SvgLinearGradient
+            id={ids.shine}
+            x1="0"
+            y1="50"
+            x2="36"
+            y2="50"
+            gradientUnits="userSpaceOnUse"
+          >
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
+            <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={isTiny ? 0.36 : 0.66} />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+          </SvgLinearGradient>
+
+          <ClipPath id={ids.clip}>
+            <Path d={renderState.path} />
+          </ClipPath>
+        </Defs>
+
+        <Path
+          d={renderState.path}
+          fill={`url(#${ids.gradient})`}
+          stroke="rgba(255,255,255,0.22)"
+          strokeWidth={isTiny ? 0.6 : 0.85}
+        />
+
+        <G clipPath={`url(#${ids.clip})`} opacity={renderState.shimmerOpacity}>
+          <Rect
+            x={renderState.shimmerX}
+            y="-24"
+            width="22"
+            height="148"
+            fill={`url(#${ids.shine})`}
+            transform={`rotate(24 ${renderState.shimmerX + 11} 50)`}
+          />
+        </G>
+      </Svg>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center'
   },
 });
 

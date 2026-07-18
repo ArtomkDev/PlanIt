@@ -18,6 +18,7 @@ import { collection, onSnapshot } from "firebase/firestore";
 import themes from "../../../../config/themes";
 import { t } from "../../../../utils/i18n";
 
+import MorphingLoader from "../../../../components/ui/MorphingLoader";
 import SettingsGroup from "../../../../components/ui/SettingsKit/SettingsGroup";
 import SettingsRow from "../../../../components/ui/SettingsKit/SettingsRow";
 import SettingsActionRow from "../../../../components/ui/SettingsKit/SettingsActionRow";
@@ -131,9 +132,12 @@ export default function DeviceManager() {
   if (loading) {
     return (
       <SettingsScreenLayout>
-        <Text style={[styles.loadingText, { color: themeColors.textColor2 }]}>
-          {t('settings.device_screen.loading', lang)}
-        </Text>
+        <View style={styles.loadingContainer}>
+          <MorphingLoader size={54} />
+          <Text style={[styles.loadingText, { color: themeColors.textColor2 }]}>
+            {t('settings.device_screen.loading', lang)}
+          </Text>
+        </View>
       </SettingsScreenLayout>
     );
   }
@@ -213,9 +217,15 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   loadingText: {
-    padding: 20,
     fontSize: 16,
     textAlign: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    padding: 20,
   },
   currentBadge: {
     paddingVertical: 6,

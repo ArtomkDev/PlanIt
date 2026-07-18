@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Platform, Keyboard
+  Platform, Keyboard
 } from "react-native";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { DownloadSimple, X } from "phosphor-react-native";
@@ -11,6 +11,7 @@ import { sanitizeImportedSchedule } from "../../utils/scheduleValidation";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
+import MorphingLoader from "../ui/MorphingLoader";
 import { triggerHaptic } from "../../utils/haptics";
 
 export default function ImportScheduleModal({ visible, onClose, initialCode = "" }) {
@@ -182,7 +183,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                     onPress={handleFetch}
                     disabled={loading || code.length < 5}
                   >
-                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>{t("share.find_btn", lang)}</Text>}
+                    {loading ? <MorphingLoader size={28} /> : <Text style={styles.primaryBtnText}>{t("share.find_btn", lang)}</Text>}
                   </TouchableOpacity>
                 </>
               ) : (
