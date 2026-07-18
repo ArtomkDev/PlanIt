@@ -21,14 +21,17 @@ import {
   Trash,
   XCircle,
 } from "phosphor-react-native";
+import tinycolor from "tinycolor2";
 
 import CalendarSheet from "../../../components/CalendarSheet/CalendarSheet";
 import AppBlur from "../../../components/ui/AppBlur";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
+import GradientBackground from "../../../components/ui/GradientBackground";
 import SettingsActionRow from "../../../components/ui/SettingsKit/SettingsActionRow";
 import SettingsGroup from "../../../components/ui/SettingsKit/SettingsGroup";
 import SettingsRow from "../../../components/ui/SettingsKit/SettingsRow";
 import { useScheduleData } from "../../../context/ScheduleProvider";
+import { getIconComponent } from "../../../config/subjectIcons";
 import themes from "../../../config/themes";
 import { generateId } from "../../../utils/idGenerator";
 import { t } from "../../../utils/i18n";
@@ -37,15 +40,18 @@ import { addScheduleRecordToMap } from "../../../utils/scheduleRecordMerge";
 import {
   areLessonRefsSame,
   buildScheduleGroupedLessonCatalogue,
+  buildScheduleLessonGroups,
   createTaskDraftFromOccurrence,
   findNextLessonGroupOccurrence,
   formatLessonRefLabel as formatTaskLessonRefLabel,
   formatOccurrenceDayLabel,
   formatOccurrenceTimeLabel,
   getLocalISODate,
+  getTaskAutoLinkMode,
   listLessonGroupOccurrences,
   normalizeLessonRef,
   resolveLessonLinkIds,
+  TASK_AUTO_LINK_MODES,
   uniqueIds,
 } from "../../../utils/taskLessonLinking";
 import LinkEditor from "../../Schedule/components/LessonEditor/forms/LinkForm";
@@ -77,6 +83,45 @@ const formatOccurrenceCount = (count, lang) => (
   t("tasks.editor.occurrences_count", lang).replace("{count}", String(count || 0))
 );
 
+const colorWithAlpha = (color, alpha, fallback) => {
+  const parsed = tinycolor(color);
+  return parsed.isValid()
+    ? parsed.setAlpha(alpha).toRgbString()
+    : fallback;
+};
+
+const getGradientColors = (gradient) => (
+  Array.isArray(gradient?.colors)
+    ? gradient.colors
+      .map((colorStop) => (typeof colorStop === "string" ? colorStop : colorStop?.color))
+      .filter((color) => typeof color === "string" && tinycolor(color).isValid())
+    : []
+);
+
+const getSubjectPalette = (subject, schedule, themeColors) => {
+  const fallbackColor = themeColors.accentColor;
+  const gradients = Array.isArray(schedule?.gradients) ? schedule.gradients : [];
+  const gradient = subject?.typeColor === "gradient" && subject?.colorGradient
+    ? gradients.find((item) => item?.id === subject.colorGradient) || null
+    : null;
+  const gradientColor = getGradientColors(gradient)[0];
+  const rawSubjectColor = themes.accentColors[subject?.color] || subject?.color;
+  const subjectColor = tinycolor(rawSubjectColor).isValid()
+    ? tinycolor(rawSubjectColor).toHexString()
+    : fallbackColor;
+  const accentColor = gradientColor || subjectColor || fallbackColor;
+
+  return {
+    accentColor,
+    gradient,
+    panelBackground: colorWithAlpha(accentColor, 0.12, themeColors.backgroundColor2),
+    panelBorder: colorWithAlpha(accentColor, 0.38, themeColors.borderColor),
+    iconBackground: colorWithAlpha(accentColor, 0.18, themeColors.backgroundColor3),
+    buttonBackground: colorWithAlpha(accentColor, 0.12, themeColors.backgroundColor2),
+    buttonBorder: colorWithAlpha(accentColor, 0.24, themeColors.borderColor),
+  };
+};
+
 const buildTaskEditorSessionKey = (task, sourceScheduleId) => {
   if (task?.id) {
     return JSON.stringify({
@@ -107,9 +152,7 @@ const buildTaskEditorSessionKey = (task, sourceScheduleId) => {
   });
 };
 
-const getInitialTaskEditorScreen = (task) => (
-  task?.id || task?.text || task?.subjectId || task?.lessonRef ? "main" : "lessonPicker"
-);
+const getInitialTaskEditorScreen = () => "main";
 
 const buildDateOnlyLessonRef = (scheduleId, date, subjectId = null) => normalizeLessonRef({
   scheduleId,
@@ -126,6 +169,11 @@ const getLessonRefDate = (lessonRef) => {
 
 const getInitialTaskSubjectId = (task, fallbackScheduleId) => (
   task?.subjectId || normalizeLessonRef(task?.lessonRef, fallbackScheduleId)?.subjectId || null
+);
+
+const getInitialTaskLessonRef = (task, fallbackScheduleId, fallbackSubjectId = null) => (
+  normalizeLessonRef(task?.lessonRef, fallbackScheduleId)
+  || buildDateOnlyLessonRef(fallbackScheduleId, new Date(), task?.subjectId || fallbackSubjectId)
 );
 
 const groupOccurrencesByDay = (schedule, occurrences, lang) => {
@@ -173,12 +221,13 @@ function LessonCatalogueScreen({
   selectedScheduleIds,
   selectedLessonRef,
   onOpenLessonGroup,
-  onSkip,
-  onClear,
+  onDetachLessonOccurrence,
   themeColors,
   lang,
 }) {
   const [query, setQuery] = useState("");
+  const canDetachLessonOccurrence = selectedLessonRef?.lessonIndex !== undefined
+    && selectedLessonRef?.lessonIndex !== null;
   const catalogue = useMemo(() => (
     buildScheduleGroupedLessonCatalogue(schedules, { selectedScheduleIds })
   ), [schedules, selectedScheduleIds]);
@@ -217,9 +266,11 @@ function LessonCatalogueScreen({
   ), [catalogue, lang, normalizedQuery]);
 
   const renderLessonGroup = (record, lessonGroup) => {
-    const selected = selectedLessonRef?.scheduleId === record.scheduleId
-      && selectedLessonRef?.subjectId === lessonGroup.subjectId;
+    const selected = String(selectedLessonRef?.scheduleId || "") === String(record.scheduleId || "")
+      && String(selectedLessonRef?.subjectId || "") === String(lessonGroup.subjectId || "");
     const subtitle = getGroupSubtitle(lessonGroup);
+    const lessonPalette = getSubjectPalette(lessonGroup.subject, record.schedule, themeColors);
+    const LessonIcon = getIconComponent(lessonGroup.subject?.icon) || BookOpen;
 
     return (
       <TouchableOpacity
@@ -229,13 +280,13 @@ function LessonCatalogueScreen({
         style={[
           styles.lessonGroupRow,
           {
-            backgroundColor: selected ? themeColors.accentColor + "14" : themeColors.backgroundColor2,
-            borderColor: selected ? themeColors.accentColor : themeColors.borderColor,
+            backgroundColor: selected ? lessonPalette.panelBackground : themeColors.backgroundColor2,
+            borderColor: selected ? lessonPalette.accentColor : themeColors.borderColor,
           },
         ]}
       >
-        <View style={[styles.lessonGroupIcon, { backgroundColor: themeColors.accentColor + "16" }]}>
-          <BookOpen size={18} color={themeColors.accentColor} weight="bold" />
+        <View style={[styles.lessonGroupIcon, { backgroundColor: lessonPalette.iconBackground }]}>
+          <LessonIcon size={18} color={lessonPalette.accentColor} weight="bold" />
         </View>
         <View style={styles.lessonGroupBody}>
           <Text style={[styles.lessonGroupTitle, { color: themeColors.textColor }]} numberOfLines={1}>
@@ -245,7 +296,7 @@ function LessonCatalogueScreen({
             {[subtitle, formatOccurrenceCount(lessonGroup.occurrenceCount, lang)].filter(Boolean).join(" - ")}
           </Text>
         </View>
-        {selected && <CheckCircle size={21} color={themeColors.accentColor} weight="fill" />}
+        {selected && <CheckCircle size={21} color={lessonPalette.accentColor} weight="fill" />}
       </TouchableOpacity>
     );
   };
@@ -256,27 +307,29 @@ function LessonCatalogueScreen({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <TouchableOpacity
-        activeOpacity={0.76}
-        onPress={onSkip}
-        style={[
-          styles.lessonActionRow,
-          {
-            backgroundColor: themeColors.accentColor + "14",
-            borderColor: themeColors.accentColor + "30",
-          },
-        ]}
-      >
-        <XCircle size={20} color={themeColors.accentColor} weight="bold" />
-        <View style={styles.lessonActionText}>
-          <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
-            {t("tasks.editor.skip_lesson", lang)}
-          </Text>
-          <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
-            {t("tasks.editor.skip_lesson_hint", lang)}
-          </Text>
-        </View>
-      </TouchableOpacity>
+      {canDetachLessonOccurrence && (
+        <TouchableOpacity
+          activeOpacity={0.76}
+          onPress={onDetachLessonOccurrence}
+          style={[
+            styles.lessonActionRow,
+            {
+              backgroundColor: themeColors.accentColor + "14",
+              borderColor: themeColors.accentColor + "30",
+            },
+          ]}
+        >
+          <XCircle size={20} color={themeColors.accentColor} weight="bold" />
+          <View style={styles.lessonActionText}>
+            <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
+              {t("tasks.editor.detach_lesson_occurrence", lang)}
+            </Text>
+            <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+              {t("tasks.editor.detach_lesson_occurrence_hint", lang)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <View style={[styles.lessonSearchBox, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
         <TextInput
@@ -288,30 +341,6 @@ function LessonCatalogueScreen({
           returnKeyType="search"
         />
       </View>
-
-      {!!selectedLessonRef && (
-        <TouchableOpacity
-          activeOpacity={0.76}
-          onPress={onClear}
-          style={[
-            styles.lessonActionRow,
-            {
-              backgroundColor: themeColors.backgroundColor2,
-              borderColor: themeColors.borderColor,
-            },
-          ]}
-        >
-          <XCircle size={20} color={themeColors.textColor2} weight="bold" />
-          <View style={styles.lessonActionText}>
-            <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
-              {t("tasks.editor.no_linked_lesson", lang)}
-            </Text>
-            <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
-              {t("tasks.editor.unlink_lesson_hint", lang)}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
 
       {filteredSections.length === 0 ? (
         <View style={styles.lessonPickerEmpty}>
@@ -359,7 +388,7 @@ function LessonOccurrenceScreen({
   dateFilter,
   onSelectOccurrence,
   onChooseDate,
-  onClear,
+  showQuickActions = true,
   themeColors,
   lang,
 }) {
@@ -391,6 +420,7 @@ function LessonOccurrenceScreen({
 
   const upcomingGroups = groupOccurrencesByDay(schedule, upcomingOccurrences, lang);
   const pastGroups = groupOccurrencesByDay(schedule, pastOccurrences, lang);
+  const lessonGroupPalette = getSubjectPalette(lessonGroup?.subject, schedule, themeColors);
 
   const renderOccurrence = (occurrence) => {
     const draft = createTaskDraftFromOccurrence(schedule, occurrence);
@@ -407,6 +437,7 @@ function LessonOccurrenceScreen({
       occurrence.lessonData?.type || occurrence.subject?.type,
       roomLabel,
     ].filter(Boolean).join(" - ");
+    const occurrencePalette = getSubjectPalette(occurrence.subject || lessonGroup?.subject, schedule, themeColors);
 
     return (
       <TouchableOpacity
@@ -416,22 +447,22 @@ function LessonOccurrenceScreen({
         style={[
           styles.lessonOptionCard,
           {
-            backgroundColor: selected ? themeColors.accentColor + "16" : themeColors.backgroundColor2,
-            borderColor: selected ? themeColors.accentColor : themeColors.borderColor,
+            backgroundColor: selected ? occurrencePalette.panelBackground : themeColors.backgroundColor2,
+            borderColor: selected ? occurrencePalette.accentColor : themeColors.borderColor,
           },
         ]}
       >
-        <View style={[styles.lessonOptionNumber, { backgroundColor: themeColors.accentColor + "16" }]}>
-          <Text style={[styles.lessonOptionNumberText, { color: themeColors.accentColor }]}>
+        <View style={[styles.lessonOptionNumber, { backgroundColor: occurrencePalette.iconBackground }]}>
+          <Text style={[styles.lessonOptionNumberText, { color: occurrencePalette.accentColor }]}>
             {lessonNumber || "-"}
           </Text>
-          <Text style={[styles.lessonOptionNumberLabel, { color: themeColors.accentColor }]} numberOfLines={1}>
+          <Text style={[styles.lessonOptionNumberLabel, { color: occurrencePalette.accentColor }]} numberOfLines={1}>
             {t("tasks.editor.lesson_number_short", lang)}
           </Text>
         </View>
         <View style={styles.lessonOptionBody}>
           <View style={styles.lessonOptionTimeRow}>
-            <Clock size={17} color={themeColors.accentColor} weight="bold" />
+            <Clock size={17} color={occurrencePalette.accentColor} weight="bold" />
             <Text style={[styles.lessonOptionTimeTitle, { color: themeColors.textColor }]} numberOfLines={1}>
               {timeLabel || "--:--"}
             </Text>
@@ -442,7 +473,7 @@ function LessonOccurrenceScreen({
             </Text>
           )}
         </View>
-        {selected && <CheckCircle size={22} color={themeColors.accentColor} weight="fill" />}
+        {selected && <CheckCircle size={22} color={occurrencePalette.accentColor} weight="fill" />}
       </TouchableOpacity>
     );
   };
@@ -483,79 +514,59 @@ function LessonOccurrenceScreen({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.lessonActionsStack}>
-        <TouchableOpacity
-          activeOpacity={0.76}
-          disabled={!nextOccurrence}
-          onPress={() => nextOccurrence && onSelectOccurrence(schedule, nextOccurrence)}
-          style={[
-            styles.lessonActionRow,
-            {
-              backgroundColor: themeColors.accentColor + "15",
-              borderColor: themeColors.accentColor + "35",
-              opacity: nextOccurrence ? 1 : 0.5,
-            },
-          ]}
-        >
-          <CalendarDots size={20} color={themeColors.accentColor} weight="bold" />
-          <View style={styles.lessonActionText}>
-            <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
-              {t("tasks.editor.bind_next_same_lesson", lang)}
-            </Text>
-            <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
-              {nextLabel}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.76}
-          onPress={onChooseDate}
-          style={[
-            styles.lessonActionRow,
-            {
-              backgroundColor: themeColors.backgroundColor2,
-              borderColor: themeColors.borderColor,
-            },
-          ]}
-        >
-          <CalendarDots size={20} color={themeColors.textColor2} weight="bold" />
-          <View style={styles.lessonActionText}>
-            <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
-              {dateFilter
-                ? t("tasks.editor.choose_another_date", lang)
-                : t("tasks.editor.choose_date", lang)}
-            </Text>
-            {!!dateFilter && (
-              <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
-                {formatOccurrenceDayLabel(dateFilter, lang)}
+      {showQuickActions && (
+        <View style={styles.lessonActionsStack}>
+          <TouchableOpacity
+            activeOpacity={0.76}
+            disabled={!nextOccurrence}
+            onPress={() => nextOccurrence && onSelectOccurrence(schedule, nextOccurrence)}
+            style={[
+              styles.lessonActionRow,
+              {
+                backgroundColor: lessonGroupPalette.panelBackground,
+                borderColor: lessonGroupPalette.panelBorder,
+                opacity: nextOccurrence ? 1 : 0.5,
+              },
+            ]}
+          >
+            <CalendarDots size={20} color={lessonGroupPalette.accentColor} weight="bold" />
+            <View style={styles.lessonActionText}>
+              <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
+                {t("tasks.editor.bind_next_same_lesson", lang)}
               </Text>
-            )}
-          </View>
-        </TouchableOpacity>
+              <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+                {nextLabel}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          activeOpacity={0.76}
-          onPress={onClear}
-          style={[
-            styles.lessonActionRow,
-            {
-              backgroundColor: themeColors.backgroundColor2,
-              borderColor: themeColors.borderColor,
-            },
-          ]}
-        >
-          <XCircle size={20} color={themeColors.textColor2} weight="bold" />
-          <View style={styles.lessonActionText}>
-            <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
-              {t("tasks.editor.no_linked_lesson", lang)}
-            </Text>
-            <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
-              {t("tasks.editor.unlink_lesson_hint", lang)}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            activeOpacity={0.76}
+            onPress={onChooseDate}
+            style={[
+              styles.lessonActionRow,
+              {
+                backgroundColor: themeColors.backgroundColor2,
+                borderColor: themeColors.borderColor,
+              },
+            ]}
+          >
+            <CalendarDots size={20} color={lessonGroupPalette.accentColor} weight="bold" />
+            <View style={styles.lessonActionText}>
+              <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
+                {dateFilter
+                  ? t("tasks.editor.choose_another_date", lang)
+                  : t("tasks.editor.choose_date", lang)}
+              </Text>
+              {!!dateFilter && (
+                <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+                  {formatOccurrenceDayLabel(dateFilter, lang)}
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {dateFilter ? (
         occurrences.length === 0 ? (
@@ -648,14 +659,20 @@ export default function TaskEditor({
     Array.isArray(targetSchedule?.subjects) ? targetSchedule.subjects : []
   ), [targetSchedule]);
 
+  const initialSubjectId = getInitialTaskSubjectId(task, targetSchedule?.id);
   const [currentScreen, setCurrentScreen] = useState(() => getInitialTaskEditorScreen(task));
-  const [selectedSubjectId, setSelectedSubjectId] = useState(() => getInitialTaskSubjectId(task, targetSchedule?.id));
+  const [selectedSubjectId, setSelectedSubjectId] = useState(() => initialSubjectId);
   const [text, setText] = useState(task?.text || "");
   const [selectedLinks, setSelectedLinks] = useState(() => sanitizeIdArray(task?.links));
-  const [selectedLessonRef, setSelectedLessonRef] = useState(() => normalizeLessonRef(task?.lessonRef, targetSchedule?.id));
+  const [selectedLessonRef, setSelectedLessonRef] = useState(() => (
+    getInitialTaskLessonRef(task, targetSchedule?.id, initialSubjectId)
+  ));
   const [localLinks, setLocalLinks] = useState(() => deepCloneArray(targetSchedule?.links));
   const [editingLinkId, setEditingLinkId] = useState(null);
   const [selectedLessonGroup, setSelectedLessonGroup] = useState(null);
+  const [lessonPickerMode, setLessonPickerMode] = useState("manual");
+  const [lessonOccurrenceBackScreen, setLessonOccurrenceBackScreen] = useState("lessonPicker");
+  const [lessonOccurrenceQuickActionsVisible, setLessonOccurrenceQuickActionsVisible] = useState(true);
   const [lessonDateFilter, setLessonDateFilter] = useState(null);
   const [lessonCalendarVisible, setLessonCalendarVisible] = useState(false);
   const [lessonCalendarPurpose, setLessonCalendarPurpose] = useState(null);
@@ -687,23 +704,29 @@ export default function TaskEditor({
     if (previousEditorSessionKeyRef.current === editorSessionKey) return;
     previousEditorSessionKeyRef.current = editorSessionKey;
 
-    const nextLessonRef = normalizeLessonRef(task?.lessonRef, sourceSchedule?.id);
-    const nextScheduleId = nextLessonRef?.scheduleId
+    const normalizedTaskLessonRef = normalizeLessonRef(task?.lessonRef, sourceSchedule?.id);
+    const nextScheduleId = normalizedTaskLessonRef?.scheduleId
       || sourceSchedule?.id
       || schedule?.id
       || allSchedules[0]?.id
       || null;
     const nextSchedule = scheduleById.get(nextScheduleId) || sourceSchedule || schedule || allSchedules[0] || null;
+    const nextSubjectId = task?.subjectId || normalizedTaskLessonRef?.subjectId || null;
+    const nextLessonRef = normalizedTaskLessonRef
+      || buildDateOnlyLessonRef(nextSchedule?.id, new Date(), nextSubjectId);
 
     setCurrentScreen(getInitialTaskEditorScreen(task));
     setTargetScheduleId(nextSchedule?.id || null);
-    setSelectedSubjectId(task?.subjectId || nextLessonRef?.subjectId || null);
+    setSelectedSubjectId(nextSubjectId);
     setText(task?.text || "");
     setSelectedLinks(sanitizeIdArray(task?.links));
     setSelectedLessonRef(nextLessonRef);
     setLocalLinks(deepCloneArray(nextSchedule?.links));
     setEditingLinkId(null);
     setSelectedLessonGroup(null);
+    setLessonPickerMode("manual");
+    setLessonOccurrenceBackScreen("lessonPicker");
+    setLessonOccurrenceQuickActionsVisible(true);
     setLessonDateFilter(null);
     setLessonCalendarVisible(false);
     setLessonCalendarPurpose(null);
@@ -712,6 +735,11 @@ export default function TaskEditor({
       handleExpand();
     }
   }, [allSchedules, editorSessionKey, isMinimized, schedule, scheduleById, sourceSchedule, task]);
+
+  useEffect(() => {
+    if (!targetSchedule?.id || selectedLessonRef) return;
+    setSelectedLessonRef(buildDateOnlyLessonRef(targetSchedule.id, new Date(), selectedSubjectId));
+  }, [selectedLessonRef, selectedSubjectId, targetSchedule?.id]);
 
   useEffect(() => {
     if (isMinimized) {
@@ -734,30 +762,63 @@ export default function TaskEditor({
     .map((id) => localLinks.find((link) => link.id === id))
     .filter(Boolean);
   const canSave = text.trim().length > 0;
+  const activeLessonRef = normalizeLessonRef(selectedLessonRef, targetSchedule.id)
+    || buildDateOnlyLessonRef(targetSchedule.id, new Date(), selectedSubjectId);
   const isInitialLessonPicker = currentScreen === "lessonPicker"
     && !task?.id
     && !text.trim()
     && !selectedSubjectId
-    && !selectedLessonRef;
-  const linkedLessonLabel = (() => {
-    const ref = normalizeLessonRef(selectedLessonRef, targetSchedule.id);
-    if (!ref) return "";
+    && !activeLessonRef;
+  const linkedLessonInfo = (() => {
+    const ref = activeLessonRef;
+    if (!ref) return null;
 
     const refSchedule = scheduleById.get(ref.scheduleId) || targetSchedule;
     const refSubjects = Array.isArray(refSchedule?.subjects) ? refSchedule.subjects : [];
     const refSubject = ref.subjectId
-      ? refSubjects.find((subject) => subject.id === ref.subjectId)
+      ? refSubjects.find((subject) => String(subject.id) === String(ref.subjectId))
       : null;
-    const pieces = [];
-
-    if (allSchedules.length > 1) pieces.push(getScheduleName(refSchedule, lang));
-    if (refSubject?.name) pieces.push(refSubject.name);
-
+    const subjectLabel = refSubject?.name
+      || refSubject?.fullName
+      || selectedSubject?.name
+      || selectedSubject?.fullName
+      || t("tasks.editor.no_subject", lang);
+    const scheduleLabel = allSchedules.length > 1 ? getScheduleName(refSchedule, lang) : "";
     const lessonLabel = formatTaskLessonRefLabel(ref, lang);
-    if (lessonLabel) pieces.push(lessonLabel);
 
-    return pieces.join(" - ");
+    return {
+      ref,
+      schedule: refSchedule,
+      scheduleId: ref.scheduleId || refSchedule?.id || targetSchedule.id,
+      subject: refSubject || selectedSubject || null,
+      subjectId: ref.subjectId || refSubject?.id || selectedSubject?.id || null,
+      subjectLabel,
+      scheduleLabel,
+      lessonLabel,
+      fullLabel: [scheduleLabel, subjectLabel, lessonLabel].filter(Boolean).join(" - "),
+    };
   })();
+  const linkedLessonLabel = linkedLessonInfo?.fullLabel || "";
+  const hasLinkedLessonOccurrence = linkedLessonInfo?.ref?.lessonIndex !== undefined
+    && linkedLessonInfo?.ref?.lessonIndex !== null;
+  const linkedLessonGroupTarget = (() => {
+    if (!linkedLessonInfo?.scheduleId || !linkedLessonInfo?.subjectId) return null;
+
+    const refSchedule = scheduleById.get(linkedLessonInfo.scheduleId)
+      || linkedLessonInfo.schedule
+      || targetSchedule;
+    const lessonGroup = buildScheduleLessonGroups(refSchedule)
+      .find((group) => String(group.subjectId) === String(linkedLessonInfo.subjectId));
+
+    return lessonGroup && refSchedule?.id
+      ? { scheduleId: refSchedule.id, lessonGroup }
+      : null;
+  })();
+  const linkedLessonPalette = getSubjectPalette(
+    linkedLessonInfo?.subject,
+    linkedLessonInfo?.schedule,
+    themeColors,
+  );
 
   const getScreenTitle = () => {
     if (currentScreen === "lessonPicker") return t("tasks.editor.choose_lesson", lang);
@@ -776,9 +837,19 @@ export default function TaskEditor({
     }
     if (currentScreen === "lessonOccurrence") {
       setLessonDateFilter(null);
+      if (lessonOccurrenceBackScreen === "main") {
+        setSelectedLessonGroup(null);
+        setCurrentScreen("main");
+        setLessonOccurrenceBackScreen("lessonPicker");
+        setLessonOccurrenceQuickActionsVisible(true);
+        return;
+      }
+
+      setLessonOccurrenceQuickActionsVisible(true);
       setCurrentScreen("lessonPicker");
       return;
     }
+    setLessonPickerMode("manual");
     setCurrentScreen("main");
   };
 
@@ -801,14 +872,15 @@ export default function TaskEditor({
 
     const now = Date.now();
     const taskId = task?.id || generateId();
-    const lessonRef = normalizeLessonRef(selectedLessonRef, targetSchedule.id);
+    const lessonRef = normalizeLessonRef(activeLessonRef, targetSchedule.id)
+      || buildDateOnlyLessonRef(targetSchedule.id, new Date(), resolvedSubjectId);
     const nextTask = {
       ...(task || {}),
       id: taskId,
       subjectId: resolvedSubjectId,
       text: trimmedText,
       links: sanitizeIdArray(selectedLinks),
-      lessonRef: lessonRef || null,
+      lessonRef,
       completed: task?.completed === true,
       createdAt: task?.createdAt || now,
       updatedAt: now,
@@ -888,17 +960,128 @@ export default function TaskEditor({
     setLessonCalendarVisible(false);
     setLessonCalendarPurpose(null);
     mergeDraftLinks(nextSchedule, resolveLessonLinkIds(nextSchedule, {}, subjectId), scheduleChanged);
+    setLessonPickerMode("manual");
     setCurrentScreen("main");
+  };
+
+  const findAutoLessonGroupOccurrence = (nextSchedule, lessonGroup) => {
+    if (!nextSchedule?.id || !lessonGroup?.subjectId) return null;
+
+    const autoLinkMode = getTaskAutoLinkMode(nextSchedule);
+    if (autoLinkMode === TASK_AUTO_LINK_MODES.OFF) return null;
+
+    const today = new Date();
+    if (autoLinkMode === TASK_AUTO_LINK_MODES.SELECTED) {
+      const todayOccurrences = listLessonGroupOccurrences(nextSchedule, lessonGroup, {
+        date: today,
+        maxOccurrences: Number.POSITIVE_INFINITY,
+      });
+      const nowTime = Date.now();
+      const todayOccurrence = todayOccurrences.find((occurrence) => getOccurrenceEndTime(occurrence) >= nowTime)
+        || todayOccurrences[0]
+        || null;
+
+      if (todayOccurrence) return todayOccurrence;
+    }
+
+    return findNextLessonGroupOccurrence(nextSchedule, lessonGroup, today);
+  };
+
+  const applyAutoLessonGroupDraft = (record, lessonGroup) => {
+    const nextSchedule = scheduleById.get(record?.scheduleId) || record?.schedule || targetSchedule;
+    if (!nextSchedule?.id || !lessonGroup?.subjectId) return;
+
+    const occurrence = findAutoLessonGroupOccurrence(nextSchedule, lessonGroup);
+    const draft = occurrence ? createTaskDraftFromOccurrence(nextSchedule, occurrence) : null;
+
+    if (draft?.lessonRef) {
+      applyLessonDraft(nextSchedule, draft);
+    } else {
+      const scheduleChanged = nextSchedule.id !== targetSchedule.id;
+      const lessonDate = getLessonRefDate(activeLessonRef) || new Date();
+      const lessonRef = buildDateOnlyLessonRef(nextSchedule.id, lessonDate, lessonGroup.subjectId);
+      setTargetScheduleId(nextSchedule.id);
+      setSelectedSubjectId(lessonGroup.subjectId);
+      setSelectedLessonRef(lessonRef);
+      mergeDraftLinks(nextSchedule, resolveLessonLinkIds(nextSchedule, {}, lessonGroup.subjectId), scheduleChanged);
+    }
+
+    setSelectedLessonGroup(null);
+    setLessonDateFilter(null);
+    setLessonCalendarPurpose(null);
+    setLessonCalendarVisible(false);
+    setLessonPickerMode("manual");
+    setLessonOccurrenceBackScreen("lessonPicker");
+    setCurrentScreen("main");
+  };
+
+  const openAutoLessonPicker = () => {
+    setSelectedLessonGroup(null);
+    setLessonDateFilter(null);
+    setLessonCalendarPurpose(null);
+    setLessonOccurrenceQuickActionsVisible(true);
+    setLessonPickerMode("auto");
+    setCurrentScreen("lessonPicker");
+  };
+
+  const detachLessonOccurrence = () => {
+    const ref = normalizeLessonRef(activeLessonRef, targetSchedule.id);
+    const nextSchedule = scheduleById.get(ref?.scheduleId) || targetSchedule;
+    const lessonDate = getLessonRefDate(ref) || new Date();
+
+    applyDateOnlyDraft(nextSchedule, lessonDate);
   };
 
   const openTaskDateCalendar = () => {
     setSelectedLessonGroup(null);
     setLessonDateFilter(null);
     setLessonCalendarPurpose("taskDate");
+    setLessonOccurrenceBackScreen("main");
+    setLessonOccurrenceQuickActionsVisible(true);
+    setLessonPickerMode("manual");
     setLessonCalendarVisible(true);
   };
 
   const openLessonGroupDateCalendar = () => {
+    setLessonCalendarPurpose("lessonGroupDate");
+    setLessonCalendarVisible(true);
+  };
+
+  const openLinkedSubjectOccurrencePicker = () => {
+    if (!linkedLessonGroupTarget?.lessonGroup) {
+      setLessonPickerMode("manual");
+      setLessonOccurrenceQuickActionsVisible(true);
+      setCurrentScreen("lessonPicker");
+      return;
+    }
+
+    setSelectedLessonGroup({
+      scheduleId: linkedLessonGroupTarget.scheduleId,
+      lessonGroup: linkedLessonGroupTarget.lessonGroup,
+    });
+    setLessonOccurrenceBackScreen("main");
+    setLessonDateFilter(null);
+    setLessonCalendarPurpose(null);
+    setLessonCalendarVisible(false);
+    setLessonOccurrenceQuickActionsVisible(false);
+    setCurrentScreen("lessonOccurrence");
+  };
+
+  const openLinkedSubjectDateCalendar = () => {
+    if (!linkedLessonGroupTarget?.lessonGroup) {
+      setLessonPickerMode("manual");
+      setLessonOccurrenceQuickActionsVisible(true);
+      setCurrentScreen("lessonPicker");
+      return;
+    }
+
+    setSelectedLessonGroup({
+      scheduleId: linkedLessonGroupTarget.scheduleId,
+      lessonGroup: linkedLessonGroupTarget.lessonGroup,
+    });
+    setLessonOccurrenceBackScreen("main");
+    setLessonOccurrenceQuickActionsVisible(true);
+    setLessonDateFilter(null);
     setLessonCalendarPurpose("lessonGroupDate");
     setLessonCalendarVisible(true);
   };
@@ -910,21 +1093,23 @@ export default function TaskEditor({
     applyLessonDraft(occurrenceSchedule, draft);
     setLessonDateFilter(null);
     setLessonCalendarPurpose(null);
-    setCurrentScreen("main");
-  };
-
-  const handleClearLesson = () => {
-    setSelectedLessonRef(null);
-    setSelectedSubjectId(null);
-    setLessonDateFilter(null);
+    setLessonPickerMode("manual");
+    setLessonOccurrenceQuickActionsVisible(true);
     setCurrentScreen("main");
   };
 
   const handleOpenLessonGroup = (record, lessonGroup) => {
+    if (lessonPickerMode === "auto") {
+      applyAutoLessonGroupDraft(record, lessonGroup);
+      return;
+    }
+
     setSelectedLessonGroup({
       scheduleId: record.scheduleId,
       lessonGroup,
     });
+    setLessonOccurrenceBackScreen("lessonPicker");
+    setLessonOccurrenceQuickActionsVisible(true);
     setSelectedSubjectId(lessonGroup?.subjectId || null);
     setLessonDateFilter(null);
     setCurrentScreen("lessonOccurrence");
@@ -1008,6 +1193,193 @@ export default function TaskEditor({
     return t("tasks.editor.links_count", lang).replace("{count}", String(selectedLinkObjects.length));
   };
 
+  const renderLessonQuickButton = ({
+    label,
+    onPress,
+    primary = false,
+    icon: Icon = CalendarDots,
+    style,
+  }) => {
+    const actionAccent = linkedLessonInfo ? linkedLessonPalette.accentColor : themeColors.accentColor;
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.76}
+        onPress={onPress}
+        style={[
+          styles.lessonQuickButton,
+          primary && styles.lessonQuickButtonPrimary,
+          style,
+          {
+            backgroundColor: primary
+              ? actionAccent
+              : linkedLessonInfo
+                ? linkedLessonPalette.buttonBackground
+                : themeColors.backgroundColor2,
+            borderColor: primary
+              ? actionAccent
+              : linkedLessonInfo
+                ? linkedLessonPalette.buttonBorder
+                : themeColors.borderColor,
+          },
+        ]}
+      >
+        <Icon
+          size={18}
+          color={primary ? "#fff" : actionAccent}
+          weight="bold"
+        />
+        <Text
+          style={[
+            styles.lessonQuickButtonText,
+            { color: primary ? "#fff" : themeColors.textColor },
+          ]}
+          numberOfLines={2}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderLessonLinkMeta = () => {
+    if (!linkedLessonInfo) {
+      return (
+        <Text style={[styles.lessonLinkMeta, { color: themeColors.textColor2 }]} numberOfLines={2}>
+          {t("tasks.editor.linked_lesson_hint", lang)}
+        </Text>
+      );
+    }
+
+    const scheduleColor = resolveScheduleColor(linkedLessonInfo.schedule, linkedLessonPalette.accentColor);
+
+    return (
+      <View style={styles.lessonLinkMetaRow}>
+        {!!linkedLessonInfo.scheduleLabel && (
+          <View
+            style={[
+              styles.lessonScheduleBadge,
+              {
+                backgroundColor: colorWithAlpha(scheduleColor, 0.14, themeColors.backgroundColor2),
+                borderColor: colorWithAlpha(scheduleColor, 0.3, themeColors.borderColor),
+              },
+            ]}
+          >
+            <View style={[styles.lessonScheduleDot, { backgroundColor: scheduleColor }]} />
+            <Text style={[styles.lessonScheduleBadgeText, { color: themeColors.textColor }]} numberOfLines={1}>
+              {linkedLessonInfo.scheduleLabel}
+            </Text>
+          </View>
+        )}
+
+        {!!linkedLessonInfo.lessonLabel && (
+          <Text style={[styles.lessonLinkMetaText, { color: themeColors.textColor2 }]} numberOfLines={1}>
+            {linkedLessonInfo.lessonLabel}
+          </Text>
+        )}
+      </View>
+    );
+  };
+
+  const renderLessonLinkControl = () => {
+    const LinkBlockIcon = linkedLessonInfo
+      ? getIconComponent(linkedLessonInfo.subject?.icon) || BookOpen
+      : CalendarDots;
+
+    return (
+      <View
+        style={[
+          styles.lessonLinkPanel,
+          {
+            backgroundColor: linkedLessonInfo ? linkedLessonPalette.panelBackground : themeColors.backgroundColor2,
+            borderColor: linkedLessonInfo ? linkedLessonPalette.panelBorder : themeColors.borderColor,
+          },
+        ]}
+      >
+        {!!linkedLessonInfo && !!linkedLessonPalette.gradient && (
+          <View pointerEvents="none" style={styles.lessonLinkGradientLayer}>
+            <GradientBackground gradient={linkedLessonPalette.gradient} style={StyleSheet.absoluteFillObject} />
+          </View>
+        )}
+
+        <View style={styles.lessonLinkHeader}>
+          <View
+            style={[
+              styles.lessonLinkIcon,
+              { backgroundColor: linkedLessonInfo ? linkedLessonPalette.iconBackground : themeColors.backgroundColor3 },
+            ]}
+          >
+            <LinkBlockIcon
+              size={22}
+              color={linkedLessonInfo ? linkedLessonPalette.accentColor : themeColors.textColor2}
+              weight={linkedLessonInfo ? "fill" : "bold"}
+            />
+          </View>
+
+          <View style={styles.lessonLinkText}>
+            <Text style={[styles.lessonLinkStatus, { color: linkedLessonInfo ? linkedLessonPalette.accentColor : themeColors.textColor2 }]}>
+              {hasLinkedLessonOccurrence
+                ? t("tasks.editor.linked_lesson_auto_ready", lang)
+                : t("tasks.editor.linked_lesson_date_only", lang)}
+            </Text>
+            <Text style={[styles.lessonLinkTitle, { color: themeColors.textColor }]} numberOfLines={2}>
+              {linkedLessonInfo?.subjectLabel || t("tasks.editor.linked_lesson", lang)}
+            </Text>
+            {renderLessonLinkMeta()}
+          </View>
+        </View>
+
+        <View style={styles.lessonQuickActions}>
+          {hasLinkedLessonOccurrence ? (
+            <>
+              {renderLessonQuickButton({
+                label: t("tasks.editor.change_lesson_subject", lang),
+                onPress: openAutoLessonPicker,
+                icon: BookOpen,
+                style: styles.lessonQuickButtonFull,
+              })}
+
+              {!!linkedLessonGroupTarget && (
+                <View style={styles.lessonQuickSecondaryRow}>
+                  {renderLessonQuickButton({
+                    label: t("tasks.editor.choose_same_subject_lesson", lang),
+                    onPress: openLinkedSubjectOccurrencePicker,
+                    icon: Clock,
+                    style: styles.lessonQuickButtonHalf,
+                  })}
+
+                  {renderLessonQuickButton({
+                    label: t("tasks.editor.choose_same_subject_date", lang),
+                    onPress: openLinkedSubjectDateCalendar,
+                    icon: CalendarDots,
+                    style: styles.lessonQuickButtonHalf,
+                  })}
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {renderLessonQuickButton({
+                label: t("tasks.editor.choose_lesson_subject_date", lang),
+                onPress: openAutoLessonPicker,
+                primary: true,
+                icon: BookOpen,
+                style: styles.lessonQuickButtonFull,
+              })}
+
+              {renderLessonQuickButton({
+                label: t("tasks.editor.choose_same_subject_date", lang),
+                onPress: linkedLessonGroupTarget ? openLinkedSubjectDateCalendar : openTaskDateCalendar,
+                icon: CalendarDots,
+                style: styles.lessonQuickButtonFull,
+              })}
+            </>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   const renderMain = () => (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -1020,16 +1392,12 @@ export default function TaskEditor({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <SettingsGroup themeColors={themeColors} title={t("tasks.editor.lesson", lang)}>
-          <SettingsRow
-            label={t("tasks.editor.linked_lesson", lang)}
-            value={linkedLessonLabel || t("tasks.editor.no_linked_lesson", lang)}
-            desc={t("tasks.editor.linked_lesson_hint", lang)}
-            onPress={() => setCurrentScreen("lessonPicker")}
-            themeColors={themeColors}
-            icon={CalendarDots}
-            iconWeight="bold"
-          />
+        <SettingsGroup
+          themeColors={themeColors}
+          title={t("tasks.editor.lesson", lang)}
+          contentStyle={styles.lessonLinkGroupContent}
+        >
+          {renderLessonLinkControl()}
         </SettingsGroup>
 
         <SettingsGroup themeColors={themeColors} title={t("tasks.editor.task_text", lang)}>
@@ -1086,7 +1454,7 @@ export default function TaskEditor({
 
   const minimizedTitle = task?.id ? t("tasks.editor.edit_task", lang) : t("tasks.editor.new_task", lang);
   const minimizedSubtitle = selectedSubject?.name || linkedLessonLabel || text.trim() || t("tasks.editor.no_subject", lang);
-  const calendarCurrentDate = lessonDateFilter || getLessonRefDate(selectedLessonRef) || new Date();
+  const calendarCurrentDate = lessonDateFilter || getLessonRefDate(activeLessonRef) || new Date();
 
   return (
     <>
@@ -1174,10 +1542,9 @@ export default function TaskEditor({
             <LessonCatalogueScreen
               schedules={allSchedules}
               selectedScheduleIds={selectedScheduleIds}
-              selectedLessonRef={selectedLessonRef}
+              selectedLessonRef={activeLessonRef}
               onOpenLessonGroup={handleOpenLessonGroup}
-              onSkip={openTaskDateCalendar}
-              onClear={handleClearLesson}
+              onDetachLessonOccurrence={detachLessonOccurrence}
               themeColors={themeColors}
               lang={lang}
             />
@@ -1187,11 +1554,11 @@ export default function TaskEditor({
             <LessonOccurrenceScreen
               schedule={selectedOccurrenceSchedule}
               lessonGroup={selectedLessonGroup?.lessonGroup}
-              selectedLessonRef={selectedLessonRef}
+              selectedLessonRef={activeLessonRef}
               dateFilter={lessonDateFilter}
               onSelectOccurrence={handleSelectLessonOccurrence}
               onChooseDate={openLessonGroupDateCalendar}
-              onClear={handleClearLesson}
+              showQuickActions={lessonOccurrenceQuickActionsVisible}
               themeColors={themeColors}
               lang={lang}
             />
@@ -1336,6 +1703,142 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 120,
+  },
+  lessonLinkGroupContent: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    overflow: "visible",
+  },
+  lessonLinkPanel: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 13,
+    overflow: "hidden",
+  },
+  lessonLinkGradientLayer: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.1,
+  },
+  lessonLinkHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  lessonLinkIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 11,
+  },
+  lessonLinkText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  lessonLinkStatus: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  lessonLinkTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  lessonLinkMeta: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 3,
+  },
+  lessonLinkMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 5,
+  },
+  lessonScheduleBadge: {
+    minHeight: 23,
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 11,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  lessonScheduleDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  lessonScheduleBadgeText: {
+    flexShrink: 1,
+    minWidth: 0,
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: "800",
+  },
+  lessonLinkMetaText: {
+    flexShrink: 1,
+    minWidth: 0,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  lessonQuickActions: {
+    width: "100%",
+    alignItems: "stretch",
+    gap: 8,
+    marginTop: 13,
+  },
+  lessonQuickSecondaryRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 8,
+  },
+  lessonQuickButton: {
+    minHeight: 40,
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  lessonQuickButtonFull: {
+    width: "100%",
+  },
+  lessonQuickButtonHalf: {
+    flex: 1,
+    minWidth: 0,
+  },
+  lessonQuickButtonPrimary: {
+    ...Platform.select({
+      web: { boxShadow: "0px 3px 10px rgba(0,0,0,0.12)" },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+        elevation: 3,
+      },
+    }),
+  },
+  lessonQuickButtonText: {
+    flexShrink: 1,
+    minWidth: 0,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: "800",
+    marginLeft: 7,
   },
   textAreaWrap: {
     minHeight: 132,
