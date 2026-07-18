@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
-import { Alert, Platform, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Platform, StyleSheet, Text, View } from "react-native";
 import { Bell, SignIn } from "phosphor-react-native";
 
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
+import AppSwitch from "../../../components/ui/AppSwitch";
 import SettingsGroup from "../../../components/ui/SettingsKit/SettingsGroup";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { NOTIFICATION_TYPE_CONFIG } from "../../../config/notificationTypes";
@@ -102,12 +103,11 @@ export default function NotificationsScreen() {
           <Text style={[styles.pushLabel, { color: themeColors.textColor2 }]}>
             {t("settings.notifications.push_label", lang)}
           </Text>
-          <Switch
+          <AppSwitch
             accessibilityLabel={`${t("settings.notifications.push_label", lang)} ${t(item.titleKey, lang)}`}
             value={isEnabled}
             onValueChange={(value) => updatePushPreference(item.type, value)}
-            trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
-            thumbColor="#fff"
+            themeColors={themeColors}
           />
         </View>
       </View>

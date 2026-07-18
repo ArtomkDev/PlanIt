@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, Alert, Platform, Switch } from 'react-native';
+import { View, Text, StyleSheet, Animated, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -14,6 +14,7 @@ import { t } from '../../utils/i18n';
 import MorphingLoader from '../../components/ui/MorphingLoader';
 import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
+import AppSwitch from '../../components/ui/AppSwitch';
 import { triggerHaptic } from '../../utils/haptics';
 
 export default function Settings({ guest, onExitGuest }) {
@@ -125,11 +126,10 @@ export default function Settings({ guest, onExitGuest }) {
           showCaret: false,
           skipHaptic: true,
           rightContent: (
-            <Switch
+            <AppSwitch
               value={hapticsEnabled}
               onValueChange={handleToggleHaptics}
-              trackColor={{ false: themeColors.borderColor, true: `${themeColors.accentColor}66` }}
-              thumbColor={hapticsEnabled ? themeColors.accentColor : themeColors.backgroundColor2}
+              themeColors={themeColors}
             />
           ),
         },

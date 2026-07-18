@@ -13,7 +13,10 @@ export const TASK_AUTO_LINK_MODES = {
   NEXT_SAME: "nextSame",
 };
 
-export const TASK_AUTO_LINK_MODE_VALUES = Object.values(TASK_AUTO_LINK_MODES);
+export const TASK_AUTO_LINK_MODE_VALUES = [
+  TASK_AUTO_LINK_MODES.SELECTED,
+  TASK_AUTO_LINK_MODES.NEXT_SAME,
+];
 
 const LEGACY_TASK_AUTO_LINK_MODES = {
   today: TASK_AUTO_LINK_MODES.SELECTED,
@@ -26,6 +29,7 @@ export const uniqueIds = (value) => (
 
 export const getTaskAutoLinkMode = (schedule) => {
   const mode = schedule?.taskAutoLinkMode;
+  if (mode === TASK_AUTO_LINK_MODES.OFF) return TASK_AUTO_LINK_MODES.SELECTED;
   if (TASK_AUTO_LINK_MODE_VALUES.includes(mode)) return mode;
   if (LEGACY_TASK_AUTO_LINK_MODES[mode]) return LEGACY_TASK_AUTO_LINK_MODES[mode];
   return TASK_AUTO_LINK_MODES.NEXT_SAME;
@@ -493,18 +497,9 @@ export const createTaskDraftFromLessonContext = (
 ) => {
   if (!schedule?.id || !lesson) return null;
 
-  const normalizedMode = TASK_AUTO_LINK_MODE_VALUES.includes(mode)
-    ? mode
-    : getTaskAutoLinkMode({ taskAutoLinkMode: mode });
+  const normalizedMode = getTaskAutoLinkMode({ taskAutoLinkMode: mode });
   const subjectId = getLessonContextSubjectId(lesson);
   const baseLinkIds = resolveLessonLinkIds(schedule, getLessonContextData(lesson), subjectId);
-
-  if (normalizedMode === TASK_AUTO_LINK_MODES.OFF) {
-    return {
-      subjectId,
-      linkIds: baseLinkIds,
-    };
-  }
 
   const occurrence = normalizedMode === TASK_AUTO_LINK_MODES.NEXT_SAME
     ? findNextSameLessonOccurrence(schedule, lesson, dateInput, nowInput)

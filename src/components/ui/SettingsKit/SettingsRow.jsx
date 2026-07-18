@@ -79,13 +79,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 56,
   },
-  left: { flexDirection: "row", alignItems: "center", flexShrink: 1 },
-  textContainer: { flexShrink: 1 },
-  right: { flexDirection: "row", alignItems: "center", flex: 0.8, justifyContent: 'flex-end' },
+  left: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", marginRight: 12 },
+  textContainer: { flex: 1, minWidth: 0 },
+  right: { flexShrink: 0, maxWidth: "44%", flexDirection: "row", alignItems: "center", justifyContent: 'flex-end' },
   iconContainer: { width: 32, height: 32, borderRadius: 8, justifyContent: "center", alignItems: "center", marginRight: 12 },
   label: { fontSize: 16, fontWeight: "500" },
   desc: { fontSize: 13, marginTop: 2 },
-  value: { fontSize: 16, textAlign: 'right' },
+  value: { flexShrink: 1, fontSize: 16, textAlign: 'right' },
   caret: { marginLeft: 6 },
   disabled: { opacity: 0.5 }
 });

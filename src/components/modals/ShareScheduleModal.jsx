@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Switch, ActivityIndicator, Share } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Share } from "react-native";
 import { ShareNetwork, Copy, CheckCircle, X, BookOpen, GraduationCap, Palette, User, Link, Note } from "phosphor-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useScheduleData } from "../../context/ScheduleProvider";
 import { createSharedSchedule } from "../../services/shareService";
 import { sanitizeSharedSchedule } from "../../utils/scheduleValidation";
 import TabSwitcher from "../ui/TabSwitcher";
+import AppSwitch from "../ui/AppSwitch";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
@@ -168,11 +169,10 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                           {t("share.include_teachers", lang) || "Поділитися викладачами"}
                         </Text>
                       </View>
-                      <Switch
+                      <AppSwitch
                         value={shareTeachers}
                         onValueChange={toggleShareOption(setShareTeachers)}
-                        trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
-                        thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
+                        themeColors={themeColors}
                       />
                     </View>
 
@@ -185,11 +185,10 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                           {t("share.include_colors", lang) || "Зберегти кольори та градієнти"}
                         </Text>
                       </View>
-                      <Switch
+                      <AppSwitch
                         value={shareGradients}
                         onValueChange={toggleShareOption(setShareGradients)}
-                        trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
-                        thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
+                        themeColors={themeColors}
                       />
                     </View>
 
@@ -202,11 +201,10 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                           {t("share.include_links", lang) || "Поділитися посиланнями"}
                         </Text>
                       </View>
-                      <Switch
+                      <AppSwitch
                         value={shareLinks}
                         onValueChange={toggleShareOption(setShareLinks)}
-                        trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
-                        thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
+                        themeColors={themeColors}
                       />
                     </View>
 
@@ -219,11 +217,10 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                           {t("share.include_notes", lang) || "Включити нотатки до занять"}
                         </Text>
                       </View>
-                      <Switch
+                      <AppSwitch
                         value={shareNotes}
                         onValueChange={toggleShareOption(setShareNotes)}
-                        trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
-                        thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
+                        themeColors={themeColors}
                       />
                     </View>
 
@@ -236,11 +233,10 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                           {t("share.include_author", lang) || "Показувати моє ім'я відправника"}
                         </Text>
                       </View>
-                      <Switch
+                      <AppSwitch
                         value={shareAuthorName}
                         onValueChange={toggleShareOption(setShareAuthorName)}
-                        trackColor={{ false: themeColors.borderColor, true: themeColors.accentColor }}
-                        thumbColor={Platform.OS === "android" ? "#ffffff" : undefined}
+                        themeColors={themeColors}
                       />
                     </View>
                   </View>

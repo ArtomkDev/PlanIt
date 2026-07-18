@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  Platform,
   ActivityIndicator
 } from "react-native";
 import { 
+  Check,
   CloudArrowUp, 
   CloudArrowDown, 
   PencilSimple, 
@@ -27,9 +27,12 @@ import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
 import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
 import { triggerHaptic } from "../../../utils/haptics";
+import {
+  resolveScheduleColor,
+  scheduleColorWithAlpha,
+} from "../../../utils/scheduleColors";
 
 import TabSwitcher from "../../../components/ui/TabSwitcher";
-import SettingsSelectionRow from "../../../components/ui/SettingsKit/SettingsSelectionRow";
 import SettingsActionRow from "../../../components/ui/SettingsKit/SettingsActionRow";
 
 import ShareScheduleModal from "../../../components/modals/ShareScheduleModal";
@@ -321,7 +324,8 @@ const ScheduleSwitcher = () => {
             {displaySchedules.map((s, index) => {
               const isSelected = isAccountTab && s.id === global.currentScheduleId;
               const delay = Math.min(index * 40, 200);
-              
+              const scheduleName = s.name || t('settings.schedule_switcher.untitled', lang);
+              const itemColor = resolveScheduleColor(s, themeColors.accentColor);
               const isItemProcessing = processingIds.has(s.id);
 
               return (
@@ -335,10 +339,9 @@ const ScheduleSwitcher = () => {
                     style={{ opacity: isItemProcessing ? 0.4 : 1 }}
                     pointerEvents={isItemProcessing ? "none" : "auto"}
                   >
-                    <SettingsSelectionRow
-                      label={s.name || t('settings.schedule_switcher.untitled', lang)}
-                      isSelected={isSelected}
-                      themeColors={themeColors}
+                    <TouchableOpacity
+                      accessibilityRole={isAccountTab ? "radio" : "button"}
+                      accessibilityState={isAccountTab ? { checked: isSelected } : undefined}
                       onPress={() => {
                         if (isAccountTab) {
                           !isSelected && handleChange(s.id);
@@ -350,11 +353,63 @@ const ScheduleSwitcher = () => {
                         }
                       }}
                       onLongPress={() => isAccountTab ? handleEdit(s.id, false) : null}
-                      rightContent={
-                        isItemProcessing ? (
+                      delayLongPress={300}
+                      activeOpacity={0.75}
+                      style={[
+                        styles.scheduleRow,
+                        {
+                          backgroundColor: isSelected
+                            ? scheduleColorWithAlpha(itemColor, 0.14)
+                            : themeColors.backgroundColor2,
+                          borderColor: isSelected
+                            ? itemColor
+                            : scheduleColorWithAlpha(itemColor, 0.22),
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.monogram,
+                          {
+                            backgroundColor: isSelected
+                              ? itemColor
+                              : scheduleColorWithAlpha(itemColor, 0.16),
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.monogramText,
+                            { color: isSelected ? "#fff" : itemColor },
+                          ]}
+                        >
+                          {scheduleName.trim().charAt(0).toUpperCase() || "."}
+                        </Text>
+                      </View>
+
+                      <View style={styles.scheduleText}>
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.scheduleName,
+                            { color: isSelected ? itemColor : themeColors.textColor },
+                          ]}
+                        >
+                          {scheduleName}
+                        </Text>
+                      </View>
+
+                      <View style={styles.scheduleRight}>
+                        {isSelected && (
+                          <View style={[styles.selectedBadge, { backgroundColor: itemColor }]}>
+                            <Check size={13} color="#fff" weight="bold" />
+                          </View>
+                        )}
+
+                        {isItemProcessing ? (
                           <ActivityIndicator size="small" color={themeColors.accentColor} style={{ marginRight: 8 }} />
                         ) : (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View style={styles.actionButtons}>
                             {!guest && isAccountTab && (
                               <TouchableOpacity 
                                 hitSlop={15}
@@ -403,9 +458,9 @@ const ScheduleSwitcher = () => {
                               <Trash size={20} color={themes.accentColors.red} weight="bold" />
                             </TouchableOpacity>
                           </View>
-                        )
-                      }
-                    />
+                        )}
+                      </View>
+                    </TouchableOpacity>
                   </View>
                 </Animated.View>
               );
@@ -478,6 +533,56 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
+  },
+  scheduleRow: {
+    minHeight: 62,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  monogram: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  monogramText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  scheduleText: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  scheduleName: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  scheduleRight: {
+    flexShrink: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectedBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 2,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   iconButton: {
     padding: 4,

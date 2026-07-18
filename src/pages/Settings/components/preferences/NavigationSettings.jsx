@@ -1,7 +1,8 @@
 import React from 'react';
-import { Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CalendarDots, Check, CheckSquare, GearSix } from 'phosphor-react-native';
 import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
+import AppSwitch from '../../../../components/ui/AppSwitch';
 import { useScheduleActions, useScheduleData } from '../../../../context/ScheduleProvider';
 import themes from '../../../../config/themes';
 import { t } from '../../../../utils/i18n';
@@ -256,13 +257,12 @@ export default function NavigationSettings() {
                 {t('settings.navigation_screen.labels_desc', lang)}
               </Text>
             </View>
-            <Switch
+            <AppSwitch
               testID="navigation-labels-switch"
               accessibilityLabel={t('settings.navigation_screen.labels_title', lang)}
               value={showLabels}
               onValueChange={(value) => updatePreference({ navigationLabels: value }, value ? "toggleOn" : "toggleOff")}
-              trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
-              thumbColor="#fff"
+              themeColors={themeColors}
             />
           </View>
 
@@ -277,13 +277,12 @@ export default function NavigationSettings() {
                 {t('settings.navigation_screen.animations_desc', lang)}
               </Text>
             </View>
-            <Switch
+            <AppSwitch
               testID="navigation-animations-switch"
               accessibilityLabel={t('settings.navigation_screen.animations_title', lang)}
               value={animationsEnabled}
               onValueChange={(value) => updatePreference({ navigationAnimations: value }, value ? "toggleOn" : "toggleOff")}
-              trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
-              thumbColor="#fff"
+              themeColors={themeColors}
             />
           </View>
         </View>

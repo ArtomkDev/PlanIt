@@ -1,5 +1,6 @@
 const defaultSchedule = {
   reminder: { enabled: false },
+  taskAutoLinkMode: "nextSame",
   tasks: [],
 }
 

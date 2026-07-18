@@ -995,7 +995,6 @@ export default function TaskEditor({
     if (!nextSchedule?.id || !lessonGroup?.subjectId) return null;
 
     const autoLinkMode = getTaskAutoLinkMode(nextSchedule);
-    if (autoLinkMode === TASK_AUTO_LINK_MODES.OFF) return null;
 
     const today = new Date();
     if (autoLinkMode === TASK_AUTO_LINK_MODES.SELECTED) {

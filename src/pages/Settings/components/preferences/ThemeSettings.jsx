@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, Switch, Platform } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
 import { PencilSimple, Check } from "phosphor-react-native";
 import themes from "../../../../config/themes";
 import { useScheduleActions, useScheduleData } from "../../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import AdvancedColorPicker from "../../../../components/ui/AdvancedColorPicker";
+import AppSwitch from "../../../../components/ui/AppSwitch";
 import { t } from "../../../../utils/i18n";
 import { saveDevicePrefs, getDevicePrefs } from "../../../../utils/storage";
 import { triggerHaptic } from "../../../../utils/haptics";
@@ -146,11 +147,10 @@ const ThemeSettings = () => {
                   : t('settings.theme_screen.blur_desc_normal', lang)}
               </Text>
             </View>
-            <Switch
+            <AppSwitch
               value={isBlurEnabled}
               onValueChange={handleToggleBlur}
-              trackColor={{ false: themeColors.backgroundColor3, true: themeColors.accentColor }}
-              thumbColor={"#fff"}
+              themeColors={themeColors}
             />
           </View>
         )}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, 
+import {
+  View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Platform, Keyboard
 } from "react-native";
+import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { DownloadSimple, X } from "phosphor-react-native";
 import { useScheduleActions, useScheduleData } from "../../context/ScheduleProvider";
 import { fetchSharedSchedule } from "../../services/shareService";
@@ -124,9 +125,10 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
     <BottomSheet
       visible={visible}
       onClose={resetAndClose}
-      snapPoints={["48%", "88%"]}
-      initialSnapIndex={0}
+      snapPoints={["72%", "94%"]}
+      initialSnapIndex={1}
       maxWidth={620}
+      keyboardBehavior="extend"
       backgroundColor={themeColors.backgroundColor}
       handleColor={themeColors.textColor3}
       accessibilityLabel={t("share.import_title", lang)}
@@ -162,7 +164,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                       </Text>
                     ) : null}
                     
-                    <TextInput
+                    <BottomSheetTextInput
                       style={[styles.input, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: error ? "#FF3B30" : themeColors.borderColor }]}
                       value={code}
                       onChangeText={(text) => { setCode(text.toUpperCase()); setError(null); }}

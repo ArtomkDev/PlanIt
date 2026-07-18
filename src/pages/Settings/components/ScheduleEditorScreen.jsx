@@ -24,7 +24,8 @@ import {
   Plus,
   Palette,
   Bell,
-  CheckSquare
+  CheckSquare,
+  PencilSimple
 } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -57,6 +58,8 @@ import {
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
 import SettingsActionRow from '../../../components/ui/SettingsKit/SettingsActionRow';
+import AppSwitch from '../../../components/ui/AppSwitch';
+import { triggerHaptic } from '../../../utils/haptics';
 
 if (
   Platform.OS === 'android' && 
@@ -123,9 +126,8 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const [isTimeExpanded, setIsTimeExpanded] = useState(false);
   const [isBreaksExpanded, setIsBreaksExpanded] = useState(false);
   const [isReminderExpanded, setIsReminderExpanded] = useState(false);
-  const [isTaskAutoLinkExpanded, setIsTaskAutoLinkExpanded] = useState(false);
 
-  const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded || isReminderExpanded || isTaskAutoLinkExpanded;
+  const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded || isReminderExpanded;
   const finalBottomPadding = baseBottomPadding + (isAnyExpanded ? screenHeight * 0.5 : 0);
 
   const scrollToElement = (section, card, yOffset = 0, delay = 150) => {
@@ -146,7 +148,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isWeeksExpanded;
     setIsWeeksExpanded(willExpand);
     if (willExpand) {
-      setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false); setIsTaskAutoLinkExpanded(false);
+      setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
       scrollToElement('general', 'weeks', 0, 150);
     }
   };
@@ -156,7 +158,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isDurationExpanded;
     setIsDurationExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false); setIsTaskAutoLinkExpanded(false);
+      setIsWeeksExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
       scrollToElement('time', 'duration', 0, 150);
     }
   };
@@ -166,7 +168,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isTimeExpanded;
     setIsTimeExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false); setIsTaskAutoLinkExpanded(false);
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
       scrollToElement('time', 'startTime', 0, 150);
     }
   };
@@ -176,7 +178,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isBreaksExpanded;
     setIsBreaksExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsReminderExpanded(false); setIsTaskAutoLinkExpanded(false);
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsReminderExpanded(false);
       scrollToElement('time', 'breaks', 0, 150);
     }
   };
@@ -186,18 +188,8 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isReminderExpanded;
     setIsReminderExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsTaskAutoLinkExpanded(false);
+      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false);
       scrollToElement('general', 'reminder', 0, 150);
-    }
-  };
-
-  const toggleTaskAutoLinkExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
-    const willExpand = !isTaskAutoLinkExpanded;
-    setIsTaskAutoLinkExpanded(willExpand);
-    if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
-      scrollToElement('general', 'taskAutoLink', 0, 150);
     }
   };
 
@@ -214,13 +206,6 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     return interpolate(t('schedule.reminders.before_minutes', lang), {
       minutes: normalized.minutesBefore,
     });
-  };
-
-  const getTaskAutoLinkLabel = (mode) => {
-    if (mode === TASK_AUTO_LINK_MODES.SELECTED) return t('settings.schedule_editor.task_auto_link_selected', lang);
-    if (mode === TASK_AUTO_LINK_MODES.NEXT_SAME) return t('settings.schedule_editor.task_auto_link_next_same', lang);
-    if (mode === TASK_AUTO_LINK_MODES.OFF) return t('settings.schedule_editor.task_auto_link_off', lang);
-    return t('settings.schedule_editor.task_auto_link_next_same', lang);
   };
 
   const ensureReminderPermission = async () => {
@@ -265,6 +250,14 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const displayValue = numericText === '' ? '' : String(minutes);
     setCustomReminderMinutes(displayValue);
     setLocalData(prev => ({ ...prev, reminder: { enabled: true, minutesBefore: minutes } }));
+  };
+
+  const handleTaskAutoLinkNextLessonChange = (enabled) => {
+    triggerHaptic(enabled ? "toggleOn" : "toggleOff");
+    setLocalData(prev => ({
+      ...prev,
+      taskAutoLinkMode: enabled ? TASK_AUTO_LINK_MODES.NEXT_SAME : TASK_AUTO_LINK_MODES.SELECTED,
+    }));
   };
 
   const handleBreakChange = (text, index) => {
@@ -344,6 +337,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const isCustomDuration = !['45', '60', '80', '90'].includes(String(localData.duration));
   const reminderSelectionId = getScheduleReminderSelectionId(localData.reminder);
   const isSingleWeek = Number(localData.repeat) <= 1;
+  const taskAutoLinkNextLesson = getTaskAutoLinkMode(localData) === TASK_AUTO_LINK_MODES.NEXT_SAME;
 
   const startDateObj = new Date(localData.starting_week);
   const dayOfWeek = startDateObj.toLocaleDateString(lang, { weekday: 'long' });
@@ -405,16 +399,30 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                   icon={Palette}
                   themeColors={themeColors}
                   onPress={() => setColorPickerVisible(true)}
+                  showCaret={false}
                   rightContent={(
                     <View
                       style={[
-                        styles.colorPreview,
+                        styles.colorAction,
                         {
-                          backgroundColor: localData.color,
-                          borderColor: scheduleColorWithAlpha(localData.color, 0.5),
+                          backgroundColor: scheduleColorWithAlpha(localData.color, 0.14),
+                          borderColor: scheduleColorWithAlpha(localData.color, 0.42),
                         },
                       ]}
-                    />
+                    >
+                      <View
+                        style={[
+                          styles.colorPreview,
+                          {
+                            backgroundColor: localData.color,
+                            borderColor: scheduleColorWithAlpha(localData.color, 0.78),
+                          },
+                        ]}
+                      />
+                      <View style={[styles.colorEditBadge, { backgroundColor: themeColors.backgroundColor2, borderColor: scheduleColorWithAlpha(localData.color, 0.36) }]}>
+                        <PencilSimple size={10} color={localData.color} weight="bold" />
+                      </View>
+                    </View>
                   )}
                 />
               </View>
@@ -487,32 +495,21 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                 <SettingsRow
                   label={t('settings.schedule_editor.task_auto_link', lang)}
                   desc={t('settings.schedule_editor.task_auto_link_hint', lang)}
-                  value={getTaskAutoLinkLabel(localData.taskAutoLinkMode)}
                   icon={CheckSquare}
                   themeColors={themeColors}
-                  onPress={toggleTaskAutoLinkExpand}
+                  showCaret={false}
+                  skipHaptic
+                  onPress={() => handleTaskAutoLinkNextLessonChange(!taskAutoLinkNextLesson)}
+                  rightContent={(
+                    <AppSwitch
+                      accessibilityLabel={t('settings.schedule_editor.task_auto_link', lang)}
+                      value={taskAutoLinkNextLesson}
+                      onValueChange={handleTaskAutoLinkNextLessonChange}
+                      themeColors={themeColors}
+                    />
+                  )}
                 />
               </View>
-
-              {isTaskAutoLinkExpanded && (
-                <View style={styles.expandedContent}>
-                  <TabSwitcher
-                    tabs={[
-                      { id: TASK_AUTO_LINK_MODES.SELECTED, label: t('settings.schedule_editor.task_auto_link_selected', lang) },
-                      { id: TASK_AUTO_LINK_MODES.NEXT_SAME, label: t('settings.schedule_editor.task_auto_link_next_same', lang) },
-                      { id: TASK_AUTO_LINK_MODES.OFF, label: t('settings.schedule_editor.task_auto_link_off', lang) },
-                    ]}
-                    activeTab={localData.taskAutoLinkMode}
-                    onTabPress={(id) => setLocalData(prev => ({ ...prev, taskAutoLinkMode: id }))}
-                    themeColors={themeColors}
-                    containerBackgroundColor={themeColors.backgroundColor}
-                    containerBorderColor={themeColors.borderColor}
-                  />
-                  <Text style={[styles.expandedHintText, { color: themeColors.textColor2 }]}>
-                    {t('settings.schedule_editor.task_auto_link_desc', lang)}
-                  </Text>
-                </View>
-              )}
 
               <View onLayout={e => cardYs.current['weeks'] = e.nativeEvent.layout.y}>
                 <SettingsRow
@@ -746,11 +743,30 @@ const styles = StyleSheet.create({
     fontWeight: '500', 
     paddingVertical: 0
   }, 
+  colorAction: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   colorPreview: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 9,
     borderWidth: 2,
+  },
+  colorEditBadge: {
+    position: 'absolute',
+    right: 4,
+    bottom: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   
   expandedContent: {
