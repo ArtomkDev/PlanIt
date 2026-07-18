@@ -45,12 +45,11 @@ import {
   getLocalISODate,
   listLessonGroupOccurrences,
   normalizeLessonRef,
+  resolveLessonLinkIds,
   uniqueIds,
 } from "../../../utils/taskLessonLinking";
 import LinkEditor from "../../Schedule/components/LessonEditor/forms/LinkForm";
 import LessonEditorPickerScreen from "../../Schedule/components/LessonEditor/screens/PickerScreen";
-
-const NO_SUBJECT_KEY = "__no_subject__";
 
 const deepCloneArray = (value) => JSON.parse(JSON.stringify(Array.isArray(value) ? value : []));
 
@@ -76,6 +75,57 @@ const getGroupSubtitle = (lessonGroup) => (
 
 const formatOccurrenceCount = (count, lang) => (
   t("tasks.editor.occurrences_count", lang).replace("{count}", String(count || 0))
+);
+
+const buildTaskEditorSessionKey = (task, sourceScheduleId) => {
+  if (task?.id) {
+    return JSON.stringify({
+      type: "task",
+      scheduleId: sourceScheduleId || null,
+      taskId: task.id,
+    });
+  }
+
+  const lessonRef = normalizeLessonRef(task?.lessonRef, sourceScheduleId);
+  return JSON.stringify({
+    type: "draft",
+    scheduleId: sourceScheduleId || null,
+    subjectId: task?.subjectId || null,
+    text: task?.text || "",
+    links: sanitizeIdArray(task?.links),
+    lessonRef: lessonRef
+      ? {
+        scheduleId: lessonRef.scheduleId || null,
+        subjectId: lessonRef.subjectId || null,
+        date: lessonRef.date || null,
+        weekKey: lessonRef.weekKey || null,
+        lessonIndex: lessonRef.lessonIndex ?? null,
+        start: lessonRef.start || null,
+        end: lessonRef.end || null,
+      }
+      : null,
+  });
+};
+
+const getInitialTaskEditorScreen = (task) => (
+  task?.id || task?.text || task?.subjectId || task?.lessonRef ? "main" : "lessonPicker"
+);
+
+const buildDateOnlyLessonRef = (scheduleId, date, subjectId = null) => normalizeLessonRef({
+  scheduleId,
+  subjectId,
+  date: getLocalISODate(date || new Date()),
+}, scheduleId);
+
+const getLessonRefDate = (lessonRef) => {
+  if (!lessonRef?.date) return null;
+
+  const date = new Date(`${String(lessonRef.date).slice(0, 10)}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getInitialTaskSubjectId = (task, fallbackScheduleId) => (
+  task?.subjectId || normalizeLessonRef(task?.lessonRef, fallbackScheduleId)?.subjectId || null
 );
 
 const groupOccurrencesByDay = (schedule, occurrences, lang) => {
@@ -123,6 +173,7 @@ function LessonCatalogueScreen({
   selectedScheduleIds,
   selectedLessonRef,
   onOpenLessonGroup,
+  onSkip,
   onClear,
   themeColors,
   lang,
@@ -205,6 +256,28 @@ function LessonCatalogueScreen({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      <TouchableOpacity
+        activeOpacity={0.76}
+        onPress={onSkip}
+        style={[
+          styles.lessonActionRow,
+          {
+            backgroundColor: themeColors.accentColor + "14",
+            borderColor: themeColors.accentColor + "30",
+          },
+        ]}
+      >
+        <XCircle size={20} color={themeColors.accentColor} weight="bold" />
+        <View style={styles.lessonActionText}>
+          <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
+            {t("tasks.editor.skip_lesson", lang)}
+          </Text>
+          <Text style={[styles.lessonActionSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+            {t("tasks.editor.skip_lesson_hint", lang)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
       <View style={[styles.lessonSearchBox, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
         <TextInput
           value={query}
@@ -575,8 +648,8 @@ export default function TaskEditor({
     Array.isArray(targetSchedule?.subjects) ? targetSchedule.subjects : []
   ), [targetSchedule]);
 
-  const [currentScreen, setCurrentScreen] = useState("main");
-  const [selectedSubjectId, setSelectedSubjectId] = useState(task?.subjectId || null);
+  const [currentScreen, setCurrentScreen] = useState(() => getInitialTaskEditorScreen(task));
+  const [selectedSubjectId, setSelectedSubjectId] = useState(() => getInitialTaskSubjectId(task, targetSchedule?.id));
   const [text, setText] = useState(task?.text || "");
   const [selectedLinks, setSelectedLinks] = useState(() => sanitizeIdArray(task?.links));
   const [selectedLessonRef, setSelectedLessonRef] = useState(() => normalizeLessonRef(task?.lessonRef, targetSchedule?.id));
@@ -585,8 +658,14 @@ export default function TaskEditor({
   const [selectedLessonGroup, setSelectedLessonGroup] = useState(null);
   const [lessonDateFilter, setLessonDateFilter] = useState(null);
   const [lessonCalendarVisible, setLessonCalendarVisible] = useState(false);
+  const [lessonCalendarPurpose, setLessonCalendarPurpose] = useState(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const minimizeAnim = useRef(new Animated.Value(0)).current;
+  const editorSessionKey = useMemo(
+    () => buildTaskEditorSessionKey(task, sourceSchedule?.id),
+    [sourceSchedule?.id, task?.id, task?.lessonRef, task?.links, task?.subjectId, task?.text]
+  );
+  const previousEditorSessionKeyRef = useRef(editorSessionKey);
 
   const handleExpand = () => {
     Animated.timing(minimizeAnim, {
@@ -605,6 +684,9 @@ export default function TaskEditor({
   };
 
   useEffect(() => {
+    if (previousEditorSessionKeyRef.current === editorSessionKey) return;
+    previousEditorSessionKeyRef.current = editorSessionKey;
+
     const nextLessonRef = normalizeLessonRef(task?.lessonRef, sourceSchedule?.id);
     const nextScheduleId = nextLessonRef?.scheduleId
       || sourceSchedule?.id
@@ -613,9 +695,9 @@ export default function TaskEditor({
       || null;
     const nextSchedule = scheduleById.get(nextScheduleId) || sourceSchedule || schedule || allSchedules[0] || null;
 
-    setCurrentScreen("main");
+    setCurrentScreen(getInitialTaskEditorScreen(task));
     setTargetScheduleId(nextSchedule?.id || null);
-    setSelectedSubjectId(task?.subjectId || null);
+    setSelectedSubjectId(task?.subjectId || nextLessonRef?.subjectId || null);
     setText(task?.text || "");
     setSelectedLinks(sanitizeIdArray(task?.links));
     setSelectedLessonRef(nextLessonRef);
@@ -624,11 +706,12 @@ export default function TaskEditor({
     setSelectedLessonGroup(null);
     setLessonDateFilter(null);
     setLessonCalendarVisible(false);
+    setLessonCalendarPurpose(null);
 
     if (isMinimized) {
       handleExpand();
     }
-  }, [allSchedules, schedule, scheduleById, sourceSchedule, task]);
+  }, [allSchedules, editorSessionKey, isMinimized, schedule, scheduleById, sourceSchedule, task]);
 
   useEffect(() => {
     if (isMinimized) {
@@ -651,6 +734,11 @@ export default function TaskEditor({
     .map((id) => localLinks.find((link) => link.id === id))
     .filter(Boolean);
   const canSave = text.trim().length > 0;
+  const isInitialLessonPicker = currentScreen === "lessonPicker"
+    && !task?.id
+    && !text.trim()
+    && !selectedSubjectId
+    && !selectedLessonRef;
   const linkedLessonLabel = (() => {
     const ref = normalizeLessonRef(selectedLessonRef, targetSchedule.id);
     if (!ref) return "";
@@ -672,7 +760,6 @@ export default function TaskEditor({
   })();
 
   const getScreenTitle = () => {
-    if (currentScreen === "subjectPicker") return t("tasks.editor.subject", lang);
     if (currentScreen === "lessonPicker") return t("tasks.editor.choose_lesson", lang);
     if (currentScreen === "lessonOccurrence") {
       return getGroupTitle(selectedLessonGroup?.lessonGroup, lang);
@@ -765,6 +852,16 @@ export default function TaskEditor({
     setCurrentScreen("linkPicker");
   };
 
+  const mergeDraftLinks = (nextSchedule, linkIds, scheduleChanged) => {
+    if (scheduleChanged) {
+      setLocalLinks(deepCloneArray(nextSchedule?.links));
+      setSelectedLinks(sanitizeIdArray(linkIds));
+      return;
+    }
+
+    setSelectedLinks((previous) => sanitizeIdArray([...previous, ...(linkIds || [])]));
+  };
+
   const applyLessonDraft = (nextSchedule, draft) => {
     if (!nextSchedule?.id || !draft?.lessonRef) return;
 
@@ -773,12 +870,37 @@ export default function TaskEditor({
     setSelectedLessonRef(draft.lessonRef);
     setSelectedSubjectId(draft.subjectId || null);
 
-    if (scheduleChanged) {
-      setLocalLinks(deepCloneArray(nextSchedule.links));
-      setSelectedLinks(sanitizeIdArray(draft.linkIds));
-    } else {
-      setSelectedLinks((previous) => sanitizeIdArray([...previous, ...(draft.linkIds || [])]));
-    }
+    mergeDraftLinks(nextSchedule, draft.linkIds, scheduleChanged);
+  };
+
+  const applyDateOnlyDraft = (nextSchedule, date, lessonGroup = null) => {
+    if (!nextSchedule?.id) return;
+
+    const subjectId = lessonGroup?.subjectId || null;
+    const lessonRef = buildDateOnlyLessonRef(nextSchedule.id, date, subjectId);
+    const scheduleChanged = nextSchedule.id !== targetSchedule.id;
+
+    setTargetScheduleId(nextSchedule.id);
+    setSelectedSubjectId(subjectId);
+    setSelectedLessonRef(lessonRef);
+    setLessonDateFilter(null);
+    setSelectedLessonGroup(null);
+    setLessonCalendarVisible(false);
+    setLessonCalendarPurpose(null);
+    mergeDraftLinks(nextSchedule, resolveLessonLinkIds(nextSchedule, {}, subjectId), scheduleChanged);
+    setCurrentScreen("main");
+  };
+
+  const openTaskDateCalendar = () => {
+    setSelectedLessonGroup(null);
+    setLessonDateFilter(null);
+    setLessonCalendarPurpose("taskDate");
+    setLessonCalendarVisible(true);
+  };
+
+  const openLessonGroupDateCalendar = () => {
+    setLessonCalendarPurpose("lessonGroupDate");
+    setLessonCalendarVisible(true);
   };
 
   const handleSelectLessonOccurrence = (occurrenceSchedule, occurrence) => {
@@ -787,11 +909,13 @@ export default function TaskEditor({
 
     applyLessonDraft(occurrenceSchedule, draft);
     setLessonDateFilter(null);
+    setLessonCalendarPurpose(null);
     setCurrentScreen("main");
   };
 
   const handleClearLesson = () => {
     setSelectedLessonRef(null);
+    setSelectedSubjectId(null);
     setLessonDateFilter(null);
     setCurrentScreen("main");
   };
@@ -801,6 +925,7 @@ export default function TaskEditor({
       scheduleId: record.scheduleId,
       lessonGroup,
     });
+    setSelectedSubjectId(lessonGroup?.subjectId || null);
     setLessonDateFilter(null);
     setCurrentScreen("lessonOccurrence");
   };
@@ -809,14 +934,49 @@ export default function TaskEditor({
     ? scheduleById.get(selectedLessonGroup.scheduleId)
     : null;
 
+  const handleCalendarSkip = () => {
+    const today = new Date();
+    if (lessonCalendarPurpose === "lessonGroupDate") {
+      applyDateOnlyDraft(selectedOccurrenceSchedule || targetSchedule, today, selectedLessonGroup?.lessonGroup);
+      return;
+    }
+
+    applyDateOnlyDraft(targetSchedule, today);
+  };
+
   const handleDateSelect = (date) => {
+    if (lessonCalendarPurpose === "taskDate") {
+      applyDateOnlyDraft(targetSchedule, date);
+      return;
+    }
+
+    if (lessonCalendarPurpose === "lessonGroupDate") {
+      const occurrenceSchedule = selectedOccurrenceSchedule || targetSchedule;
+      const occurrencesOnDate = listLessonGroupOccurrences(occurrenceSchedule, selectedLessonGroup?.lessonGroup, {
+        date,
+        maxOccurrences: Number.POSITIVE_INFINITY,
+      });
+
+      if (occurrencesOnDate.length === 0) {
+        applyDateOnlyDraft(occurrenceSchedule, date, selectedLessonGroup?.lessonGroup);
+        return;
+      }
+
+      setLessonDateFilter(date);
+      setLessonCalendarPurpose(null);
+      setCurrentScreen("lessonOccurrence");
+      setLessonCalendarVisible(false);
+      return;
+    }
+
     setLessonDateFilter(date);
     setLessonCalendarVisible(false);
+    setLessonCalendarPurpose(null);
   };
 
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
-      {currentScreen === "main" ? (
+      {currentScreen === "main" || isInitialLessonPicker ? (
         <TouchableOpacity onPress={closeSheet} hitSlop={15}>
           <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t("common.cancel", lang)}</Text>
         </TouchableOpacity>
@@ -869,16 +1029,6 @@ export default function TaskEditor({
             themeColors={themeColors}
             icon={CalendarDots}
             iconWeight="bold"
-          />
-        </SettingsGroup>
-
-        <SettingsGroup themeColors={themeColors} title={t("tasks.editor.subject", lang)}>
-          <SettingsRow
-            label={t("tasks.editor.subject", lang)}
-            value={selectedSubject?.name || t("tasks.editor.no_subject", lang)}
-            onPress={() => setCurrentScreen("subjectPicker")}
-            themeColors={themeColors}
-            icon={BookOpen}
           />
         </SettingsGroup>
 
@@ -935,7 +1085,8 @@ export default function TaskEditor({
   );
 
   const minimizedTitle = task?.id ? t("tasks.editor.edit_task", lang) : t("tasks.editor.new_task", lang);
-  const minimizedSubtitle = selectedSubject?.name || text.trim() || t("tasks.editor.no_subject", lang);
+  const minimizedSubtitle = selectedSubject?.name || linkedLessonLabel || text.trim() || t("tasks.editor.no_subject", lang);
+  const calendarCurrentDate = lessonDateFilter || getLessonRefDate(selectedLessonRef) || new Date();
 
   return (
     <>
@@ -1019,28 +1170,13 @@ export default function TaskEditor({
         <View style={{ flex: 1 }}>
           {currentScreen === "main" && renderMain()}
 
-          {currentScreen === "subjectPicker" && (
-            <LessonEditorPickerScreen
-              options={[
-                { key: NO_SUBJECT_KEY, label: t("tasks.editor.no_subject", lang) },
-                ...subjects.map((subject) => ({ key: subject.id, label: subject.name })),
-              ]}
-              selectedValues={[resolvedSubjectId || NO_SUBJECT_KEY]}
-              multiSelect={false}
-              onSave={(key) => {
-                setSelectedSubjectId(key === NO_SUBJECT_KEY ? null : key);
-                setCurrentScreen("main");
-              }}
-              themeColors={themeColors}
-            />
-          )}
-
           {currentScreen === "lessonPicker" && (
             <LessonCatalogueScreen
               schedules={allSchedules}
               selectedScheduleIds={selectedScheduleIds}
               selectedLessonRef={selectedLessonRef}
               onOpenLessonGroup={handleOpenLessonGroup}
+              onSkip={openTaskDateCalendar}
               onClear={handleClearLesson}
               themeColors={themeColors}
               lang={lang}
@@ -1054,7 +1190,7 @@ export default function TaskEditor({
               selectedLessonRef={selectedLessonRef}
               dateFilter={lessonDateFilter}
               onSelectOccurrence={handleSelectLessonOccurrence}
-              onChooseDate={() => setLessonCalendarVisible(true)}
+              onChooseDate={openLessonGroupDateCalendar}
               onClear={handleClearLesson}
               themeColors={themeColors}
               lang={lang}
@@ -1096,8 +1232,13 @@ export default function TaskEditor({
 
       <CalendarSheet
         visible={lessonCalendarVisible}
-        onClose={() => setLessonCalendarVisible(false)}
-        currentDate={lessonDateFilter || new Date()}
+        onClose={() => {
+          setLessonCalendarVisible(false);
+          setLessonCalendarPurpose(null);
+        }}
+        onSkip={lessonCalendarPurpose ? handleCalendarSkip : undefined}
+        skipLabel={t("common.skip", lang)}
+        currentDate={calendarCurrentDate}
         customSchedule={selectedOccurrenceSchedule || targetSchedule}
         onDateSelect={handleDateSelect}
       />

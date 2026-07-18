@@ -29,6 +29,8 @@ import { useCalendarLogic } from "./useCalendarLogic";
 export default function CalendarSheet({
   visible,
   onClose,
+  onSkip,
+  skipLabel,
   onDateSelect,
   currentDate,
   customSchedule,
@@ -128,6 +130,12 @@ export default function CalendarSheet({
 
   const selectToday = () => selectDate(new Date());
 
+  const skipDate = () => {
+    triggerLightHaptic();
+    onSkip?.();
+    onClose();
+  };
+
   const handleAnimatedMonthChange = (direction) => {
     if (isAnimating.current) return;
     isAnimating.current = true;
@@ -214,35 +222,49 @@ export default function CalendarSheet({
           </Text>
         </View>
 
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t("schedule.header.today", lang)}
-          disabled={isTodaySelected}
-          onPress={selectToday}
-          activeOpacity={0.7}
-          style={[
-            styles.todayButton,
-            {
-              backgroundColor: isTodaySelected
-                ? themeColors.backgroundColor3
-                : themeColors.accentColorLight,
-            },
-          ]}
-        >
-          <ArrowCounterClockwise
-            size={17}
-            color={isTodaySelected ? themeColors.textColor3 : themeColors.accentColor}
-            weight="bold"
-          />
-          <Text
+        {onSkip ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={skipLabel || t("common.skip", lang)}
+            onPress={skipDate}
+            activeOpacity={0.7}
+            style={[styles.todayButton, { backgroundColor: themeColors.accentColorLight }]}
+          >
+            <Text style={[styles.todayText, { color: themeColors.accentColor }]}>
+              {skipLabel || t("common.skip", lang)}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("schedule.header.today", lang)}
+            disabled={isTodaySelected}
+            onPress={selectToday}
+            activeOpacity={0.7}
             style={[
-              styles.todayText,
-              { color: isTodaySelected ? themeColors.textColor3 : themeColors.accentColor },
+              styles.todayButton,
+              {
+                backgroundColor: isTodaySelected
+                  ? themeColors.backgroundColor3
+                  : themeColors.accentColorLight,
+              },
             ]}
           >
-            {t("schedule.header.today", lang)}
-          </Text>
-        </TouchableOpacity>
+            <ArrowCounterClockwise
+              size={17}
+              color={isTodaySelected ? themeColors.textColor3 : themeColors.accentColor}
+              weight="bold"
+            />
+            <Text
+              style={[
+                styles.todayText,
+                { color: isTodaySelected ? themeColors.textColor3 : themeColors.accentColor },
+              ]}
+            >
+              {t("schedule.header.today", lang)}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.monthNavigation}>
