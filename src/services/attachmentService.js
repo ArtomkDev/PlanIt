@@ -892,6 +892,46 @@ export const ensureLocalAttachment = async (attachment, { forceDownload = false 
     };
   }
 
+  if (canUseWebAttachmentCache()) {
+    const remoteUri = await getFreshAttachmentDownloadURL(attachment)
+      || attachment?.downloadURL
+      || attachment?.url
+      || localSourceUri;
+    if (!remoteUri) throw makeAttachmentError("open_failed", { name: attachment?.name });
+
+    try {
+      const blob = await getWebAttachmentSourceBlob(attachment, remoteUri);
+      if (blob?.size) {
+        const cacheReadyAttachment = {
+          ...attachment,
+          downloadURL: attachment?.downloadURL || attachment?.url || remoteUri,
+        };
+        await writeWebAttachmentCacheRecord(cacheReadyAttachment, blob);
+        const objectUrl = getWebObjectUrl(blob) || remoteUri;
+        return {
+          ...cacheReadyAttachment,
+          localUri: objectUrl,
+          openUri: objectUrl,
+          cacheState: "local",
+          cacheRevision: getAttachmentRevision(attachment),
+        };
+      }
+    } catch (error) {
+      if (forceDownload) {
+        throw makeAttachmentError("download_failed", {
+          name: attachment?.name,
+          originalError: error,
+        });
+      }
+    }
+
+    return {
+      ...attachment,
+      openUri: remoteUri,
+      cacheState: "remote",
+    };
+  }
+
   if (!canUseNativeAttachmentCache()) {
     const remoteUri = attachment?.downloadURL || attachment?.url || localSourceUri;
     if (!remoteUri) throw makeAttachmentError("open_failed", { name: attachment?.name });

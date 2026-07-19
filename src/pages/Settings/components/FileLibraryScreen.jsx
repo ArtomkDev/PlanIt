@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -18,6 +18,8 @@ import {
   DownloadSimple,
   File,
   Image as ImageIcon,
+  Camera,
+  Paperclip,
   PencilSimple,
   Trash,
   WarningCircle,
@@ -33,18 +35,25 @@ import themes from "../../../config/themes";
 import {
   cacheAttachmentFromLocalUri,
   deleteCloudAttachmentObject,
+  deleteStoredAttachments,
   deleteStoredAttachment,
   ensureLocalAttachment,
   formatAttachmentError,
   formatFileSize,
+  getAttachmentCacheState,
   getAttachmentLibraryUsage,
+  getAttachmentRevision,
   isImageAttachment,
   MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
   normalizeAttachmentDraftList,
   normalizeAttachmentLibrary,
   openAttachment,
+  captureAttachmentPhoto,
+  pickAttachmentFiles,
+  pickAttachmentPhotos,
   renameAttachmentDisplayName,
   uploadAttachmentDraft,
+  uploadAttachmentDrafts,
   upsertAttachmentLibraryFiles,
 } from "../../../services/attachmentService";
 import { t } from "../../../utils/i18n";
@@ -164,18 +173,25 @@ export default function FileLibraryScreen() {
   const [renameValue, setRenameValue] = useState("");
   const [previewFile, setPreviewFile] = useState(null);
   const [activeFileTab, setActiveFileTab] = useState("photos");
-  const [photoPreviewUris, setPhotoPreviewUris] = useState({});
+  const [photoPreviewCache, setPhotoPreviewCache] = useState({});
+  const [addingSource, setAddingSource] = useState(null);
+  const photoPreviewLoadsRef = useRef(new Set());
+  const photoPreviewCacheRef = useRef({});
 
   const files = useMemo(
     () => normalizeAttachmentLibrary(global?.fileLibrary),
     [global?.fileLibrary]
   );
+  const basePhotoFiles = useMemo(() => files.filter(isImageAttachment), [files]);
   const filesWithPreviewUris = useMemo(() => (
     files.map((file) => {
-      const previewUri = photoPreviewUris[file.id];
-      return previewUri ? { ...file, localUri: previewUri } : file;
+      const cachedPreview = photoPreviewCache[file.id];
+      const revision = getAttachmentRevision(file);
+      return cachedPreview?.uri && cachedPreview.revision === revision
+        ? { ...file, localUri: cachedPreview.uri }
+        : file;
     })
-  ), [files, photoPreviewUris]);
+  ), [files, photoPreviewCache]);
   const photoFiles = useMemo(() => filesWithPreviewUris.filter(isImageAttachment), [filesWithPreviewUris]);
   const otherFiles = useMemo(() => filesWithPreviewUris.filter((file) => !isImageAttachment(file)), [filesWithPreviewUris]);
   const visibleFiles = activeFileTab === "photos" ? photoFiles : otherFiles;
@@ -197,32 +213,79 @@ export default function FileLibraryScreen() {
     },
   ]), [lang, otherFiles.length, photoFiles.length]);
 
+  const rememberPhotoPreview = useCallback((file) => {
+    if (!file?.id || !isImageAttachment(file)) return;
+    const previewUri = getAttachmentPreviewUri(file);
+    if (!previewUri) return;
+
+    const revision = getAttachmentRevision(file);
+    setPhotoPreviewCache((currentCache) => {
+      const currentEntry = currentCache[file.id];
+      if (currentEntry?.uri === previewUri && currentEntry?.revision === revision) return currentCache;
+      return {
+        ...currentCache,
+        [file.id]: { uri: previewUri, revision },
+      };
+    });
+  }, []);
+
+  useEffect(() => {
+    photoPreviewCacheRef.current = photoPreviewCache;
+  }, [photoPreviewCache]);
+
   useEffect(() => {
     let active = true;
 
-    const loadMissingPhotoPreviews = async () => {
-      await Promise.all(photoFiles.map(async (file) => {
-        if (!file?.id || getAttachmentPreviewUri(file)) return;
+    const loadPhotoPreviewsFromCache = async () => {
+      if (activeFileTab !== "photos") return;
+
+      for (const file of basePhotoFiles) {
+        if (!active || !file?.id) return;
+
+        const revision = getAttachmentRevision(file);
+        const currentEntry = photoPreviewCacheRef.current[file.id];
+        if (currentEntry?.uri && currentEntry.revision === revision) continue;
+
+        const loadKey = `${file.id}:${revision}`;
+        if (photoPreviewLoadsRef.current.has(loadKey)) continue;
+        photoPreviewLoadsRef.current.add(loadKey);
 
         try {
-          const prepared = await ensureLocalAttachment(file);
+          const cacheState = await getAttachmentCacheState(file);
+          const prepared = (
+            (cacheState.status === "local" || cacheState.status === "source")
+            && cacheState.uri
+          )
+            ? { ...file, localUri: cacheState.uri, openUri: cacheState.uri }
+            : await ensureLocalAttachment(file);
           const previewUri = getAttachmentPreviewUri(prepared);
-          if (!active || !previewUri) return;
+          if (!active || !previewUri) continue;
 
-          setPhotoPreviewUris((currentUris) => (
-            currentUris[file.id] === previewUri
-              ? currentUris
-              : { ...currentUris, [file.id]: previewUri }
-          ));
-        } catch (error) {}
-      }));
+          setPhotoPreviewCache((currentCache) => {
+            const nextEntry = { uri: previewUri, revision };
+            const current = currentCache[file.id];
+            if (current?.uri === nextEntry.uri && current?.revision === nextEntry.revision) return currentCache;
+            return { ...currentCache, [file.id]: nextEntry };
+          });
+        } catch (error) {
+          const fallbackUri = file.localUri || file.uri || file.downloadURL || file.url || "";
+          if (active && fallbackUri) {
+            setPhotoPreviewCache((currentCache) => ({
+              ...currentCache,
+              [file.id]: { uri: fallbackUri, revision },
+            }));
+          }
+        } finally {
+          photoPreviewLoadsRef.current.delete(loadKey);
+        }
+      }
     };
 
-    loadMissingPhotoPreviews();
+    loadPhotoPreviewsFromCache();
     return () => {
       active = false;
     };
-  }, [photoFiles]);
+  }, [activeFileTab, basePhotoFiles]);
 
   const setLibraryFiles = useCallback((updater) => {
     setData((prev) => {
@@ -283,6 +346,98 @@ export default function FileLibraryScreen() {
     } catch (openError) {
       setFileError(formatAttachmentError(openError, lang));
     }
+  };
+
+  const handlePreviewCacheStateChange = useCallback((file) => {
+    rememberPhotoPreview(file);
+  }, [rememberPhotoPreview]);
+
+  const handleAddLibraryFiles = async (picker, sourceId, fallbackTab = "files") => {
+    if (addingSource) return;
+
+    if (!user?.uid) {
+      setFileError(t("attachments.errors.auth_required", lang));
+      return;
+    }
+
+    setAddingSource(sourceId);
+    setError("");
+
+    try {
+      const pickResult = await picker({ currentCount: 0 });
+      const pickedFiles = pickResult?.attachments || [];
+      const pickErrors = pickResult?.errors || [];
+
+      if (!pickedFiles.length) {
+        if (pickErrors.length) {
+          setFileError(pickErrors.slice(0, 2).map((item) => formatAttachmentError(item, lang)).join("\n"));
+        }
+        return;
+      }
+
+      const uploadedFiles = await uploadAttachmentDrafts(pickedFiles, { userId: user.uid });
+      const nextCloudUsage = cloudUsage + getAttachmentLibraryUsage(uploadedFiles);
+
+      if (nextCloudUsage > MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES) {
+        await deleteStoredAttachments(uploadedFiles);
+        const limitError = new Error("storage_limit_reached");
+        limitError.attachmentCode = "storage_limit_reached";
+        throw limitError;
+      }
+
+      setLibraryFiles((currentFiles) => upsertAttachmentLibraryFiles(currentFiles, uploadedFiles));
+      uploadedFiles.forEach(rememberPhotoPreview);
+      setActiveFileTab(uploadedFiles.some(isImageAttachment) ? "photos" : fallbackTab);
+
+      if (pickErrors.length) {
+        setError(pickErrors.slice(0, 2).map((item) => formatAttachmentError(item, lang)).join("\n"));
+      } else {
+        setError("");
+      }
+      triggerHaptic("success");
+    } catch (addError) {
+      setFileError(formatAttachmentError(addError, lang));
+    } finally {
+      setAddingSource(null);
+    }
+  };
+
+  const renderAddLibraryButton = ({ id, icon: Icon, label, picker, fallbackTab }) => {
+    const isAdding = addingSource === id;
+    const isDisabled = !!addingSource;
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.76}
+        disabled={isDisabled}
+        onPress={() => handleAddLibraryFiles(picker, id, fallbackTab)}
+        style={[
+          styles.addLibraryButton,
+          {
+            backgroundColor: isAdding ? themeColors.accentColor : themeColors.backgroundColor2,
+            borderColor: isAdding ? themeColors.accentColor : themeColors.borderColor,
+            opacity: isDisabled && !isAdding ? 0.58 : 1,
+          },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <Icon
+          size={18}
+          color={isAdding ? "#fff" : themeColors.accentColor}
+          weight="bold"
+        />
+        <Text
+          style={[
+            styles.addLibraryButtonText,
+            { color: isAdding ? "#fff" : themeColors.textColor },
+          ]}
+          numberOfLines={1}
+        >
+          {isAdding ? t("settings.files.adding_file", lang) : label}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   const startRename = (file) => {
@@ -822,6 +977,30 @@ export default function FileLibraryScreen() {
         </View>
       </SettingsGroup>
 
+      <View style={styles.addActionRow}>
+        {renderAddLibraryButton({
+          id: "files",
+          icon: Paperclip,
+          label: t("settings.files.add_files", lang),
+          picker: pickAttachmentFiles,
+          fallbackTab: "files",
+        })}
+        {renderAddLibraryButton({
+          id: "photo",
+          icon: Camera,
+          label: t("settings.files.add_photo", lang),
+          picker: captureAttachmentPhoto,
+          fallbackTab: "photos",
+        })}
+        {renderAddLibraryButton({
+          id: "gallery",
+          icon: ImageIcon,
+          label: t("settings.files.add_gallery", lang),
+          picker: pickAttachmentPhotos,
+          fallbackTab: "photos",
+        })}
+      </View>
+
       <View style={styles.libraryTabs}>
         <TabSwitcher
           tabs={fileTabs}
@@ -861,6 +1040,7 @@ export default function FileLibraryScreen() {
         attachment={previewFile}
         attachments={filesWithPreviewUris}
         onClose={() => setPreviewFile(null)}
+        onCacheStateChange={handlePreviewCacheStateChange}
         themeColors={themeColors}
         lang={lang}
       />
@@ -925,6 +1105,30 @@ const styles = StyleSheet.create({
   usageFill: {
     height: "100%",
     borderRadius: 4,
+  },
+  addActionRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  addLibraryButton: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 8,
+    paddingVertical: 11,
+  },
+  addLibraryButtonText: {
+    flexShrink: 1,
+    minWidth: 0,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "900",
+    marginLeft: 8,
   },
   libraryTabs: {
     marginBottom: 8,
