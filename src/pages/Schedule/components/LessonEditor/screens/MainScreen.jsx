@@ -18,6 +18,7 @@ import {
 
 import SettingsGroup from "../../../../../components/ui/SettingsKit/SettingsGroup";
 import SettingsRow from "../../../../../components/ui/SettingsKit/SettingsRow";
+import AttachmentManager from "../../../../../components/attachments/AttachmentManager";
 
 import GradientBackground from "../../../../../components/ui/GradientBackground";
 import themes from "../../../../../config/themes";
@@ -61,7 +62,18 @@ export default function LessonEditorMainScreen({
   onTimeChange,
   onClearSubject,
   scheduleReminder,
-  onSubjectReminderChange
+  onSubjectReminderChange,
+  attachments,
+  onAttachmentsChange,
+  onRemoveStoredAttachment,
+  onUploadedAttachments,
+  onAttachmentUploadStateChange,
+  attachmentUploadState,
+  attachmentOwnerAvailable,
+  attachmentUserId,
+  fileLibrary,
+  onFileLibraryChange,
+  attachmentStorageLimitBytes
 }) {
   const { global, lang } = useScheduleData();
   const [expandedField, setExpandedField] = useState(null);
@@ -552,6 +564,29 @@ export default function LessonEditorMainScreen({
                 />
             ))
         )}
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('attachments.title', lang)}
+        headerRight={renderHeaderRight(true, scopes.attachments, (s) => onScopeChange('attachments', s), null, null)}
+      >
+        <AttachmentManager
+          attachments={attachments}
+          onChange={onAttachmentsChange}
+          onRemoveStoredAttachment={onRemoveStoredAttachment}
+          onUploadedAttachments={onUploadedAttachments}
+          onUploadStateChange={onAttachmentUploadStateChange}
+          userId={attachmentUserId}
+          ownerAvailable={attachmentOwnerAvailable}
+          disabled={attachmentUploadState?.uploading}
+          uploadState={attachmentUploadState}
+          fileLibrary={fileLibrary}
+          onFileLibraryChange={onFileLibraryChange}
+          storageLimitBytes={attachmentStorageLimitBytes}
+          themeColors={themeColors}
+          lang={lang}
+        />
       </SettingsGroup>
 
       <SettingsGroup 

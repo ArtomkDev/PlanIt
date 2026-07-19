@@ -30,6 +30,13 @@ import AdvancedColorPicker from "../../../components/ui/AdvancedColorPicker";
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
+  deleteStoredAttachments,
+  MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
+  normalizeAttachmentDraftList,
+  normalizeAttachmentLibrary,
+  resolveAttachmentList,
+} from "../../../services/attachmentService";
+import {
   addMinutes,
   buildLessonTimes,
   getBreakDuration,
@@ -46,8 +53,8 @@ const timeToMins = (timeStr) => {
 };
 
 export default function LessonEditor({ lesson, onClose }) {
-  const { global, schedule, lang } = useScheduleData();
-  const { setScheduleDraft } = useScheduleActions();
+  const { global, schedule, lang, user } = useScheduleData();
+  const { setGlobalDraft, setScheduleDraft } = useScheduleActions();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
@@ -114,7 +121,8 @@ export default function LessonEditor({ lesson, onClose }) {
     people: 'global',
     type: 'global',
     location: 'global',
-    materials: 'global'
+    materials: 'global',
+    attachments: 'global'
   });
   
   const [currentScreen, setCurrentScreen] = useState("main"); 
@@ -126,6 +134,8 @@ export default function LessonEditor({ lesson, onClose }) {
   const [editingGradient, setEditingGradient] = useState(null);
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
   const [advancedPickerTarget, setAdvancedPickerTarget] = useState(null);
+  const [removedStoredAttachments, setRemovedStoredAttachments] = useState([]);
+  const [attachmentUploadState, setAttachmentUploadState] = useState({ uploading: false });
 
   const [isMinimized, setIsMinimized] = useState(false);
   const minimizeAnim = useRef(new Animated.Value(0)).current;
@@ -142,7 +152,8 @@ export default function LessonEditor({ lesson, onClose }) {
       people: initialInstanceData.teachers !== undefined ? 'local' : 'global',
       type: initialInstanceData.type !== undefined ? 'local' : 'global',
       location: (initialInstanceData.building !== undefined || initialInstanceData.room !== undefined) ? 'local' : 'global',
-      materials: initialInstanceData.links !== undefined ? 'local' : 'global'
+      materials: initialInstanceData.links !== undefined ? 'local' : 'global',
+      attachments: initialInstanceData.attachments !== undefined ? 'local' : 'global'
     });
 
     setLocalData({
@@ -151,6 +162,8 @@ export default function LessonEditor({ lesson, onClose }) {
         links: deepClone(dataSource?.links),
         gradients: deepClone(dataSource?.gradients),
     });
+    setRemovedStoredAttachments([]);
+    setAttachmentUploadState({ uploading: false });
     
     if (currentScreen !== "main") {
       setCurrentScreen("main");
@@ -185,6 +198,10 @@ export default function LessonEditor({ lesson, onClose }) {
       useNativeDriver: Platform.OS !== "web",
     }).start(() => setIsMinimized(false));
   };
+
+  const closeEditor = () => {
+    onClose?.();
+  };
   
   const handleCloseMinimized = () => {
     triggerHaptic("sheetClose");
@@ -192,10 +209,17 @@ export default function LessonEditor({ lesson, onClose }) {
       toValue: 0,
       duration: 120,
       useNativeDriver: Platform.OS !== "web",
-    }).start(() => onClose());
+    }).start(() => closeEditor());
   };
 
   const currentSubject = localData.subjects.find((s) => s.id === selectedSubjectId) || {};
+  const fileLibrary = useMemo(
+    () => normalizeAttachmentLibrary(global?.fileLibrary),
+    [global?.fileLibrary]
+  );
+  const effectiveAttachmentRefs = scopes.attachments === 'global'
+    ? normalizeAttachmentDraftList(currentSubject.attachments)
+    : normalizeAttachmentDraftList(instanceData.attachments);
 
   const sanitizeArray = (arr) => {
       if (!Array.isArray(arr)) return [];
@@ -245,7 +269,28 @@ export default function LessonEditor({ lesson, onClose }) {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const deletingExistingLesson = !selectedSubjectId && Number.isInteger(lesson?.index);
+    const draftAttachments = normalizeAttachmentDraftList(effectiveAttachmentRefs);
+    const resolvedDraftAttachments = resolveAttachmentList(draftAttachments, fileLibrary);
+    const hasPendingAttachments = resolvedDraftAttachments.some((attachment) => (
+      !attachment?.fileId
+      && (!attachment?.storagePath || !attachment?.downloadURL)
+    ));
+
+    if (attachmentUploadState.uploading || hasPendingAttachments) {
+      triggerHaptic("error");
+      setAttachmentUploadState({
+        uploading: false,
+        attachmentId: null,
+        progress: 0,
+        error: t('attachments.errors.upload_incomplete', lang),
+      });
+      return;
+    }
+
+    const persistedAttachments = deletingExistingLesson ? [] : normalizeAttachmentDraftList(draftAttachments);
+
     setScheduleDraft((prev) => {
       const next = { ...prev };
       
@@ -274,6 +319,11 @@ export default function LessonEditor({ lesson, onClose }) {
         ...instanceData,
         subjectId: selectedSubjectId, 
       };
+      if (scopes.attachments === 'local' && persistedAttachments.length > 0) {
+        lessonObject.attachments = persistedAttachments;
+      } else {
+        delete lessonObject.attachments;
+      }
 
       if (scopes.people === 'global') delete lessonObject.teachers;
       if (scopes.type === 'global') delete lessonObject.type;
@@ -282,6 +332,7 @@ export default function LessonEditor({ lesson, onClose }) {
           delete lessonObject.room;
       }
       if (scopes.materials === 'global') delete lessonObject.links;
+      if (scopes.attachments === 'global') delete lessonObject.attachments;
 
       Object.keys(lessonObject).forEach(key => {
           if (lessonObject[key] === undefined || lessonObject[key] === null) {
@@ -346,6 +397,13 @@ export default function LessonEditor({ lesson, onClose }) {
 
       return next;
     });
+
+    const attachmentsToDelete = removedStoredAttachments;
+    if (attachmentsToDelete.length > 0) {
+      deleteStoredAttachments(attachmentsToDelete).catch(() => {});
+    }
+    setRemovedStoredAttachments([]);
+    setAttachmentUploadState({ uploading: false });
     
     if (isMinimized) {
       triggerHaptic("success");
@@ -353,7 +411,7 @@ export default function LessonEditor({ lesson, onClose }) {
         toValue: 0,
         duration: 120,
         useNativeDriver: Platform.OS !== "web",
-      }).start(() => onClose());
+      }).start(() => closeEditor());
     } else {
       triggerHaptic("success");
       sheetRef.current?.close();
@@ -391,6 +449,36 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const handleUpdateInstance = (updates) => {
       setInstanceData(prev => ({ ...prev, ...updates }));
+  };
+
+  const handleAttachmentsChange = (nextAttachments) => {
+    const cleanAttachments = normalizeAttachmentDraftList(nextAttachments);
+    if (scopes.attachments === 'global') {
+      handleUpdateSubject({ attachments: cleanAttachments });
+      setInstanceData((prev) => {
+        const next = { ...prev };
+        delete next.attachments;
+        return next;
+      });
+    } else {
+      handleUpdateInstance({ attachments: cleanAttachments });
+    }
+  };
+
+  const handleFileLibraryChange = (nextFiles) => {
+    setGlobalDraft((prev) => ({
+      ...prev,
+      fileLibrary: normalizeAttachmentLibrary(nextFiles),
+    }));
+  };
+
+  const handleRemoveStoredAttachment = (attachment) => {
+    if (!attachment?.storagePath) return;
+    setRemovedStoredAttachments((prev) => (
+      prev.some((item) => item.storagePath === attachment.storagePath)
+        ? prev
+        : [...prev, attachment]
+    ));
   };
 
   const handleGenericSave = (field, value, groupName) => {
@@ -720,7 +808,7 @@ export default function LessonEditor({ lesson, onClose }) {
       return isEmpty ? t('schedule.lesson_editor.not_specified', lang) : labelStr;
   };
 
-  const canSave = selectedSubjectId !== null || Number.isInteger(lesson?.index);
+  const canSave = (selectedSubjectId !== null || Number.isInteger(lesson?.index)) && !attachmentUploadState.uploading;
 
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
@@ -745,7 +833,7 @@ export default function LessonEditor({ lesson, onClose }) {
         {currentScreen === "main" && (
           <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15}>
             <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
-              {t('common.done', lang)}
+              {attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.done', lang)}
             </Text>
           </TouchableOpacity>
         )}
@@ -819,7 +907,7 @@ export default function LessonEditor({ lesson, onClose }) {
       <BottomSheet
         ref={sheetRef}
         visible={!isMinimized}
-        onClose={onClose}
+        onClose={closeEditor}
         onMinimize={() => {
           triggerHaptic("minimize");
           setIsMinimized(true);
@@ -856,6 +944,17 @@ export default function LessonEditor({ lesson, onClose }) {
                 onClearSubject={() => setSelectedSubjectId(null)}
                 scheduleReminder={schedule?.reminder}
                 onSubjectReminderChange={handleUpdateSubjectReminder}
+                attachments={effectiveAttachmentRefs}
+                onAttachmentsChange={handleAttachmentsChange}
+                onRemoveStoredAttachment={handleRemoveStoredAttachment}
+                onUploadedAttachments={null}
+                onAttachmentUploadStateChange={setAttachmentUploadState}
+                attachmentUploadState={attachmentUploadState}
+                attachmentOwnerAvailable={!!user?.uid}
+                attachmentUserId={user?.uid}
+                fileLibrary={fileLibrary}
+                onFileLibraryChange={handleFileLibraryChange}
+                attachmentStorageLimitBytes={MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES}
               />
             )}
 

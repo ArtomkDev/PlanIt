@@ -54,6 +54,14 @@ export default {
     plugins: [
       "expo-localization",
       "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow PlanIt to attach photos to lessons and tasks.",
+          "cameraPermission": "Allow PlanIt to take photos for lesson and task attachments."
+        }
+      ],
+      "expo-document-picker",
       "@react-native-google-signin/google-signin",
       "expo-apple-authentication",
       "@react-native-community/datetimepicker",

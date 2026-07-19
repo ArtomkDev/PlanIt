@@ -27,6 +27,7 @@ import { NowTickProvider } from "../../hooks/useNowTick";
 import themes from "../../config/themes";
 import {
   buildLessonTimes,
+  getScheduleDayLessons,
 } from "../../utils/scheduleTime";
 import {
   createTaskDraftFromLesson,
@@ -260,8 +261,38 @@ export default function Schedule({ route, navigation }) {
     navigation?.setParams?.({ lessonViewIntent: undefined });
   }, [lessonViewIntent, navigation, openLessonViewerFromRef, schedule?.id, setGlobalDraft]);
 
+  const liveViewingLesson = useMemo(() => {
+    if (!viewingLesson || !schedule) return viewingLesson;
+
+    const lessonIndex = Number(viewingLesson.index);
+    if (!Number.isInteger(lessonIndex)) return viewingLesson;
+
+    const dayLessons = getScheduleDayLessons(schedule, currentDate);
+    const lessonItem = dayLessons?.[lessonIndex];
+    if (!lessonItem) return viewingLesson;
+
+    const isInstance = typeof lessonItem === "object" && lessonItem !== null;
+    const subjectId = isInstance ? lessonItem.subjectId : lessonItem;
+    const lessonData = isInstance ? lessonItem : {};
+    const lessonTimes = buildLessonTimes(
+      schedule.start_time || "08:30",
+      Number(schedule.duration) || 45,
+      schedule.breaks || [],
+      dayLessons || []
+    );
+
+    return {
+      ...viewingLesson,
+      subjectId,
+      index: lessonIndex,
+      timeInfo: lessonTimes?.[lessonIndex] || viewingLesson.timeInfo,
+      data: lessonData,
+      lesson: lessonItem,
+    };
+  }, [currentDate, schedule, viewingLesson]);
+
   const relatedTasks = useMemo(() => {
-    const context = buildSelectedLessonTaskContext(viewingLesson);
+    const context = buildSelectedLessonTaskContext(liveViewingLesson);
     const lessonRef = context?.lessonRef;
     if (!lessonRef || !Array.isArray(schedule?.tasks)) return [];
     if (lessonRef.lessonIndex === undefined || lessonRef.lessonIndex === null) return [];
@@ -276,7 +307,7 @@ export default function Schedule({ route, navigation }) {
         return Number(taskRef.lessonIndex) === Number(lessonRef.lessonIndex);
       })
       .slice(0, 3);
-  }, [buildSelectedLessonTaskContext, schedule?.tasks, viewingLesson]);
+  }, [buildSelectedLessonTaskContext, liveViewingLesson, schedule?.tasks]);
 
   const findLessonById = useCallback((id) => {
     if (!schedule || !schedule.schedule) return null;
@@ -469,7 +500,7 @@ export default function Schedule({ route, navigation }) {
       <DayScheduleProvider date={currentDate}>
         <LessonViewer
           visible={viewerVisible}
-          lesson={viewingLesson}
+          lesson={liveViewingLesson}
           relatedTasks={relatedTasks}
           onClose={() => setViewerVisible(false)}
           onEdit={openEditor}

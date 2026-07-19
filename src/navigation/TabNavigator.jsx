@@ -29,6 +29,7 @@ import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
 import DeviceManager from '../pages/Settings/components/managers/DeviceManagement';
 import NotificationsScreen from '../pages/Settings/components/NotificationsScreen';
 import ScheduleEditorScreen from '../pages/Settings/components/ScheduleEditorScreen';
+import FileLibraryScreen from '../pages/Settings/components/FileLibraryScreen';
 import AccountSettings from '../pages/Settings/components/AccountSettings/AccountSettings';
 import DeleteAccountScreen from '../pages/Settings/components/AccountSettings/components/DeleteAccountScreen';
 import ChangeNameScreen from '../pages/Settings/components/AccountSettings/components/ChangeNameScreen';
@@ -77,6 +78,7 @@ function SettingsStack({ screenProps }) {
         <Stack.Screen name="AboutApp" component={AboutApp} />
         <Stack.Screen name="DeviceManagement" component={DeviceManager} />
         <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
+        <Stack.Screen name="FileLibrary" component={FileLibraryScreen} />
         <Stack.Screen name="AccountSettings" component={AccountSettings} />
         <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
         <Stack.Screen name="ChangeName" component={ChangeNameScreen} />

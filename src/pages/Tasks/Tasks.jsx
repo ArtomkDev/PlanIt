@@ -21,12 +21,14 @@ import {
   Clock,
   ClipboardText,
   Link as LinkIcon,
+  Paperclip,
   Plus,
   Square,
 } from "phosphor-react-native";
 import tinycolor from "tinycolor2";
 
 import AppBlur from "../../components/ui/AppBlur";
+import AttachmentImagePreview from "../../components/attachments/AttachmentImagePreview";
 import GradientBackground from "../../components/ui/GradientBackground";
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
@@ -52,6 +54,13 @@ import {
 import TaskEditor from "./components/TaskEditor";
 import TaskScheduleFilterSheet from "./components/TaskScheduleFilterSheet";
 import { triggerHaptic } from "../../utils/haptics";
+import {
+  formatFileSize,
+  isImageAttachment,
+  normalizeAttachmentDraftList,
+  openAttachment,
+  resolveAttachmentList,
+} from "../../services/attachmentService";
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const TASK_ICON_CELL_SIZE = 46;
@@ -581,8 +590,9 @@ function TaskCard({
   onToggle,
   onLinkedLessonPress,
 }) {
-  const { task, subject, links, scheduleId, scheduleColor, activeGradient } = entry;
+  const { task, subject, links, attachments, scheduleId, scheduleColor, activeGradient } = entry;
   const completed = task?.completed === true;
+  const [previewAttachment, setPreviewAttachment] = useState(null);
   const collapseProgress = useRef(new Animated.Value(completed ? 1 : 0)).current;
   const normalizedLessonRef = normalizeLessonRef(task?.lessonRef, scheduleId);
   const lessonTimeLabel = getTaskLessonTimeLabel(normalizedLessonRef);
@@ -703,6 +713,20 @@ function TaskCard({
     }
   };
 
+  const handleAttachmentPress = async (attachment) => {
+    try {
+      triggerHaptic("open");
+      if (isImageAttachment(attachment)) {
+        setPreviewAttachment(attachment);
+        return;
+      }
+      await openAttachment(attachment);
+    } catch (error) {
+      triggerHaptic("error");
+      Alert.alert(t("common.error", lang), t("attachments.errors.open_failed", lang));
+    }
+  };
+
   const handleCardPress = () => {
     triggerHaptic("open");
     onPress?.();
@@ -721,6 +745,7 @@ function TaskCard({
   };
 
   return (
+    <>
     <AnimatedTouchableOpacity
       activeOpacity={0.86}
       onPress={handleCardPress}
@@ -837,9 +862,40 @@ function TaskCard({
               ))}
             </View>
           )}
+
+          {attachments.length > 0 && (
+            <View style={styles.linksWrap}>
+              {attachments.map((attachment) => (
+                <TouchableOpacity
+                  key={attachment.id}
+                  activeOpacity={0.75}
+                  onPress={(event) => {
+                    event?.stopPropagation?.();
+                    handleAttachmentPress(attachment);
+                  }}
+                  style={[styles.linkChip, { backgroundColor: chipBackground }]}
+                >
+                  <Paperclip size={14} color={textOnCard} weight="bold" />
+                  <Text style={[styles.linkText, { color: textOnCard }]} numberOfLines={1}>
+                    {[attachment.name, formatFileSize(attachment.size)].filter(Boolean).join(" - ")}
+                  </Text>
+                  <ArrowUpRight size={13} color={mutedTextOnCard} weight="bold" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </Animated.View>
       </View>
     </AnimatedTouchableOpacity>
+    <AttachmentImagePreview
+      visible={!!previewAttachment}
+      attachment={previewAttachment}
+      attachments={attachments}
+      onClose={() => setPreviewAttachment(null)}
+      themeColors={themeColors}
+      lang={lang}
+    />
+    </>
   );
 }
 
@@ -935,13 +991,14 @@ export default function Tasks({ route, navigation }) {
             scheduleColor,
             subject,
             links: uniqueIds(task?.links).map((id) => linksById.get(id)).filter(Boolean),
+            attachments: resolveAttachmentList(task?.attachments, global?.fileLibrary),
             sourceSchedule,
             activeGradient,
           };
         });
       })
       .sort(sortTaskEntriesNewestFirst);
-  }, [lang, selectedSchedules, themeColors.accentColor]);
+  }, [global?.fileLibrary, lang, selectedSchedules, themeColors.accentColor]);
 
   const taskRows = useMemo(() => (
     buildTaskListRows(flatTasks, lang, activeScheduleId)
@@ -971,9 +1028,17 @@ export default function Tasks({ route, navigation }) {
         entry.task?.lessonRef?.lessonIndex,
         entry.task?.lessonRef?.start,
         entry.task?.lessonRef?.end,
+        resolveAttachmentList(entry.task?.attachments, global?.fileLibrary).map((attachment) => [
+          attachment.id,
+          attachment.name,
+          attachment.size,
+          attachment.storagePath,
+          attachment.cacheKey,
+          attachment.cloudRevision,
+        ].join(",")).join(";"),
       ].join(":"))
       .join("|")
-  ), [flatTasks]);
+  ), [flatTasks, global?.fileLibrary]);
 
   const headerTaskSummary = useMemo(() => (
     flatTasks.length > 0
@@ -1110,8 +1175,10 @@ export default function Tasks({ route, navigation }) {
       const sanitizedTask = {
         ...savedTask,
         links: uniqueIds(savedTask.links),
+        attachments: normalizeAttachmentDraftList(savedTask.attachments),
         lessonRef: normalizeLessonRef(savedTask.lessonRef, scheduleId),
       };
+      if (sanitizedTask.attachments.length === 0) delete sanitizedTask.attachments;
       const existingIndex = previousTasks.findIndex((item) => item?.id === sanitizedTask.id);
       const nextTasks = [...previousTasks];
 

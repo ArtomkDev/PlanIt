@@ -48,6 +48,50 @@ const getArrayItemsFingerprint = (items, keys) => {
     .join(";");
 };
 
+const getAttachmentsFingerprint = (attachments) => {
+  if (!Array.isArray(attachments)) return "";
+
+  return attachments
+    .map((attachment = {}) => [
+      attachment.id,
+      attachment.fileId,
+      attachment.name,
+      attachment.mimeType,
+      attachment.size,
+      attachment.storageMode,
+      attachment.storagePath,
+      attachment.downloadURL,
+      attachment.cacheKey,
+      attachment.cloudRevision,
+      attachment.uploadedAt,
+      attachment.privacySanitized ? 1 : 0,
+    ].map(normalizePrimitive).join(","))
+    .sort()
+    .join(";");
+};
+
+const getFileLibraryFingerprint = (files) => getAttachmentsFingerprint(files);
+
+const getSubjectsFingerprint = (subjects) => {
+  if (!Array.isArray(subjects)) return "";
+
+  return subjects
+    .map((subject = {}) => [
+      subject.id,
+      subject.name,
+      subject.shortName,
+      subject.type,
+      subject.room,
+      subject.building,
+      subject.color,
+      subject.colorGradient,
+      getReminderFingerprint(subject.reminder),
+      getAttachmentsFingerprint(subject.attachments),
+    ].map(normalizePrimitive).join(","))
+    .sort()
+    .join(";");
+};
+
 const getLessonsFingerprint = (scheduleGrid) => {
   if (!Array.isArray(scheduleGrid)) return "";
 
@@ -77,6 +121,7 @@ const getLessonsFingerprint = (scheduleGrid) => {
           lesson.timeInfo?.end,
           Array.isArray(lesson.teachers) ? lesson.teachers.join(",") : lesson.teacher,
           Array.isArray(lesson.links) ? lesson.links.join(",") : lesson.link,
+          getAttachmentsFingerprint(lesson.attachments),
           lesson.note,
           lesson.color,
           lesson.gradient,
@@ -96,6 +141,7 @@ const getTasksFingerprint = (tasks) => {
       const taskLinks = Array.isArray(task.links)
         ? task.links.map(normalizePrimitive).sort().join(",")
         : "";
+      const taskAttachments = getAttachmentsFingerprint(task.attachments);
       const lessonRef = task.lessonRef && typeof task.lessonRef === "object" && !Array.isArray(task.lessonRef)
         ? [
           task.lessonRef.scheduleId,
@@ -117,6 +163,7 @@ const getTasksFingerprint = (tasks) => {
         task.createdAt,
         task.updatedAt,
         taskLinks,
+        taskAttachments,
         lessonRef,
       ].map(normalizePrimitive).join(",");
     })
@@ -141,12 +188,15 @@ const getGlobalFingerprint = (global = {}) => {
     "hapticsEnabled",
     "starting_week",
     "notificationPreferences",
+    "fileLibrary",
   ];
 
   return keys.map((key) => {
     const value = key === "notificationPreferences"
       ? getNotificationPreferencesFingerprint(global?.[key])
-      : normalizePrimitive(global?.[key]);
+      : key === "fileLibrary"
+        ? getFileLibraryFingerprint(global?.[key])
+        : normalizePrimitive(global?.[key]);
     return `${key}:${value}`;
   }).join(";");
 };
@@ -168,7 +218,7 @@ const getScheduleFingerprint = (schedule = {}) => {
     getReminderFingerprint(schedule.reminder),
     Array.isArray(schedule.breaks) ? schedule.breaks.join(",") : "",
     Array.isArray(schedule.subjects) ? schedule.subjects.length : 0,
-    getArrayItemsFingerprint(schedule.subjects, ["id", "name", "shortName", "type", "room", "building", "color", "colorGradient", "reminder"]),
+    getSubjectsFingerprint(schedule.subjects),
     Array.isArray(schedule.teachers) ? schedule.teachers.length : 0,
     getArrayItemsFingerprint(schedule.teachers, ["id", "name", "shortName", "email", "phone"]),
     Array.isArray(schedule.links) ? schedule.links.length : 0,

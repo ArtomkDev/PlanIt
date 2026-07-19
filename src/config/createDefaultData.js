@@ -12,6 +12,7 @@ export default function createDefaultData() {
     navigationLabels: true,
     navigationAnimations: true,
     hapticsEnabled: true,
+    fileLibrary: [],
     lastModified: now, 
     lastSynced: 0, 
   };

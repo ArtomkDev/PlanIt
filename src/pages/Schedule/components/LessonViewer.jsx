@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -16,8 +16,10 @@ import {
   Phone, 
   Link as LinkIcon, 
   ArrowUpRight, 
+  DownloadSimple,
   CheckSquare,
   Plus,
+  Paperclip,
   Trash, 
   PencilSimple 
 } from "phosphor-react-native";
@@ -28,7 +30,15 @@ import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { t } from "../../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
+import AttachmentImagePreview from "../../../components/attachments/AttachmentImagePreview";
 import { triggerHaptic } from "../../../utils/haptics";
+import {
+  deleteStoredAttachments,
+  formatFileSize,
+  isImageAttachment,
+  openAttachment,
+  resolveAttachmentList,
+} from "../../../services/attachmentService";
 
 export default function LessonViewer({
   visible,
@@ -42,6 +52,7 @@ export default function LessonViewer({
   const { setScheduleDraft } = useScheduleActions();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
   const insets = useSafeAreaInsets();
+  const [previewAttachment, setPreviewAttachment] = useState(null);
   
   if (!lesson) return null;
 
@@ -77,6 +88,9 @@ export default function LessonViewer({
   
   const validLinkIds = Array.isArray(rawLinkIds) ? rawLinkIds : [];
   const displayLinks = links.filter(l => validLinkIds.includes(l.id));
+  const hasLocalAttachments = instanceData.attachments !== undefined;
+  const rawAttachments = hasLocalAttachments ? instanceData.attachments : fullSubject.attachments;
+  const displayAttachments = resolveAttachmentList(rawAttachments, global?.fileLibrary);
 
   const getHeaderBackground = () => {
     if (fullSubject.typeColor === "gradient" && fullSubject.colorGradient) {
@@ -98,6 +112,20 @@ export default function LessonViewer({
     } else {
       triggerHaptic("error");
       alert(`${t('schedule.lesson_viewer.link_error', lang)}${url}`);
+    }
+  };
+
+  const handleAttachmentPress = async (attachment, download = false) => {
+    try {
+      triggerHaptic("open");
+      if (!download && isImageAttachment(attachment)) {
+        setPreviewAttachment(attachment);
+        return;
+      }
+      await openAttachment(attachment, { download });
+    } catch (error) {
+      triggerHaptic("error");
+      Alert.alert(t('common.error', lang), t('attachments.errors.open_failed', lang));
     }
   };
 
@@ -127,6 +155,7 @@ export default function LessonViewer({
               }
               return next;
             });
+            deleteStoredAttachments(instanceData.attachments).catch(() => {});
             onClose();
           }
         }
@@ -142,6 +171,7 @@ export default function LessonViewer({
   const visibleRelatedTasks = Array.isArray(relatedTasks) ? relatedTasks.slice(0, 3) : [];
 
   return (
+    <>
     <BottomSheet
       visible={visible}
       onClose={handleClose}
@@ -282,6 +312,45 @@ export default function LessonViewer({
               </View>
             )}
 
+            {displayAttachments.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
+                  {t('attachments.title', lang).toUpperCase()}
+                </Text>
+                {displayAttachments.map((attachment) => (
+                  <TouchableOpacity
+                    key={attachment.id}
+                    style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
+                    onPress={() => handleAttachmentPress(attachment)}
+                    activeOpacity={0.76}
+                  >
+                    <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
+                      <Paperclip size={18} color={themeColors.accentColor} weight="bold" />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[styles.rowTitle, { color: themeColors.textColor }]} numberOfLines={1}>
+                        {attachment.name || t('attachments.file', lang)}
+                      </Text>
+                      <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+                        {formatFileSize(attachment.size)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={(event) => {
+                        event?.stopPropagation?.();
+                        handleAttachmentPress(attachment, true);
+                      }}
+                      style={styles.rowActionButton}
+                      accessibilityLabel={t('attachments.download', lang)}
+                    >
+                      <DownloadSimple size={20} color={themeColors.textColor2} weight="bold" />
+                    </TouchableOpacity>
+                    <ArrowUpRight size={20} color={themeColors.textColor2} weight="regular" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             {visibleRelatedTasks.length > 0 && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
@@ -391,6 +460,15 @@ export default function LessonViewer({
           </View>
 
     </BottomSheet>
+    <AttachmentImagePreview
+      visible={!!previewAttachment}
+      attachment={previewAttachment}
+      attachments={displayAttachments}
+      onClose={() => setPreviewAttachment(null)}
+      themeColors={themeColors}
+      lang={lang}
+    />
+    </>
   );
 }
 
@@ -532,6 +610,13 @@ const styles = StyleSheet.create({
   rowSubtitle: {
     fontSize: 13,
     marginTop: 2,
+  },
+  rowActionButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   footer: {
     flexDirection: 'row',

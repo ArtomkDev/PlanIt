@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function verifiedOwner(userId) {
+      return request.auth != null
+        && request.auth.uid == userId
+        && request.auth.token.email_verified == true;
+    }
+
+    function validAttachmentUpload() {
+      return request.resource != null
+        && request.resource.size <= 20 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('^image/(bmp|gif|heic|heif|jpeg|jpg|png|webp)$')
+          || request.resource.contentType.matches(
+            '^(text/.*|application/pdf|application/msword|application/vnd\\.openxmlformats-officedocument\\..*|application/vnd\\.ms-.*|application/zip|application/x-zip-compressed)$'
+          )
+        );
+    }
+
+    match /users/{userId}/attachments/{allPaths=**} {
+      allow read: if verifiedOwner(userId);
+      allow create, update: if verifiedOwner(userId) && validAttachmentUpload();
+      allow delete: if verifiedOwner(userId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

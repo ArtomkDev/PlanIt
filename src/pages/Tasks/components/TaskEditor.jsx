@@ -25,12 +25,13 @@ import tinycolor from "tinycolor2";
 
 import CalendarSheet from "../../../components/CalendarSheet/CalendarSheet";
 import AppBlur from "../../../components/ui/AppBlur";
+import AttachmentManager from "../../../components/attachments/AttachmentManager";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import SettingsActionRow from "../../../components/ui/SettingsKit/SettingsActionRow";
 import SettingsGroup from "../../../components/ui/SettingsKit/SettingsGroup";
 import SettingsRow from "../../../components/ui/SettingsKit/SettingsRow";
-import { useScheduleData } from "../../../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { getIconComponent } from "../../../config/subjectIcons";
 import themes from "../../../config/themes";
 import { generateId } from "../../../utils/idGenerator";
@@ -38,6 +39,13 @@ import { t } from "../../../utils/i18n";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import { addScheduleRecordToMap } from "../../../utils/scheduleRecordMerge";
 import { triggerHaptic } from "../../../utils/haptics";
+import {
+  deleteStoredAttachments,
+  MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
+  normalizeAttachmentDraftList,
+  normalizeAttachmentLibrary,
+  resolveAttachmentList,
+} from "../../../services/attachmentService";
 import {
   areLessonRefsSame,
   buildScheduleGroupedLessonCatalogue,
@@ -139,6 +147,15 @@ const buildTaskEditorSessionKey = (task, sourceScheduleId) => {
     subjectId: task?.subjectId || null,
     text: task?.text || "",
     links: sanitizeIdArray(task?.links),
+    attachments: normalizeAttachmentDraftList(task?.attachments).map((attachment) => [
+      attachment.id,
+      attachment.fileId,
+      attachment.name,
+      attachment.size,
+      attachment.storagePath,
+      attachment.cacheKey,
+      attachment.cloudRevision,
+    ].join(":")),
     lessonRef: lessonRef
       ? {
         scheduleId: lessonRef.scheduleId || null,
@@ -628,7 +645,8 @@ export default function TaskEditor({
   onDelete,
   onClose,
 }) {
-  const { global, schedule, schedules, lang } = useScheduleData();
+  const { global, schedule, schedules, lang, user } = useScheduleData();
+  const { setGlobalDraft } = useScheduleActions();
   const sheetRef = useRef(null);
 
   const [mode, accent] = global?.theme || ["light", "blue"];
@@ -680,6 +698,11 @@ export default function TaskEditor({
   const [selectedSubjectId, setSelectedSubjectId] = useState(() => initialSubjectId);
   const [text, setText] = useState(task?.text || "");
   const [selectedLinks, setSelectedLinks] = useState(() => sanitizeIdArray(task?.links));
+  const [attachments, setAttachments] = useState(() => normalizeAttachmentDraftList(task?.attachments));
+  const fileLibrary = useMemo(
+    () => normalizeAttachmentLibrary(global?.fileLibrary),
+    [global?.fileLibrary]
+  );
   const [selectedLessonRef, setSelectedLessonRef] = useState(() => (
     getInitialTaskLessonRef(task, targetSchedule?.id, initialSubjectId)
   ));
@@ -692,11 +715,13 @@ export default function TaskEditor({
   const [lessonDateFilter, setLessonDateFilter] = useState(null);
   const [lessonCalendarVisible, setLessonCalendarVisible] = useState(false);
   const [lessonCalendarPurpose, setLessonCalendarPurpose] = useState(null);
+  const [removedStoredAttachments, setRemovedStoredAttachments] = useState([]);
+  const [attachmentUploadState, setAttachmentUploadState] = useState({ uploading: false });
   const [isMinimized, setIsMinimized] = useState(false);
   const minimizeAnim = useRef(new Animated.Value(0)).current;
   const editorSessionKey = useMemo(
     () => buildTaskEditorSessionKey(task, sourceSchedule?.id),
-    [sourceSchedule?.id, task?.id, task?.lessonRef, task?.links, task?.subjectId, task?.text]
+    [sourceSchedule?.id, task?.id, task?.lessonRef, task?.links, task?.attachments, task?.subjectId, task?.text]
   );
   const previousEditorSessionKeyRef = useRef(editorSessionKey);
 
@@ -709,13 +734,17 @@ export default function TaskEditor({
     }).start(() => setIsMinimized(false));
   };
 
+  const closeEditor = () => {
+    onClose?.();
+  };
+
   const handleCloseMinimized = () => {
     triggerHaptic("sheetClose");
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
       useNativeDriver: Platform.OS !== "web",
-    }).start(() => onClose?.());
+    }).start(() => closeEditor());
   };
 
   useEffect(() => {
@@ -738,6 +767,7 @@ export default function TaskEditor({
     setSelectedSubjectId(nextSubjectId);
     setText(task?.text || "");
     setSelectedLinks(sanitizeIdArray(task?.links));
+    setAttachments(normalizeAttachmentDraftList(task?.attachments));
     setSelectedLessonRef(nextLessonRef);
     setLocalLinks(deepCloneArray(nextSchedule?.links));
     setEditingLinkId(null);
@@ -748,6 +778,8 @@ export default function TaskEditor({
     setLessonDateFilter(null);
     setLessonCalendarVisible(false);
     setLessonCalendarPurpose(null);
+    setRemovedStoredAttachments([]);
+    setAttachmentUploadState({ uploading: false });
 
     if (isMinimized) {
       handleExpand(false);
@@ -779,7 +811,7 @@ export default function TaskEditor({
   const selectedLinkObjects = selectedLinks
     .map((id) => localLinks.find((link) => link.id === id))
     .filter(Boolean);
-  const canSave = text.trim().length > 0;
+  const canSave = text.trim().length > 0 && !attachmentUploadState.uploading;
   const activeLessonRef = normalizeLessonRef(selectedLessonRef, targetSchedule.id)
     || buildDateOnlyLessonRef(targetSchedule.id, new Date(), selectedSubjectId);
   const isInitialLessonPicker = currentScreen === "lessonPicker"
@@ -890,7 +922,28 @@ export default function TaskEditor({
     closeSheet();
   };
 
-  const handleSave = () => {
+  const handleAttachmentsChange = (nextAttachments) => {
+    setAttachments(normalizeAttachmentDraftList(nextAttachments));
+  };
+
+  const handleRemoveStoredAttachment = (attachment) => {
+    if (attachment?.fileId) return;
+    if (!attachment?.storagePath) return;
+    setRemovedStoredAttachments((prev) => (
+      prev.some((item) => item.storagePath === attachment.storagePath)
+        ? prev
+        : [...prev, attachment]
+    ));
+  };
+
+  const handleFileLibraryChange = (nextFiles) => {
+    setGlobalDraft((prev) => ({
+      ...prev,
+      fileLibrary: normalizeAttachmentLibrary(nextFiles),
+    }));
+  };
+
+  const handleSave = async () => {
     const trimmedText = text.trim();
     if (!trimmedText) return;
 
@@ -898,23 +951,51 @@ export default function TaskEditor({
     const taskId = task?.id || generateId();
     const lessonRef = normalizeLessonRef(activeLessonRef, targetSchedule.id)
       || buildDateOnlyLessonRef(targetSchedule.id, new Date(), resolvedSubjectId);
+
+    const draftAttachments = normalizeAttachmentDraftList(attachments);
+    const resolvedDraftAttachments = resolveAttachmentList(draftAttachments, fileLibrary);
+    const hasPendingAttachments = resolvedDraftAttachments.some((attachment) => (
+      !attachment?.fileId
+      && (!attachment?.storagePath || !attachment?.downloadURL)
+    ));
+
+    if (attachmentUploadState.uploading || hasPendingAttachments) {
+      triggerHaptic("error");
+      setAttachmentUploadState({
+        uploading: false,
+        attachmentId: null,
+        progress: 0,
+        error: t("attachments.errors.upload_incomplete", lang),
+      });
+      return;
+    }
+
+    const persistedAttachments = normalizeAttachmentDraftList(draftAttachments);
     const nextTask = {
       ...(task || {}),
       id: taskId,
       subjectId: resolvedSubjectId,
       text: trimmedText,
       links: sanitizeIdArray(selectedLinks),
+      attachments: persistedAttachments,
       lessonRef,
       completed: task?.completed === true,
       createdAt: task?.createdAt || now,
       updatedAt: now,
     };
+    if (persistedAttachments.length === 0) delete nextTask.attachments;
 
     onSave?.({
       scheduleId: targetSchedule.id,
       task: nextTask,
       links: localLinks,
     });
+
+    if (removedStoredAttachments.length > 0) {
+      deleteStoredAttachments(removedStoredAttachments).catch(() => {});
+    }
+    setRemovedStoredAttachments([]);
+    setAttachmentUploadState({ uploading: false });
 
     triggerHaptic("success");
     dismissEditor();
@@ -925,6 +1006,9 @@ export default function TaskEditor({
 
     triggerHaptic("success");
     onDelete?.(sourceSchedule?.id || targetSchedule.id, task.id);
+    deleteStoredAttachments([
+      ...normalizeAttachmentDraftList(task?.attachments).filter((attachment) => !attachment?.fileId),
+    ]).catch(() => {});
     dismissEditor();
   };
 
@@ -1211,7 +1295,7 @@ export default function TaskEditor({
         {currentScreen === "main" && (
           <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15}>
             <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
-              {t("common.done", lang)}
+              {attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.done", lang)}
             </Text>
           </TouchableOpacity>
         )}
@@ -1446,6 +1530,24 @@ export default function TaskEditor({
           </View>
         </SettingsGroup>
 
+        <SettingsGroup themeColors={themeColors} title={t("attachments.title", lang)}>
+          <AttachmentManager
+            attachments={attachments}
+            onChange={handleAttachmentsChange}
+            onRemoveStoredAttachment={handleRemoveStoredAttachment}
+            onUploadStateChange={setAttachmentUploadState}
+            fileLibrary={fileLibrary}
+            onFileLibraryChange={handleFileLibraryChange}
+            storageLimitBytes={MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES}
+            userId={user?.uid}
+            ownerAvailable={!!user?.uid}
+            disabled={attachmentUploadState.uploading}
+            uploadState={attachmentUploadState}
+            themeColors={themeColors}
+            lang={lang}
+          />
+        </SettingsGroup>
+
         <SettingsGroup themeColors={themeColors} title={t("tasks.editor.links", lang)}>
           <SettingsRow
             label={t("tasks.editor.attach_links", lang)}
@@ -1553,7 +1655,7 @@ export default function TaskEditor({
       <BottomSheet
         ref={sheetRef}
         visible={!isMinimized}
-        onClose={onClose}
+        onClose={closeEditor}
         onMinimize={() => {
           triggerHaptic("minimize");
           setIsMinimized(true);
