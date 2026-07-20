@@ -23,8 +23,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   CaretLeft,
   CaretRight,
+  CornersIn,
   DownloadSimple,
-  Image as ImageIcon,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
   WarningCircle,
   X,
 } from "phosphor-react-native";
@@ -37,6 +39,7 @@ import {
   openAttachment,
 } from "../../services/attachmentService";
 import MorphingLoader from "../ui/MorphingLoader";
+import StagedAttachmentImage, { AttachmentImageLoadingOverlay } from "./StagedAttachmentImage";
 import { t } from "../../utils/i18n";
 import { triggerHaptic } from "../../utils/haptics";
 
@@ -45,6 +48,19 @@ const GALLERY_SPRING = {
   stiffness: 230,
   mass: 0.72,
 };
+
+const ZOOM_SPRING = {
+  damping: 24,
+  stiffness: 245,
+  mass: 0.68,
+};
+
+const MAX_ZOOM = 5;
+const DOUBLE_TAP_ZOOM = 2.35;
+const ZOOMED_EPSILON = 0.015;
+const WIDE_LAYOUT_WIDTH = 768;
+const EDGE_SWIPE_COMMIT_RATIO = 0.22;
+const EDGE_SWIPE_VELOCITY = 640;
 
 const getAttachmentIdentity = (attachment = {}) => (
   attachment.id
@@ -85,6 +101,577 @@ const clampIndex = (index, count) => (
   Math.max(0, Math.min(count - 1, index))
 );
 
+const getContainedImageSize = (imageSize, boxWidth, boxHeight) => {
+  const safeWidth = Math.max(boxWidth, 1);
+  const safeHeight = Math.max(boxHeight, 1);
+  const imageWidth = imageSize?.width || 0;
+  const imageHeight = imageSize?.height || 0;
+
+  if (!imageWidth || !imageHeight) {
+    return { width: safeWidth, height: safeHeight };
+  }
+
+  const boxRatio = safeWidth / safeHeight;
+  const imageRatio = imageWidth / imageHeight;
+
+  if (imageRatio > boxRatio) {
+    return {
+      width: safeWidth,
+      height: safeWidth / imageRatio,
+    };
+  }
+
+  return {
+    width: safeHeight * imageRatio,
+    height: safeHeight,
+  };
+};
+
+const getKnownAttachmentImageSize = (attachment = {}) => {
+  const compressionWidth = Number(attachment?.compression?.width) || 0;
+  const compressionHeight = Number(attachment?.compression?.height) || 0;
+  if (compressionWidth > 0 && compressionHeight > 0) {
+    return { width: compressionWidth, height: compressionHeight };
+  }
+
+  const previewWidth = Number(attachment?.imagePreview?.width) || 0;
+  const previewHeight = Number(attachment?.imagePreview?.height) || 0;
+  if (previewWidth > 0 && previewHeight > 0) {
+    return { width: previewWidth, height: previewHeight };
+  }
+
+  return null;
+};
+
+function ZoomableImagePage({
+  attachment,
+  uri,
+  previousUri,
+  nextUri,
+  index,
+  pageWidth,
+  pageHeight,
+  active,
+  zoomActive,
+  resetToken,
+  zoomCommand,
+  onZoomChange,
+  onZoomEdgeSwipe = () => {},
+}) {
+  const knownImageSize = useMemo(() => getKnownAttachmentImageSize(attachment), [attachment]);
+  const [imageSize, setImageSize] = useState(knownImageSize);
+  const loadedImageKeyRef = useRef("");
+  const [loadedImageKey, setLoadedImageKey] = useState("");
+  const [failedImageSignature, setFailedImageSignature] = useState("");
+  const handledCommandTokenRef = useRef(null);
+  const imageKey = useMemo(
+    () => getAttachmentIdentity(attachment) || uri || `image-${index}`,
+    [attachment, index, uri]
+  );
+  const imageSignature = `${imageKey}:${uri || ""}`;
+  const imageLoaded = loadedImageKey === imageKey;
+  const imageFailed = failedImageSignature === imageSignature && !imageLoaded;
+
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+  const pinchStartFocalX = useSharedValue(0);
+  const pinchStartFocalY = useSharedValue(0);
+  const fitWidth = useSharedValue(Math.max(pageWidth, 1));
+  const fitHeight = useSharedValue(Math.max(pageHeight, 1));
+  const imageOpacity = useSharedValue(1);
+  const edgeDragX = useSharedValue(0);
+  const edgeDirection = useSharedValue(0);
+  const panStartedAtMinX = useSharedValue(false);
+  const panStartedAtMaxX = useSharedValue(false);
+
+  const notifyZoomChange = useCallback((nextZoomed) => {
+    onZoomChange?.(index, nextZoomed);
+  }, [index, onZoomChange]);
+
+  const resetZoom = useCallback((animated = true) => {
+    if (animated) {
+      scale.value = withSpring(1, ZOOM_SPRING);
+      translateX.value = withSpring(0, ZOOM_SPRING);
+      translateY.value = withSpring(0, ZOOM_SPRING);
+      edgeDragX.value = withSpring(0, ZOOM_SPRING);
+    } else {
+      scale.value = 1;
+      translateX.value = 0;
+      translateY.value = 0;
+      edgeDragX.value = 0;
+    }
+
+    edgeDirection.value = 0;
+    savedScale.value = 1;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
+    notifyZoomChange(false);
+  }, [
+    notifyZoomChange,
+    edgeDirection,
+    edgeDragX,
+    savedScale,
+    savedTranslateX,
+    savedTranslateY,
+    scale,
+    translateX,
+    translateY,
+  ]);
+
+  const animateToScale = useCallback((targetScale) => {
+    const nextScale = Math.max(1, Math.min(MAX_ZOOM, targetScale));
+    if (nextScale <= 1 + ZOOMED_EPSILON) {
+      resetZoom(true);
+      return;
+    }
+
+    const currentScale = Math.max(scale.value || 1, 1);
+    const scaleDelta = nextScale / currentScale;
+    const maxX = Math.max(0, (fitWidth.value * nextScale - pageWidth) / 2);
+    const maxY = Math.max(0, (fitHeight.value * nextScale - pageHeight) / 2);
+    const nextX = Math.max(-maxX, Math.min(maxX, translateX.value * scaleDelta));
+    const nextY = Math.max(-maxY, Math.min(maxY, translateY.value * scaleDelta));
+
+    scale.value = withSpring(nextScale, ZOOM_SPRING);
+    translateX.value = withSpring(nextX, ZOOM_SPRING);
+    translateY.value = withSpring(nextY, ZOOM_SPRING);
+    savedScale.value = nextScale;
+    savedTranslateX.value = nextX;
+    savedTranslateY.value = nextY;
+    notifyZoomChange(true);
+  }, [
+    fitHeight,
+    fitWidth,
+    notifyZoomChange,
+    pageHeight,
+    pageWidth,
+    resetZoom,
+    savedScale,
+    savedTranslateX,
+    savedTranslateY,
+    scale,
+    translateX,
+    translateY,
+  ]);
+
+  useEffect(() => {
+    setImageSize(knownImageSize);
+    setFailedImageSignature((currentSignature) => (
+      currentSignature.startsWith(`${imageKey}:`) && currentSignature !== imageSignature
+        ? ""
+        : currentSignature
+    ));
+    if (loadedImageKeyRef.current !== imageKey) {
+      setLoadedImageKey("");
+    }
+    if (!uri) return undefined;
+
+    let mounted = true;
+    Image.getSize(
+      uri,
+      (naturalWidth, naturalHeight) => {
+        if (!mounted) return;
+        setImageSize({ width: naturalWidth, height: naturalHeight });
+      },
+      () => {}
+    );
+
+    return () => {
+      mounted = false;
+    };
+  }, [imageKey, imageSignature, knownImageSize, uri]);
+
+  useEffect(() => {
+    const fittedSize = getContainedImageSize(imageSize, pageWidth, pageHeight);
+    fitWidth.value = fittedSize.width;
+    fitHeight.value = fittedSize.height;
+  }, [fitHeight, fitWidth, imageSize, pageHeight, pageWidth]);
+
+  useEffect(() => {
+    resetZoom(false);
+  }, [pageHeight, pageWidth, resetToken, resetZoom]);
+
+  useEffect(() => {
+    imageOpacity.value = 1;
+  }, [imageOpacity, uri]);
+
+  useEffect(() => {
+    if (!active) {
+      resetZoom(false);
+    }
+  }, [active, resetZoom]);
+
+  useEffect(() => {
+    if (!active || !zoomCommand?.token || handledCommandTokenRef.current === zoomCommand.token) return;
+
+    handledCommandTokenRef.current = zoomCommand.token;
+    if (zoomCommand.type === "reset") {
+      resetZoom(true);
+    } else if (zoomCommand.type === "in") {
+      animateToScale((scale.value || 1) * 1.38);
+    } else if (zoomCommand.type === "out") {
+      animateToScale((scale.value || 1) / 1.38);
+    }
+  }, [active, animateToScale, resetZoom, scale, zoomCommand]);
+
+  const pinchGesture = useMemo(() => Gesture.Pinch()
+    .enabled(active && !!uri)
+    .onBegin(() => {
+      runOnJS(notifyZoomChange)(true);
+    })
+    .onStart((event) => {
+      savedScale.value = scale.value;
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+      pinchStartFocalX.value = (event.focalX || pageWidth / 2) - pageWidth / 2;
+      pinchStartFocalY.value = (event.focalY || pageHeight / 2) - pageHeight / 2;
+    })
+    .onUpdate((event) => {
+      const baseScale = Math.max(savedScale.value, 1);
+      const nextScale = Math.max(1, Math.min(MAX_ZOOM, baseScale * event.scale));
+      const scaleDelta = nextScale / baseScale;
+      const focalX = (event.focalX || pageWidth / 2) - pageWidth / 2;
+      const focalY = (event.focalY || pageHeight / 2) - pageHeight / 2;
+      const maxX = Math.max(0, (fitWidth.value * nextScale - pageWidth) / 2);
+      const maxY = Math.max(0, (fitHeight.value * nextScale - pageHeight) / 2);
+      const nextX = (
+        savedTranslateX.value * scaleDelta
+        + (focalX - pinchStartFocalX.value)
+        + pinchStartFocalX.value * (1 - scaleDelta)
+      );
+      const nextY = (
+        savedTranslateY.value * scaleDelta
+        + (focalY - pinchStartFocalY.value)
+        + pinchStartFocalY.value * (1 - scaleDelta)
+      );
+
+      scale.value = nextScale;
+      translateX.value = Math.max(-maxX, Math.min(maxX, nextX));
+      translateY.value = Math.max(-maxY, Math.min(maxY, nextY));
+    })
+    .onEnd((event) => {
+      if (scale.value <= 1 + ZOOMED_EPSILON) {
+        scale.value = withSpring(1, ZOOM_SPRING);
+        translateX.value = withSpring(0, ZOOM_SPRING);
+        translateY.value = withSpring(0, ZOOM_SPRING);
+        savedScale.value = 1;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+        runOnJS(notifyZoomChange)(false);
+        return;
+      }
+
+      const maxX = Math.max(0, (fitWidth.value * scale.value - pageWidth) / 2);
+      const maxY = Math.max(0, (fitHeight.value * scale.value - pageHeight) / 2);
+      const nextX = Math.max(-maxX, Math.min(maxX, translateX.value));
+      const nextY = Math.max(-maxY, Math.min(maxY, translateY.value));
+
+      translateX.value = withSpring(nextX, ZOOM_SPRING);
+      translateY.value = withSpring(nextY, ZOOM_SPRING);
+      savedScale.value = scale.value;
+      savedTranslateX.value = nextX;
+      savedTranslateY.value = nextY;
+      runOnJS(notifyZoomChange)(true);
+    }), [
+    active,
+    fitHeight,
+    fitWidth,
+    notifyZoomChange,
+    pageHeight,
+    pageWidth,
+    pinchStartFocalX,
+    pinchStartFocalY,
+    savedScale,
+    savedTranslateX,
+    savedTranslateY,
+    scale,
+    translateX,
+    translateY,
+    uri,
+  ]);
+
+  const panGesture = useMemo(() => Gesture.Pan()
+    .enabled(active && zoomActive && !!uri)
+    .minDistance(1)
+    .averageTouches(true)
+    .onStart(() => {
+      const maxX = Math.max(0, (fitWidth.value * scale.value - pageWidth) / 2);
+
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+      panStartedAtMinX.value = maxX > 2 && translateX.value <= -maxX + 3;
+      panStartedAtMaxX.value = maxX > 2 && translateX.value >= maxX - 3;
+      edgeDragX.value = 0;
+      edgeDirection.value = 0;
+    })
+    .onUpdate((event) => {
+      const maxX = Math.max(0, (fitWidth.value * scale.value - pageWidth) / 2);
+      const maxY = Math.max(0, (fitHeight.value * scale.value - pageHeight) / 2);
+      const rawX = savedTranslateX.value + event.translationX;
+      const nextY = savedTranslateY.value + event.translationY;
+      const hasPrevious = !!previousUri;
+      const hasNext = !!nextUri;
+      const previousOverflow = Math.max(0, rawX - maxX);
+      const nextOverflow = Math.max(0, -maxX - rawX);
+
+      if (previousOverflow > 0 && hasPrevious && panStartedAtMaxX.value) {
+        edgeDirection.value = -1;
+        edgeDragX.value = Math.min(previousOverflow, pageWidth);
+        translateX.value = maxX;
+        translateY.value = Math.max(-maxY, Math.min(maxY, nextY * 0.72));
+        return;
+      }
+
+      if (nextOverflow > 0 && hasNext && panStartedAtMinX.value) {
+        edgeDirection.value = 1;
+        edgeDragX.value = -Math.min(nextOverflow, pageWidth);
+        translateX.value = -maxX;
+        translateY.value = Math.max(-maxY, Math.min(maxY, nextY * 0.72));
+        return;
+      }
+
+      edgeDirection.value = 0;
+      edgeDragX.value = 0;
+
+      translateX.value = Math.max(-maxX, Math.min(maxX, rawX));
+      translateY.value = Math.max(-maxY, Math.min(maxY, nextY));
+    })
+    .onEnd((event) => {
+      const maxX = Math.max(0, (fitWidth.value * scale.value - pageWidth) / 2);
+      const maxY = Math.max(0, (fitHeight.value * scale.value - pageHeight) / 2);
+      const nextX = Math.max(-maxX, Math.min(maxX, translateX.value));
+      const nextY = Math.max(-maxY, Math.min(maxY, translateY.value));
+      const direction = edgeDirection.value;
+      const edgeDistance = Math.abs(edgeDragX.value);
+      const wantsPrevious = direction === -1 && event.velocityX > EDGE_SWIPE_VELOCITY;
+      const wantsNext = direction === 1 && event.velocityX < -EDGE_SWIPE_VELOCITY;
+      const shouldCommit = direction !== 0 && (
+        edgeDistance > pageWidth * EDGE_SWIPE_COMMIT_RATIO
+        || wantsPrevious
+        || wantsNext
+      );
+
+      if (shouldCommit) {
+        const targetX = direction === -1 ? pageWidth : -pageWidth;
+
+        scale.value = withTiming(1, { duration: 170, easing: Easing.out(Easing.cubic) });
+        translateX.value = withTiming(0, { duration: 170, easing: Easing.out(Easing.cubic) });
+        translateY.value = withTiming(0, {
+          duration: 170,
+          easing: Easing.out(Easing.cubic),
+        });
+        edgeDragX.value = withTiming(targetX, {
+          duration: 170,
+          easing: Easing.out(Easing.cubic),
+        }, (finished) => {
+          if (finished) runOnJS(onZoomEdgeSwipe)(direction);
+        });
+        savedScale.value = 1;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+        runOnJS(notifyZoomChange)(false);
+        return;
+      }
+
+      edgeDragX.value = withSpring(0, ZOOM_SPRING);
+      edgeDirection.value = 0;
+      translateX.value = withSpring(nextX, ZOOM_SPRING);
+      translateY.value = withSpring(nextY, ZOOM_SPRING);
+      savedTranslateX.value = nextX;
+      savedTranslateY.value = nextY;
+    }), [
+    active,
+    fitHeight,
+    fitWidth,
+    pageHeight,
+    pageWidth,
+    edgeDirection,
+    edgeDragX,
+    nextUri,
+    panStartedAtMaxX,
+    panStartedAtMinX,
+    previousUri,
+    savedTranslateX,
+    savedTranslateY,
+    savedScale,
+    scale,
+    translateX,
+    translateY,
+    notifyZoomChange,
+    onZoomEdgeSwipe,
+    uri,
+    zoomActive,
+  ]);
+
+  const doubleTapGesture = useMemo(() => Gesture.Tap()
+    .enabled(active && !!uri)
+    .numberOfTaps(2)
+    .maxDuration(260)
+    .onEnd((event, success) => {
+      if (!success) return;
+
+      if (scale.value > 1 + ZOOMED_EPSILON) {
+        scale.value = withSpring(1, ZOOM_SPRING);
+        translateX.value = withSpring(0, ZOOM_SPRING);
+        translateY.value = withSpring(0, ZOOM_SPRING);
+        savedScale.value = 1;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+        runOnJS(notifyZoomChange)(false);
+        return;
+      }
+
+      const nextScale = DOUBLE_TAP_ZOOM;
+      const tapX = (event.x || pageWidth / 2) - pageWidth / 2;
+      const tapY = (event.y || pageHeight / 2) - pageHeight / 2;
+      const maxX = Math.max(0, (fitWidth.value * nextScale - pageWidth) / 2);
+      const maxY = Math.max(0, (fitHeight.value * nextScale - pageHeight) / 2);
+      const nextX = Math.max(-maxX, Math.min(maxX, tapX * (1 - nextScale)));
+      const nextY = Math.max(-maxY, Math.min(maxY, tapY * (1 - nextScale)));
+
+      scale.value = withSpring(nextScale, ZOOM_SPRING);
+      translateX.value = withSpring(nextX, ZOOM_SPRING);
+      translateY.value = withSpring(nextY, ZOOM_SPRING);
+      savedScale.value = nextScale;
+      savedTranslateX.value = nextX;
+      savedTranslateY.value = nextY;
+      runOnJS(notifyZoomChange)(true);
+    }), [
+    active,
+    fitHeight,
+    fitWidth,
+    notifyZoomChange,
+    pageHeight,
+    pageWidth,
+    savedScale,
+    savedTranslateX,
+    savedTranslateY,
+    scale,
+    translateX,
+    translateY,
+    uri,
+  ]);
+
+  const imageGesture = useMemo(
+    () => Gesture.Simultaneous(pinchGesture, panGesture, doubleTapGesture),
+    [doubleTapGesture, panGesture, pinchGesture]
+  );
+
+  const imageAnimatedStyle = useAnimatedStyle(() => {
+    const edgeProgress = Math.min(1, Math.abs(edgeDragX.value) / Math.max(pageWidth * 0.72, 1));
+    const easedEdgeProgress = 1 - Math.pow(1 - edgeProgress, 2);
+    const visualScale = scale.value - (scale.value - 1) * easedEdgeProgress;
+
+    return {
+      opacity: imageOpacity.value,
+      transform: [
+        { translateX: translateX.value * (1 - easedEdgeProgress) + edgeDragX.value },
+        { translateY: translateY.value * (1 - easedEdgeProgress) },
+        { scale: visualScale },
+      ],
+    };
+  });
+
+  const previousPreviewAnimatedStyle = useAnimatedStyle(() => {
+    const progress = Math.min(1, Math.abs(edgeDragX.value) / Math.max(pageWidth * 0.72, 1));
+    const activePreview = edgeDirection.value === -1;
+
+    return {
+      opacity: activePreview ? Math.min(1, progress * 1.35) : 0,
+      transform: [
+        { translateX: -pageWidth + Math.max(edgeDragX.value, 0) },
+      ],
+    };
+  });
+
+  const nextPreviewAnimatedStyle = useAnimatedStyle(() => {
+    const progress = Math.min(1, Math.abs(edgeDragX.value) / Math.max(pageWidth * 0.72, 1));
+    const activePreview = edgeDirection.value === 1;
+
+    return {
+      opacity: activePreview ? Math.min(1, progress * 1.35) : 0,
+      transform: [
+        { translateX: pageWidth + Math.min(edgeDragX.value, 0) },
+      ],
+    };
+  });
+
+  const cursorStyle = Platform.OS === "web" && uri
+    ? { cursor: zoomActive ? "grab" : "zoom-in" }
+    : null;
+
+  return (
+    <GestureDetector gesture={imageGesture}>
+      <Animated.View
+        style={[
+          styles.zoomViewport,
+          {
+            width: pageWidth,
+            height: pageHeight,
+          },
+          cursorStyle,
+        ]}
+      >
+        {!!previousUri && (
+          <Animated.Image
+            pointerEvents="none"
+            source={{ uri: previousUri }}
+            resizeMode="contain"
+            fadeDuration={0}
+            style={[styles.edgePreviewImage, previousPreviewAnimatedStyle]}
+          />
+        )}
+        {!!nextUri && (
+          <Animated.Image
+            pointerEvents="none"
+            source={{ uri: nextUri }}
+            resizeMode="contain"
+            fadeDuration={0}
+            style={[styles.edgePreviewImage, nextPreviewAnimatedStyle]}
+          />
+        )}
+
+        {!!uri && !imageFailed && (
+          <Animated.Image
+            source={{ uri }}
+            resizeMode="contain"
+            fadeDuration={0}
+            onLoad={(event) => {
+              loadedImageKeyRef.current = imageKey;
+              setLoadedImageKey(imageKey);
+              setFailedImageSignature("");
+              const source = event?.nativeEvent?.source;
+              if (source?.width && source?.height) {
+                setImageSize({ width: source.width, height: source.height });
+              }
+            }}
+            onError={() => {
+              if (loadedImageKeyRef.current !== imageKey) {
+                setFailedImageSignature(imageSignature);
+              }
+            }}
+            style={[styles.image, imageAnimatedStyle]}
+          />
+        )}
+
+        <AttachmentImageLoadingOverlay
+          active={!uri || !imageLoaded}
+          scanning={(!uri || !imageLoaded) && !imageFailed}
+          attachment={attachment}
+          baseColor="rgba(255,255,255,0.1)"
+          delayMs={uri ? 140 : 0}
+          resizeMode="contain"
+          style={styles.zoomLoadingOverlay}
+        />
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
 export default function AttachmentImagePreview({
   visible,
   attachment,
@@ -101,6 +688,9 @@ export default function AttachmentImagePreview({
   const closingRef = useRef(false);
   const resolvingKeysRef = useRef(new Set());
   const resolvedUrisRef = useRef({});
+  const activeIndexRef = useRef(0);
+  const zoomActiveRef = useRef(false);
+  const zoomCommandTokenRef = useRef(0);
 
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
@@ -111,6 +701,9 @@ export default function AttachmentImagePreview({
   const railTranslateY = useSharedValue(18);
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [zoomActive, setZoomActive] = useState(false);
+  const [zoomResetToken, setZoomResetToken] = useState(0);
+  const [zoomCommand, setZoomCommand] = useState(null);
   const [resolvedUris, setResolvedUris] = useState({});
   const [state, setState] = useState({
     loading: false,
@@ -129,20 +722,39 @@ export default function AttachmentImagePreview({
     return nextIndex >= 0 ? nextIndex : 0;
   }, [attachment, imageAttachments]);
   const canNavigate = imageAttachments.length > 1;
-  const showArrowNavigation = canNavigate && Platform.OS === "web" && width >= 768;
+  const isWideLayout = width >= WIDE_LAYOUT_WIDTH;
+  const showArrowNavigation = canNavigate && (Platform.OS === "web" || isWideLayout);
   const activeAttachment = imageAttachments[activeIndex] || attachment;
   const counterLabel = canNavigate ? `${activeIndex + 1}/${imageAttachments.length}` : "";
   const backgroundColor = themeColors?.mode === "light" ? "#0B0B0F" : "#000";
   const textColor = "#fff";
+  const headerTopPadding = Math.max(insets.top, 14);
+  const railBottomPadding = Math.max(insets.bottom, 12);
+  const stageTopInset = headerTopPadding + (isWideLayout ? 72 : 64);
+  const stageBottomInset = canNavigate
+    ? railBottomPadding + (isWideLayout ? 90 : 82)
+    : railBottomPadding + 20;
+  const galleryViewportHeight = Math.max(1, height - stageTopInset - stageBottomInset);
 
   useEffect(() => {
     resolvedUrisRef.current = resolvedUris;
   }, [resolvedUris]);
 
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  useEffect(() => {
+    zoomActiveRef.current = zoomActive;
+  }, [zoomActive]);
+
   const getDisplayUri = useCallback((item) => {
     const key = getAttachmentIdentity(item);
     return (key && resolvedUris[key]) || getAttachmentPreviewUri(item);
   }, [resolvedUris]);
+
+  const activeUri = activeAttachment ? getDisplayUri(activeAttachment) : "";
+  const showZoomControls = isWideLayout && !!activeUri;
 
   const rememberResolvedAttachment = useCallback((item) => {
     const key = getAttachmentIdentity(item);
@@ -224,21 +836,56 @@ export default function AttachmentImagePreview({
     });
   }, [imageAttachments.length]);
 
+  const resetZoomState = useCallback((force = false) => {
+    if (force || zoomActiveRef.current) {
+      setZoomResetToken((currentToken) => currentToken + 1);
+    }
+
+    zoomActiveRef.current = false;
+    setZoomActive(false);
+  }, []);
+
+  const handleZoomChange = useCallback((index, nextZoomed) => {
+    if (index !== activeIndexRef.current) return;
+    zoomActiveRef.current = nextZoomed;
+    setZoomActive(nextZoomed);
+  }, []);
+
+  const sendZoomCommand = useCallback((type) => {
+    triggerHaptic("selection");
+    zoomCommandTokenRef.current += 1;
+    setZoomCommand({ type, token: zoomCommandTokenRef.current });
+  }, []);
+
   const goToIndex = useCallback((nextIndex, animated = true) => {
     if (nextIndex < 0 || nextIndex >= imageAttachments.length) return;
-    if (nextIndex !== activeIndex) {
+    const currentIndex = activeIndexRef.current;
+
+    if (nextIndex !== currentIndex) {
       triggerHaptic("selection");
+      resetZoomState();
       setState((prev) => ({ ...prev, error: "" }));
+      activeIndexRef.current = nextIndex;
       setActiveIndex(nextIndex);
     }
     scrollGalleryToIndex(nextIndex, animated);
-  }, [activeIndex, imageAttachments.length, scrollGalleryToIndex]);
+  }, [imageAttachments.length, resetZoomState, scrollGalleryToIndex]);
 
   const goToOffset = useCallback((offset) => {
     if (!canNavigate) return;
     const count = imageAttachments.length;
-    goToIndex((activeIndex + offset + count) % count);
-  }, [activeIndex, canNavigate, goToIndex, imageAttachments.length]);
+    goToIndex((activeIndexRef.current + offset + count) % count);
+  }, [canNavigate, goToIndex, imageAttachments.length]);
+
+  const handleZoomEdgeSwipe = useCallback((offset) => {
+    if (!canNavigate) return;
+
+    const count = imageAttachments.length;
+    const nextIndex = (activeIndexRef.current + offset + count) % count;
+
+    triggerHaptic("swipe");
+    goToIndex(nextIndex, false);
+  }, [canNavigate, goToIndex, imageAttachments.length]);
 
   const finishClose = useCallback(() => {
     closingRef.current = false;
@@ -267,18 +914,21 @@ export default function AttachmentImagePreview({
   useEffect(() => {
     if (!visible || !attachment) return;
 
+    activeIndexRef.current = requestedIndex;
     setActiveIndex(requestedIndex);
+    resetZoomState(true);
 
     const frame = requestAnimationFrame(() => {
       scrollGalleryToIndex(requestedIndex, false);
     });
     return () => cancelAnimationFrame(frame);
-  }, [attachment, requestedIndex, scrollGalleryToIndex, visible]);
+  }, [attachment, requestedIndex, resetZoomState, scrollGalleryToIndex, visible]);
 
   useEffect(() => {
     if (!visible) return undefined;
 
     closingRef.current = false;
+    resetZoomState(true);
     dragX.value = 0;
     dragY.value = 0;
     imageScale.value = 0.985;
@@ -296,7 +946,7 @@ export default function AttachmentImagePreview({
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [backdropOpacity, chromeOpacity, dragX, dragY, headerTranslateY, imageScale, railTranslateY, visible]);
+  }, [backdropOpacity, chromeOpacity, dragX, dragY, headerTranslateY, imageScale, railTranslateY, resetZoomState, visible]);
 
   useEffect(() => {
     if (!visible || !activeAttachment) return;
@@ -360,6 +1010,7 @@ export default function AttachmentImagePreview({
   }));
 
   const dismissGesture = useMemo(() => Gesture.Pan()
+    .enabled(!zoomActive)
     .activeOffsetY(12)
     .failOffsetX([-24, 24])
     .onUpdate((event) => {
@@ -416,6 +1067,7 @@ export default function AttachmentImagePreview({
     height,
     imageScale,
     railTranslateY,
+    zoomActive,
   ]);
 
   const handleGalleryMomentumEnd = useCallback((event) => {
@@ -423,12 +1075,16 @@ export default function AttachmentImagePreview({
       Math.round(event.nativeEvent.contentOffset.x / Math.max(width, 1)),
       imageAttachments.length
     );
-    if (nextIndex !== activeIndex) {
+    const currentIndex = activeIndexRef.current;
+
+    if (nextIndex !== currentIndex) {
       triggerHaptic("selection");
+      resetZoomState();
       setState((prev) => ({ ...prev, error: "" }));
+      activeIndexRef.current = nextIndex;
       setActiveIndex(nextIndex);
     }
-  }, [activeIndex, imageAttachments.length, width]);
+  }, [imageAttachments.length, resetZoomState, width]);
 
   const handleDownload = async () => {
     if (!activeAttachment || state.saving) return;
@@ -467,26 +1123,59 @@ export default function AttachmentImagePreview({
     }
   };
 
-  const renderGalleryItem = useCallback(({ item }) => {
+  const handleThumbnailPress = useCallback((index) => {
+    const shouldAnimate = Math.abs(index - activeIndexRef.current) <= 1;
+    goToIndex(index, shouldAnimate);
+  }, [goToIndex]);
+
+  const renderGalleryItem = useCallback(({ item, index }) => {
     const uri = getDisplayUri(item);
+    const isActive = index === activeIndex;
+    const previousUri = index > 0 ? getDisplayUri(imageAttachments[index - 1]) : "";
+    const nextUri = index < imageAttachments.length - 1 ? getDisplayUri(imageAttachments[index + 1]) : "";
 
     return (
-      <View style={[styles.galleryPage, { width }]}>
-        {uri ? (
-          <Image
-            source={{ uri }}
-            resizeMode="contain"
-            fadeDuration={140}
-            style={styles.image}
-          />
-        ) : (
-          <View style={styles.emptyImagePage}>
-            <ImageIcon size={42} color="rgba(255,255,255,0.62)" weight="bold" />
-          </View>
-        )}
+      <View
+        style={[
+          styles.galleryPage,
+          {
+            width,
+            paddingTop: stageTopInset,
+            paddingBottom: stageBottomInset,
+          },
+        ]}
+      >
+        <ZoomableImagePage
+          attachment={item}
+          uri={uri}
+          previousUri={previousUri}
+          nextUri={nextUri}
+          index={index}
+          pageWidth={width}
+          pageHeight={galleryViewportHeight}
+          active={isActive}
+          zoomActive={zoomActive && isActive}
+          resetToken={zoomResetToken}
+          zoomCommand={zoomCommand}
+          onZoomChange={handleZoomChange}
+          onZoomEdgeSwipe={handleZoomEdgeSwipe}
+        />
       </View>
     );
-  }, [getDisplayUri, width]);
+  }, [
+    activeIndex,
+    galleryViewportHeight,
+    getDisplayUri,
+    imageAttachments,
+    handleZoomEdgeSwipe,
+    handleZoomChange,
+    stageBottomInset,
+    stageTopInset,
+    width,
+    zoomActive,
+    zoomCommand,
+    zoomResetToken,
+  ]);
 
   const renderThumbnail = useCallback(({ item, index }) => {
     const uri = getDisplayUri(item);
@@ -495,28 +1184,23 @@ export default function AttachmentImagePreview({
     return (
       <TouchableOpacity
         activeOpacity={0.78}
-        onPress={() => goToIndex(index)}
+        onPressIn={() => handleThumbnailPress(index)}
         style={[
           styles.thumbnailButton,
           isActive ? styles.thumbnailButtonActive : null,
         ]}
         accessibilityRole="button"
       >
-        {uri ? (
-          <Image
-            source={{ uri }}
-            resizeMode="cover"
-            fadeDuration={100}
-            style={styles.thumbnailImage}
-          />
-        ) : (
-          <View style={styles.thumbnailPlaceholder}>
-            <ImageIcon size={24} color="rgba(255,255,255,0.72)" weight="bold" />
-          </View>
-        )}
+        <StagedAttachmentImage
+          uri={uri}
+          attachment={item}
+          resizeMode="cover"
+          baseColor="rgba(255,255,255,0.1)"
+          style={styles.thumbnailImage}
+        />
       </TouchableOpacity>
     );
-  }, [activeIndex, getDisplayUri, goToIndex]);
+  }, [activeIndex, getDisplayUri, handleThumbnailPress]);
 
   const handleScrollToIndexFailed = useCallback((info) => {
     const fallbackOffset = Math.max(0, info.index * Math.max(width, 1));
@@ -535,8 +1219,6 @@ export default function AttachmentImagePreview({
   }, []);
 
   if (!visible || !activeAttachment) return null;
-
-  const activeUri = getDisplayUri(activeAttachment);
 
   return (
     <Modal
@@ -562,7 +1244,7 @@ export default function AttachmentImagePreview({
             style={[
               styles.header,
               {
-                paddingTop: Math.max(insets.top, 14),
+                paddingTop: headerTopPadding,
               },
               topChromeAnimatedStyle,
             ]}
@@ -596,20 +1278,55 @@ export default function AttachmentImagePreview({
               )}
             </View>
 
-            <TouchableOpacity
-              activeOpacity={0.72}
-              disabled={state.saving}
-              onPress={handleDownload}
-              style={[styles.headerButton, state.saving ? styles.disabledButton : null]}
-              accessibilityRole="button"
-              accessibilityLabel={t("attachments.download", lang)}
-            >
-              {state.saving ? (
-                <MorphingLoader size={24} />
-              ) : (
-                <DownloadSimple size={23} color={textColor} weight="bold" />
+            <View style={styles.headerActions}>
+              {showZoomControls && (
+                <View style={styles.zoomControls}>
+                  <TouchableOpacity
+                    activeOpacity={0.72}
+                    onPress={() => sendZoomCommand("out")}
+                    style={styles.headerButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Zoom out"
+                  >
+                    <MagnifyingGlassMinus size={22} color={textColor} weight="bold" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.72}
+                    disabled={!zoomActive}
+                    onPress={() => sendZoomCommand("reset")}
+                    style={[styles.headerButton, !zoomActive ? styles.disabledButton : null]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.reset", lang)}
+                  >
+                    <CornersIn size={22} color={textColor} weight="bold" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.72}
+                    onPress={() => sendZoomCommand("in")}
+                    style={styles.headerButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Zoom in"
+                  >
+                    <MagnifyingGlassPlus size={22} color={textColor} weight="bold" />
+                  </TouchableOpacity>
+                </View>
               )}
-            </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.72}
+                disabled={state.saving}
+                onPress={handleDownload}
+                style={[styles.headerButton, state.saving ? styles.disabledButton : null]}
+                accessibilityRole="button"
+                accessibilityLabel={t("attachments.download", lang)}
+              >
+                {state.saving ? (
+                  <MorphingLoader size={24} />
+                ) : (
+                  <DownloadSimple size={23} color={textColor} weight="bold" />
+                )}
+              </TouchableOpacity>
+            </View>
           </Animated.View>
 
           <GestureDetector gesture={dismissGesture}>
@@ -617,13 +1334,20 @@ export default function AttachmentImagePreview({
               <FlatList
                 ref={galleryListRef}
                 data={imageAttachments}
-                extraData={resolvedUris}
+                extraData={{
+                  activeIndex,
+                  resolvedUris,
+                  zoomActive,
+                  zoomCommandToken: zoomCommand?.token || 0,
+                  zoomResetToken,
+                }}
                 style={styles.galleryList}
                 initialScrollIndex={requestedIndex}
                 keyExtractor={(item, index) => getAttachmentIdentity(item) || `image-${index}`}
                 renderItem={renderGalleryItem}
                 horizontal
                 pagingEnabled
+                scrollEnabled={!zoomActive}
                 bounces={false}
                 showsHorizontalScrollIndicator={false}
                 decelerationRate="fast"
@@ -631,7 +1355,7 @@ export default function AttachmentImagePreview({
                 initialNumToRender={3}
                 maxToRenderPerBatch={3}
                 windowSize={3}
-                removeClippedSubviews={Platform.OS !== "web"}
+                removeClippedSubviews={false}
                 getItemLayout={(_, index) => ({
                   length: Math.max(width, 1),
                   offset: Math.max(width, 1) * index,
@@ -640,12 +1364,6 @@ export default function AttachmentImagePreview({
                 onMomentumScrollEnd={handleGalleryMomentumEnd}
                 onScrollToIndexFailed={handleScrollToIndexFailed}
               />
-
-              {state.loading && !activeUri && (
-                <View style={styles.loadingLayer}>
-                  <MorphingLoader size={64} />
-                </View>
-              )}
 
               {showArrowNavigation && (
                 <>
@@ -675,7 +1393,7 @@ export default function AttachmentImagePreview({
               style={[
                 styles.thumbnailRail,
                 {
-                  paddingBottom: Math.max(insets.bottom, 12),
+                  paddingBottom: railBottomPadding,
                 },
                 bottomChromeAnimatedStyle,
               ]}
@@ -713,14 +1431,23 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    overflow: "hidden",
   },
   header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
     minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingBottom: 10,
     gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(0,0,0,0.42)",
   },
   headerButton: {
     width: 44,
@@ -729,9 +1456,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  zoomControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   disabledButton: {
-    opacity: 0.62,
+    opacity: 0.46,
   },
   titleWrap: {
     flex: 1,
@@ -768,7 +1507,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   imageStage: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
     overflow: "hidden",
   },
   galleryList: {
@@ -780,21 +1520,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  zoomViewport: {
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
   image: {
     width: "100%",
     height: "100%",
   },
-  emptyImagePage: {
-    flex: 1,
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingLayer: {
+  edgePreviewImage: {
     ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.16)",
+    width: "100%",
+    height: "100%",
+  },
+  zoomLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
   },
   navButton: {
     position: "absolute",
@@ -806,19 +1548,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   navButtonLeft: {
-    left: 12,
+    left: 18,
   },
   navButtonRight: {
-    right: 12,
+    right: 18,
   },
   thumbnailRail: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 18,
     paddingTop: 10,
-    backgroundColor: "rgba(0,0,0,0.74)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(0,0,0,0.58)",
   },
   thumbnailContent: {
-    paddingHorizontal: 12,
+    minHeight: 62,
+    paddingHorizontal: 14,
     gap: 8,
   },
   thumbnailButton: {
@@ -836,11 +1588,5 @@ const styles = StyleSheet.create({
   thumbnailImage: {
     width: "100%",
     height: "100%",
-  },
-  thumbnailPlaceholder: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
   },
 });

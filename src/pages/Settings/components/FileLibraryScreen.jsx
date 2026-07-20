@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Image,
+  findNodeHandle,
   Platform,
   StyleSheet,
   Text,
@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import {
-  ArrowUpRight,
   Check,
   Cloud,
   CloudArrowUp,
@@ -29,11 +28,13 @@ import {
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import SettingsGroup from "../../../components/ui/SettingsKit/SettingsGroup";
 import AttachmentImagePreview from "../../../components/attachments/AttachmentImagePreview";
+import StagedAttachmentImage from "../../../components/attachments/StagedAttachmentImage";
 import TabSwitcher from "../../../components/ui/TabSwitcher";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import themes from "../../../config/themes";
 import {
   cacheAttachmentFromLocalUri,
+  buildAttachmentPickResultFromWebFiles,
   deleteCloudAttachmentObject,
   deleteStoredAttachments,
   deleteStoredAttachment,
@@ -177,6 +178,10 @@ export default function FileLibraryScreen() {
   const [addingSource, setAddingSource] = useState(null);
   const photoPreviewLoadsRef = useRef(new Set());
   const photoPreviewCacheRef = useRef({});
+  const webDropDepthRef = useRef(0);
+  const webDropZoneRef = useRef(null);
+  const [webDropActive, setWebDropActive] = useState(false);
+  const isWebLayout = Platform.OS === "web";
 
   const files = useMemo(
     () => normalizeAttachmentLibrary(global?.fileLibrary),
@@ -352,6 +357,39 @@ export default function FileLibraryScreen() {
     rememberPhotoPreview(file);
   }, [rememberPhotoPreview]);
 
+  const uploadLibraryPickResult = async (pickResult, fallbackTab = "files") => {
+    const pickedFiles = pickResult?.attachments || [];
+    const pickErrors = pickResult?.errors || [];
+
+    if (!pickedFiles.length) {
+      if (pickErrors.length) {
+        setFileError(pickErrors.slice(0, 2).map((item) => formatAttachmentError(item, lang)).join("\n"));
+      }
+      return;
+    }
+
+    const uploadedFiles = await uploadAttachmentDrafts(pickedFiles, { userId: user.uid });
+    const nextCloudUsage = cloudUsage + getAttachmentLibraryUsage(uploadedFiles);
+
+    if (nextCloudUsage > MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES) {
+      await deleteStoredAttachments(uploadedFiles);
+      const limitError = new Error("storage_limit_reached");
+      limitError.attachmentCode = "storage_limit_reached";
+      throw limitError;
+    }
+
+    setLibraryFiles((currentFiles) => upsertAttachmentLibraryFiles(currentFiles, uploadedFiles));
+    uploadedFiles.forEach(rememberPhotoPreview);
+    setActiveFileTab(uploadedFiles.some(isImageAttachment) ? "photos" : fallbackTab);
+
+    if (pickErrors.length) {
+      setError(pickErrors.slice(0, 2).map((item) => formatAttachmentError(item, lang)).join("\n"));
+    } else {
+      setError("");
+    }
+    triggerHaptic("success");
+  };
+
   const handleAddLibraryFiles = async (picker, sourceId, fallbackTab = "files") => {
     if (addingSource) return;
 
@@ -365,42 +403,111 @@ export default function FileLibraryScreen() {
 
     try {
       const pickResult = await picker({ currentCount: 0 });
-      const pickedFiles = pickResult?.attachments || [];
-      const pickErrors = pickResult?.errors || [];
-
-      if (!pickedFiles.length) {
-        if (pickErrors.length) {
-          setFileError(pickErrors.slice(0, 2).map((item) => formatAttachmentError(item, lang)).join("\n"));
-        }
-        return;
-      }
-
-      const uploadedFiles = await uploadAttachmentDrafts(pickedFiles, { userId: user.uid });
-      const nextCloudUsage = cloudUsage + getAttachmentLibraryUsage(uploadedFiles);
-
-      if (nextCloudUsage > MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES) {
-        await deleteStoredAttachments(uploadedFiles);
-        const limitError = new Error("storage_limit_reached");
-        limitError.attachmentCode = "storage_limit_reached";
-        throw limitError;
-      }
-
-      setLibraryFiles((currentFiles) => upsertAttachmentLibraryFiles(currentFiles, uploadedFiles));
-      uploadedFiles.forEach(rememberPhotoPreview);
-      setActiveFileTab(uploadedFiles.some(isImageAttachment) ? "photos" : fallbackTab);
-
-      if (pickErrors.length) {
-        setError(pickErrors.slice(0, 2).map((item) => formatAttachmentError(item, lang)).join("\n"));
-      } else {
-        setError("");
-      }
-      triggerHaptic("success");
+      await uploadLibraryPickResult(pickResult, fallbackTab);
     } catch (addError) {
       setFileError(formatAttachmentError(addError, lang));
     } finally {
       setAddingSource(null);
     }
   };
+
+  const stopWebDropEvent = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    event?.nativeEvent?.preventDefault?.();
+    event?.nativeEvent?.stopPropagation?.();
+
+    const dataTransfer = event?.dataTransfer || event?.nativeEvent?.dataTransfer;
+    if (dataTransfer) dataTransfer.dropEffect = "copy";
+  };
+
+  const getWebDroppedFiles = (event) => (
+    Array.from((event?.dataTransfer || event?.nativeEvent?.dataTransfer)?.files || [])
+  );
+
+  const handleWebDropEnter = (event) => {
+    if (!isWebLayout) return;
+    stopWebDropEvent(event);
+    webDropDepthRef.current += 1;
+    if (!addingSource) setWebDropActive(true);
+  };
+
+  const handleWebDropLeave = (event) => {
+    if (!isWebLayout) return;
+    stopWebDropEvent(event);
+    webDropDepthRef.current = Math.max(0, webDropDepthRef.current - 1);
+    if (webDropDepthRef.current === 0) setWebDropActive(false);
+  };
+
+  const handleWebDrop = async (event) => {
+    if (!isWebLayout) return;
+    stopWebDropEvent(event);
+    webDropDepthRef.current = 0;
+    setWebDropActive(false);
+
+    if (addingSource) return;
+
+    if (!user?.uid) {
+      setFileError(t("attachments.errors.auth_required", lang));
+      return;
+    }
+
+    const droppedFiles = getWebDroppedFiles(event);
+    if (!droppedFiles.length) return;
+
+    setAddingSource("drop");
+    setError("");
+
+    try {
+      const pickResult = buildAttachmentPickResultFromWebFiles(droppedFiles, 0);
+      await uploadLibraryPickResult(pickResult, "files");
+    } catch (dropError) {
+      setFileError(formatAttachmentError(dropError, lang));
+    } finally {
+      setAddingSource(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!isWebLayout || typeof window === "undefined") return undefined;
+
+    const preventBrowserFileOpen = (event) => {
+      const types = Array.from(event?.dataTransfer?.types || []);
+      if (!types.includes("Files")) return;
+      event.preventDefault();
+    };
+
+    window.addEventListener("dragover", preventBrowserFileOpen, true);
+    window.addEventListener("drop", preventBrowserFileOpen, true);
+
+    return () => {
+      window.removeEventListener("dragover", preventBrowserFileOpen, true);
+      window.removeEventListener("drop", preventBrowserFileOpen, true);
+    };
+  }, [isWebLayout]);
+
+  useEffect(() => {
+    if (!isWebLayout) return undefined;
+
+    const refNode = webDropZoneRef.current;
+    const dropNode = typeof refNode?.addEventListener === "function"
+      ? refNode
+      : findNodeHandle(refNode);
+
+    if (!dropNode || typeof dropNode.addEventListener !== "function") return undefined;
+
+    dropNode.addEventListener("dragenter", handleWebDropEnter);
+    dropNode.addEventListener("dragover", stopWebDropEvent);
+    dropNode.addEventListener("dragleave", handleWebDropLeave);
+    dropNode.addEventListener("drop", handleWebDrop);
+
+    return () => {
+      dropNode.removeEventListener("dragenter", handleWebDropEnter);
+      dropNode.removeEventListener("dragover", stopWebDropEvent);
+      dropNode.removeEventListener("dragleave", handleWebDropLeave);
+      dropNode.removeEventListener("drop", handleWebDrop);
+    };
+  }, [handleWebDrop, handleWebDropEnter, handleWebDropLeave, isWebLayout]);
 
   const renderAddLibraryButton = ({ id, icon: Icon, label, picker, fallbackTab }) => {
     const isAdding = addingSource === id;
@@ -618,7 +725,6 @@ export default function FileLibraryScreen() {
     const details = [
       formatFileSize(file.size),
       modeLabel,
-      file.privacySanitized ? t("settings.files.safe_meta", lang) : null,
     ].filter(Boolean).join(" - ");
 
     return (
@@ -706,12 +812,6 @@ export default function FileLibraryScreen() {
                 onPress: () => startRename(file),
               })}
               {renderIconButton({
-                icon: ArrowUpRight,
-                disabled: isBusy,
-                label: t("attachments.open", lang),
-                onPress: () => handleOpen(file),
-              })}
-              {renderIconButton({
                 icon: DownloadSimple,
                 disabled: isBusy,
                 label: t("attachments.download", lang),
@@ -755,7 +855,6 @@ export default function FileLibraryScreen() {
     const details = [
       formatFileSize(file.size),
       modeLabel,
-      file.privacySanitized ? t("settings.files.safe_meta", lang) : null,
     ].filter(Boolean).join(" - ");
 
     return (
@@ -778,15 +877,13 @@ export default function FileLibraryScreen() {
             { backgroundColor: themeColors.backgroundColor3 },
           ]}
         >
-          {previewUri ? (
-            <Image
-              source={{ uri: previewUri }}
-              resizeMode="cover"
-              style={styles.photoThumbImage}
-            />
-          ) : (
-            <ImageIcon size={30} color={themeColors.accentColor} weight="bold" />
-          )}
+          <StagedAttachmentImage
+            uri={previewUri}
+            attachment={file}
+            resizeMode="cover"
+            baseColor={themeColors.backgroundColor3}
+            style={styles.photoThumbImage}
+          />
         </TouchableOpacity>
 
         <View style={styles.photoSide}>
@@ -858,12 +955,6 @@ export default function FileLibraryScreen() {
                   disabled: isBusy,
                   label: t("attachments.rename", lang),
                   onPress: () => startRename(file),
-                })}
-                {renderIconButton({
-                  icon: ArrowUpRight,
-                  disabled: isBusy,
-                  label: t("attachments.open", lang),
-                  onPress: () => handleOpen(file),
                 })}
                 {renderIconButton({
                   icon: DownloadSimple,
@@ -977,29 +1068,75 @@ export default function FileLibraryScreen() {
         </View>
       </SettingsGroup>
 
-      <View style={styles.addActionRow}>
-        {renderAddLibraryButton({
-          id: "files",
-          icon: Paperclip,
-          label: t("settings.files.add_files", lang),
-          picker: pickAttachmentFiles,
-          fallbackTab: "files",
-        })}
-        {renderAddLibraryButton({
-          id: "photo",
-          icon: Camera,
-          label: t("settings.files.add_photo", lang),
-          picker: captureAttachmentPhoto,
-          fallbackTab: "photos",
-        })}
-        {renderAddLibraryButton({
-          id: "gallery",
-          icon: ImageIcon,
-          label: t("settings.files.add_gallery", lang),
-          picker: pickAttachmentPhotos,
-          fallbackTab: "photos",
-        })}
-      </View>
+      {isWebLayout ? (
+        <View
+          ref={webDropZoneRef}
+          style={[
+            styles.webUploadPanel,
+            {
+              backgroundColor: webDropActive ? themeColors.accentColor + "14" : themeColors.backgroundColor2,
+              borderColor: webDropActive ? themeColors.accentColor : themeColors.borderColor,
+              borderWidth: webDropActive ? 2 : 1,
+              boxShadow: webDropActive ? `0 12px 28px ${themeColors.accentColor}26` : "none",
+              transform: [{ scale: webDropActive ? 1.01 : 1 }],
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.webUploadIcon,
+              { backgroundColor: webDropActive ? themeColors.accentColor : themeColors.accentColor + "18" },
+            ]}
+          >
+            <CloudArrowUp size={24} color={webDropActive ? "#fff" : themeColors.accentColor} weight="bold" />
+          </View>
+          <View style={styles.webUploadTextBlock}>
+            <Text style={[styles.webUploadTitle, { color: themeColors.textColor }]} numberOfLines={1}>
+              {addingSource === "drop"
+                ? t("settings.files.adding_file", lang)
+                : webDropActive
+                  ? t("settings.files.web_drop_active", lang)
+                  : t("settings.files.web_drop_title", lang)}
+            </Text>
+            <Text style={[styles.webUploadDesc, { color: themeColors.textColor2 }]} numberOfLines={2}>
+              {t("settings.files.web_drop_desc", lang)}
+            </Text>
+          </View>
+          <View style={styles.webUploadButtonWrap}>
+            {renderAddLibraryButton({
+              id: "files",
+              icon: Paperclip,
+              label: t("settings.files.web_upload_action", lang),
+              picker: pickAttachmentFiles,
+              fallbackTab: "files",
+            })}
+          </View>
+        </View>
+      ) : (
+        <View style={styles.addActionRow}>
+          {renderAddLibraryButton({
+            id: "files",
+            icon: Paperclip,
+            label: t("settings.files.add_files", lang),
+            picker: pickAttachmentFiles,
+            fallbackTab: "files",
+          })}
+          {renderAddLibraryButton({
+            id: "photo",
+            icon: Camera,
+            label: t("settings.files.add_photo", lang),
+            picker: captureAttachmentPhoto,
+            fallbackTab: "photos",
+          })}
+          {renderAddLibraryButton({
+            id: "gallery",
+            icon: ImageIcon,
+            label: t("settings.files.add_gallery", lang),
+            picker: pickAttachmentPhotos,
+            fallbackTab: "photos",
+          })}
+        </View>
+      )}
 
       <View style={styles.libraryTabs}>
         <TabSwitcher
@@ -1129,6 +1266,45 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "900",
     marginLeft: 8,
+  },
+  webUploadPanel: {
+    minHeight: 92,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  webUploadIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  webUploadTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
+  },
+  webUploadTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "900",
+  },
+  webUploadDesc: {
+    marginTop: 3,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  webUploadButtonWrap: {
+    width: 184,
+    maxWidth: "34%",
   },
   libraryTabs: {
     marginBottom: 8,

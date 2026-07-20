@@ -29,6 +29,9 @@ const IMAGE_UPLOAD_COMPRESSION_MAX_DIMENSION = 1800;
 const IMAGE_UPLOAD_COMPRESSION_DIMENSION_STEPS = [1800, 1440, 1280, 1024, 900];
 const IMAGE_UPLOAD_COMPRESSION_MIN_SAVINGS_RATIO = 0.025;
 const IMAGE_UPLOAD_COMPRESSION_QUALITY_STEPS = [0.78, 0.68, 0.58, 0.5, 0.44];
+const IMAGE_PREVIEW_MAX_DIMENSION = 28;
+const IMAGE_PREVIEW_JPEG_QUALITY = 0.24;
+const IMAGE_PREVIEW_MAX_DATA_URI_LENGTH = 4200;
 const COMPRESSIBLE_IMAGE_MIME_TYPES = new Set([
   "image/bmp",
   "image/heic",
@@ -270,6 +273,7 @@ export const normalizeAttachmentLibrary = (files) => (
         const id = getAttachmentFileId(file);
         const storageMode = file.storageMode === "local" ? "local" : "cloud";
         const compression = normalizeAttachmentCompression(file.compression);
+        const imagePreview = normalizeAttachmentImagePreview(file.imagePreview);
 
         return {
           id,
@@ -286,6 +290,7 @@ export const normalizeAttachmentLibrary = (files) => (
           uploadedAt: Number(file.uploadedAt) || null,
           privacySanitized: file.privacySanitized === true,
           ...(compression ? { compression } : {}),
+          ...(imagePreview ? { imagePreview } : {}),
         };
       })
       .filter((file) => file.id)
@@ -358,6 +363,7 @@ export const resolveAttachmentList = (attachments, fileLibrary = []) => {
         cloudRevision: libraryFile.cloudRevision,
         privacySanitized: libraryFile.privacySanitized,
         compression: libraryFile.compression,
+        imagePreview: libraryFile.imagePreview,
       };
     })
     .filter(Boolean);
@@ -499,19 +505,26 @@ const withImageCompressionMetadata = (attachment, {
   width,
   height,
   resized,
-}) => ({
-  ...attachment,
-  privacySanitized: true,
-  compression: {
-    codec: "jpeg",
-    compressedSize: Number(attachment.size) || 0,
-    metadataStripped: true,
-    quality,
-    width: Number(width) || null,
-    height: Number(height) || null,
-    resized: Boolean(resized),
-  },
-});
+}) => {
+  const imagePreview = normalizeAttachmentImagePreview(
+    attachment.imagePreview || originalAttachment?.imagePreview
+  );
+
+  return {
+    ...attachment,
+    privacySanitized: true,
+    ...(imagePreview ? { imagePreview } : {}),
+    compression: {
+      codec: "jpeg",
+      compressedSize: Number(attachment.size) || 0,
+      metadataStripped: true,
+      quality,
+      width: Number(width) || null,
+      height: Number(height) || null,
+      resized: Boolean(resized),
+    },
+  };
+};
 
 const normalizeAttachmentCompression = (compression) => {
   if (!compression || typeof compression !== "object") return null;
@@ -527,6 +540,35 @@ const normalizeAttachmentCompression = (compression) => {
     width: Number(compression.width) || null,
     height: Number(compression.height) || null,
     resized: Boolean(compression.resized),
+  };
+};
+
+const normalizePreviewColors = (colors) => (
+  Array.isArray(colors)
+    ? colors
+      .filter((color) => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color))
+      .slice(0, 4)
+    : []
+);
+
+const normalizeAttachmentImagePreview = (preview) => {
+  if (!preview || typeof preview !== "object") return null;
+
+  const uri = typeof preview.uri === "string"
+    && preview.uri.startsWith("data:image/")
+    && preview.uri.length <= IMAGE_PREVIEW_MAX_DATA_URI_LENGTH
+    ? preview.uri
+    : "";
+  const colors = normalizePreviewColors(preview.colors);
+
+  if (!uri && colors.length < 2) return null;
+
+  return {
+    type: uri ? "lqip" : "gradient",
+    ...(uri ? { uri } : {}),
+    ...(colors.length >= 2 ? { colors } : {}),
+    width: Number(preview.width) || null,
+    height: Number(preview.height) || null,
   };
 };
 
@@ -1070,6 +1112,21 @@ const buildPickResult = (assets, source, currentCount = 0) => {
   return { attachments, errors };
 };
 
+export const buildAttachmentPickResultFromWebFiles = (files, currentCount = 0) => {
+  if (Platform.OS !== "web") return { attachments: [], errors: [] };
+
+  const assets = Array.from(files || [])
+    .filter((file) => file && typeof file === "object")
+    .map((file) => ({
+      file,
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
+    }));
+
+  return buildPickResult(assets, "file", currentCount);
+};
+
 export const pickAttachmentFiles = async ({ currentCount = 0 } = {}) => {
   try {
     const result = await DocumentPicker.getDocumentAsync({
@@ -1171,6 +1228,7 @@ export const normalizeAttachmentList = (attachments) => (
       .filter((attachment) => attachment && typeof attachment === "object")
       .map((attachment) => {
           const compression = normalizeAttachmentCompression(attachment.compression);
+          const imagePreview = normalizeAttachmentImagePreview(attachment.imagePreview);
           return {
             id: attachment.id || generateId(),
           fileId: attachment.fileId || attachment.libraryId || null,
@@ -1186,6 +1244,7 @@ export const normalizeAttachmentList = (attachments) => (
           uploadedAt: Number(attachment.uploadedAt) || null,
           privacySanitized: attachment.privacySanitized === true,
           ...(compression ? { compression } : {}),
+          ...(imagePreview ? { imagePreview } : {}),
         };
       })
       .filter((attachment) => (
@@ -1263,6 +1322,141 @@ const deleteNativeCompressionCandidate = async (candidate) => {
   } catch (error) {}
 };
 
+const getPreviewResizeDimensions = (width, height) => {
+  const sourceWidth = Number(width) || 0;
+  const sourceHeight = Number(height) || 0;
+
+  if (!sourceWidth || !sourceHeight) {
+    return { width: IMAGE_PREVIEW_MAX_DIMENSION };
+  }
+
+  const longestSide = Math.max(sourceWidth, sourceHeight);
+  if (longestSide <= IMAGE_PREVIEW_MAX_DIMENSION) {
+    return { width: sourceWidth, height: sourceHeight };
+  }
+
+  const scale = IMAGE_PREVIEW_MAX_DIMENSION / longestSide;
+  return {
+    width: Math.max(1, Math.round(sourceWidth * scale)),
+    height: Math.max(1, Math.round(sourceHeight * scale)),
+  };
+};
+
+const createNativeAttachmentImagePreview = async (sourceUri, sourceDimensions) => {
+  if (!sourceUri) return null;
+
+  let result = null;
+  try {
+    const previewDimensions = getPreviewResizeDimensions(
+      sourceDimensions?.width,
+      sourceDimensions?.height
+    );
+    result = await ImageManipulator.manipulateAsync(
+      sourceUri,
+      [{ resize: previewDimensions }],
+      {
+        compress: IMAGE_PREVIEW_JPEG_QUALITY,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      }
+    );
+    const uri = result?.base64 ? `data:image/jpeg;base64,${result.base64}` : "";
+    return normalizeAttachmentImagePreview({
+      uri,
+      width: result?.width || previewDimensions.width,
+      height: result?.height || previewDimensions.height,
+    });
+  } catch (error) {
+    return null;
+  } finally {
+    if (result?.uri && result.uri !== sourceUri) {
+      await deleteNativeCompressionCandidate({ uri: result.uri });
+    }
+  }
+};
+
+const componentToHex = (value) => (
+  Math.max(0, Math.min(255, Math.round(value) || 0)).toString(16).padStart(2, "0")
+);
+
+const rgbToHex = (red, green, blue) => (
+  `#${componentToHex(red)}${componentToHex(green)}${componentToHex(blue)}`
+);
+
+const getAverageColorFromImageData = (data, width, height, startX, endX) => {
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+  const sampleStep = Math.max(1, Math.round(Math.max(width, height) / 16));
+
+  for (let y = 0; y < height; y += sampleStep) {
+    for (let x = startX; x < endX; x += sampleStep) {
+      const offset = (y * width + x) * 4;
+      const alpha = data[offset + 3];
+      if (alpha < 24) continue;
+
+      red += data[offset];
+      green += data[offset + 1];
+      blue += data[offset + 2];
+      count += 1;
+    }
+  }
+
+  if (!count) return null;
+  return rgbToHex(red / count, green / count, blue / count);
+};
+
+const getCanvasPreviewColors = (context, width, height) => {
+  try {
+    const imageData = context.getImageData(0, 0, width, height).data;
+    const stops = [0, 1, 2].map((index) => {
+      const startX = Math.floor((width * index) / 3);
+      const endX = Math.max(startX + 1, Math.floor((width * (index + 1)) / 3));
+      return getAverageColorFromImageData(imageData, width, height, startX, endX);
+    }).filter(Boolean);
+
+    return Array.from(new Set(stops));
+  } catch (error) {
+    return [];
+  }
+};
+
+const createWebAttachmentImagePreview = (image) => {
+  if (typeof document === "undefined" || !image) return null;
+
+  try {
+    const sourceWidth = image.naturalWidth || image.width || 0;
+    const sourceHeight = image.naturalHeight || image.height || 0;
+    const dimensions = getPreviewResizeDimensions(sourceWidth, sourceHeight);
+    const canvas = document.createElement("canvas");
+    canvas.width = dimensions.width || IMAGE_PREVIEW_MAX_DIMENSION;
+    canvas.height = dimensions.height || IMAGE_PREVIEW_MAX_DIMENSION;
+
+    const context = canvas.getContext("2d");
+    if (!context || !canvas.width || !canvas.height) return null;
+
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const colors = getCanvasPreviewColors(context, canvas.width, canvas.height);
+    let uri = "";
+    try {
+      uri = canvas.toDataURL("image/jpeg", IMAGE_PREVIEW_JPEG_QUALITY);
+    } catch (error) {}
+
+    return normalizeAttachmentImagePreview({
+      uri,
+      colors,
+      width: canvas.width,
+      height: canvas.height,
+    });
+  } catch (error) {
+    return null;
+  }
+};
+
 const logAttachmentCompressionResult = (attachment, result) => {
   const isDevelopment = typeof __DEV__ !== "undefined"
     ? __DEV__
@@ -1290,6 +1484,7 @@ const compressNativeImageAttachment = async (attachment) => {
   if (!sourceUri) return attachment;
 
   const sourceDimensions = await getNativeImageSize(sourceUri);
+  const imagePreview = await createNativeAttachmentImagePreview(sourceUri, sourceDimensions);
   const compressionPlans = sourceDimensions
     ? getImageCompressionPlans(sourceDimensions.width, sourceDimensions.height)
     : [{ width: null, height: null, resized: false }];
@@ -1353,6 +1548,7 @@ const compressNativeImageAttachment = async (attachment) => {
     localUri: uploadCandidate.uri,
     uri: uploadCandidate.uri,
     file: null,
+    ...(imagePreview ? { imagePreview } : {}),
   };
 
   logAttachmentCompressionResult(attachment, uploadCandidate);
@@ -1430,6 +1626,7 @@ const compressWebImageAttachment = async (attachment) => {
 
   try {
     const image = await loadWebImageElement(sourceUri);
+    const imagePreview = createWebAttachmentImagePreview(image);
     const sourceWidth = image.naturalWidth || image.width;
     const sourceHeight = image.naturalHeight || image.height;
     const compressionPlans = getImageCompressionPlans(sourceWidth, sourceHeight);
@@ -1474,6 +1671,7 @@ const compressWebImageAttachment = async (attachment) => {
       file,
       localUri: objectUrl || attachment.localUri || attachment.uri || null,
       uri: objectUrl || attachment.uri || attachment.localUri || null,
+      ...(imagePreview ? { imagePreview } : {}),
     };
 
     logAttachmentCompressionResult(attachment, uploadCandidate);
@@ -1591,12 +1789,17 @@ export const uploadAttachmentDraft = async (attachment, {
   const storagePath = getStoragePath(uploadUserId, normalized);
   const storageRef = ref(storage, storagePath);
   const compression = normalizeAttachmentCompression(normalized.compression);
+  const imagePreview = normalizeAttachmentImagePreview(normalized.imagePreview);
   const metadata = {
     contentType: normalized.mimeType,
     contentDisposition: getAttachmentContentDisposition(normalized.name),
     customMetadata: {
       planitAttachment: "true",
       privacySanitized: normalized.privacySanitized ? "true" : "false",
+      ...(imagePreview ? {
+        imagePreview: "true",
+        ...(imagePreview.colors ? { imagePreviewColors: imagePreview.colors.join(",") } : {}),
+      } : {}),
       ...(compression ? {
         imageProcessed: "true",
         imageCodec: compression.codec,
@@ -1627,6 +1830,7 @@ export const uploadAttachmentDraft = async (attachment, {
     uploadedAt,
     privacySanitized: normalized.privacySanitized === true,
     ...(compression ? { compression } : {}),
+    ...(imagePreview ? { imagePreview } : {}),
   };
 
   const cachedAttachment = await cacheAttachmentFromLocalUri(uploadedAttachment, normalized.localUri || normalized.uri);
