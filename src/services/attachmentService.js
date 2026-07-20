@@ -219,38 +219,11 @@ const sanitizePathSegment = (value = "attachment") => (
   || "attachment"
 );
 
-const getAttachmentExtension = (attachment = {}) => {
-  const mimeType = getAttachmentMimeType(attachment);
-  return (
-    getExtension(attachment.name)
-    || getExtension(attachment.storagePath)
-    || EXTENSION_BY_MIME[mimeType]
-    || ""
-  );
-};
-
 export const normalizeAttachmentDisplayName = (name, attachment = {}) => {
-  const extension = getAttachmentExtension(attachment);
   const requestedName = sanitizeFileName(name || attachment.name || "attachment")
     .replace(/^\.+/, "")
     .trim();
-  const safeName = requestedName || "attachment";
-
-  if (!extension) return safeName;
-
-  if (safeName.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
-    return safeName;
-  }
-
-  const maxBaseLength = Math.max(1, 140 - extension.length - 1);
-  const baseName = safeName
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/\.+$/g, "")
-    .slice(0, maxBaseLength)
-    .trim()
-    || "attachment";
-
-  return sanitizeFileName(`${baseName}.${extension}`);
+  return requestedName || "attachment";
 };
 
 export const renameAttachmentDisplayName = (attachment, nextName) => ({
@@ -602,6 +575,7 @@ const canUseWebAttachmentCache = () => (
 );
 
 let webAttachmentCacheDbPromise = null;
+const webAttachmentObjectUrls = new Map();
 
 const openWebAttachmentCacheDb = () => {
   if (!canUseWebAttachmentCache()) return Promise.resolve(null);
@@ -646,6 +620,50 @@ const runWebAttachmentCacheTransaction = async (mode, handler) => {
       reject(error);
     }
   });
+};
+
+const getWebAttachmentObjectUrlKey = (entry = {}) => (
+  [
+    entry.cacheKey || "",
+    Number(entry.revision) || 0,
+    Number(entry.size) || 0,
+    Number(entry.cachedAt) || 0,
+  ].join("|")
+);
+
+const revokeWebAttachmentObjectUrl = (objectUrl) => {
+  if (!objectUrl || typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function") return;
+  try {
+    URL.revokeObjectURL(objectUrl);
+  } catch (error) {}
+};
+
+const revokeWebAttachmentObjectUrlsForCacheKey = (cacheKey) => {
+  if (!cacheKey) return;
+
+  Array.from(webAttachmentObjectUrls.entries()).forEach(([objectUrlKey, objectUrl]) => {
+    if (!objectUrlKey.startsWith(`${cacheKey}|`)) return;
+    revokeWebAttachmentObjectUrl(objectUrl);
+    webAttachmentObjectUrls.delete(objectUrlKey);
+  });
+};
+
+const getWebAttachmentCachedObjectUrl = (entry) => {
+  if (
+    !entry?.blob
+    || typeof URL === "undefined"
+    || typeof URL.createObjectURL !== "function"
+  ) {
+    return "";
+  }
+
+  const objectUrlKey = getWebAttachmentObjectUrlKey(entry);
+  const cachedObjectUrl = webAttachmentObjectUrls.get(objectUrlKey);
+  if (cachedObjectUrl) return cachedObjectUrl;
+
+  const objectUrl = URL.createObjectURL(entry.blob);
+  webAttachmentObjectUrls.set(objectUrlKey, objectUrl);
+  return objectUrl;
 };
 
 const getWebAttachmentCacheRecord = async (attachment) => {
@@ -699,6 +717,7 @@ const deleteWebAttachmentCacheRecord = async (attachment) => {
       request.onerror = () => reject(request.error);
       return null;
     });
+    revokeWebAttachmentObjectUrlsForCacheKey(cacheKey);
   } catch (error) {}
 };
 
@@ -791,7 +810,7 @@ const getManifestCacheEntry = async (attachment) => {
 };
 
 const isCacheEntryFresh = (attachment, entry) => {
-  if (!entry?.uri) return false;
+  if (!entry?.uri && !entry?.blob) return false;
   if (entry.storagePath && attachment?.storagePath && entry.storagePath !== attachment.storagePath) return false;
   const attachmentRevision = getAttachmentRevision(attachment);
   const entryRevision = Number(entry.revision) || 0;
@@ -801,6 +820,11 @@ const isCacheEntryFresh = (attachment, entry) => {
   if (attachmentSize && entrySize && attachmentSize !== entrySize) return false;
   return true;
 };
+
+const canUseCachedAttachment = (attachment, cacheState) => (
+  CACHE_FRESH_STATUSES.has(cacheState?.status)
+  || (!attachment?.storagePath && cacheState?.status === "stale")
+);
 
 export const getAttachmentCacheState = async (attachment) => {
   const localSourceUri = attachment?.localUri || attachment?.uri || null;
@@ -815,7 +839,7 @@ export const getAttachmentCacheState = async (attachment) => {
         const fresh = isCacheEntryFresh(attachment, webEntry);
         return {
           status: fresh ? "local" : "stale",
-          uri: getWebObjectUrl(webEntry.blob),
+          uri: getWebAttachmentCachedObjectUrl(webEntry),
           stale: !fresh,
           cachedAt: webEntry.cachedAt || null,
         };
@@ -874,10 +898,10 @@ export const cacheAttachmentFromLocalUri = async (attachment, sourceUri) => {
       const blob = await getWebAttachmentSourceBlob(attachment, sourceUri);
       if (!blob?.size) return attachment;
 
-      await writeWebAttachmentCacheRecord(attachment, blob);
+      const webEntry = await writeWebAttachmentCacheRecord(attachment, blob);
       return {
         ...attachment,
-        localUri: getWebObjectUrl(blob) || sourceUri || attachment?.localUri || attachment?.uri || null,
+        localUri: getWebAttachmentCachedObjectUrl(webEntry) || sourceUri || attachment?.localUri || attachment?.uri || null,
         cacheState: "local",
         cacheRevision: getAttachmentRevision(attachment),
       };
@@ -925,7 +949,7 @@ export const ensureLocalAttachment = async (attachment, { forceDownload = false 
   }
 
   const cacheState = await getAttachmentCacheState(attachment);
-  if ((!forceDownload || !attachment?.storagePath) && CACHE_FRESH_STATUSES.has(cacheState.status) && cacheState.uri) {
+  if ((!forceDownload || !attachment?.storagePath) && canUseCachedAttachment(attachment, cacheState) && cacheState.uri) {
     return {
       ...attachment,
       localUri: cacheState.uri,
@@ -948,8 +972,8 @@ export const ensureLocalAttachment = async (attachment, { forceDownload = false 
           ...attachment,
           downloadURL: attachment?.downloadURL || attachment?.url || remoteUri,
         };
-        await writeWebAttachmentCacheRecord(cacheReadyAttachment, blob);
-        const objectUrl = getWebObjectUrl(blob) || remoteUri;
+        const webEntry = await writeWebAttachmentCacheRecord(cacheReadyAttachment, blob);
+        const objectUrl = getWebAttachmentCachedObjectUrl(webEntry) || remoteUri;
         return {
           ...cacheReadyAttachment,
           localUri: objectUrl,

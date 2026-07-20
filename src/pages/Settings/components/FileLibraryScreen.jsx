@@ -79,6 +79,13 @@ const getAttachmentFileRefId = (attachment = {}) => (
   attachment.fileId || attachment.libraryId || attachment.id || null
 );
 
+const makeFileLibraryAttachmentError = (code, params = {}) => {
+  const error = new Error(code);
+  error.attachmentCode = code;
+  error.params = params;
+  return error;
+};
+
 const withoutFileReferences = (attachments, fileId) => {
   const cleanList = normalizeAttachmentDraftList(attachments);
   const nextList = cleanList.filter((attachment) => (
@@ -580,18 +587,29 @@ export default function FileLibraryScreen() {
     setError("");
     try {
       const prepared = await ensureLocalAttachment(file, { forceDownload: true });
-      await cacheAttachmentFromLocalUri(
-        file,
-        prepared.localUri || prepared.openUri || file.downloadURL || file.url
-      );
-      await deleteCloudAttachmentObject(file);
-      updateFileRecord({
+      const localFile = {
         ...file,
         storageMode: "local",
         storagePath: null,
         downloadURL: null,
-        cloudRevision: Date.now(),
-      });
+        cloudRevision: getAttachmentRevision(file) || Date.now(),
+      };
+      delete localFile.cacheState;
+      delete localFile.cacheRevision;
+      delete localFile.localUri;
+      delete localFile.openUri;
+      delete localFile.uri;
+      const cachedLocalFile = await cacheAttachmentFromLocalUri(
+        localFile,
+        prepared.localUri || prepared.openUri || file.downloadURL || file.url
+      );
+      const cacheState = await getAttachmentCacheState(localFile);
+      if (!cacheState?.uri || (cacheState.status !== "local" && cacheState.status !== "source")) {
+        throw makeFileLibraryAttachmentError("cache_unavailable", { name: file.name });
+      }
+      await deleteCloudAttachmentObject(file);
+      updateFileRecord(cachedLocalFile);
+      rememberPhotoPreview(cachedLocalFile);
       triggerHaptic("success");
     } catch (localError) {
       setFileError(formatAttachmentError(localError, lang));
@@ -627,8 +645,15 @@ export default function FileLibraryScreen() {
     setError("");
     try {
       const prepared = await ensureLocalAttachment(file);
+      const uploadSource = { ...file };
+      delete uploadSource.cacheKey;
+      delete uploadSource.cacheState;
+      delete uploadSource.cacheRevision;
+      delete uploadSource.localUri;
+      delete uploadSource.openUri;
+      delete uploadSource.uri;
       const draft = {
-        ...file,
+        ...uploadSource,
         id: file.id,
         fileId: file.id,
         storageMode: "cloud",
@@ -642,20 +667,22 @@ export default function FileLibraryScreen() {
       const nextCloudUsage = cloudUsage + (Number(uploaded.size) || 0);
 
       if (nextCloudUsage > MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES) {
-        await deleteStoredAttachment(uploaded);
+        await deleteCloudAttachmentObject(uploaded);
         const limitError = new Error("storage_limit_reached");
         limitError.attachmentCode = "storage_limit_reached";
         throw limitError;
       }
 
-      updateFileRecord({
+      const cloudFile = {
         ...uploaded,
         id: file.id,
         fileId: file.id,
         name: file.name,
         createdAt: file.createdAt,
         storageMode: "cloud",
-      });
+      };
+      updateFileRecord(cloudFile);
+      rememberPhotoPreview(cloudFile);
       triggerHaptic("success");
     } catch (cloudError) {
       setFileError(formatAttachmentError(cloudError, lang));
