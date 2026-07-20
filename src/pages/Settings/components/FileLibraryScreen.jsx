@@ -46,6 +46,7 @@ import {
   getAttachmentRevision,
   isImageAttachment,
   MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
+  normalizeAttachmentDisplayNameForMimeType,
   normalizeAttachmentDraftList,
   normalizeAttachmentLibrary,
   openAttachment,
@@ -677,7 +678,7 @@ export default function FileLibraryScreen() {
         ...uploaded,
         id: file.id,
         fileId: file.id,
-        name: file.name,
+        name: normalizeAttachmentDisplayNameForMimeType(file.name, uploaded.mimeType),
         createdAt: file.createdAt,
         storageMode: "cloud",
       };

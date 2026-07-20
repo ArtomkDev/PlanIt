@@ -23,12 +23,10 @@ export const MAX_ATTACHMENTS_PER_ENTITY = 10;
 export const MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES = 20 * 1024 * 1024;
 
 const IMAGE_UPLOAD_COMPRESSION_TARGET_BYTES = 620 * 1024;
-const IMAGE_UPLOAD_COMPRESSION_MIN_SOURCE_BYTES = 300 * 1024;
-const IMAGE_UPLOAD_COMPRESSION_MIN_SAVINGS_BYTES = 24 * 1024;
 const IMAGE_UPLOAD_COMPRESSION_MAX_DIMENSION = 1800;
-const IMAGE_UPLOAD_COMPRESSION_DIMENSION_STEPS = [1800, 1440, 1280, 1024, 900];
-const IMAGE_UPLOAD_COMPRESSION_MIN_SAVINGS_RATIO = 0.025;
-const IMAGE_UPLOAD_COMPRESSION_QUALITY_STEPS = [0.78, 0.68, 0.58, 0.5, 0.44];
+const IMAGE_UPLOAD_COMPRESSION_DIMENSION_STEPS = [1800, 1600, 1440, 1280];
+const IMAGE_UPLOAD_WEBP_QUALITY_STEPS = [0.82, 0.76, 0.7, 0.64];
+const IMAGE_UPLOAD_JPEG_FALLBACK_QUALITY_STEPS = [0.78, 0.68, 0.58, 0.5];
 const IMAGE_PREVIEW_MAX_DIMENSION = 28;
 const IMAGE_PREVIEW_JPEG_QUALITY = 0.24;
 const IMAGE_PREVIEW_MAX_DATA_URI_LENGTH = 4200;
@@ -45,6 +43,22 @@ const NEVER_REENCODE_IMAGE_MIME_TYPES = new Set([
   "image/gif",
   "image/svg+xml",
 ]);
+const IMAGE_UPLOAD_OUTPUT_FORMATS = [
+  {
+    codec: "webp",
+    extension: "webp",
+    mimeType: "image/webp",
+    nativeFormat: ImageManipulator.SaveFormat?.WEBP || "webp",
+    qualitySteps: IMAGE_UPLOAD_WEBP_QUALITY_STEPS,
+  },
+  {
+    codec: "jpeg",
+    extension: "jpg",
+    mimeType: "image/jpeg",
+    nativeFormat: ImageManipulator.SaveFormat?.JPEG || "jpeg",
+    qualitySteps: IMAGE_UPLOAD_JPEG_FALLBACK_QUALITY_STEPS,
+  },
+];
 
 const ATTACHMENT_CACHE_MANIFEST_KEY = "planit_attachment_cache_manifest_v1";
 const ATTACHMENT_CACHE_DIR = FileSystem.documentDirectory
@@ -226,6 +240,22 @@ export const normalizeAttachmentDisplayName = (name, attachment = {}) => {
   return requestedName || "attachment";
 };
 
+export const normalizeAttachmentDisplayNameForMimeType = (name, mimeType) => {
+  const displayName = normalizeAttachmentDisplayName(name || "attachment");
+  const resolvedMimeType = inferAttachmentMimeType(displayName, mimeType, "");
+  const extension = EXTENSION_BY_MIME[resolvedMimeType];
+  if (!extension) return displayName;
+
+  const currentExtension = getExtension(displayName);
+  if (currentExtension === extension) return displayName;
+
+  const baseName = displayName
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/\.+$/, "")
+    .trim() || "attachment";
+  return sanitizeFileName(`${baseName}.${extension}`);
+};
+
 export const renameAttachmentDisplayName = (attachment, nextName) => ({
   ...attachment,
   name: normalizeAttachmentDisplayName(nextName, attachment),
@@ -378,9 +408,16 @@ const getShortPrivateToken = (value = "") => {
   return (hash >>> 0).toString(36).padStart(6, "0").slice(0, 6);
 };
 
-const getPrivateImageAttachmentName = (attachment = {}) => {
-  return `photo-${getShortPrivateToken(attachment.id || attachment.name)}.jpg`;
+const getPrivateImageAttachmentName = (attachment = {}, outputFormat = IMAGE_UPLOAD_OUTPUT_FORMATS[0]) => {
+  const extension = outputFormat?.extension || "webp";
+  return `photo-${getShortPrivateToken(attachment.id || attachment.name)}.${extension}`;
 };
+
+const getImageUploadQualitySteps = (outputFormat) => (
+  Array.isArray(outputFormat?.qualitySteps) && outputFormat.qualitySteps.length
+    ? outputFormat.qualitySteps
+    : IMAGE_UPLOAD_JPEG_FALLBACK_QUALITY_STEPS
+);
 
 const isOversizedImageCompressionCandidate = (asset, source) => {
   const name = getAssetName(asset, source === "camera" ? "photo" : "attachment");
@@ -452,28 +489,15 @@ const getImageCompressionTargetBytes = (attachment = {}) => {
 };
 
 const shouldUseCompressedImage = (originalAttachment, compressedSize) => {
-  const originalSize = Number(originalAttachment?.size) || 0;
   const nextSize = Number(compressedSize) || 0;
 
   if (!nextSize) return false;
-  if (!originalSize) return true;
-  if (originalSize > MAX_ATTACHMENT_SIZE_BYTES) return nextSize <= MAX_ATTACHMENT_SIZE_BYTES;
-  if (nextSize >= originalSize) {
-    return isCompressibleImageAttachment(originalAttachment) && nextSize <= MAX_ATTACHMENT_SIZE_BYTES;
-  }
-  if (originalSize <= IMAGE_UPLOAD_COMPRESSION_MIN_SOURCE_BYTES) return true;
-
-  const savedBytes = originalSize - nextSize;
-  const savedRatio = savedBytes / originalSize;
-  return (
-    nextSize <= getImageCompressionTargetBytes(originalAttachment)
-    || savedBytes >= IMAGE_UPLOAD_COMPRESSION_MIN_SAVINGS_BYTES
-    || savedRatio >= IMAGE_UPLOAD_COMPRESSION_MIN_SAVINGS_RATIO
-  );
+  return isCompressibleImageAttachment(originalAttachment) && nextSize <= MAX_ATTACHMENT_SIZE_BYTES;
 };
 
 const withImageCompressionMetadata = (attachment, {
   originalAttachment,
+  outputFormat,
   quality,
   width,
   height,
@@ -488,8 +512,10 @@ const withImageCompressionMetadata = (attachment, {
     privacySanitized: true,
     ...(imagePreview ? { imagePreview } : {}),
     compression: {
-      codec: "jpeg",
+      codec: outputFormat?.codec || "webp",
       compressedSize: Number(attachment.size) || 0,
+      originalSize: Number(originalAttachment?.size) || null,
+      originalMimeType: getAttachmentMimeType(originalAttachment) || null,
       metadataStripped: true,
       quality,
       width: Number(width) || null,
@@ -508,6 +534,10 @@ const normalizeAttachmentCompression = (compression) => {
   return {
     codec: String(compression.codec || "jpeg"),
     compressedSize,
+    originalSize: Number(compression.originalSize) || null,
+    originalMimeType: typeof compression.originalMimeType === "string"
+      ? compression.originalMimeType
+      : null,
     metadataStripped: compression.metadataStripped !== false,
     quality: Number(compression.quality) || null,
     width: Number(compression.width) || null,
@@ -1491,16 +1521,60 @@ const logAttachmentCompressionResult = (attachment, result) => {
   const compressedSize = Number(result?.size) || 0;
   const savedBytes = Math.max(0, originalSize - compressedSize);
 
-  console.info("[PlanIt attachments] compressed image before cloud upload", {
+  console.info("[PlanIt attachments] optimized image before cloud upload", {
     name: attachment?.name,
     originalSize,
     compressedSize,
     savedBytes,
+    codec: result?.outputFormat?.codec,
+    mimeType: result?.outputFormat?.mimeType,
     quality: result?.quality,
     width: result?.width,
     height: result?.height,
     targetBytes: getImageCompressionTargetBytes(attachment),
   });
+};
+
+const isBetterImageUploadCandidate = (candidate, currentCandidate) => {
+  if (!candidate?.size) return false;
+  if (!currentCandidate?.size) return true;
+  if (candidate.size !== currentCandidate.size) return candidate.size < currentCandidate.size;
+  return (Number(candidate.quality) || 0) > (Number(currentCandidate.quality) || 0);
+};
+
+const createNativeCompressedImageCandidate = async (
+  sourceUri,
+  actions,
+  dimensions,
+  outputFormat,
+  quality,
+  sourceDimensions
+) => {
+  try {
+    const result = await ImageManipulator.manipulateAsync(sourceUri, actions, {
+      compress: quality,
+      format: outputFormat.nativeFormat,
+    });
+    const info = await FileSystem.getInfoAsync(result.uri);
+    const candidate = {
+      uri: result.uri,
+      size: Number(info?.size) || 0,
+      outputFormat,
+      quality,
+      width: Number(result.width || dimensions?.width || sourceDimensions?.width) || null,
+      height: Number(result.height || dimensions?.height || sourceDimensions?.height) || null,
+      resized: Boolean(dimensions?.resized),
+    };
+
+    if (!candidate.size) {
+      await deleteNativeCompressionCandidate(candidate);
+      return null;
+    }
+
+    return candidate;
+  } catch (error) {
+    return null;
+  }
 };
 
 const compressNativeImageAttachment = async (attachment) => {
@@ -1512,62 +1586,52 @@ const compressNativeImageAttachment = async (attachment) => {
   const compressionPlans = sourceDimensions
     ? getImageCompressionPlans(sourceDimensions.width, sourceDimensions.height)
     : [{ width: null, height: null, resized: false }];
-  const targetBytes = getImageCompressionTargetBytes(attachment);
-  let bestCandidate = null;
-  let selectedCandidate = null;
+  let uploadCandidate = null;
 
-  for (const dimensions of compressionPlans) {
-    const actions = dimensions?.resized
-      ? [{ resize: { width: dimensions.width, height: dimensions.height } }]
-      : [];
+  for (const outputFormat of IMAGE_UPLOAD_OUTPUT_FORMATS) {
+    let formatBestCandidate = null;
 
-    for (const quality of IMAGE_UPLOAD_COMPRESSION_QUALITY_STEPS) {
-      const result = await ImageManipulator.manipulateAsync(sourceUri, actions, {
-        compress: quality,
-        format: ImageManipulator.SaveFormat.JPEG,
-      });
-      const info = await FileSystem.getInfoAsync(result.uri);
-      const candidate = {
-        uri: result.uri,
-        size: Number(info?.size) || 0,
-        quality,
-        width: Number(result.width || dimensions?.width || sourceDimensions?.width) || null,
-        height: Number(result.height || dimensions?.height || sourceDimensions?.height) || null,
-        resized: Boolean(dimensions?.resized),
-      };
+    for (const dimensions of compressionPlans) {
+      const actions = dimensions?.resized
+        ? [{ resize: { width: dimensions.width, height: dimensions.height } }]
+        : [];
 
-      if (!candidate.size) {
-        await deleteNativeCompressionCandidate(candidate);
-        continue;
-      }
+      for (const quality of getImageUploadQualitySteps(outputFormat)) {
+        const candidate = await createNativeCompressedImageCandidate(
+          sourceUri,
+          actions,
+          dimensions,
+          outputFormat,
+          quality,
+          sourceDimensions
+        );
+        if (!candidate) continue;
 
-      if (!bestCandidate || candidate.size < bestCandidate.size) {
-        await deleteNativeCompressionCandidate(bestCandidate);
-        bestCandidate = candidate;
-      } else {
-        await deleteNativeCompressionCandidate(candidate);
-      }
-
-      if (candidate.size <= targetBytes) {
-        selectedCandidate = bestCandidate;
-        break;
+        if (isBetterImageUploadCandidate(candidate, formatBestCandidate)) {
+          await deleteNativeCompressionCandidate(formatBestCandidate);
+          formatBestCandidate = candidate;
+        } else {
+          await deleteNativeCompressionCandidate(candidate);
+        }
       }
     }
 
-    if (selectedCandidate) break;
+    if (formatBestCandidate && shouldUseCompressedImage(attachment, formatBestCandidate.size)) {
+      uploadCandidate = formatBestCandidate;
+      break;
+    }
+
+    await deleteNativeCompressionCandidate(formatBestCandidate);
   }
 
-  const uploadCandidate = selectedCandidate || bestCandidate;
-
-  if (!uploadCandidate || !shouldUseCompressedImage(attachment, uploadCandidate.size)) {
-    await deleteNativeCompressionCandidate(bestCandidate);
+  if (!uploadCandidate) {
     return attachment;
   }
 
   const compressedAttachment = {
     ...attachment,
-    name: getPrivateImageAttachmentName(attachment),
-    mimeType: "image/jpeg",
+    name: getPrivateImageAttachmentName(attachment, uploadCandidate.outputFormat),
+    mimeType: uploadCandidate.outputFormat.mimeType,
     size: uploadCandidate.size,
     localUri: uploadCandidate.uri,
     uri: uploadCandidate.uri,
@@ -1579,6 +1643,7 @@ const compressNativeImageAttachment = async (attachment) => {
 
   return withImageCompressionMetadata(compressedAttachment, {
     originalAttachment: attachment,
+    outputFormat: uploadCandidate.outputFormat,
     quality: uploadCandidate.quality,
     width: uploadCandidate.width,
     height: uploadCandidate.height,
@@ -1615,7 +1680,18 @@ const getCanvasBlob = (canvas, mimeType, quality) => new Promise((resolve) => {
   canvas.toBlob((blob) => resolve(blob), mimeType, quality);
 });
 
-const createWebCompressedImageCandidate = async (image, dimensions, quality) => {
+const paintImageForOutputFormat = (context, image, width, height, outputFormat) => {
+  if (outputFormat?.mimeType === "image/jpeg") {
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, width, height);
+  } else {
+    context.clearRect(0, 0, width, height);
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+};
+
+const createWebCompressedImageCandidate = async (image, dimensions, outputFormat, quality) => {
   const canvas = document.createElement("canvas");
   canvas.width = dimensions.width || image.naturalWidth || image.width;
   canvas.height = dimensions.height || image.naturalHeight || image.height;
@@ -1623,16 +1699,17 @@ const createWebCompressedImageCandidate = async (image, dimensions, quality) => 
   const context = canvas.getContext("2d");
   if (!context || !canvas.width || !canvas.height) return null;
 
-  context.fillStyle = "#fff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  paintImageForOutputFormat(context, image, canvas.width, canvas.height, outputFormat);
 
-  const blob = await getCanvasBlob(canvas, "image/jpeg", quality);
+  const blob = await getCanvasBlob(canvas, outputFormat.mimeType, quality);
   if (!blob?.size) return null;
+  const blobMimeType = String(blob.type || outputFormat.mimeType || "").toLowerCase();
+  if (blob.type && blobMimeType !== outputFormat.mimeType) return null;
 
   return {
     blob,
     size: Number(blob.size) || 0,
+    outputFormat,
     quality,
     width: canvas.width,
     height: canvas.height,
@@ -1654,43 +1731,44 @@ const compressWebImageAttachment = async (attachment) => {
     const sourceWidth = image.naturalWidth || image.width;
     const sourceHeight = image.naturalHeight || image.height;
     const compressionPlans = getImageCompressionPlans(sourceWidth, sourceHeight);
-    const targetBytes = getImageCompressionTargetBytes(attachment);
-    let bestCandidate = null;
-    let selectedCandidate = null;
+    let uploadCandidate = null;
 
-    for (const dimensions of compressionPlans) {
-      for (const quality of IMAGE_UPLOAD_COMPRESSION_QUALITY_STEPS) {
-        const candidate = await createWebCompressedImageCandidate(image, dimensions, quality);
-        if (!candidate) continue;
+    for (const outputFormat of IMAGE_UPLOAD_OUTPUT_FORMATS) {
+      let formatBestCandidate = null;
 
-        if (!bestCandidate || candidate.size < bestCandidate.size) {
-          bestCandidate = candidate;
-        }
+      for (const dimensions of compressionPlans) {
+        for (const quality of getImageUploadQualitySteps(outputFormat)) {
+          const candidate = await createWebCompressedImageCandidate(image, dimensions, outputFormat, quality);
+          if (!candidate) continue;
 
-        if (candidate.size <= targetBytes) {
-          selectedCandidate = candidate;
-          break;
+          if (isBetterImageUploadCandidate(candidate, formatBestCandidate)) {
+            formatBestCandidate = candidate;
+          }
         }
       }
 
-      if (selectedCandidate) break;
+      if (formatBestCandidate && shouldUseCompressedImage(attachment, formatBestCandidate.size)) {
+        uploadCandidate = formatBestCandidate;
+        break;
+      }
     }
 
-    const uploadCandidate = selectedCandidate || bestCandidate;
-
-    if (!uploadCandidate || !shouldUseCompressedImage(attachment, uploadCandidate.size)) {
+    if (!uploadCandidate) {
       return attachment;
     }
 
-    const privateName = getPrivateImageAttachmentName(attachment);
+    const privateName = getPrivateImageAttachmentName(attachment, uploadCandidate.outputFormat);
     const file = typeof File === "function"
-      ? new File([uploadCandidate.blob], privateName, { type: "image/jpeg", lastModified: Date.now() })
+      ? new File([uploadCandidate.blob], privateName, {
+        type: uploadCandidate.outputFormat.mimeType,
+        lastModified: Date.now(),
+      })
       : uploadCandidate.blob;
     const objectUrl = getWebObjectUrl(uploadCandidate.blob);
     const compressedAttachment = {
       ...attachment,
       name: privateName,
-      mimeType: "image/jpeg",
+      mimeType: uploadCandidate.outputFormat.mimeType,
       size: uploadCandidate.size,
       file,
       localUri: objectUrl || attachment.localUri || attachment.uri || null,
@@ -1702,6 +1780,7 @@ const compressWebImageAttachment = async (attachment) => {
 
     return withImageCompressionMetadata(compressedAttachment, {
       originalAttachment: attachment,
+      outputFormat: uploadCandidate.outputFormat,
       quality: uploadCandidate.quality,
       width: uploadCandidate.width,
       height: uploadCandidate.height,
@@ -1858,6 +1937,15 @@ export const uploadAttachmentDraft = async (attachment, {
   };
 
   const cachedAttachment = await cacheAttachmentFromLocalUri(uploadedAttachment, normalized.localUri || normalized.uri);
+  if (
+    compression
+    && Platform.OS === "web"
+    && normalized.localUri
+    && cachedAttachment?.localUri
+    && cachedAttachment.localUri !== normalized.localUri
+  ) {
+    revokeWebObjectUrl(normalized.localUri);
+  }
   if (
     compression
     && Platform.OS !== "web"
