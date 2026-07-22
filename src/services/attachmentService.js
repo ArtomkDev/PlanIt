@@ -64,6 +64,8 @@ const ATTACHMENT_CACHE_MANIFEST_KEY = "planit_attachment_cache_manifest_v1";
 const ATTACHMENT_CACHE_DIR = FileSystem.documentDirectory
   ? `${FileSystem.documentDirectory}attachments/`
   : null;
+const ANDROID_DOWNLOAD_DIRECTORY_URI_KEY = "planit_android_download_directory_uri_v1";
+const ANDROID_DOWNLOAD_FOLDER_NAME = "Download";
 const WEB_ATTACHMENT_CACHE_DB_NAME = "planit_attachment_cache_v1";
 const WEB_ATTACHMENT_CACHE_STORE = "attachments";
 const CACHE_FRESH_STATUSES = new Set(["local", "source"]);
@@ -2098,6 +2100,208 @@ const shareNativeAttachment = async (attachment) => {
   return attachment;
 };
 
+export const getAttachmentShareLabel = (lang) => {
+  const localized = t("attachments.share", lang);
+  if (localized && localized !== "attachments.share") return localized;
+  return String(lang || "").startsWith("uk")
+    ? "\u041f\u043e\u0434\u0456\u043b\u0438\u0442\u0438\u0441\u044f \u0432\u043a\u043b\u0430\u0434\u0435\u043d\u043d\u044f\u043c"
+    : "Share attachment";
+};
+
+export const shareAttachment = async (attachment) => {
+  const preparedAttachment = await ensureLocalAttachment(attachment);
+  return shareNativeAttachment(preparedAttachment);
+};
+
+const isRemoteUri = (uri = "") => /^https?:\/\//i.test(String(uri || ""));
+
+const isSafUri = (uri = "") => (
+  String(uri || "").startsWith("content://com.android.externalstorage.documents")
+);
+
+const getCachedAndroidDownloadDirectoryUri = async () => {
+  try {
+    return await AsyncStorage.getItem(ANDROID_DOWNLOAD_DIRECTORY_URI_KEY);
+  } catch (error) {
+    return null;
+  }
+};
+
+const getAndroidDownloadDirectoryUri = async ({ forcePrompt = false } = {}) => {
+  const saf = FileSystem.StorageAccessFramework;
+  if (!saf?.requestDirectoryPermissionsAsync || !saf?.createFileAsync) {
+    throw makeAttachmentError("download_failed");
+  }
+
+  if (!forcePrompt) {
+    const cachedUri = await getCachedAndroidDownloadDirectoryUri();
+    if (cachedUri) return cachedUri;
+  }
+
+  let initialUri = null;
+  try {
+    initialUri = saf.getUriForDirectoryInRoot?.(ANDROID_DOWNLOAD_FOLDER_NAME) || null;
+  } catch (error) {}
+
+  const permissions = await saf.requestDirectoryPermissionsAsync(initialUri);
+  if (!permissions?.granted || !permissions?.directoryUri) {
+    throw makeAttachmentError("download_failed");
+  }
+
+  try {
+    await AsyncStorage.setItem(ANDROID_DOWNLOAD_DIRECTORY_URI_KEY, permissions.directoryUri);
+  } catch (error) {}
+
+  return permissions.directoryUri;
+};
+
+const makeUniqueDownloadFileName = (fileName) => {
+  const safeName = sanitizeFileName(fileName || "attachment");
+  const extensionMatch = safeName.match(/(\.[a-z0-9]+)$/i);
+  const extension = extensionMatch?.[1] || "";
+  const baseName = extension
+    ? safeName.slice(0, -extension.length).replace(/\.+$/, "")
+    : safeName;
+
+  return sanitizeFileName(`${baseName || "attachment"}-${Date.now()}${extension}`);
+};
+
+const getAndroidDownloadFileName = (attachment = {}) => (
+  normalizeAttachmentDisplayNameForMimeType(
+    attachment.name || "attachment",
+    attachment.mimeType
+  )
+);
+
+const prepareAndroidDownloadAttachment = async (attachment) => {
+  const sourceUri = (
+    attachment?.localUri
+    || attachment?.openUri
+    || attachment?.uri
+    || attachment?.downloadURL
+    || attachment?.url
+    || ""
+  );
+
+  if (!sourceUri) {
+    throw makeAttachmentError("download_failed", { name: attachment?.name });
+  }
+
+  if (isRemoteUri(sourceUri)) {
+    return ensureLocalAttachment({
+      ...attachment,
+      downloadURL: attachment?.downloadURL || attachment?.url || sourceUri,
+      localUri: null,
+      openUri: null,
+      uri: null,
+    }, { forceDownload: true });
+  }
+
+  if (String(sourceUri).startsWith("file://") || isSafUri(sourceUri)) {
+    return {
+      ...attachment,
+      localUri: sourceUri,
+      openUri: sourceUri,
+    };
+  }
+
+  const cachedAttachment = await cacheAttachmentFromLocalUri(attachment, sourceUri);
+  const cachedUri = cachedAttachment?.localUri || cachedAttachment?.openUri || "";
+  if (cachedUri) {
+    return {
+      ...cachedAttachment,
+      openUri: cachedUri,
+    };
+  }
+
+  return {
+    ...attachment,
+    localUri: sourceUri,
+    openUri: sourceUri,
+  };
+};
+
+const readAndroidDownloadSource = async (attachment) => {
+  const sourceUri = attachment?.localUri || attachment?.openUri || attachment?.uri;
+  if (!sourceUri) {
+    throw makeAttachmentError("download_failed", { name: attachment?.name });
+  }
+
+  try {
+    return await FileSystem.readAsStringAsync(sourceUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+  } catch (error) {
+    throw makeAttachmentError("download_failed", {
+      name: attachment?.name,
+      originalError: error,
+    });
+  }
+};
+
+const createAndroidDownloadFile = async (directoryUri, fileName, mimeType) => {
+  const saf = FileSystem.StorageAccessFramework;
+
+  try {
+    return await saf.createFileAsync(directoryUri, fileName, mimeType);
+  } catch (error) {
+    return saf.createFileAsync(directoryUri, makeUniqueDownloadFileName(fileName), mimeType);
+  }
+};
+
+const writeAndroidDownloadFile = async (directoryUri, attachment, base64Contents) => {
+  const saf = FileSystem.StorageAccessFramework;
+  const fileName = getAndroidDownloadFileName(attachment);
+  const mimeType = inferAttachmentMimeType(fileName, attachment?.mimeType);
+  let outputUri = "";
+
+  try {
+    outputUri = await createAndroidDownloadFile(directoryUri, fileName, mimeType);
+    await saf.writeAsStringAsync(outputUri, base64Contents, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return {
+      ...attachment,
+      downloadUri: outputUri,
+      downloadedFileName: fileName,
+    };
+  } catch (error) {
+    if (outputUri) {
+      try {
+        await saf.deleteAsync(outputUri, { idempotent: true });
+      } catch (deleteError) {}
+    }
+    throw error;
+  }
+};
+
+const saveAndroidAttachmentToDownloads = async (attachment) => {
+  const preparedAttachment = await prepareAndroidDownloadAttachment(attachment);
+  const base64Contents = await readAndroidDownloadSource(preparedAttachment);
+  const cachedDirectoryUri = await getCachedAndroidDownloadDirectoryUri();
+
+  if (cachedDirectoryUri) {
+    try {
+      return await writeAndroidDownloadFile(cachedDirectoryUri, preparedAttachment, base64Contents);
+    } catch (error) {
+      try {
+        await AsyncStorage.removeItem(ANDROID_DOWNLOAD_DIRECTORY_URI_KEY);
+      } catch (storageError) {}
+    }
+  }
+
+  try {
+    const directoryUri = await getAndroidDownloadDirectoryUri({ forcePrompt: true });
+    return await writeAndroidDownloadFile(directoryUri, preparedAttachment, base64Contents);
+  } catch (error) {
+    throw makeAttachmentError("download_failed", {
+      name: attachment?.name,
+      originalError: error,
+    });
+  }
+};
+
 export const openAttachment = async (attachment, { download = false } = {}) => {
   const url = attachment?.downloadURL || attachment?.url || attachment?.localUri || attachment?.uri;
 
@@ -2140,7 +2344,12 @@ export const openAttachment = async (attachment, { download = false } = {}) => {
   }
 
   const preparedAttachment = await ensureLocalAttachment(attachment, { forceDownload: download });
-  if (download) return shareNativeAttachment(preparedAttachment);
+  if (download) {
+    if (Platform.OS === "android") {
+      return saveAndroidAttachmentToDownloads(preparedAttachment);
+    }
+    return shareNativeAttachment(preparedAttachment);
+  }
 
   let openUri = preparedAttachment.openUri || preparedAttachment.localUri || url;
   if (Platform.OS === "android" && String(openUri).startsWith("file://")) {

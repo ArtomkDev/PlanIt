@@ -27,6 +27,7 @@ import {
   DownloadSimple,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
+  ShareNetwork,
   WarningCircle,
   X,
 } from "phosphor-react-native";
@@ -35,10 +36,13 @@ import {
   getAttachmentCacheState,
   ensureLocalAttachment,
   formatAttachmentError,
+  getAttachmentShareLabel,
   isImageAttachment,
   openAttachment,
+  shareAttachment,
 } from "../../services/attachmentService";
 import MorphingLoader from "../ui/MorphingLoader";
+import AndroidPagerView from "./AndroidPagerView";
 import StagedAttachmentImage, { AttachmentImageLoadingOverlay } from "./StagedAttachmentImage";
 import { t } from "../../utils/i18n";
 import { triggerHaptic } from "../../utils/haptics";
@@ -61,6 +65,8 @@ const ZOOMED_EPSILON = 0.015;
 const WIDE_LAYOUT_WIDTH = 768;
 const EDGE_SWIPE_COMMIT_RATIO = 0.22;
 const EDGE_SWIPE_VELOCITY = 640;
+const USE_ANDROID_NATIVE_PAGER = Platform.OS === "android";
+const ANDROID_PAGER_RENDER_DISTANCE = 1;
 
 const getAttachmentIdentity = (attachment = {}) => (
   attachment.id
@@ -157,6 +163,7 @@ function ZoomableImagePage({
   zoomCommand,
   onZoomChange,
   onZoomEdgeSwipe = () => {},
+  showEdgePreviews = true,
 }) {
   const knownImageSize = useMemo(() => getKnownAttachmentImageSize(attachment), [attachment]);
   const [imageSize, setImageSize] = useState(knownImageSize);
@@ -268,7 +275,7 @@ function ZoomableImagePage({
     if (loadedImageKeyRef.current !== imageKey) {
       setLoadedImageKey("");
     }
-    if (!uri) return undefined;
+    if (!uri || Platform.OS === "android") return undefined;
 
     let mounted = true;
     Image.getSize(
@@ -376,6 +383,15 @@ function ZoomableImagePage({
       savedTranslateX.value = nextX;
       savedTranslateY.value = nextY;
       runOnJS(notifyZoomChange)(true);
+    })
+    .onFinalize((_, success) => {
+      if (success) return;
+      if (scale.value <= 1 + ZOOMED_EPSILON) {
+        savedScale.value = 1;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+        runOnJS(notifyZoomChange)(false);
+      }
     }), [
     active,
     fitHeight,
@@ -616,7 +632,7 @@ function ZoomableImagePage({
           cursorStyle,
         ]}
       >
-        {!!previousUri && (
+        {showEdgePreviews && !!previousUri && (
           <Animated.Image
             pointerEvents="none"
             source={{ uri: previousUri }}
@@ -625,7 +641,7 @@ function ZoomableImagePage({
             style={[styles.edgePreviewImage, previousPreviewAnimatedStyle]}
           />
         )}
-        {!!nextUri && (
+        {showEdgePreviews && !!nextUri && (
           <Animated.Image
             pointerEvents="none"
             source={{ uri: nextUri }}
@@ -639,6 +655,8 @@ function ZoomableImagePage({
           <Animated.Image
             source={{ uri }}
             resizeMode="contain"
+            resizeMethod={Platform.OS === "android" ? "resize" : undefined}
+            progressiveRenderingEnabled={Platform.OS === "android"}
             fadeDuration={0}
             onLoad={(event) => {
               loadedImageKeyRef.current = imageKey;
@@ -684,6 +702,7 @@ export default function AttachmentImagePreview({
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const galleryListRef = useRef(null);
+  const galleryPagerRef = useRef(null);
   const thumbnailListRef = useRef(null);
   const closingRef = useRef(false);
   const resolvingKeysRef = useRef(new Set());
@@ -708,6 +727,7 @@ export default function AttachmentImagePreview({
   const [state, setState] = useState({
     loading: false,
     saving: false,
+    sharing: false,
     error: "",
   });
 
@@ -807,6 +827,13 @@ export default function AttachmentImagePreview({
         return;
       }
 
+      if (USE_ANDROID_NATIVE_PAGER && initialUri) {
+        if (active) {
+          setState((prev) => ({ ...prev, loading: false, error: "" }));
+        }
+        return;
+      }
+
       const prepared = await ensureLocalAttachment(item);
       rememberResolvedAttachment(prepared);
       if (active) {
@@ -828,6 +855,18 @@ export default function AttachmentImagePreview({
   const scrollGalleryToIndex = useCallback((index, animated = true) => {
     const nextIndex = clampIndex(index, imageAttachments.length);
     if (!imageAttachments.length) return;
+
+    if (USE_ANDROID_NATIVE_PAGER) {
+      const pager = galleryPagerRef.current;
+      if (!pager) return;
+
+      if (animated) {
+        pager.setPage?.(nextIndex);
+      } else {
+        pager.setPageWithoutAnimation?.(nextIndex);
+      }
+      return;
+    }
 
     galleryListRef.current?.scrollToIndex({
       index: nextIndex,
@@ -952,6 +991,8 @@ export default function AttachmentImagePreview({
     if (!visible || !activeAttachment) return;
 
     resolveAttachmentForPreview(activeAttachment, { active: true });
+    if (USE_ANDROID_NATIVE_PAGER) return;
+
     [activeIndex - 1, activeIndex + 1]
       .filter((index) => index >= 0 && index < imageAttachments.length)
       .forEach((index) => resolveAttachmentForPreview(imageAttachments[index]));
@@ -962,7 +1003,7 @@ export default function AttachmentImagePreview({
 
     thumbnailListRef.current?.scrollToIndex({
       index: activeIndex,
-      animated: true,
+      animated: !USE_ANDROID_NATIVE_PAGER,
       viewPosition: 0.5,
     });
   }, [activeIndex, canNavigate, visible]);
@@ -1011,8 +1052,9 @@ export default function AttachmentImagePreview({
 
   const dismissGesture = useMemo(() => Gesture.Pan()
     .enabled(!zoomActive)
-    .activeOffsetY(12)
-    .failOffsetX([-24, 24])
+    .maxPointers(1)
+    .activeOffsetY(18)
+    .failOffsetX([-10, 10])
     .onUpdate((event) => {
       const y = Math.max(0, event.translationY);
       const progress = Math.min(1, y / Math.max(height * 0.45, 1));
@@ -1057,6 +1099,17 @@ export default function AttachmentImagePreview({
       chromeOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
       headerTranslateY.value = withSpring(0, GALLERY_SPRING);
       railTranslateY.value = withSpring(0, GALLERY_SPRING);
+    })
+    .onFinalize((_, success) => {
+      if (success || (dragY.value < 0.5 && Math.abs(dragX.value) < 0.5)) return;
+
+      dragX.value = withSpring(0, GALLERY_SPRING);
+      dragY.value = withSpring(0, GALLERY_SPRING);
+      imageScale.value = withSpring(1, GALLERY_SPRING);
+      backdropOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
+      chromeOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
+      headerTranslateY.value = withSpring(0, GALLERY_SPRING);
+      railTranslateY.value = withSpring(0, GALLERY_SPRING);
     }), [
     backdropOpacity,
     chromeOpacity,
@@ -1086,8 +1139,24 @@ export default function AttachmentImagePreview({
     }
   }, [imageAttachments.length, resetZoomState, width]);
 
+  const handleGalleryPageSelected = useCallback((event) => {
+    const nextIndex = clampIndex(
+      Number(event?.nativeEvent?.position) || 0,
+      imageAttachments.length
+    );
+    const currentIndex = activeIndexRef.current;
+
+    if (nextIndex !== currentIndex) {
+      triggerHaptic("selection");
+      resetZoomState();
+      setState((prev) => ({ ...prev, error: "" }));
+      activeIndexRef.current = nextIndex;
+      setActiveIndex(nextIndex);
+    }
+  }, [imageAttachments.length, resetZoomState]);
+
   const handleDownload = async () => {
-    if (!activeAttachment || state.saving) return;
+    if (!activeAttachment || state.saving || state.sharing) return;
 
     const activeUri = getDisplayUri(activeAttachment);
     const downloadableAttachment = activeUri
@@ -1118,6 +1187,37 @@ export default function AttachmentImagePreview({
       setState((prev) => ({
         ...prev,
         saving: false,
+        error: formatAttachmentError(error, lang),
+      }));
+    }
+  };
+
+  const handleShare = async () => {
+    if (!activeAttachment || state.saving || state.sharing) return;
+
+    const activeUri = getDisplayUri(activeAttachment);
+    const shareableAttachment = activeUri
+      ? { ...activeAttachment, localUri: activeUri, openUri: activeUri }
+      : activeAttachment;
+
+    try {
+      triggerHaptic("open");
+      setState((prev) => ({ ...prev, sharing: true, error: "" }));
+
+      const prepared = await shareAttachment(shareableAttachment);
+      rememberResolvedAttachment(prepared);
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        sharing: false,
+        error: "",
+      }));
+      triggerHaptic("success");
+    } catch (error) {
+      triggerHaptic("error");
+      setState((prev) => ({
+        ...prev,
+        sharing: false,
         error: formatAttachmentError(error, lang),
       }));
     }
@@ -1159,6 +1259,7 @@ export default function AttachmentImagePreview({
           zoomCommand={zoomCommand}
           onZoomChange={handleZoomChange}
           onZoomEdgeSwipe={handleZoomEdgeSwipe}
+          showEdgePreviews={!USE_ANDROID_NATIVE_PAGER}
         />
       </View>
     );
@@ -1178,7 +1279,8 @@ export default function AttachmentImagePreview({
   ]);
 
   const renderThumbnail = useCallback(({ item, index }) => {
-    const uri = getDisplayUri(item);
+    const previewUri = item?.imagePreview?.uri || "";
+    const uri = USE_ANDROID_NATIVE_PAGER && previewUri ? previewUri : getDisplayUri(item);
     const isActive = index === activeIndex;
 
     return (
@@ -1219,6 +1321,96 @@ export default function AttachmentImagePreview({
   }, []);
 
   if (!visible || !activeAttachment) return null;
+
+  const renderAndroidPagerPage = (item, index) => {
+    const shouldRenderPage = Math.abs(index - activeIndex) <= ANDROID_PAGER_RENDER_DISTANCE;
+
+    return (
+      <View
+        key={getAttachmentIdentity(item) || `android-image-${index}`}
+        collapsable={false}
+        style={styles.androidPagerPage}
+      >
+        {shouldRenderPage ? renderGalleryItem({ item, index }) : null}
+      </View>
+    );
+  };
+
+  const galleryStage = (
+    <Animated.View style={[styles.imageStage, stageAnimatedStyle]}>
+      {USE_ANDROID_NATIVE_PAGER ? (
+        <AndroidPagerView
+          ref={galleryPagerRef}
+          style={styles.androidPager}
+          initialPage={requestedIndex}
+          scrollEnabled={!zoomActive}
+          orientation="horizontal"
+          overScrollMode="never"
+          overdrag={false}
+          offscreenPageLimit={1}
+          pageMargin={0}
+          onPageSelected={handleGalleryPageSelected}
+        >
+          {imageAttachments.map(renderAndroidPagerPage)}
+        </AndroidPagerView>
+      ) : (
+        <FlatList
+          ref={galleryListRef}
+          data={imageAttachments}
+          extraData={{
+            activeIndex,
+            resolvedUris,
+            zoomActive,
+            zoomCommandToken: zoomCommand?.token || 0,
+            zoomResetToken,
+          }}
+          style={styles.galleryList}
+          initialScrollIndex={requestedIndex}
+          keyExtractor={(item, index) => getAttachmentIdentity(item) || `image-${index}`}
+          renderItem={renderGalleryItem}
+          horizontal
+          pagingEnabled
+          scrollEnabled={!zoomActive}
+          bounces={false}
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          disableIntervalMomentum
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
+          windowSize={3}
+          removeClippedSubviews={false}
+          getItemLayout={(_, index) => ({
+            length: Math.max(width, 1),
+            offset: Math.max(width, 1) * index,
+            index,
+          })}
+          onMomentumScrollEnd={handleGalleryMomentumEnd}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
+        />
+      )}
+
+      {showArrowNavigation && (
+        <>
+          <TouchableOpacity
+            activeOpacity={0.72}
+            onPress={() => goToOffset(-1)}
+            style={[styles.navButton, styles.navButtonLeft]}
+            accessibilityRole="button"
+          >
+            <CaretLeft size={28} color={textColor} weight="bold" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.72}
+            onPress={() => goToOffset(1)}
+            style={[styles.navButton, styles.navButtonRight]}
+            accessibilityRole="button"
+          >
+            <CaretRight size={28} color={textColor} weight="bold" />
+          </TouchableOpacity>
+        </>
+      )}
+    </Animated.View>
+  );
 
   return (
     <Modal
@@ -1312,9 +1504,26 @@ export default function AttachmentImagePreview({
                 </View>
               )}
 
+              {Platform.OS === "android" && (
+                <TouchableOpacity
+                  activeOpacity={0.72}
+                  disabled={state.saving || state.sharing}
+                  onPress={handleShare}
+                  style={[styles.headerButton, state.sharing ? styles.disabledButton : null]}
+                  accessibilityRole="button"
+                  accessibilityLabel={getAttachmentShareLabel(lang)}
+                >
+                  {state.sharing ? (
+                    <MorphingLoader size={24} />
+                  ) : (
+                    <ShareNetwork size={23} color={textColor} weight="bold" />
+                  )}
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 activeOpacity={0.72}
-                disabled={state.saving}
+                disabled={state.saving || state.sharing}
                 onPress={handleDownload}
                 style={[styles.headerButton, state.saving ? styles.disabledButton : null]}
                 accessibilityRole="button"
@@ -1330,62 +1539,7 @@ export default function AttachmentImagePreview({
           </Animated.View>
 
           <GestureDetector gesture={dismissGesture}>
-            <Animated.View style={[styles.imageStage, stageAnimatedStyle]}>
-              <FlatList
-                ref={galleryListRef}
-                data={imageAttachments}
-                extraData={{
-                  activeIndex,
-                  resolvedUris,
-                  zoomActive,
-                  zoomCommandToken: zoomCommand?.token || 0,
-                  zoomResetToken,
-                }}
-                style={styles.galleryList}
-                initialScrollIndex={requestedIndex}
-                keyExtractor={(item, index) => getAttachmentIdentity(item) || `image-${index}`}
-                renderItem={renderGalleryItem}
-                horizontal
-                pagingEnabled
-                scrollEnabled={!zoomActive}
-                bounces={false}
-                showsHorizontalScrollIndicator={false}
-                decelerationRate="fast"
-                disableIntervalMomentum
-                initialNumToRender={3}
-                maxToRenderPerBatch={3}
-                windowSize={3}
-                removeClippedSubviews={false}
-                getItemLayout={(_, index) => ({
-                  length: Math.max(width, 1),
-                  offset: Math.max(width, 1) * index,
-                  index,
-                })}
-                onMomentumScrollEnd={handleGalleryMomentumEnd}
-                onScrollToIndexFailed={handleScrollToIndexFailed}
-              />
-
-              {showArrowNavigation && (
-                <>
-                  <TouchableOpacity
-                    activeOpacity={0.72}
-                    onPress={() => goToOffset(-1)}
-                    style={[styles.navButton, styles.navButtonLeft]}
-                    accessibilityRole="button"
-                  >
-                    <CaretLeft size={28} color={textColor} weight="bold" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.72}
-                    onPress={() => goToOffset(1)}
-                    style={[styles.navButton, styles.navButtonRight]}
-                    accessibilityRole="button"
-                  >
-                    <CaretRight size={28} color={textColor} weight="bold" />
-                  </TouchableOpacity>
-                </>
-              )}
-            </Animated.View>
+            {galleryStage}
           </GestureDetector>
 
           {canNavigate && (
@@ -1407,6 +1561,10 @@ export default function AttachmentImagePreview({
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.thumbnailContent}
+                initialNumToRender={USE_ANDROID_NATIVE_PAGER ? 3 : 6}
+                maxToRenderPerBatch={USE_ANDROID_NATIVE_PAGER ? 2 : 6}
+                windowSize={USE_ANDROID_NATIVE_PAGER ? 3 : 5}
+                removeClippedSubviews={USE_ANDROID_NATIVE_PAGER}
                 getItemLayout={(_, index) => ({
                   length: 68,
                   offset: 68 * index,
@@ -1512,6 +1670,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   galleryList: {
+    flex: 1,
+  },
+  androidPager: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  androidPagerPage: {
     flex: 1,
   },
   galleryPage: {

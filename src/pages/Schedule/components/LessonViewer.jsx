@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
   Linking,
   Alert
 } from "react-native";
@@ -20,6 +21,7 @@ import {
   CheckSquare,
   Plus,
   Paperclip,
+  ShareNetwork,
   Trash, 
   PencilSimple 
 } from "phosphor-react-native";
@@ -34,10 +36,13 @@ import AttachmentImagePreview from "../../../components/attachments/AttachmentIm
 import { triggerHaptic } from "../../../utils/haptics";
 import {
   deleteStoredAttachments,
+  formatAttachmentError,
   formatFileSize,
+  getAttachmentShareLabel,
   isImageAttachment,
   openAttachment,
   resolveAttachmentList,
+  shareAttachment,
 } from "../../../services/attachmentService";
 
 export default function LessonViewer({
@@ -126,6 +131,16 @@ export default function LessonViewer({
     } catch (error) {
       triggerHaptic("error");
       Alert.alert(t('common.error', lang), t('attachments.errors.open_failed', lang));
+    }
+  };
+
+  const handleAttachmentShare = async (attachment) => {
+    try {
+      triggerHaptic("open");
+      await shareAttachment(attachment);
+    } catch (error) {
+      triggerHaptic("error");
+      Alert.alert(t('common.error', lang), formatAttachmentError(error, lang));
     }
   };
 
@@ -345,6 +360,18 @@ export default function LessonViewer({
                     >
                       <DownloadSimple size={20} color={themeColors.textColor2} weight="bold" />
                     </TouchableOpacity>
+                    {Platform.OS === "android" && (
+                      <TouchableOpacity
+                        onPress={(event) => {
+                          event?.stopPropagation?.();
+                          handleAttachmentShare(attachment);
+                        }}
+                        style={styles.rowActionButton}
+                        accessibilityLabel={getAttachmentShareLabel(lang)}
+                      >
+                        <ShareNetwork size={20} color={themeColors.textColor2} weight="bold" />
+                      </TouchableOpacity>
+                    )}
                     <ArrowUpRight size={20} color={themeColors.textColor2} weight="regular" />
                   </TouchableOpacity>
                 ))}

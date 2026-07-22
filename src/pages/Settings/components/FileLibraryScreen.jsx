@@ -20,6 +20,7 @@ import {
   Camera,
   Paperclip,
   PencilSimple,
+  ShareNetwork,
   Trash,
   WarningCircle,
   X,
@@ -41,6 +42,7 @@ import {
   ensureLocalAttachment,
   formatAttachmentError,
   formatFileSize,
+  getAttachmentShareLabel,
   getAttachmentCacheState,
   getAttachmentLibraryUsage,
   getAttachmentRevision,
@@ -54,6 +56,7 @@ import {
   pickAttachmentFiles,
   pickAttachmentPhotos,
   renameAttachmentDisplayName,
+  shareAttachment,
   uploadAttachmentDraft,
   uploadAttachmentDrafts,
   upsertAttachmentLibraryFiles,
@@ -358,6 +361,16 @@ export default function FileLibraryScreen() {
       await openAttachment(file, { download });
     } catch (openError) {
       setFileError(formatAttachmentError(openError, lang));
+    }
+  };
+
+  const handleShare = async (file) => {
+    try {
+      triggerHaptic("open");
+      setError("");
+      await shareAttachment(file);
+    } catch (shareError) {
+      setFileError(formatAttachmentError(shareError, lang));
     }
   };
 
@@ -845,6 +858,12 @@ export default function FileLibraryScreen() {
                 label: t("attachments.download", lang),
                 onPress: () => handleOpen(file, true),
               })}
+              {Platform.OS === "android" && renderIconButton({
+                icon: ShareNetwork,
+                disabled: isBusy,
+                label: getAttachmentShareLabel(lang),
+                onPress: () => handleShare(file),
+              })}
               {renderIconButton({
                 icon: file.storageMode === "local" ? CloudArrowUp : CloudSlash,
                 color: file.storageMode === "local" ? themeColors.accentColor : themeColors.textColor2,
@@ -989,6 +1008,12 @@ export default function FileLibraryScreen() {
                   disabled: isBusy,
                   label: t("attachments.download", lang),
                   onPress: () => handleOpen(file, true),
+                })}
+                {Platform.OS === "android" && renderIconButton({
+                  icon: ShareNetwork,
+                  disabled: isBusy,
+                  label: getAttachmentShareLabel(lang),
+                  onPress: () => handleShare(file),
                 })}
                 {renderIconButton({
                   icon: file.storageMode === "local" ? CloudArrowUp : CloudSlash,

@@ -1,6 +1,6 @@
 {
   "name": "planit",
-  "version": "0.1.74",
+  "version": "0.1.75",
   "main": "index.js",
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start",
@@ -15,7 +15,7 @@
     "release:patch": "npm version patch --no-git-tag-version && npm run build:apk",
     "release:minor": "npm version minor --no-git-tag-version && npm run build:apk",
     "release:major": "npm version major --no-git-tag-version && npm run build:apk",
-    "build:aab": "powershell -ExecutionPolicy Bypass -File ./scripts/build-aab.ps1",
+    "build:aab": "npx expo prebuild --platform android && powershell -ExecutionPolicy Bypass -File ./scripts/build-aab.ps1",
     "playstore:patch": "npm version patch --no-git-tag-version && npm run build:aab",
     "playstore:minor": "npm version minor --no-git-tag-version && npm run build:aab",
     "playstore:major": "npm version major --no-git-tag-version && npm run build:aab",

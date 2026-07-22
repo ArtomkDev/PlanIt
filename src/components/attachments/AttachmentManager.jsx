@@ -17,6 +17,7 @@ import {
   Image as ImageIcon,
   Paperclip,
   PencilSimple,
+  ShareNetwork,
   Trash,
   WarningCircle,
   X,
@@ -27,6 +28,7 @@ import {
   deleteStoredAttachments,
   formatAttachmentError,
   formatFileSize,
+  getAttachmentShareLabel,
   getAttachmentCacheState,
   isImageAttachment,
   MAX_ATTACHMENT_SIZE_BYTES,
@@ -39,6 +41,7 @@ import {
   pickAttachmentPhotos,
   renameAttachmentDisplayName,
   resolveAttachmentList,
+  shareAttachment,
   upsertAttachmentLibraryFiles,
   uploadAttachmentDrafts,
 } from "../../services/attachmentService";
@@ -316,6 +319,17 @@ export default function AttachmentManager({
     }
   };
 
+  const handleShare = async (attachment) => {
+    try {
+      triggerHaptic("open");
+      await shareAttachment(attachment);
+      await refreshAttachmentCacheState(attachment);
+    } catch (error) {
+      triggerHaptic("error");
+      setLocalError(formatAttachmentError(error, lang));
+    }
+  };
+
   const handlePreviewCacheStateChange = useCallback((attachment) => {
     refreshAttachmentCacheState(attachment);
   }, [refreshAttachmentCacheState]);
@@ -489,6 +503,20 @@ export default function AttachmentManager({
               >
                 <DownloadSimple size={18} color={themeColors.textColor2} weight="bold" />
               </TouchableOpacity>
+              {Platform.OS === "android" && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  disabled={isUploading}
+                  onPress={(event) => {
+                    event?.stopPropagation?.();
+                    handleShare(attachment);
+                  }}
+                  style={styles.iconButton}
+                  accessibilityLabel={getAttachmentShareLabel(lang)}
+                >
+                  <ShareNetwork size={18} color={themeColors.textColor2} weight="bold" />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 activeOpacity={0.7}
                 disabled={isUploading || disabled}
