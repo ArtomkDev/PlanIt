@@ -97,3 +97,11 @@ builds/
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+
+# ----------------------
+# Graphify
+# ----------------------
+.graphify-venv/
+.graphify-local.json
+graphify-out/cost.json
+# graphify-out/cache/

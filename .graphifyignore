@@ -1,0 +1,34 @@
+# Local/generated Codex artifacts
+.agents/
+.codex/
+.codex-build-check/
+.codex-verify-export/
+.idx/
+
+# Local tool environments
+.graphify-venv/
+.graphify-local.json
+
+# Expo/Firebase local state and build artifacts
+.expo/
+.firebase/
+dist/
+builds/
+
+# Native/generated app outputs
+android/
+ios/
+
+# Dependencies and logs
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Secrets and local credentials
+.env
+.env.*
+credentials/
+google-services.json
+GoogleService-Info.plist

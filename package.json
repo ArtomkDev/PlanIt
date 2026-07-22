@@ -20,7 +20,13 @@
     "playstore:minor": "npm version minor --no-git-tag-version && npm run build:aab",
     "playstore:major": "npm version major --no-git-tag-version && npm run build:aab",
     "build:dev": "powershell -ExecutionPolicy Bypass -File ./scripts/build-dev.ps1",
-    "dev-start": "npx expo start --dev-client"
+    "dev-start": "npx expo start --dev-client",
+    "graphify": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1",
+    "graphify:build": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 .",
+    "graphify:build-code": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 extract . --code-only",
+    "graphify:update": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 . --update",
+    "graphify:query": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 query",
+    "graphify:install-codex": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 install --project --platform codex"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
