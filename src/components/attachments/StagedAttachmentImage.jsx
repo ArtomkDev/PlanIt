@@ -11,6 +11,7 @@ import { LinearGradient } from "expo-linear-gradient";
 const DEFAULT_COLORS = ["rgba(136,136,146,0.56)", "rgba(96,96,108,0.7)"];
 const SCAN_LINE_HEIGHT = 58;
 const DEFAULT_LOADER_DELAY_MS = 140;
+const loadedAttachmentImageKeys = new Set();
 
 const normalizePreviewColors = (colors) => (
   Array.isArray(colors)
@@ -255,6 +256,24 @@ const getStableImageKey = (attachment, uri) => (
   || ""
 );
 
+const getStableImageRevision = (attachment) => (
+  attachment?.cacheRevision
+  || attachment?.cloudRevision
+  || attachment?.uploadedAt
+  || attachment?.updatedAt
+  || attachment?.createdAt
+  || attachment?.size
+  || ""
+);
+
+const getStableImageLoadKey = (attachment, uri) => {
+  const imageKey = getStableImageKey(attachment, uri);
+  if (!imageKey) return uri || "";
+
+  const revision = getStableImageRevision(attachment);
+  return revision ? `${imageKey}:${revision}` : imageKey;
+};
+
 export default function StagedAttachmentImage({
   uri,
   attachment,
@@ -264,16 +283,17 @@ export default function StagedAttachmentImage({
   baseColor,
   loaderDelayMs = DEFAULT_LOADER_DELAY_MS,
   loaderResizeMode = resizeMode,
+  loaderScanning = true,
   onLoad,
   onError,
 }) {
   const imageOpacity = useRef(new Animated.Value(0)).current;
-  const loadedKeysRef = useRef(new Set());
   const [, setLoadVersion] = useState(0);
   const [failedSignature, setFailedSignature] = useState("");
   const imageKey = getStableImageKey(attachment, uri);
+  const imageLoadKey = getStableImageLoadKey(attachment, uri);
   const imageSignature = `${imageKey}:${uri || ""}`;
-  const imageLoaded = !!imageKey && loadedKeysRef.current.has(imageKey);
+  const imageLoaded = !!imageLoadKey && loadedAttachmentImageKeys.has(imageLoadKey);
   const imageFailed = !!imageSignature && failedSignature === imageSignature && !imageLoaded;
 
   useEffect(() => {
@@ -287,7 +307,7 @@ export default function StagedAttachmentImage({
   }, [imageKey, imageLoaded, imageOpacity, imageSignature, uri]);
 
   const showOverlay = !imageLoaded;
-  const showScanner = showOverlay && !imageFailed;
+  const showScanner = loaderScanning && showOverlay && !imageFailed;
 
   return (
     <View style={[styles.root, style, { backgroundColor: baseColor }]}>
@@ -297,7 +317,7 @@ export default function StagedAttachmentImage({
           resizeMode={resizeMode}
           fadeDuration={0}
           onLoad={(event) => {
-            loadedKeysRef.current.add(imageKey);
+            loadedAttachmentImageKeys.add(imageLoadKey);
             setFailedSignature("");
             setLoadVersion((value) => value + 1);
             Animated.timing(imageOpacity, {
@@ -309,7 +329,7 @@ export default function StagedAttachmentImage({
             onLoad?.(event);
           }}
           onError={(event) => {
-            if (!loadedKeysRef.current.has(imageKey)) {
+            if (!loadedAttachmentImageKeys.has(imageLoadKey)) {
               setFailedSignature(imageSignature);
               setLoadVersion((value) => value + 1);
             }

@@ -174,6 +174,7 @@ export default {
   onboarding: {
     welcome_main_title: "WELCOME TO PlanIt",
     welcome_main_desc: "It looks like you're using our app for the first time. Let's create your first schedule!",
+    welcome_badge: "First setup",
     swipe_to_continue: "Swipe to continue",
     swipe_hint_sub: "Swipe between screens, or use the bottom bar (you can enable it via the 'Navigation' button above).",
     welcome_title: "Create Your First Schedule",
@@ -191,6 +192,9 @@ export default {
     first_lesson_time_desc: "When does your first class begin?",
     lesson_duration_desc: "How long does one class last?",
     breaks_desc: "Set the duration of each break (the first break starts after the first class).",
+    step4_title: "Smart Defaults",
+    step4_desc: "Choose the schedule behavior that PlanIt added after this setup was first built.",
+    step4_finish_hint: "All of this can be changed later in schedule settings.",
     navigation: "Navigation",
     next: "Next",
   },

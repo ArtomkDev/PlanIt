@@ -232,7 +232,9 @@ export default function LessonEditorMainScreen({
                 value={date}
                 mode="time"
                 is24Hour={true}
-                display="default"
+                design="material"
+                positiveButton={{ textColor: themeColors.accentColor }}
+                negativeButton={{ textColor: themeColors.textColor2 }}
                 onChange={(event, selectedDate) => {
                     setExpandedField(null);
                     if (event.type === 'set' && selectedDate) {

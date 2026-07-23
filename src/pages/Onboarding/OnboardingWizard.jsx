@@ -1,14 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Animated, KeyboardAvoidingView, Platform,
-  PanResponder, useColorScheme, useWindowDimensions
+  PanResponder, useColorScheme, useWindowDimensions, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   CalendarDots, Clock, CalendarBlank, CaretDown, Trash, Plus,
   Hourglass, Coffee, HandWaving, PencilSimple, CaretLeft,
-  CaretRight, Check, Eye, EyeSlash
+  CaretRight, Check, Eye, EyeSlash, Bell, CheckSquare, Palette
 } from 'phosphor-react-native';
 import { v4 as uuidv4 } from 'uuid';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -20,14 +20,43 @@ import defaultSchedule from '../../config/defaultSchedule';
 import TabSwitcher from '../../components/ui/TabSwitcher';
 import CalendarSheet from '../../components/CalendarSheet/CalendarSheet';
 import AppBlur from '../../components/ui/AppBlur';
+import AppSwitch from '../../components/ui/AppSwitch';
 
 import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
 import SettingsActionRow from '../../components/ui/SettingsKit/SettingsActionRow';
 import { triggerHaptic } from '../../utils/haptics';
+import {
+  CUSTOM_REMINDER_FALLBACK_MINUTES,
+  REMINDER_PRESET_MINUTES,
+  clampReminderMinutes,
+  getScheduleReminderSelectionId,
+  normalizeScheduleReminder,
+} from '../../utils/reminderSettings';
+import {
+  NOTIFICATION_TYPES,
+  ensureNotificationPushPermissionsForType,
+} from '../../services/notificationService';
+import {
+  TASK_AUTO_LINK_MODES,
+  getTaskAutoLinkMode,
+} from '../../utils/taskLessonLinking';
+import { getLastMondayISODate } from '../../utils/scheduleTime';
 
-const ICONS = [HandWaving, PencilSimple, CalendarDots, Clock];
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
+const STEP_INDICES = Array.from({ length: TOTAL_STEPS }, (_, index) => index);
+const INITIAL_STEP_HEIGHTS = Array.from({ length: TOTAL_STEPS }, () => 400);
+const ICONS = [HandWaving, PencilSimple, CalendarDots, Clock, Bell];
+const SCHEDULE_COLOR_KEYS = [
+  "blue", "sky", "cyan", "teal",
+  "green", "emerald", "amber", "orange",
+  "red", "pink", "violet", "grey",
+];
+
+const expandFirstOutputRange = (firstValue, restValue) => [
+  firstValue,
+  ...Array.from({ length: TOTAL_STEPS - 1 }, () => restValue),
+];
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -41,10 +70,10 @@ export default function OnboardingWizard() {
   const defaultMode = colorScheme === 'dark' ? 'dark' : 'light';
   const mode = rawTheme === 'system' ? defaultMode : (rawTheme || defaultMode);
   const accent = global?.theme?.[1] || 'blue';
-  const themeColors = themes.getColors(mode, accent);
+  const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
 
   const [step, setStep] = useState(0);
-  const [stepHeights, setStepHeights] = useState([400, 400, 400, 400]);
+  const [stepHeights, setStepHeights] = useState(INITIAL_STEP_HEIGHTS);
   const [showNavButtons, setShowNavButtons] = useState(Platform.OS === 'web');
 
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -112,20 +141,125 @@ export default function OnboardingWizard() {
   }, [step, position]);
 
   const [scheduleName, setScheduleName] = useState('');
+  const [scheduleColor, setScheduleColor] = useState(themeColors.accentColor);
   const [weeksCount, setWeeksCount] = useState('1');
-  const [startingWeek, setStartingWeek] = useState(new Date().toISOString());
+  const [startingWeek, setStartingWeek] = useState(getLastMondayISODate);
   const [isCalendarVisible, setCalendarVisible] = useState(false);
   const [firstLessonTime, setFirstLessonTime] = useState('08:30');
   const [lessonDuration, setLessonDuration] = useState('80');
   const [breaks, setBreaks] = useState(["10", "10", "10", "10"]);
+  const [scheduleReminder, setScheduleReminder] = useState(() => normalizeScheduleReminder(defaultSchedule.reminder));
+  const [customReminderMinutes, setCustomReminderMinutes] = useState(String(CUSTOM_REMINDER_FALLBACK_MINUTES));
+  const [taskAutoLinkMode, setTaskAutoLinkMode] = useState(() => getTaskAutoLinkMode(defaultSchedule));
 
   const [isTimeExpanded, setIsTimeExpanded] = useState(false);
   const [isDurationExpanded, setIsDurationExpanded] = useState(false);
   const [isBreaksExpanded, setIsBreaksExpanded] = useState(false);
+  const [isReminderExpanded, setIsReminderExpanded] = useState(false);
+  const scheduleColorOptions = useMemo(
+    () => SCHEDULE_COLOR_KEYS.map((key) => themes.accentColors[key]).filter(Boolean),
+    []
+  );
 
-  const toggleTimeExpand = () => { setIsTimeExpanded(!isTimeExpanded); setIsDurationExpanded(false); setIsBreaksExpanded(false); };
-  const toggleDurationExpand = () => { setIsDurationExpanded(!isDurationExpanded); setIsTimeExpanded(false); setIsBreaksExpanded(false); };
-  const toggleBreaksExpand = () => { setIsBreaksExpanded(!isBreaksExpanded); setIsTimeExpanded(false); setIsDurationExpanded(false); };
+  const closeTimePanels = useCallback(() => {
+    setIsTimeExpanded(false);
+    setIsDurationExpanded(false);
+    setIsBreaksExpanded(false);
+  }, []);
+
+  const toggleTimeExpand = () => {
+    setIsTimeExpanded(prev => !prev);
+    setIsDurationExpanded(false);
+    setIsBreaksExpanded(false);
+  };
+  const toggleDurationExpand = () => {
+    setIsDurationExpanded(prev => !prev);
+    setIsTimeExpanded(false);
+    setIsBreaksExpanded(false);
+  };
+  const toggleBreaksExpand = () => {
+    setIsBreaksExpanded(prev => !prev);
+    setIsTimeExpanded(false);
+    setIsDurationExpanded(false);
+  };
+  const toggleReminderExpand = () => {
+    setIsReminderExpanded(prev => !prev);
+    closeTimePanels();
+  };
+
+  const interpolateText = useCallback((template, params) => (
+    Object.entries(params).reduce(
+      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
+      template
+    )
+  ), []);
+
+  const formatReminderValue = useCallback((reminder) => {
+    const normalized = normalizeScheduleReminder(reminder);
+    if (!normalized.enabled) return t('schedule.reminders.off', lang);
+    return interpolateText(t('schedule.reminders.before_minutes', lang), {
+      minutes: normalized.minutesBefore,
+    });
+  }, [interpolateText, lang]);
+
+  const ensureReminderPermission = useCallback(async () => {
+    const permission = await ensureNotificationPushPermissionsForType(
+      NOTIFICATION_TYPES.LESSON_REMINDER,
+      {
+        request: true,
+        notificationPreferences: global?.notificationPreferences,
+      }
+    );
+    if (permission.disabledByPreference) return true;
+    if (!permission.granted && permission.status !== "unsupported") {
+      Alert.alert(t('common.warning', lang), t('schedule.reminders.permission_denied', lang));
+      return false;
+    }
+    return true;
+  }, [global?.notificationPreferences, lang]);
+
+  const handleReminderSelection = useCallback(async (selection) => {
+    if (selection === "off") {
+      triggerHaptic("toggleOff");
+      setScheduleReminder({ enabled: false });
+      return;
+    }
+
+    const canEnable = await ensureReminderPermission();
+    if (!canEnable) {
+      triggerHaptic("warning");
+      return;
+    }
+
+    if (selection === "custom") {
+      const minutes = clampReminderMinutes(customReminderMinutes, CUSTOM_REMINDER_FALLBACK_MINUTES);
+      setCustomReminderMinutes(String(minutes));
+      setScheduleReminder({ enabled: true, minutesBefore: minutes });
+      triggerHaptic("open");
+      return;
+    }
+
+    setScheduleReminder({ enabled: true, minutesBefore: clampReminderMinutes(selection) });
+    triggerHaptic("toggleOn");
+  }, [customReminderMinutes, ensureReminderPermission]);
+
+  const handleCustomReminderChange = useCallback((text) => {
+    const numericText = text.replace(/[^0-9]/g, '').slice(0, 4);
+    const minutes = numericText === '' ? 0 : clampReminderMinutes(numericText, 0);
+    const displayValue = numericText === '' ? '' : String(minutes);
+    setCustomReminderMinutes(displayValue);
+    setScheduleReminder({ enabled: true, minutesBefore: minutes });
+  }, []);
+
+  const handleTaskAutoLinkNextLessonChange = useCallback((enabled) => {
+    triggerHaptic(enabled ? "toggleOn" : "toggleOff");
+    setTaskAutoLinkMode(enabled ? TASK_AUTO_LINK_MODES.NEXT_SAME : TASK_AUTO_LINK_MODES.SELECTED);
+  }, []);
+
+  const handleScheduleColorPress = useCallback((color) => {
+    triggerHaptic(color === scheduleColor ? "selection" : "success");
+    setScheduleColor(color);
+  }, [scheduleColor]);
 
   const handleFinishRef = useRef();
   const navigateToStepRef = useRef();
@@ -145,6 +279,9 @@ export default function OnboardingWizard() {
       breaks: breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b)),
       start_time: firstLessonTime,
       starting_week: startingWeek,
+      reminder: normalizeScheduleReminder(scheduleReminder),
+      taskAutoLinkMode: getTaskAutoLinkMode({ taskAutoLinkMode }),
+      color: scheduleColor,
     });
     setGlobalDraft(prev => ({ ...prev, currentScheduleId: scheduleId }));
   };
@@ -214,26 +351,45 @@ export default function OnboardingWizard() {
     })
   ).current;
 
-  const dynamicContainerHeight = position.interpolate({
-    inputRange: [0, 1, 2, 3],
-    outputRange: stepHeights,
-    extrapolate: 'clamp'
-  });
+  const dynamicContainerHeight = Platform.OS === 'android'
+    ? Math.max(...stepHeights)
+    : position.interpolate({
+      inputRange: STEP_INDICES,
+      outputRange: stepHeights,
+      extrapolate: 'clamp'
+    });
 
   const compactH = Platform.OS === 'ios' ? 100 : 80;
-  const headerHeight = position.interpolate({ inputRange: [0, 1, 2, 3], outputRange: [240, compactH, compactH, compactH], extrapolate: 'clamp' });
-  const dynamicBlurOpacity = scrollY.interpolate({ inputRange: [0, 20], outputRange: [0, 1], extrapolate: 'clamp' });
+  const compactIconTop = Platform.OS === 'ios' ? 35 : 15;
+  const compactDotsTop = Platform.OS === 'ios' ? 71 : 51;
+  const dotsLiftTop = compactH + 42;
+  const compactContentSpacerHeight = compactH + (Platform.OS === 'ios' ? 14 : 18);
+  const compactInputRange = [0, 0.4, ...STEP_INDICES.slice(1)];
+  const compactDotInputRange = [0, 0.6, ...STEP_INDICES.slice(1)];
+  const headerHeight = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(240, compactH), extrapolate: 'clamp' });
+  const contentTopSpacerHeight = position.interpolate({
+    inputRange: [0, 0.35, 1, ...STEP_INDICES.slice(2)],
+    outputRange: [
+      240,
+      240,
+      compactContentSpacerHeight,
+      ...Array.from({ length: TOTAL_STEPS - 2 }, () => compactContentSpacerHeight),
+    ],
+    extrapolate: 'clamp'
+  });
   const dynamicBorderColor = scrollY.interpolate({ inputRange: [0, 20], outputRange: ['transparent', themeColors.borderColor], extrapolate: 'clamp' });
 
-  const iconTop = position.interpolate({ inputRange: [0, 1, 2, 3], outputRange: [80, Platform.OS === 'ios' ? 35 : 15, Platform.OS === 'ios' ? 35 : 15, Platform.OS === 'ios' ? 35 : 15], extrapolate: 'clamp' });
-  const iconLeft = position.interpolate({ inputRange: [0, 0.4, 1, 2, 3], outputRange: [width / 2 - 40, 4, 4, 4, 4], extrapolate: 'clamp' });
-  const iconScale = position.interpolate({ inputRange: [0, 1, 2, 3], outputRange: [1, 0.5, 0.5, 0.5], extrapolate: 'clamp' });
+  const iconTop = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(80, compactIconTop), extrapolate: 'clamp' });
+  const iconLeft = position.interpolate({ inputRange: compactInputRange, outputRange: [width / 2 - 40, ...Array.from({ length: TOTAL_STEPS }, () => 4)], extrapolate: 'clamp' });
+  const iconScale = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(1, 0.5), extrapolate: 'clamp' });
 
-  const dotsTop = position.interpolate({ inputRange: [0, 0.6, 1, 2, 3], outputRange: [180, 140, Platform.OS === 'ios' ? 71 : 51, Platform.OS === 'ios' ? 71 : 51, Platform.OS === 'ios' ? 71 : 51], extrapolate: 'clamp' });
-  const dotsLeft = position.interpolate({ inputRange: [0, 1, 2, 3], outputRange: [width / 2 - 40, 84, 84, 84], extrapolate: 'clamp' });
+  const dotsTop = position.interpolate({ inputRange: compactDotInputRange, outputRange: [180, dotsLiftTop, ...Array.from({ length: TOTAL_STEPS - 1 }, () => compactDotsTop)], extrapolate: 'clamp' });
+  const dotsLeft = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(width / 2 - 40, 84), extrapolate: 'clamp' });
 
   const isCustomRepeat = !['1', '2', '3', '4'].includes(String(weeksCount));
   const isCustomDuration = !['45', '60', '80', '90'].includes(String(lessonDuration));
+  const reminderSelectionId = getScheduleReminderSelectionId(scheduleReminder);
+  const taskAutoLinkNextLesson = getTaskAutoLinkMode({ taskAutoLinkMode }) === TASK_AUTO_LINK_MODES.NEXT_SAME;
   const isSingleWeek = Number(weeksCount) <= 1;
 
   const startDateObj = new Date(startingWeek);
@@ -254,9 +410,13 @@ export default function OnboardingWizard() {
 
   const renderStep0 = () => (
     <View style={styles.stepContent}>
-      <Text style={[styles.title, { color: themeColors.textColor }]}>{t('onboarding.welcome_main_title', lang)}</Text>
-      <Text style={[styles.subtitle, { color: themeColors.textColor2 }]}>{t('onboarding.welcome_main_desc', lang)}</Text>
-      <Text style={[styles.swipeHint, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_to_continue', lang)} ➔</Text>
+      <View style={[styles.welcomeBadge, { backgroundColor: themeColors.accentColor + '15', borderColor: themeColors.accentColor + '35' }]}>
+        <CalendarDots size={18} color={themeColors.accentColor} weight="fill" />
+        <Text style={[styles.welcomeBadgeText, { color: themeColors.accentColor }]}>{t('onboarding.welcome_badge', lang)}</Text>
+      </View>
+      <Text style={[styles.title, styles.welcomeTitle, { color: themeColors.textColor }]}>{t('onboarding.welcome_main_title', lang)}</Text>
+      <Text style={[styles.subtitle, styles.welcomeSubtitle, { color: themeColors.textColor2 }]}>{t('onboarding.welcome_main_desc', lang)}</Text>
+      <Text style={[styles.swipeHint, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_to_continue', lang)} -&gt;</Text>
       <Text style={[styles.swipeHintSub, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_hint_sub', lang)}</Text>
     </View>
   );
@@ -269,6 +429,35 @@ export default function OnboardingWizard() {
         <Text style={[styles.label, { color: themeColors.textColor }]}>{t('onboarding.step1_title', lang)}</Text>
         <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.step1_desc', lang)}</Text>
         <TextInput style={[styles.textInput, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: themeColors.borderColor }]} placeholder={t('onboarding.schedule_name_placeholder', lang)} placeholderTextColor={themeColors.textColor2} value={scheduleName} onChangeText={setScheduleName} />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <View style={styles.colorLabelRow}>
+          <Palette size={18} color={themeColors.accentColor} weight="regular" />
+          <Text style={[styles.label, styles.colorLabel, { color: themeColors.textColor }]}>{t('settings.schedule_editor.color', lang)}</Text>
+        </View>
+        <View style={styles.colorSwatches}>
+          {scheduleColorOptions.map((color) => {
+            const selected = color.toLowerCase() === String(scheduleColor).toLowerCase();
+            return (
+              <TouchableOpacity
+                key={color}
+                style={[
+                  styles.colorSwatch,
+                  {
+                    backgroundColor: color,
+                    borderColor: selected ? themeColors.textColor : themeColors.borderColor,
+                    transform: [{ scale: selected ? 1.06 : 1 }],
+                  },
+                ]}
+                onPress={() => handleScheduleColorPress(color)}
+                activeOpacity={0.78}
+              >
+                {selected && <Check size={18} color="#fff" weight="bold" />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -320,10 +509,10 @@ export default function OnboardingWizard() {
           {isTimeExpanded && (
             <View style={styles.expandedContentPicker}>
               {Platform.OS === 'android' ? (
-                <DateTimePicker value={timeDate} mode="time" is24Hour display="default" themeVariant={mode} onChange={(e, d) => { setIsTimeExpanded(false); if (e.type === 'set' && d) { triggerHaptic("success"); setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); } }} />
+                <DateTimePicker value={timeDate} mode="time" is24Hour design="material" positiveButton={{ textColor: themeColors.accentColor }} negativeButton={{ textColor: themeColors.textColor2 }} onChange={(e, d) => { setIsTimeExpanded(false); if (e.type === 'set' && d) { triggerHaptic("success"); setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); } }} />
               ) : (
                 <View style={styles.timePickerContainer}>
-                  {Platform.OS !== 'web' ? <DateTimePicker value={timeDate} mode="time" is24Hour display="spinner" themeVariant={mode} onChange={(e, d) => { if (d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} textColor={themeColors.textColor} style={{ height: 120, width: '100%' }} /> : <View style={{ padding: 20, width: '100%', alignItems: 'center' }}><input type="time" value={firstLessonTime} onChange={(e) => setFirstLessonTime(e.target.value)} style={{ fontSize: 24, padding: 12, borderRadius: 12, width: '100%', textAlign: 'center', border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor }} /></View>}
+                  {Platform.OS !== 'web' ? <DateTimePicker value={timeDate} mode="time" is24Hour display="spinner" themeVariant={mode === 'light' ? 'light' : 'dark'} onChange={(e, d) => { if (d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} textColor={themeColors.textColor} style={{ height: 120, width: '100%' }} /> : <View style={{ padding: 20, width: '100%', alignItems: 'center' }}><input type="time" value={firstLessonTime} onChange={(e) => setFirstLessonTime(e.target.value)} style={{ fontSize: 24, padding: 12, borderRadius: 12, width: '100%', textAlign: 'center', border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor }} /></View>}
                 </View>
               )}
             </View>
@@ -385,7 +574,102 @@ export default function OnboardingWizard() {
     </View>
   );
 
-  const stepsRenderers = [renderStep0, renderStep1, renderStep2, renderStep3];
+  const renderStep4 = () => (
+    <View style={styles.stepContent}>
+      <Text style={[styles.title, { color: themeColors.textColor, textAlign: 'center' }]}>{t('onboarding.step4_title', lang)}</Text>
+      <Text style={[styles.subtitle, { color: themeColors.textColor2, textAlign: 'center', marginBottom: 20 }]}>{t('onboarding.step4_desc', lang)}</Text>
+
+      <View style={{ width: '100%' }}>
+        <SettingsGroup themeColors={themeColors}>
+          <SettingsRow
+            label={t('schedule.reminders.title', lang)}
+            value={formatReminderValue(scheduleReminder)}
+            icon={Bell}
+            themeColors={themeColors}
+            onPress={toggleReminderExpand}
+          />
+          {isReminderExpanded && (
+            <View style={styles.expandedContent}>
+              <View style={styles.reminderChoiceGrid}>
+                {[
+                  { id: 'off', label: t('schedule.reminders.off', lang) },
+                  ...REMINDER_PRESET_MINUTES.map((minutesBefore) => ({
+                    id: String(minutesBefore),
+                    label: String(minutesBefore),
+                  })),
+                  { id: 'custom', label: t('common.custom', lang) },
+                ].map((option) => {
+                  const selected = reminderSelectionId === option.id;
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.reminderChoice,
+                        {
+                          backgroundColor: selected ? themeColors.accentColor : themeColors.backgroundColor,
+                          borderColor: selected ? themeColors.accentColor : themeColors.borderColor,
+                        },
+                      ]}
+                      onPress={() => handleReminderSelection(option.id)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[styles.reminderChoiceText, { color: selected ? '#fff' : themeColors.textColor }]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {reminderSelectionId === 'custom' && (
+                <View style={[styles.reminderInputWrapper, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.accentColor }]}>
+                  <TextInput
+                    style={[styles.reminderInput, { color: themeColors.textColor }]}
+                    value={customReminderMinutes}
+                    onChangeText={handleCustomReminderChange}
+                    placeholder={t('schedule.reminders.custom_placeholder', lang)}
+                    placeholderTextColor={themeColors.textColor2}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    returnKeyType="done"
+                  />
+                  <Text style={[styles.inputSuffix, { color: themeColors.textColor2 }]}>
+                    {t('schedule.main_screen.minutes', lang)}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <SettingsRow
+            label={t('settings.schedule_editor.task_auto_link', lang)}
+            desc={t('settings.schedule_editor.task_auto_link_hint', lang)}
+            icon={CheckSquare}
+            themeColors={themeColors}
+            showCaret={false}
+            skipHaptic
+            onPress={() => handleTaskAutoLinkNextLessonChange(!taskAutoLinkNextLesson)}
+            rightContent={(
+              <AppSwitch
+                accessibilityLabel={t('settings.schedule_editor.task_auto_link', lang)}
+                value={taskAutoLinkNextLesson}
+                onValueChange={handleTaskAutoLinkNextLessonChange}
+                themeColors={themeColors}
+                size="small"
+              />
+            )}
+          />
+        </SettingsGroup>
+      </View>
+
+      <View style={[styles.finishSummary, { backgroundColor: themeColors.accentColor + '12', borderColor: themeColors.accentColor + '30' }]}>
+        <Check size={18} color={themeColors.accentColor} weight="bold" />
+        <Text style={[styles.finishSummaryText, { color: themeColors.textColor }]}>{t('onboarding.step4_finish_hint', lang)}</Text>
+      </View>
+    </View>
+  );
+
+  const stepsRenderers = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4];
 
   return (
     <KeyboardAvoidingView
@@ -400,10 +684,11 @@ export default function OnboardingWizard() {
           contentContainerStyle={[styles.scrollContent, { paddingBottom: showNavButtons ? (Platform.OS === 'ios' ? 140 : 110) : 60 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          scrollEventThrottle={16}
+          scrollEventThrottle={Platform.OS === 'android' ? 32 : 16}
+          removeClippedSubviews={Platform.OS === 'android'}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
         >
-          <Animated.View style={{ height: headerHeight }} />
+          <Animated.View style={{ height: contentTopSpacerHeight }} />
 
           <Animated.View style={[styles.contentContainer, { width, height: dynamicContainerHeight }]}>
             {stepsRenderers.map((renderItem, idx) => {
@@ -438,6 +723,7 @@ export default function OnboardingWizard() {
                     }
                   }}
                   style={[styles.stepWrapper, { width, opacity, transform: [{ translateX }, { scale }], zIndex: isActive ? 10 : 0 }]}
+                  renderToHardwareTextureAndroid={Platform.OS === 'android' && isActive}
                   pointerEvents={isActive ? 'auto' : 'none'}
                 >
                   {renderItem()}
@@ -448,16 +734,12 @@ export default function OnboardingWizard() {
         </Animated.ScrollView>
 
         <Animated.View style={[styles.header, { height: headerHeight, borderBottomColor: dynamicBorderColor }]}>
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity: dynamicBlurOpacity }]}>
-            <AppBlur style={StyleSheet.absoluteFill} />
-          </Animated.View>
-
           <AnimatedTouchableOpacity
             style={[
               styles.toggleNavBtn,
               {
                 top: Platform.OS === 'ios' ? 58 : 38,
-                backgroundColor: themeColors.backgroundColor2,
+                backgroundColor: themeColors.backgroundColor,
                 borderColor: themeColors.borderColor,
                 transform: [{ scale: toggleBtnScale }]
               }
@@ -549,7 +831,7 @@ export default function OnboardingWizard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { position: 'absolute', top: 0, left: 0, right: 0, borderBottomWidth: StyleSheet.hairlineWidth, overflow: 'hidden', backgroundColor: 'transparent' },
+  header: { position: 'absolute', top: 0, left: 0, right: 0, borderBottomWidth: StyleSheet.hairlineWidth, overflow: 'hidden', backgroundColor: 'transparent', zIndex: 30 },
   toggleNavBtn: { position: 'absolute', right: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, zIndex: 50 },
   toggleNavText: { fontSize: 13, fontWeight: '600', marginLeft: 6 },
   dotsWrapper: { position: 'absolute', flexDirection: 'row', alignItems: 'center' },
@@ -561,12 +843,20 @@ const styles = StyleSheet.create({
   stepContent: { alignItems: 'center', width: '100%', paddingBottom: 20 },
   title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
   subtitle: { fontSize: 16, textAlign: 'center', marginBottom: 40, lineHeight: 24, paddingHorizontal: 10 },
+  welcomeBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, marginBottom: 18 },
+  welcomeBadgeText: { fontSize: 13, fontWeight: '700' },
+  welcomeTitle: { marginBottom: 10 },
+  welcomeSubtitle: { marginBottom: 8 },
   swipeHint: { fontSize: 15, fontWeight: '600', marginTop: 40, opacity: 0.6 },
   swipeHintSub: { fontSize: 13, marginTop: 12, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 },
   inputGroup: { width: '100%', marginBottom: 24 },
   label: { fontSize: 14, fontWeight: '600', marginBottom: 6, opacity: 0.9 },
   inputDesc: { fontSize: 13, marginBottom: 12, lineHeight: 18 },
   textInput: { width: '100%', height: 56, borderRadius: 16, paddingHorizontal: 16, fontSize: 16, borderWidth: 1 },
+  colorLabelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  colorLabel: { marginBottom: 0, marginLeft: 8 },
+  colorSwatches: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignSelf: 'center', gap: 10, maxWidth: 292 },
+  colorSwatch: { width: 40, height: 40, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   customInputContainer: { height: 52, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, marginTop: 12 },
   customInput: { fontSize: 16, fontWeight: '500', height: '100%' },
   dateCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
@@ -579,6 +869,14 @@ const styles = StyleSheet.create({
   expandedContentPicker: { paddingBottom: 8 },
   expandedContentBreaks: { paddingHorizontal: 16, paddingBottom: 16 },
   timePickerContainer: { alignItems: 'center', overflow: 'hidden' },
+  reminderChoiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  reminderChoice: { minWidth: 58, height: 40, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  reminderChoiceText: { fontSize: 14, fontWeight: '700' },
+  reminderInputWrapper: { height: 48, flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, marginTop: 12 },
+  reminderInput: { flex: 1, fontSize: 16, fontWeight: '600', paddingVertical: 0 },
+  inputSuffix: { fontSize: 14, fontWeight: '600', marginLeft: 8 },
+  finishSummary: { width: '100%', minHeight: 54, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 12, marginTop: 18, flexDirection: 'row', alignItems: 'center' },
+  finishSummaryText: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '600', marginLeft: 10 },
   breakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   breakRowLabel: { fontSize: 16, fontWeight: '500' },
   breakActions: { flexDirection: 'row', alignItems: 'center' },

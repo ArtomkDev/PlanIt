@@ -54,6 +54,7 @@ import {
   TASK_AUTO_LINK_MODES,
   getTaskAutoLinkMode,
 } from '../../../utils/taskLessonLinking';
+import { getLastMondayISODate } from '../../../utils/scheduleTime';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
@@ -99,7 +100,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     start_time: targetSchedule?.start_time || "08:30",
     duration: String(targetSchedule?.duration || "45"),
     breaks: targetSchedule?.breaks?.map(String) || ["10", "10", "10", "10", "10"],
-    starting_week: targetSchedule?.starting_week || new Date().toISOString(),
+    starting_week: targetSchedule?.starting_week || getLastMondayISODate(),
     reminder: initialReminder,
     taskAutoLinkMode: getTaskAutoLinkMode(targetSchedule),
   });
@@ -629,7 +630,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
               {isTimeExpanded && (
                 <View style={styles.expandedContentPicker}>
                   {Platform.OS === 'android' ? (
-                    <DateTimePicker value={timeDate} mode="time" is24Hour={true} display="default" onChange={(event, date) => { setIsTimeExpanded(false); if (event.type === 'set' && date) setLocalData(prev => ({ ...prev, start_time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` })); }} />
+                    <DateTimePicker value={timeDate} mode="time" is24Hour={true} design="material" positiveButton={{ textColor: themeColors.accentColor }} negativeButton={{ textColor: themeColors.textColor2 }} onChange={(event, date) => { setIsTimeExpanded(false); if (event.type === 'set' && date) setLocalData(prev => ({ ...prev, start_time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` })); }} />
                   ) : (
                     <View style={styles.timePickerContainer}>
                       {Platform.OS !== 'web' ? (

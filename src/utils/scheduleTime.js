@@ -65,6 +65,17 @@ export const normalizeScheduleDate = (dateInput = new Date()) => {
   return normalized;
 };
 
+export const getLastMondayDate = (dateInput = new Date()) => {
+  const date = normalizeScheduleDate(dateInput);
+  const daysSinceMonday = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - daysSinceMonday);
+  return date;
+};
+
+export const getLastMondayISODate = (dateInput = new Date()) => (
+  getLastMondayDate(dateInput).toISOString()
+);
+
 export const getScheduleDayIndex = (dateInput = new Date()) => {
   const date = new Date(dateInput);
   const day = date.getDay();

@@ -10,7 +10,11 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 import Animated, {
   Easing,
   runOnJS,
@@ -65,8 +69,23 @@ const ZOOMED_EPSILON = 0.015;
 const WIDE_LAYOUT_WIDTH = 768;
 const EDGE_SWIPE_COMMIT_RATIO = 0.22;
 const EDGE_SWIPE_VELOCITY = 640;
-const USE_ANDROID_NATIVE_PAGER = Platform.OS === "android";
+const IS_ANDROID = Platform.OS === "android";
+const USE_ANDROID_NATIVE_PAGER = IS_ANDROID;
 const ANDROID_PAGER_RENDER_DISTANCE = 1;
+const ANDROID_DISMISS_ACTIVATION_Y = 18;
+const ANDROID_DISMISS_FAIL_OFFSET_X = 14;
+const ANDROID_PAGER_SETTLE_DELAY_MS = 80;
+const ANDROID_PAGER_FORCE_SETTLE_DELAY_MS = 720;
+const ANDROID_PREVIEW_CACHE_DELAY_MS = 240;
+const DISMISS_COMMIT_DISTANCE = IS_ANDROID ? 38 : 112;
+const DISMISS_FLING_DISTANCE = IS_ANDROID ? 12 : 28;
+const DISMISS_FLING_VELOCITY = IS_ANDROID ? 520 : 900;
+const DISMISS_COMMIT_VERTICAL_RATIO = IS_ANDROID ? 0.48 : 0.85;
+const DISMISS_FLING_VERTICAL_RATIO = IS_ANDROID ? 0.38 : 0.65;
+const DISMISS_CANCEL_COMMIT_DISTANCE = IS_ANDROID ? 30 : 112;
+const GALLERY_SNAP_EPSILON = 1.5;
+const GALLERY_SETTLE_DELAY_MS = 90;
+const loadedZoomImageKeys = new Set();
 
 const getAttachmentIdentity = (attachment = {}) => (
   attachment.id
@@ -86,6 +105,24 @@ const getAttachmentPreviewUri = (attachment = {}) => (
   || attachment.url
   || ""
 );
+
+const getAttachmentRenderRevision = (attachment = {}) => (
+  attachment.cacheRevision
+  || attachment.cloudRevision
+  || attachment.uploadedAt
+  || attachment.updatedAt
+  || attachment.createdAt
+  || attachment.size
+  || ""
+);
+
+const getAttachmentLoadKey = (attachment = {}, uri = "", fallbackKey = "") => {
+  const identity = getAttachmentIdentity(attachment) || fallbackKey || uri;
+  if (!identity) return uri || "";
+
+  const revision = getAttachmentRenderRevision(attachment);
+  return revision ? `${identity}:${revision}` : identity;
+};
 
 const dedupeImageAttachments = (attachments, activeAttachment) => {
   const byKey = new Map();
@@ -164,6 +201,7 @@ function ZoomableImagePage({
   onZoomChange,
   onZoomEdgeSwipe = () => {},
   showEdgePreviews = true,
+  dismissGesture = null,
 }) {
   const knownImageSize = useMemo(() => getKnownAttachmentImageSize(attachment), [attachment]);
   const [imageSize, setImageSize] = useState(knownImageSize);
@@ -175,8 +213,15 @@ function ZoomableImagePage({
     () => getAttachmentIdentity(attachment) || uri || `image-${index}`,
     [attachment, index, uri]
   );
+  const imageLoadKey = useMemo(
+    () => getAttachmentLoadKey(attachment, uri, imageKey),
+    [attachment, imageKey, uri]
+  );
   const imageSignature = `${imageKey}:${uri || ""}`;
-  const imageLoaded = loadedImageKey === imageKey;
+  const imageLoaded = (
+    (!!imageLoadKey && loadedZoomImageKeys.has(imageLoadKey))
+    || loadedImageKey === imageLoadKey
+  );
   const imageFailed = failedImageSignature === imageSignature && !imageLoaded;
 
   const scale = useSharedValue(1);
@@ -272,7 +317,10 @@ function ZoomableImagePage({
         ? ""
         : currentSignature
     ));
-    if (loadedImageKeyRef.current !== imageKey) {
+    if (
+      loadedImageKeyRef.current !== imageLoadKey
+      && !loadedZoomImageKeys.has(imageLoadKey)
+    ) {
       setLoadedImageKey("");
     }
     if (!uri || Platform.OS === "android") return undefined;
@@ -290,7 +338,7 @@ function ZoomableImagePage({
     return () => {
       mounted = false;
     };
-  }, [imageKey, imageSignature, knownImageSize, uri]);
+  }, [imageKey, imageLoadKey, imageSignature, knownImageSize, uri]);
 
   useEffect(() => {
     const fittedSize = getContainedImageSize(imageSize, pageWidth, pageHeight);
@@ -573,8 +621,12 @@ function ZoomableImagePage({
   ]);
 
   const imageGesture = useMemo(
-    () => Gesture.Simultaneous(pinchGesture, panGesture, doubleTapGesture),
-    [doubleTapGesture, panGesture, pinchGesture]
+    () => (
+      dismissGesture
+        ? Gesture.Simultaneous(dismissGesture, pinchGesture, panGesture, doubleTapGesture)
+        : Gesture.Simultaneous(pinchGesture, panGesture, doubleTapGesture)
+    ),
+    [dismissGesture, doubleTapGesture, panGesture, pinchGesture]
   );
 
   const imageAnimatedStyle = useAnimatedStyle(() => {
@@ -659,8 +711,9 @@ function ZoomableImagePage({
             progressiveRenderingEnabled={Platform.OS === "android"}
             fadeDuration={0}
             onLoad={(event) => {
-              loadedImageKeyRef.current = imageKey;
-              setLoadedImageKey(imageKey);
+              loadedZoomImageKeys.add(imageLoadKey);
+              loadedImageKeyRef.current = imageLoadKey;
+              setLoadedImageKey(imageLoadKey);
               setFailedImageSignature("");
               const source = event?.nativeEvent?.source;
               if (source?.width && source?.height) {
@@ -668,7 +721,7 @@ function ZoomableImagePage({
               }
             }}
             onError={() => {
-              if (loadedImageKeyRef.current !== imageKey) {
+              if (!loadedZoomImageKeys.has(imageLoadKey)) {
                 setFailedImageSignature(imageSignature);
               }
             }}
@@ -678,7 +731,7 @@ function ZoomableImagePage({
 
         <AttachmentImageLoadingOverlay
           active={!uri || !imageLoaded}
-          scanning={(!uri || !imageLoaded) && !imageFailed}
+          scanning={Platform.OS !== "android" && (!uri || !imageLoaded) && !imageFailed}
           attachment={attachment}
           baseColor="rgba(255,255,255,0.1)"
           delayMs={uri ? 140 : 0}
@@ -705,6 +758,10 @@ export default function AttachmentImagePreview({
   const galleryPagerRef = useRef(null);
   const thumbnailListRef = useRef(null);
   const closingRef = useRef(false);
+  const galleryMomentumActiveRef = useRef(false);
+  const gallerySettleTimeoutRef = useRef(null);
+  const androidPagerSettleTimeoutRef = useRef(null);
+  const androidPagerStateRef = useRef("idle");
   const resolvingKeysRef = useRef(new Set());
   const resolvedUrisRef = useRef({});
   const activeIndexRef = useRef(0);
@@ -718,6 +775,7 @@ export default function AttachmentImagePreview({
   const chromeOpacity = useSharedValue(0);
   const headerTranslateY = useSharedValue(-12);
   const railTranslateY = useSharedValue(18);
+  const dismissClosing = useSharedValue(false);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [zoomActive, setZoomActive] = useState(false);
@@ -776,6 +834,46 @@ export default function AttachmentImagePreview({
   const activeUri = activeAttachment ? getDisplayUri(activeAttachment) : "";
   const showZoomControls = isWideLayout && !!activeUri;
 
+  const clearGallerySettleTimer = useCallback(() => {
+    if (!gallerySettleTimeoutRef.current) return;
+
+    clearTimeout(gallerySettleTimeoutRef.current);
+    gallerySettleTimeoutRef.current = null;
+  }, []);
+
+  const clearAndroidPagerSettleTimer = useCallback(() => {
+    if (!androidPagerSettleTimeoutRef.current) return;
+
+    clearTimeout(androidPagerSettleTimeoutRef.current);
+    androidPagerSettleTimeoutRef.current = null;
+  }, []);
+
+  const forceAndroidPagerToActiveIndex = useCallback((animated = false) => {
+    if (!USE_ANDROID_NATIVE_PAGER || !visible || !imageAttachments.length) return;
+    if (closingRef.current) return;
+
+    const pager = galleryPagerRef.current;
+    if (!pager) return;
+
+    const nextIndex = clampIndex(activeIndexRef.current, imageAttachments.length);
+    if (animated) {
+      pager.setPage?.(nextIndex);
+    } else {
+      pager.setPageWithoutAnimation?.(nextIndex);
+    }
+  }, [imageAttachments.length, visible]);
+
+  const scheduleAndroidPagerSettle = useCallback((delayMs = ANDROID_PAGER_SETTLE_DELAY_MS) => {
+    if (!USE_ANDROID_NATIVE_PAGER) return;
+
+    clearAndroidPagerSettleTimer();
+    androidPagerSettleTimeoutRef.current = setTimeout(() => {
+      androidPagerSettleTimeoutRef.current = null;
+      if (zoomActiveRef.current) return;
+      forceAndroidPagerToActiveIndex(false);
+    }, delayMs);
+  }, [clearAndroidPagerSettleTimer, forceAndroidPagerToActiveIndex]);
+
   const rememberResolvedAttachment = useCallback((item) => {
     const key = getAttachmentIdentity(item);
     const uri = getAttachmentPreviewUri(item);
@@ -787,11 +885,15 @@ export default function AttachmentImagePreview({
     onCacheStateChange?.(item);
   }, [onCacheStateChange]);
 
-  const resolveAttachmentForPreview = useCallback(async (item, { active = false } = {}) => {
+  const resolveAttachmentForPreview = useCallback(async (
+    item,
+    { active = false, cacheInBackground = false } = {}
+  ) => {
     const key = getAttachmentIdentity(item);
     if (!key || !isImageAttachment(item)) return;
 
     const initialUri = resolvedUrisRef.current[key] || getAttachmentPreviewUri(item);
+    const canUseInitialAndroidUri = IS_ANDROID && !!initialUri;
     if (active) {
       setState((prev) => ({
         ...prev,
@@ -827,11 +929,11 @@ export default function AttachmentImagePreview({
         return;
       }
 
-      if (USE_ANDROID_NATIVE_PAGER && initialUri) {
+      if (canUseInitialAndroidUri) {
         if (active) {
           setState((prev) => ({ ...prev, loading: false, error: "" }));
         }
-        return;
+        if (!cacheInBackground) return;
       }
 
       const prepared = await ensureLocalAttachment(item);
@@ -840,7 +942,7 @@ export default function AttachmentImagePreview({
         setState((prev) => ({ ...prev, loading: false, error: "" }));
       }
     } catch (error) {
-      if (active) {
+      if (active && !canUseInitialAndroidUri) {
         setState((prev) => ({
           ...prev,
           loading: false,
@@ -860,11 +962,16 @@ export default function AttachmentImagePreview({
       const pager = galleryPagerRef.current;
       if (!pager) return;
 
+      clearAndroidPagerSettleTimer();
+      androidPagerStateRef.current = animated ? "settling" : "idle";
       if (animated) {
         pager.setPage?.(nextIndex);
       } else {
         pager.setPageWithoutAnimation?.(nextIndex);
       }
+      scheduleAndroidPagerSettle(
+        animated ? ANDROID_PAGER_FORCE_SETTLE_DELAY_MS : ANDROID_PAGER_SETTLE_DELAY_MS
+      );
       return;
     }
 
@@ -873,7 +980,7 @@ export default function AttachmentImagePreview({
       animated,
       viewPosition: 0,
     });
-  }, [imageAttachments.length]);
+  }, [clearAndroidPagerSettleTimer, imageAttachments.length, scheduleAndroidPagerSettle]);
 
   const resetZoomState = useCallback((force = false) => {
     if (force || zoomActiveRef.current) {
@@ -934,6 +1041,7 @@ export default function AttachmentImagePreview({
   const close = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
+    dismissClosing.value = true;
     triggerHaptic("sheetClose");
 
     chromeOpacity.value = withTiming(0, { duration: 130, easing: Easing.out(Easing.cubic) });
@@ -948,7 +1056,17 @@ export default function AttachmentImagePreview({
     }, (finished) => {
       if (finished) runOnJS(finishClose)();
     });
-  }, [backdropOpacity, chromeOpacity, dragX, dragY, finishClose, headerTranslateY, imageScale, railTranslateY]);
+  }, [
+    backdropOpacity,
+    chromeOpacity,
+    dismissClosing,
+    dragX,
+    dragY,
+    finishClose,
+    headerTranslateY,
+    imageScale,
+    railTranslateY,
+  ]);
 
   useEffect(() => {
     if (!visible || !attachment) return;
@@ -967,12 +1085,17 @@ export default function AttachmentImagePreview({
     if (!visible) return undefined;
 
     closingRef.current = false;
+    galleryMomentumActiveRef.current = false;
+    clearGallerySettleTimer();
+    clearAndroidPagerSettleTimer();
+    androidPagerStateRef.current = "idle";
     resetZoomState(true);
     dragX.value = 0;
     dragY.value = 0;
     imageScale.value = 0.985;
     backdropOpacity.value = 0;
     chromeOpacity.value = 0;
+    dismissClosing.value = false;
     headerTranslateY.value = -12;
     railTranslateY.value = 18;
 
@@ -984,14 +1107,35 @@ export default function AttachmentImagePreview({
       imageScale.value = withSpring(1, GALLERY_SPRING);
     });
 
-    return () => cancelAnimationFrame(frame);
-  }, [backdropOpacity, chromeOpacity, dragX, dragY, headerTranslateY, imageScale, railTranslateY, resetZoomState, visible]);
+    return () => {
+      clearGallerySettleTimer();
+      clearAndroidPagerSettleTimer();
+      cancelAnimationFrame(frame);
+    };
+  }, [
+    backdropOpacity,
+    chromeOpacity,
+    clearAndroidPagerSettleTimer,
+    clearGallerySettleTimer,
+    dismissClosing,
+    dragX,
+    dragY,
+    headerTranslateY,
+    imageScale,
+    railTranslateY,
+    resetZoomState,
+    visible,
+  ]);
 
   useEffect(() => {
     if (!visible || !activeAttachment) return;
 
-    resolveAttachmentForPreview(activeAttachment, { active: true });
-    if (USE_ANDROID_NATIVE_PAGER) return;
+    resolveAttachmentForPreview(activeAttachment, {
+      active: true,
+      cacheInBackground: false,
+    });
+
+    if (IS_ANDROID) return;
 
     [activeIndex - 1, activeIndex + 1]
       .filter((index) => index >= 0 && index < imageAttachments.length)
@@ -999,11 +1143,28 @@ export default function AttachmentImagePreview({
   }, [activeAttachment, activeIndex, imageAttachments, resolveAttachmentForPreview, visible]);
 
   useEffect(() => {
+    if (!visible || !IS_ANDROID) return;
+
+    const timeoutId = setTimeout(() => {
+      [activeIndex, activeIndex - 1, activeIndex + 1]
+        .filter((index) => index >= 0 && index < imageAttachments.length)
+        .forEach((index) => {
+          resolveAttachmentForPreview(imageAttachments[index], {
+            active: index === activeIndexRef.current,
+            cacheInBackground: true,
+          });
+        });
+    }, ANDROID_PREVIEW_CACHE_DELAY_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [activeIndex, imageAttachments, resolveAttachmentForPreview, visible]);
+
+  useEffect(() => {
     if (!visible || !canNavigate) return;
 
     thumbnailListRef.current?.scrollToIndex({
       index: activeIndex,
-      animated: !USE_ANDROID_NATIVE_PAGER,
+      animated: !IS_ANDROID,
       viewPosition: 0.5,
     });
   }, [activeIndex, canNavigate, visible]);
@@ -1050,69 +1211,109 @@ export default function AttachmentImagePreview({
     transform: [{ translateY: railTranslateY.value }],
   }));
 
-  const dismissGesture = useMemo(() => Gesture.Pan()
-    .enabled(!zoomActive)
-    .maxPointers(1)
-    .activeOffsetY(18)
-    .failOffsetX([-10, 10])
-    .onUpdate((event) => {
-      const y = Math.max(0, event.translationY);
-      const progress = Math.min(1, y / Math.max(height * 0.45, 1));
+  const dismissGesture = useMemo(() => {
+    const dismissPanGesture = Gesture.Pan()
+      .enabled(!zoomActive)
+      .maxPointers(1)
+      .activeOffsetY(IS_ANDROID ? ANDROID_DISMISS_ACTIVATION_Y : 18);
 
-      dragY.value = y;
-      dragX.value = event.translationX * 0.06;
-      imageScale.value = Math.max(0.88, 1 - progress * 0.13);
-      backdropOpacity.value = Math.max(0.18, 1 - progress * 0.72);
-      chromeOpacity.value = Math.max(0, 1 - progress * 1.45);
-      headerTranslateY.value = -12 * progress;
-      railTranslateY.value = 18 * progress;
-    })
-    .onEnd((event) => {
-      const absX = Math.abs(event.translationX);
-      const absY = Math.abs(event.translationY);
-      const shouldClose = (
-        (event.translationY > 112 && absY > absX * 0.85)
-        || (event.translationY > 28 && event.velocityY > 900 && absY > absX * 0.65)
-      );
+    dismissPanGesture.failOffsetX(
+      IS_ANDROID
+        ? [-ANDROID_DISMISS_FAIL_OFFSET_X, ANDROID_DISMISS_FAIL_OFFSET_X]
+        : [-10, 10]
+    );
 
-      if (shouldClose) {
-        runOnJS(triggerHaptic)("sheetClose");
-        chromeOpacity.value = withTiming(0, { duration: 120, easing: Easing.out(Easing.cubic) });
-        headerTranslateY.value = withTiming(-16, { duration: 170, easing: Easing.out(Easing.cubic) });
-        railTranslateY.value = withTiming(22, { duration: 170, easing: Easing.out(Easing.cubic) });
-        dragY.value = withTiming(Math.max(height, 1), { duration: 230, easing: Easing.out(Easing.cubic) });
-        dragX.value = withTiming(event.translationX * 0.12, { duration: 230, easing: Easing.out(Easing.cubic) });
-        imageScale.value = withTiming(0.88, { duration: 230, easing: Easing.out(Easing.cubic) });
-        backdropOpacity.value = withTiming(0, {
-          duration: 210,
-          easing: Easing.out(Easing.cubic),
-        }, (finished) => {
-          if (finished) runOnJS(finishClose)();
-        });
-        return;
-      }
+    if (IS_ANDROID) {
+      dismissPanGesture.averageTouches(true);
+    }
 
-      dragX.value = withSpring(0, GALLERY_SPRING);
-      dragY.value = withSpring(0, GALLERY_SPRING);
-      imageScale.value = withSpring(1, GALLERY_SPRING);
-      backdropOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
-      chromeOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
-      headerTranslateY.value = withSpring(0, GALLERY_SPRING);
-      railTranslateY.value = withSpring(0, GALLERY_SPRING);
-    })
-    .onFinalize((_, success) => {
-      if (success || (dragY.value < 0.5 && Math.abs(dragX.value) < 0.5)) return;
+    const animateDismissClose = (translationX = 0) => {
+      "worklet";
 
-      dragX.value = withSpring(0, GALLERY_SPRING);
-      dragY.value = withSpring(0, GALLERY_SPRING);
-      imageScale.value = withSpring(1, GALLERY_SPRING);
-      backdropOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
-      chromeOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
-      headerTranslateY.value = withSpring(0, GALLERY_SPRING);
-      railTranslateY.value = withSpring(0, GALLERY_SPRING);
-    }), [
+      if (dismissClosing.value) return;
+
+      dismissClosing.value = true;
+      runOnJS(triggerHaptic)("sheetClose");
+      chromeOpacity.value = withTiming(0, { duration: 120, easing: Easing.out(Easing.cubic) });
+      headerTranslateY.value = withTiming(-16, { duration: 170, easing: Easing.out(Easing.cubic) });
+      railTranslateY.value = withTiming(22, { duration: 170, easing: Easing.out(Easing.cubic) });
+      dragY.value = withTiming(Math.max(height, 1), { duration: 230, easing: Easing.out(Easing.cubic) });
+      dragX.value = withTiming(translationX * 0.12, { duration: 230, easing: Easing.out(Easing.cubic) });
+      imageScale.value = withTiming(0.88, { duration: 230, easing: Easing.out(Easing.cubic) });
+      backdropOpacity.value = withTiming(0, {
+        duration: 210,
+        easing: Easing.out(Easing.cubic),
+      }, (finished) => {
+        if (finished) runOnJS(finishClose)();
+      });
+    };
+
+    const panGesture = dismissPanGesture
+      .onUpdate((event) => {
+        if (dismissClosing.value) return;
+
+        const y = Math.max(0, event.translationY);
+        const progress = Math.min(1, y / Math.max(height * 0.45, 1));
+
+        dragY.value = y;
+        dragX.value = event.translationX * 0.06;
+        imageScale.value = Math.max(0.88, 1 - progress * 0.13);
+        backdropOpacity.value = Math.max(0.18, 1 - progress * 0.72);
+        chromeOpacity.value = Math.max(0, 1 - progress * 1.45);
+        headerTranslateY.value = -12 * progress;
+        railTranslateY.value = 18 * progress;
+      })
+      .onEnd((event) => {
+        const absX = Math.abs(event.translationX);
+        const absY = Math.abs(event.translationY);
+        const shouldClose = (
+          (event.translationY > DISMISS_COMMIT_DISTANCE && absY > absX * DISMISS_COMMIT_VERTICAL_RATIO)
+          || (
+            event.translationY > DISMISS_FLING_DISTANCE
+            && event.velocityY > DISMISS_FLING_VELOCITY
+            && absY > absX * DISMISS_FLING_VERTICAL_RATIO
+          )
+        );
+
+        if (shouldClose) {
+          animateDismissClose(event.translationX);
+          return;
+        }
+
+        dragX.value = withSpring(0, GALLERY_SPRING);
+        dragY.value = withSpring(0, GALLERY_SPRING);
+        imageScale.value = withSpring(1, GALLERY_SPRING);
+        backdropOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
+        chromeOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
+        headerTranslateY.value = withSpring(0, GALLERY_SPRING);
+        railTranslateY.value = withSpring(0, GALLERY_SPRING);
+      })
+      .onFinalize((_, success) => {
+        if (success) return;
+
+        if (dragY.value < 0.5 && Math.abs(dragX.value) < 0.5) {
+          return;
+        }
+
+        if (IS_ANDROID && dragY.value > DISMISS_CANCEL_COMMIT_DISTANCE) {
+          animateDismissClose(dragX.value / 0.06);
+          return;
+        }
+
+        dragX.value = withSpring(0, GALLERY_SPRING);
+        dragY.value = withSpring(0, GALLERY_SPRING);
+        imageScale.value = withSpring(1, GALLERY_SPRING);
+        backdropOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
+        chromeOpacity.value = withTiming(1, { duration: 160, easing: Easing.out(Easing.cubic) });
+        headerTranslateY.value = withSpring(0, GALLERY_SPRING);
+        railTranslateY.value = withSpring(0, GALLERY_SPRING);
+      });
+
+    return panGesture;
+  }, [
     backdropOpacity,
     chromeOpacity,
+    dismissClosing,
     dragX,
     dragY,
     finishClose,
@@ -1123,11 +1324,12 @@ export default function AttachmentImagePreview({
     zoomActive,
   ]);
 
-  const handleGalleryMomentumEnd = useCallback((event) => {
-    const nextIndex = clampIndex(
-      Math.round(event.nativeEvent.contentOffset.x / Math.max(width, 1)),
-      imageAttachments.length
-    );
+  const settleGalleryToOffset = useCallback((offsetX, animated = true) => {
+    if (!imageAttachments.length) return;
+
+    const pageWidth = Math.max(width, 1);
+    const nextIndex = clampIndex(Math.round(offsetX / pageWidth), imageAttachments.length);
+    const targetOffset = nextIndex * pageWidth;
     const currentIndex = activeIndexRef.current;
 
     if (nextIndex !== currentIndex) {
@@ -1137,7 +1339,27 @@ export default function AttachmentImagePreview({
       activeIndexRef.current = nextIndex;
       setActiveIndex(nextIndex);
     }
+
+    if (Math.abs(offsetX - targetOffset) <= GALLERY_SNAP_EPSILON) return;
+
+    requestAnimationFrame(() => {
+      galleryListRef.current?.scrollToOffset({
+        offset: targetOffset,
+        animated,
+      });
+    });
   }, [imageAttachments.length, resetZoomState, width]);
+
+  const handleGalleryMomentumBegin = useCallback(() => {
+    galleryMomentumActiveRef.current = true;
+    clearGallerySettleTimer();
+  }, [clearGallerySettleTimer]);
+
+  const handleGalleryMomentumEnd = useCallback((event) => {
+    galleryMomentumActiveRef.current = false;
+    clearGallerySettleTimer();
+    settleGalleryToOffset(event.nativeEvent.contentOffset.x, IS_ANDROID);
+  }, [clearGallerySettleTimer, settleGalleryToOffset]);
 
   const handleGalleryPageSelected = useCallback((event) => {
     const nextIndex = clampIndex(
@@ -1146,6 +1368,7 @@ export default function AttachmentImagePreview({
     );
     const currentIndex = activeIndexRef.current;
 
+    androidPagerStateRef.current = "idle";
     if (nextIndex !== currentIndex) {
       triggerHaptic("selection");
       resetZoomState();
@@ -1153,7 +1376,39 @@ export default function AttachmentImagePreview({
       activeIndexRef.current = nextIndex;
       setActiveIndex(nextIndex);
     }
-  }, [imageAttachments.length, resetZoomState]);
+
+    scheduleAndroidPagerSettle(ANDROID_PAGER_SETTLE_DELAY_MS);
+  }, [imageAttachments.length, resetZoomState, scheduleAndroidPagerSettle]);
+
+  const handleAndroidPagerScrollStateChanged = useCallback((event) => {
+    if (!USE_ANDROID_NATIVE_PAGER) return;
+
+    const nextState = event?.nativeEvent?.pageScrollState || "idle";
+    androidPagerStateRef.current = nextState;
+
+    if (nextState === "dragging") {
+      clearAndroidPagerSettleTimer();
+      return;
+    }
+
+    scheduleAndroidPagerSettle(
+      nextState === "settling"
+        ? ANDROID_PAGER_FORCE_SETTLE_DELAY_MS
+        : ANDROID_PAGER_SETTLE_DELAY_MS
+    );
+  }, [clearAndroidPagerSettleTimer, scheduleAndroidPagerSettle]);
+
+  const handleGalleryScrollEndDrag = useCallback((event) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+
+    clearGallerySettleTimer();
+    gallerySettleTimeoutRef.current = setTimeout(() => {
+      gallerySettleTimeoutRef.current = null;
+      if (galleryMomentumActiveRef.current) return;
+
+      settleGalleryToOffset(offsetX, true);
+    }, GALLERY_SETTLE_DELAY_MS);
+  }, [clearGallerySettleTimer, settleGalleryToOffset]);
 
   const handleDownload = async () => {
     if (!activeAttachment || state.saving || state.sharing) return;
@@ -1229,10 +1484,34 @@ export default function AttachmentImagePreview({
   }, [goToIndex]);
 
   const renderGalleryItem = useCallback(({ item, index }) => {
-    const uri = getDisplayUri(item);
     const isActive = index === activeIndex;
-    const previousUri = index > 0 ? getDisplayUri(imageAttachments[index - 1]) : "";
-    const nextUri = index < imageAttachments.length - 1 ? getDisplayUri(imageAttachments[index + 1]) : "";
+    const uri = getDisplayUri(item);
+    const previousUri = !IS_ANDROID && index > 0
+      ? getDisplayUri(imageAttachments[index - 1])
+      : "";
+    const nextUri = !IS_ANDROID && index < imageAttachments.length - 1
+      ? getDisplayUri(imageAttachments[index + 1])
+      : "";
+
+    const imagePage = (
+      <ZoomableImagePage
+        attachment={item}
+        uri={uri}
+        previousUri={previousUri}
+        nextUri={nextUri}
+        index={index}
+        pageWidth={width}
+        pageHeight={galleryViewportHeight}
+        active={isActive}
+        zoomActive={zoomActive && isActive}
+        resetToken={zoomResetToken}
+        zoomCommand={zoomCommand}
+        onZoomChange={handleZoomChange}
+        onZoomEdgeSwipe={handleZoomEdgeSwipe}
+        showEdgePreviews={!IS_ANDROID}
+        dismissGesture={IS_ANDROID && isActive ? dismissGesture : null}
+      />
+    );
 
     return (
       <View
@@ -1245,22 +1524,7 @@ export default function AttachmentImagePreview({
           },
         ]}
       >
-        <ZoomableImagePage
-          attachment={item}
-          uri={uri}
-          previousUri={previousUri}
-          nextUri={nextUri}
-          index={index}
-          pageWidth={width}
-          pageHeight={galleryViewportHeight}
-          active={isActive}
-          zoomActive={zoomActive && isActive}
-          resetToken={zoomResetToken}
-          zoomCommand={zoomCommand}
-          onZoomChange={handleZoomChange}
-          onZoomEdgeSwipe={handleZoomEdgeSwipe}
-          showEdgePreviews={!USE_ANDROID_NATIVE_PAGER}
-        />
+        {imagePage}
       </View>
     );
   }, [
@@ -1268,6 +1532,7 @@ export default function AttachmentImagePreview({
     galleryViewportHeight,
     getDisplayUri,
     imageAttachments,
+    dismissGesture,
     handleZoomEdgeSwipe,
     handleZoomChange,
     stageBottomInset,
@@ -1279,8 +1544,7 @@ export default function AttachmentImagePreview({
   ]);
 
   const renderThumbnail = useCallback(({ item, index }) => {
-    const previewUri = item?.imagePreview?.uri || "";
-    const uri = USE_ANDROID_NATIVE_PAGER && previewUri ? previewUri : getDisplayUri(item);
+    const uri = getDisplayUri(item);
     const isActive = index === activeIndex;
 
     return (
@@ -1298,6 +1562,7 @@ export default function AttachmentImagePreview({
           attachment={item}
           resizeMode="cover"
           baseColor="rgba(255,255,255,0.1)"
+          loaderScanning={!IS_ANDROID}
           style={styles.thumbnailImage}
         />
       </TouchableOpacity>
@@ -1350,6 +1615,7 @@ export default function AttachmentImagePreview({
           offscreenPageLimit={1}
           pageMargin={0}
           onPageSelected={handleGalleryPageSelected}
+          onPageScrollStateChanged={handleAndroidPagerScrollStateChanged}
         >
           {imageAttachments.map(renderAndroidPagerPage)}
         </AndroidPagerView>
@@ -1372,9 +1638,12 @@ export default function AttachmentImagePreview({
           pagingEnabled
           scrollEnabled={!zoomActive}
           bounces={false}
+          overScrollMode="never"
           showsHorizontalScrollIndicator={false}
           decelerationRate="fast"
           disableIntervalMomentum
+          snapToAlignment="start"
+          snapToInterval={Math.max(width, 1)}
           initialNumToRender={3}
           maxToRenderPerBatch={3}
           windowSize={3}
@@ -1384,7 +1653,9 @@ export default function AttachmentImagePreview({
             offset: Math.max(width, 1) * index,
             index,
           })}
+          onMomentumScrollBegin={handleGalleryMomentumBegin}
           onMomentumScrollEnd={handleGalleryMomentumEnd}
+          onScrollEndDrag={handleGalleryScrollEndDrag}
           onScrollToIndexFailed={handleScrollToIndexFailed}
         />
       )}
@@ -1538,9 +1809,13 @@ export default function AttachmentImagePreview({
             </View>
           </Animated.View>
 
-          <GestureDetector gesture={dismissGesture}>
-            {galleryStage}
-          </GestureDetector>
+          {IS_ANDROID ? (
+            galleryStage
+          ) : (
+            <GestureDetector gesture={dismissGesture}>
+              {galleryStage}
+            </GestureDetector>
+          )}
 
           {canNavigate && (
             <Animated.View
@@ -1561,10 +1836,10 @@ export default function AttachmentImagePreview({
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.thumbnailContent}
-                initialNumToRender={USE_ANDROID_NATIVE_PAGER ? 3 : 6}
-                maxToRenderPerBatch={USE_ANDROID_NATIVE_PAGER ? 2 : 6}
-                windowSize={USE_ANDROID_NATIVE_PAGER ? 3 : 5}
-                removeClippedSubviews={USE_ANDROID_NATIVE_PAGER}
+                initialNumToRender={IS_ANDROID ? 4 : 6}
+                maxToRenderPerBatch={IS_ANDROID ? 3 : 6}
+                windowSize={IS_ANDROID ? 4 : 5}
+                removeClippedSubviews={IS_ANDROID}
                 getItemLayout={(_, index) => ({
                   length: 68,
                   offset: 68 * index,

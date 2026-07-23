@@ -360,9 +360,9 @@
     "semantic_hash": "34a58258ae9b8fce47ec6480309e1f52"
   },
   "src/pages/Onboarding/OnboardingWizard.jsx": {
-    "mtime": 1784761128.6570306,
-    "ast_hash": "1883adceef258ca82bd29f9ebd4dbd18",
-    "semantic_hash": "1883adceef258ca82bd29f9ebd4dbd18"
+    "mtime": 1784760875.9526286,
+    "ast_hash": "7d1b74db9974300d641744fc7cfdb5a0",
+    "semantic_hash": "7d1b74db9974300d641744fc7cfdb5a0"
   },
   "src/pages/Schedule/Schedule.jsx": {
     "mtime": 1784473796.9387493,
