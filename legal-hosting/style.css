@@ -54,6 +54,7 @@ body {
 .container {
   width: 100%;
   max-width: 860px;
+  min-width: 0;
   background: var(--card-bg);
   padding: 3.5rem 4.5rem;
   border-radius: 20px;
@@ -122,6 +123,7 @@ nav {
 }
 
 main {
+  min-width: 0;
   font-size: 1.05rem;
 }
 

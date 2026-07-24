@@ -97,6 +97,7 @@ builds/
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+!functions/package-lock.json
 
 # ----------------------
 # Graphify

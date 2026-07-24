@@ -21,6 +21,7 @@ import { registerDevice, listenForDeviceRemoval } from "./utils/deviceService";
 import { consumeManualLogin, setManualLogin } from "./utils/authFlags";
 import useAppLanguage from './hooks/useAppLanguage';
 import { initAds } from './utils/adInit/adInit';
+import CookieConsentBanner from './components/privacy/CookieConsentBanner';
 
 initGlobalErrorHandling();
 SplashScreen.preventAutoHideAsync();
@@ -233,6 +234,7 @@ export default function RootApp() {
           </Stack.Navigator>
         </NavigationContainer>
       </ScheduleProvider>
+      <CookieConsentBanner lang={lang} />
     </GestureHandlerRootView>
   );
 }

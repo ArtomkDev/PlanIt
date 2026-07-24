@@ -5,6 +5,9 @@
       "hosting": {
         "app": [
           "planit-demo"
+        ],
+        "legal": [
+          "planit-hub"
         ]
       }
     }

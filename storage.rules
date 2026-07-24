@@ -8,6 +8,18 @@ service firebase.storage {
         && request.auth.token.email_verified == true;
     }
 
+    function deletionRequested(userId) {
+      return firestore.exists(
+        /databases/(default)/documents/deleted_accounts/$(userId)
+      );
+    }
+
+    function deletingOwner(userId) {
+      return request.auth != null
+        && request.auth.uid == userId
+        && deletionRequested(userId);
+    }
+
     function validAttachmentUpload() {
       return request.resource != null
         && request.resource.size <= 20 * 1024 * 1024
@@ -20,9 +32,10 @@ service firebase.storage {
     }
 
     match /users/{userId}/attachments/{allPaths=**} {
-      allow read: if verifiedOwner(userId);
-      allow create, update: if verifiedOwner(userId) && validAttachmentUpload();
-      allow delete: if verifiedOwner(userId);
+      allow read, delete: if verifiedOwner(userId) || deletingOwner(userId);
+      allow create, update: if verifiedOwner(userId)
+        && !deletionRequested(userId)
+        && validAttachmentUpload();
     }
 
     match /{allPaths=**} {

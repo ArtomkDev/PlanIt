@@ -4,127 +4,456 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="description"
+    content="Terms governing use of the PlanIt mobile and web applications, accounts, cloud sync, files, and schedule sharing.">
   <title>Terms &amp; Conditions - PlanIt</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    @media (prefers-color-scheme: light) {
+      :root {
+        --accent-color: #1d4ed8;
+        --accent-hover: #1e40af;
+        --app-title-bg: rgba(29, 78, 216, 0.12);
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent-color: #60a5fa;
+        --accent-hover: #93c5fd;
+      }
+    }
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+    }
+
+    .skip-link:focus {
+      left: 1rem;
+      top: 1rem;
+      z-index: 10;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--primary-color);
+    }
+
+    .legal-meta,
+    .small {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    .summary,
+    .notice,
+    .warning {
+      margin: 1.5rem 0;
+      padding: 1.25rem 1.4rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--surface-bg);
+    }
+
+    .warning {
+      border-left: 4px solid #d97706;
+    }
+
+    .contents {
+      display: block;
+      margin: 2rem 0;
+      padding: 1.25rem 1.4rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--surface-bg);
+    }
+
+    .contents h2 {
+      margin-top: 0;
+      border: 0;
+      padding: 0;
+      font-size: 1.1rem;
+    }
+
+    .contents ol {
+      margin-bottom: 0;
+      columns: 2;
+      column-gap: 3rem;
+    }
+
+    .contents li {
+      break-inside: avoid;
+    }
+
+    h2 {
+      color: var(--primary-color);
+      font-size: 1.35rem;
+      margin: 3rem 0 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--divider-color);
+    }
+
+    h3 {
+      color: var(--primary-color);
+      font-size: 1.08rem;
+      margin: 1.8rem 0 0.6rem;
+    }
+
+    @media (max-width: 640px) {
+      .contents ol {
+        columns: 1;
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <div class="wrapper">
     <div class="container">
       <header>
         <div class="app-title">PlanIt</div>
         <h1>Terms &amp; Conditions</h1>
-        <nav>
+        <nav aria-label="Legal documents">
           <a href="privacy.html" class="nav-link">Privacy Policy</a>
-          <a href="terms.html" class="nav-link active">Terms &amp; Conditions</a>
+          <a href="cookies.html" class="nav-link">Cookie Policy</a>
+          <a href="terms.html" class="nav-link active" aria-current="page">Terms &amp; Conditions</a>
           <a href="delete.html" class="nav-link">Account Deletion</a>
         </nav>
       </header>
-      <main>
-        <strong>Terms &amp; Conditions</strong>
-        <p>These terms and conditions apply to the PlanIt app (hereby referred to as "Application") for mobile and web
-          platforms, created by Artomk (hereby referred to as "Service Provider") as an Ad Supported service.</p>
-        <p>Upon downloading or utilizing the Application, you are automatically agreeing to the following terms. It is
-          strongly advised that you thoroughly read and understand these terms prior to using the Application. You must
-          be at least 13 years of age (or the minimum legal age in your country of residence, such as 16 in certain EU
-          jurisdictions) to use this Application.</p>
 
-        <strong>Intellectual Property</strong>
-        <p>Unauthorized copying, modification of the Application, any part of the Application, or our trademarks is
-          strictly prohibited. Any attempts to extract the source code of the Application, translate the Application
-          into other languages, or create derivative versions are not permitted. All trademarks, copyrights, database
-          rights, and other intellectual property rights related to the Application remain the property of the Service
-          Provider.</p>
+      <main id="main-content" tabindex="-1">
+        <p class="legal-meta"><strong>Effective and last updated:</strong> July 24, 2026 &middot; Version 2.2</p>
 
-        <strong>Usage & Technical Requirements</strong>
-        <p>The Service Provider is dedicated to ensuring that the Application is as beneficial and efficient as
-          possible. As such, they reserve the right to modify the Application or charge for their services at any time
-          and for any reason. The Service Provider assures you that any charges for the Application or its services will
-          be clearly communicated to you.</p>
-        <p>The Application stores and processes personal data that you have provided to the Service Provider in order to
-          provide the Service. It is your responsibility to maintain the security of your device and access to the
-          Application. The Service Provider strongly advises against jailbreaking or rooting your phone, which involves
-          removing software restrictions. Such actions could expose your phone to malware, compromise security features,
-          and may result in the Application not functioning correctly.</p>
-        <p><strong>Prohibited Conduct:</strong> You agree not to use the Application for any unlawful purposes, nor to conduct any activities that may damage, disable, overburden, or impair the Application's servers or networks. You shall not attempt to gain unauthorized access to any accounts, databases, or computer systems connected to the Application. Reverse engineering, extracting source code, or exploiting vulnerabilities is strictly prohibited.</p>
+        <div class="summary">
+          <strong>Important summary</strong>
+          <ul>
+            <li>PlanIt is an organization tool, not an official school, calendar, emergency, legal, medical, or
+              professional record system. Verify important dates and maintain your own backups.</li>
+            <li>You own your content. You give PlanIt only the limited permission needed to store, synchronize,
+              transform, and share it at your direction.</li>
+            <li>Share codes are bearer-style access credentials. Anyone with a valid code can view the selected schedule
+              data while the share is active and can keep a copy.</li>
+            <li>The Service is provided without a guarantee of uninterrupted availability or perfect synchronization.
+              Mandatory consumer rights are not excluded.</li>
+            <li>The <a href="privacy.html">Privacy Policy</a>,
+              <a href="cookies.html">Cookie &amp; Similar Technologies Policy</a>, and
+              <a href="delete.html">Account Deletion page</a> provide related notices and choices. Accepting these
+              Terms is not consent to optional web Analytics.</li>
+          </ul>
+        </div>
 
-        <strong>Third-Party Services</strong>
-        <p>The Application utilizes third-party services that have their own Terms and Conditions. Below are the links
-          to the Terms and Conditions of the third-party service providers used by the Application:</p>
-        <ul>
-          <li><a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Google Play
-              Services</a></li>
-          <li><a href="https://developers.google.com/admob/terms" target="_blank" rel="noopener noreferrer">AdMob</a>
-          </li>
-          <li><a href="https://firebase.google.com/terms/" target="_blank" rel="noopener noreferrer">Google Analytics
-              for Firebase</a></li>
-          <li><a href="https://firebase.google.com/terms/crashlytics" target="_blank" rel="noopener noreferrer">Firebase
-              Crashlytics</a></li>
-          <li><a href="https://www.apple.com/legal/internet-services/terms/site.html" target="_blank"
-              rel="noopener noreferrer">Apple</a></li>
-        </ul>
+        <nav class="contents" aria-label="Terms contents">
+          <h2>On this page</h2>
+          <ol>
+            <li><a href="#agreement">Agreement and scope</a></li>
+            <li><a href="#eligibility">Eligibility</a></li>
+            <li><a href="#modes">Service modes</a></li>
+            <li><a href="#accounts">Accounts and security</a></li>
+            <li><a href="#license">License to use PlanIt</a></li>
+            <li><a href="#content">Your content</a></li>
+            <li><a href="#sharing">Schedule sharing</a></li>
+            <li><a href="#files">Files and links</a></li>
+            <li><a href="#ads">Ads and third parties</a></li>
+            <li><a href="#conduct">Acceptable use</a></li>
+            <li><a href="#operation">Updates and availability</a></li>
+            <li><a href="#reliance">Reliance and backups</a></li>
+            <li><a href="#privacy">Privacy</a></li>
+            <li><a href="#termination">Suspension and termination</a></li>
+            <li><a href="#warranties">Disclaimers</a></li>
+            <li><a href="#liability">Liability</a></li>
+            <li><a href="#law">Law and disputes</a></li>
+            <li><a href="#changes">Changes</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ol>
+        </nav>
 
-        <strong>Network Usage & Responsibilities</strong>
-        <p>Some functions of the Application require an active internet connection (Wi-Fi or mobile network) for cloud
-          synchronization, user authentication, and displaying advertisements. The Service Provider cannot be held
-          responsible if the
-          Application does not function at full capacity due to lack of internet access. By using the Application on a
-          mobile network, you accept responsibility for any data usage charges incurred from your mobile provider.</p>
+        <section id="agreement">
+          <h2>1. Agreement and scope</h2>
+          <p>These Terms &amp; Conditions (<strong>“Terms”</strong>) are a binding agreement between you and the
+            independent developer publishing under the name <strong>Artomk</strong>
+            (<strong>“PlanIt,” “we,” “us,”</strong> or <strong>“Service Provider”</strong>). They govern the PlanIt
+            mobile and web applications, accounts, synchronization, attachments, notifications, schedule-sharing
+            features, and related hosted pages (collectively, the <strong>“Service”</strong>).</p>
+          <p>By selecting the acceptance control, creating or using an account, entering Guest Mode, or otherwise using
+            the Service after these Terms are presented, you agree to them and acknowledge the
+            <a href="privacy.html">Privacy Policy</a>. If you do not agree, do not use the Service. If you use PlanIt on
+            behalf of an organization, you represent that you are authorized to bind it.</p>
+          <p>Additional terms from Apple, Google, your app store, operating-system provider, internet provider, or a
+            third-party sign-in provider may also apply. If a mandatory platform term conflicts with these Terms, the
+            mandatory platform term controls only to the extent of that conflict.</p>
+        </section>
 
-        <strong>Disclaimer of Warranties</strong>
-        <p>The Application is provided on an "AS IS" and "AS AVAILABLE" basis. While the Service Provider strives to
-          ensure that the Application is accurate and reliable, <strong>the Service Provider accepts no liability for
-            any loss, direct or indirect, that you experience as a result of relying entirely on the
-            Application.</strong> This includes, but is not limited to, missing scheduled appointments, classes, exams,
-          or meetings, as well as data loss, data corruption, or inability to access your data due to application bugs, crashes, incorrect time zone handling, synchronization conflicts, third-party service outages, or
-          server downtimes.</p>
+        <section id="eligibility">
+          <h2>2. Eligibility and young users</h2>
+          <p>You must be at least 13 years old to create an account or submit personal data. If the law where you live
+            requires a higher age or parental authorization for online services or personal-data processing, you may
+            use account and cloud features only with valid authorization from a parent or legal guardian.</p>
+          <p>If you are below the age at which you can form a binding contract, your parent or legal guardian must review
+            and accept these Terms for you and supervise your use. A parent or guardian is responsible for a minor's use
+            to the extent permitted by law.</p>
+        </section>
 
-        <strong>User-Generated Content and Responsibility</strong>
-        <p>The Application allows you to create, store, and synchronize personal data, including schedules, teacher
-          names, contact information, or meeting links ("User-Generated Content"). You retain full ownership of the data
-          you enter.</p>
-        <p><strong>You are solely and exclusively responsible for the legality of collecting, storing, and using any
-            third-party personal data</strong> (such as teachers' phone numbers or emails) within your private schedules
-          in the Application. The Service Provider acts strictly as a secure cloud storage provider for your private use
-          and does not review, share, sell, or monitor your User-Generated Content for any external purposes.</p>
+        <section id="modes">
+          <h2>3. Guest Mode, account mode, and technical requirements</h2>
+          <h3>Guest Mode</h3>
+          <p>Guest Mode stores schedule content locally and does not provide cloud account synchronization. Clearing
+            browser/app storage, uninstalling the app, device loss, operating-system cleanup, or storage corruption may
+            permanently remove guest data. Technical services such as native advertising, analytics, crash reporting,
+            app updates, and hosting may still operate as described in the Privacy Policy.</p>
 
-        <strong>Limitation of Liability</strong>
-        <p>To the maximum extent permitted by applicable law, in no event shall the Service Provider be liable for any
-          special, incidental, indirect, or consequential damages whatsoever (including, but not limited to, damages for
-          loss of profits, loss of data or other information, for business interruption, for personal injury, loss of
-          privacy arising out of or in any way related to the use of or inability to use the Application), even if the
-          Service Provider has been advised of the possibility of such damages. The Service Provider's total liability to you for any damages shall not exceed the amount you paid to the Service Provider, if any, or zero if the Application was provided free of charge.</p>
-        <p>Furthermore, while the Service Provider performs regular synchronizations, they do not guarantee that your
-          User-Generated Content will be permanently secure against data loss. You are encouraged to maintain
-          independent backups of crucial schedules or contacts.</p>
+          <h3>Account mode</h3>
+          <p>A verified account enables cloud synchronization, device management, cloud attachments, account-security
+            notifications, and sharing features. Synchronization is subject to network availability, Firebase
+            availability, storage limits, conflict handling, and supported app versions.</p>
 
-        <strong>Indemnification</strong>
-        <p>You agree to indemnify, defend and hold harmless the Service Provider from and against any and all claims,
-          damages, obligations, losses, liabilities, costs or debt, and expenses (including but not limited to
-          attorney's fees) arising from: (a) your use of and access to the Application; (b) your violation of any term
-          of these Terms and Conditions; (c) your violation of any third-party right, including without limitation any
-          privacy, publicity, or intellectual property right related to your User-Generated Content.</p>
+          <h3>Your equipment and connectivity</h3>
+          <p>You are responsible for a compatible device, supported operating system/browser, internet access, and any
+            carrier, roaming, or data charges. Some features require permissions such as notifications, camera, photo
+            library, or document access. Refusing a permission disables only the related feature where technically
+            possible.</p>
+        </section>
 
-        <strong>Termination</strong>
-        <p>The Service Provider reserves the right to terminate or suspend your access to the Application immediately,
-          without prior notice or liability, for any reason whatsoever, including without limitation if you breach these
-          Terms and Conditions.</p>
+        <section id="accounts">
+          <h2>4. Accounts, verification, and security</h2>
+          <p>You must provide accurate information, keep it reasonably current, protect your device and credentials, and
+            promptly report suspected unauthorized access. Do not share passwords, authentication tokens, or access to
+            another person's account. You are responsible for activity under your account unless applicable law
+            provides otherwise.</p>
+          <p>You may sign in with email/password, Google, or Apple where available. Social sign-in is also governed by
+            the selected provider's terms. Linking or unlinking providers may affect how you regain access. PlanIt may
+            require email verification, recent reauthentication, or proportionate identity verification for sensitive
+            changes and deletion requests.</p>
+          <p>PlanIt registers signed-in devices using a pseudonymous device key and stores device, last-login, public-IP,
+            push-token, and last-seen information to support session management and security alerts. You may remove
+            listed devices, which can sign them out. No security measure guarantees that every unauthorized access
+            attempt will be detected.</p>
+        </section>
 
-        <strong>Governing Law</strong>
-        <p>These Terms shall be governed and construed in accordance with the laws of Ukraine, without regard to its
-          conflict of law provisions.</p>
+        <section id="license">
+          <h2>5. Limited license to use PlanIt</h2>
+          <p>Subject to these Terms, PlanIt grants you a personal, limited, non-exclusive, non-transferable, revocable
+            license to install and use the Service for lawful personal or internal educational/organizational purposes.</p>
+          <p>PlanIt and its original software, design, branding, and content are owned by or licensed to the Service
+            Provider and protected by applicable intellectual-property law. These Terms do not transfer ownership to
+            you. You may not copy, sell, sublicense, distribute, modify, or create derivative works from protected parts
+            of the Service except with written permission, under an applicable open-source license, or to the extent
+            applicable law expressly permits despite this restriction. Third-party open-source components remain
+            subject to their own licenses.</p>
+          <p>If you voluntarily provide feedback, you grant PlanIt a worldwide, perpetual, irrevocable, royalty-free
+            right to use it without identifying you or owing compensation, unless we agree otherwise in writing.</p>
+        </section>
 
-        <strong>Changes to These Terms and Conditions</strong>
-        <p>The Service Provider may periodically update their Terms and Conditions. You are advised to review this page
-          regularly for any changes. The Service Provider will notify you of any changes by posting the new Terms and
-          Conditions on this page.</p>
+        <section id="content">
+          <h2>6. Your content and responsibilities</h2>
+          <p><strong>You retain ownership of content you create or upload.</strong> To operate features you request, you
+            grant PlanIt and its processors a worldwide, non-exclusive, royalty-free license to host, store, copy,
+            cache, encode, compress, convert, display, transmit, and make that content available to recipients you
+            select. This license is limited to providing, securing, maintaining, and improving the Service and ends when
+            the content is deleted, subject to recipients' copies, legal retention, and provider backup cycles.</p>
+          <p>You represent that you have all rights, notices, consents, and lawful bases needed to enter, upload, and
+            share your content. This is particularly important for another person's name, email, phone number, image,
+            class information, meeting link, document, or other personal/confidential data. Do not upload unlawful
+            content, credentials, highly sensitive records, malware, or data you are not authorized to process.</p>
+          <p>PlanIt does not routinely review private user content. We may investigate, restrict, preserve, or remove
+            content when reasonably necessary to operate or secure the Service, respond to a valid legal request,
+            enforce these Terms, or protect users and others. We will use proportionate measures where practical.</p>
+        </section>
 
-        <p>These terms and conditions are effective as of 2026-04-16.</p>
+        <section id="sharing">
+          <h2>7. Shared schedules</h2>
+          <p>When you create a share, PlanIt makes a separate, sanitized schedule copy accessible through a generated
+            code for the period you choose. You control whether that copy includes teacher details, links, notes,
+            colors, and your display name. Review the preview and choices before sharing.</p>
+          <div class="warning">
+            <strong>Treat a share code like an unlisted public link.</strong>
+            <p>No account is required to retrieve an active shared schedule with a valid code. A recipient can copy,
+              import, screenshot, or forward it, and a code could be disclosed or guessed. Do not share confidential,
+              regulated, or safety-critical information through this feature.</p>
+          </div>
+          <p>You can revoke a share from “My Shares,” and normal access expires after 1, 3, 7, or 30 days. Revocation or
+            expiry does not delete copies already controlled by recipients. Expiry may disable access without
+            immediately deleting the stored share record.</p>
+        </section>
 
-        <strong>Contact Us</strong>
-        <p>If you have any questions or suggestions about the Terms and Conditions, please do not hesitate to contact
-          the Service Provider at <strong>planit.app.support@gmail.com</strong>.</p>
+        <section id="files">
+          <h2>8. Attachments, metadata, downloads, and external links</h2>
+          <p>Cloud attachments are stored in a user-specific Firebase Storage path and may also be cached locally.
+            PlanIt may compress or convert images and may remove metadata from successfully processed versions, but it
+            does not guarantee removal of EXIF, location, author, edit-history, or other metadata from every file.
+            Inspect and sanitize files before upload if metadata could be sensitive.</p>
+          <p>Attachment download URLs may function as bearer-style token links. Do not publish or forward them unless
+            you intend to give access. Files you download, export, or share through the operating-system share sheet are
+            controlled by the destination app, recipient, and device—not by PlanIt.</p>
+          <p>User-created URLs and meeting links lead to third-party services. PlanIt does not endorse or control those
+            services and is not responsible for their content, security, availability, or data practices. Check the
+            destination before opening or sharing a link.</p>
+        </section>
+
+        <section id="ads">
+          <h2>9. Advertising and third-party services</h2>
+          <p>The current Service is free and ad-supported. Native builds request non-personalized AdMob banners.
+            Non-personalized ads do not use past behavior for ad selection, but advertising identifiers, cookies or
+            equivalent storage, IP-derived coarse location, and technical data may still be used for frequency capping,
+            aggregated reporting, fraud prevention, and delivery as explained in the Privacy Policy. Requesting
+            non-personalized ads does not replace any consent or limited-data treatment required by local law. The
+            current release does not provide a dedicated in-app advertising-consent interface.</p>
+          <p>The web app does not initialize optional Firebase Analytics until the user affirmatively accepts analytics
+            in PlanIt's cookie notice. Rejecting analytics does not block core web features, and the choice can be
+            changed through the persistent Cookie settings control. See the
+            <a href="cookies.html">Cookie &amp; Similar Technologies Policy</a>.</p>
+          <p>PlanIt depends on services supplied by Google Firebase/Cloud, Google Mobile Ads, Google Sign-In, Apple,
+            Expo, ipify, app stores, and operating-system vendors. Their terms and privacy policies apply to their
+            processing. PlanIt is not responsible for third-party outages or changes, but this does not remove any
+            responsibility that cannot lawfully be excluded.</p>
+          <p>If paid features are introduced, the price, billing interval, renewal and cancellation terms, and applicable
+            store rules will be shown before purchase. We will not charge you without the authorization required by the
+            relevant payment or app-store process.</p>
+        </section>
+
+        <section id="conduct">
+          <h2>10. Acceptable use</h2>
+          <p>You must not, and must not help another person to:</p>
+          <ul>
+            <li>use the Service or content in violation of law, another person's rights, or these Terms;</li>
+            <li>impersonate another person, create deceptive accounts, or submit false verification information;</li>
+            <li>access another user's private account, files, devices, or data without authorization;</li>
+            <li>systematically enumerate or guess share codes, scrape the Service, bypass access controls, or probe
+              infrastructure without prior written authorization;</li>
+            <li>upload malware, harmful code, unlawfully obtained content, or material that infringes privacy,
+              confidentiality, intellectual-property, or other rights;</li>
+            <li>interfere with, overload, disrupt, or evade limits of the Service or its providers;</li>
+            <li>use automated means to create abusive traffic, advertising fraud, or disproportionate load; or</li>
+            <li>reverse engineer or circumvent technical protections except where applicable law or an open-source
+              license expressly allows it.</li>
+          </ul>
+          <p>Good-faith security reports should be sent to
+            <a href="mailto:planit.app.support@gmail.com?subject=PlanIt%20Security%20Report">planit.app.support@gmail.com</a>
+            before public disclosure. This contact does not itself authorize testing.</p>
+        </section>
+
+        <section id="operation">
+          <h2>11. Updates, changes, limits, and availability</h2>
+          <p>We may add, change, limit, suspend, or remove features to improve the Service, address security or legal
+            requirements, manage cost or capacity, or respond to provider changes. We may distribute code or content
+            updates through app stores or Expo Application Services. An update may be required to continue using online
+            features.</p>
+          <p>We may apply reasonable limits to file type, file size, storage, number of records, share duration,
+            notifications, traffic, or devices. Current technical limits may change. We will provide notice of material
+            adverse changes where reasonably possible and legally required.</p>
+          <p>We do not promise that the Service, any feature, or compatibility with a particular device or operating
+            system will continue indefinitely. If the Service is discontinued, we will use reasonable efforts to give
+            notice and a practical opportunity to retrieve user-controlled content when feasible.</p>
+        </section>
+
+        <section id="reliance">
+          <h2>12. Reliance, notifications, synchronization, and backups</h2>
+          <p>PlanIt is a convenience tool and is not the authoritative source for school, work, travel, examination,
+            meeting, deadline, or emergency information. Verify important information with the responsible institution
+            or person. Do not rely on a push notification as the only reminder for a critical event.</p>
+          <p>Local and cloud data can be delayed, conflicted, lost, duplicated, or corrupted because of network failure,
+            device clocks and time zones, unsupported versions, bugs, storage limits, user action, account access
+            changes, or third-party outages. Maintain independent copies of information whose loss would cause harm.
+            Test imports or shared copies before relying on them.</p>
+        </section>
+
+        <section id="privacy">
+          <h2>13. Privacy</h2>
+          <p>Our <a href="privacy.html">Privacy Policy</a> explains how PlanIt processes personal data. You agree to
+            handle other people's personal data lawfully and to avoid using PlanIt for special-category, highly
+            confidential, or regulated information unless you have assessed that use and implemented appropriate
+            safeguards.</p>
+        </section>
+
+        <section id="termination">
+          <h2>14. Suspension, termination, and account deletion</h2>
+          <p>You may stop using PlanIt at any time. Account deletion is described on the
+            <a href="delete.html">Account Deletion page</a>. Deleting the app does not by itself delete a cloud account,
+            and deleting a cloud account does not remotely erase local or recipient-controlled copies.</p>
+          <p>The in-app deletion flow requires recent identity verification, records a minimal irreversible
+            deletion-prevention marker, deletes known PlanIt cloud data, and deletes the Firebase Authentication account
+            only after the known cloud cleanup succeeds. If Sign in with Apple is linked, the flow first requires Apple
+            reauthentication and confirmed authorization revocation; PlanIt data deletion does not begin when that
+            revocation cannot be confirmed. The marker contains the deleted Firebase user ID and request timestamp but
+            not account content; it prevents old authenticated sessions from recreating deleted data. Provider-side
+            backups, logs, recipient copies, and downloaded files remain subject to the boundaries described in the
+            Privacy Policy and Account Deletion page.</p>
+          <p>We may restrict or suspend access when reasonably necessary to address a material breach, security threat,
+            unlawful activity, provider or legal requirement, risk to other users, or serious operational harm. Where
+            appropriate, we will provide notice and an opportunity to correct the issue. We may terminate an account for
+            an uncured material breach or when continued service would be unlawful or unsafe.</p>
+          <p>On termination, your license to use the Service ends. Provisions that by their nature should survive—such
+            as ownership, lawful content licenses for residual copies, disclaimers, liability limits, dispute terms, and
+            accrued rights—will survive.</p>
+        </section>
+
+        <section id="warranties">
+          <h2>15. Disclaimers</h2>
+          <p>To the maximum extent permitted by law, the Service is provided <strong>“as is”</strong> and
+            <strong>“as available.”</strong> We do not warrant that it will be uninterrupted, error-free, secure against
+            every threat, compatible with every device, or that data will never be lost. We do not warrant the accuracy
+            of user-entered or third-party content.</p>
+          <p>Some jurisdictions do not permit certain warranty exclusions. Nothing in these Terms excludes an express
+            warranty or statutory consumer guarantee that cannot lawfully be excluded.</p>
+        </section>
+
+        <section id="liability">
+          <h2>16. Limitation of liability</h2>
+          <p>To the maximum extent permitted by law, PlanIt will not be liable for indirect, incidental, special,
+            exemplary, punitive, or consequential loss; lost profits, opportunity, goodwill, or data; missed classes,
+            appointments, meetings, or deadlines; or harm caused by user content, recipient actions, connectivity,
+            synchronization conflicts, device failure, third-party services, or events beyond reasonable control.</p>
+          <p>Where liability may lawfully be limited, PlanIt's aggregate liability arising from the Service will not
+            exceed the amount you paid directly for the Service during the 12 months before the event giving rise to the
+            claim or any higher minimum amount that applicable law requires. This limitation does not apply to liability
+            that law does not allow us to limit or exclude, including where applicable liability for fraud, willful
+            misconduct, gross negligence, death or personal injury caused by negligence, or violation of non-waivable
+            consumer or data-protection rights.</p>
+          <p>You are responsible, to the extent permitted by law, for losses and reasonable costs resulting from your
+            unlawful content, willful misuse of the Service, or material violation of another person's rights. This does
+            not require a consumer to indemnify PlanIt for PlanIt's own wrongdoing or for matters that cannot lawfully
+            be shifted to the user.</p>
+        </section>
+
+        <section id="law">
+          <h2>17. Governing law and disputes</h2>
+          <p>These Terms are governed by the laws of Ukraine, without regard to conflict-of-law rules. This choice does
+            not deprive a consumer of mandatory protections or access to courts provided by the law of the consumer's
+            habitual residence.</p>
+          <p>Before filing a claim, please contact
+            <a href="mailto:planit.app.support@gmail.com?subject=PlanIt%20Terms%20Dispute">planit.app.support@gmail.com</a>
+            and describe the issue so we can try to resolve it informally. This does not prevent either party from
+            seeking urgent relief or using a regulator, consumer authority, small-claims process, or court where
+            available.</p>
+          <p>If any provision is unenforceable, it will be limited to the minimum extent necessary, and the remaining
+            provisions remain effective. Failure to enforce a provision is not a waiver. You may not transfer these
+            Terms without our consent; we may transfer them as part of a legitimate business reorganization if your
+            rights are not materially reduced.</p>
+        </section>
+
+        <section id="changes">
+          <h2>18. Changes to these Terms</h2>
+          <p>We may revise these Terms to reflect changes to the Service, law, providers, security, or business
+            operations. We will update the date above and provide additional notice for material changes. Where law
+            requires, we will request renewed acceptance. Changes apply prospectively; continued use after valid notice
+            constitutes acceptance only to the extent permitted by law.</p>
+        </section>
+
+        <section id="contact">
+          <h2>19. Contact</h2>
+          <p><strong>Service Provider:</strong> Artomk, independent developer of PlanIt, Ukraine<br>
+            <strong>Email:</strong>
+            <a href="mailto:planit.app.support@gmail.com">planit.app.support@gmail.com</a><br>
+            <strong>Subject line:</strong> “PlanIt Terms Question”</p>
+          <p class="small">If a translated version is provided, the English version controls to the extent permitted by
+            law unless the translated version expressly states otherwise. Mandatory local-language and consumer rules
+            remain unaffected.</p>
+        </section>
       </main>
     </div>
   </div>

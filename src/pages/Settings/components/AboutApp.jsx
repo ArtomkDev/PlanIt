@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, Share, Alert, Platform } from 'react-native';
 import { 
-  ShieldCheck, FileText, EnvelopeSimple, 
-  ShareNetwork, Globe 
+  Cookie, EnvelopeSimple, FileText, Globe, ShareNetwork,
+  ShieldCheck, SlidersHorizontal,
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 
@@ -10,6 +10,7 @@ import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import { useScheduleData } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
+import { requestCookiePreferences } from '../../../services/cookieConsentService';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
@@ -110,6 +111,20 @@ export default function AboutApp() {
             onPress={() => openLink(`${WEBSITE_URL}/terms.html`)} 
             themeColors={themeColors} 
           />
+          <SettingsRow
+            label={t('settings.about_screen.cookie_policy', lang)}
+            icon={Cookie}
+            onPress={() => openLink(`${WEBSITE_URL}/cookies.html`)}
+            themeColors={themeColors}
+          />
+          {Platform.OS === 'web' ? (
+            <SettingsRow
+              label={t('settings.about_screen.cookie_settings', lang)}
+              icon={SlidersHorizontal}
+              onPress={requestCookiePreferences}
+              themeColors={themeColors}
+            />
+          ) : null}
         </SettingsGroup>
 
       </ScrollView>

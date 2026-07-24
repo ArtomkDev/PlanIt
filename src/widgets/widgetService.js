@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScheduleWidget } from './ScheduleWidget';
@@ -87,5 +88,24 @@ export const setWidgetSelectedScheduleId = async (scheduleId) => {
     }
   } catch (error) {
     console.error('Widget schedule selection error:', error);
+  }
+};
+
+export const clearWidgetScheduleData = async () => {
+  pendingSchedule = undefined;
+  if (syncDebounceTimer) {
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = null;
+  }
+
+  await AsyncStorage.multiRemove([
+    SCHEDULE_KEY,
+    OFFSET_KEY,
+    WIDGET_SELECTED_SCHEDULE_ID_KEY,
+  ]);
+
+  if (Platform.OS === 'android') {
+    const dims = await getStoredDimensions();
+    await doWidgetUpdate(null, dims.width, dims.height);
   }
 };

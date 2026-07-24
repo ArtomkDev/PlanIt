@@ -15,6 +15,25 @@ service cloud.firestore {
         && request.auth.uid == userId;
     }
 
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function recentlyAuthenticated() {
+      return signedIn()
+        && request.auth.token.auth_time is int
+        && request.time.toMillis() - request.auth.token.auth_time * 1000
+          <= 5 * 60 * 1000;
+    }
+
+    function deletionRequested(userId) {
+      return exists(/databases/$(database)/documents/deleted_accounts/$(userId));
+    }
+
+    function canDeleteOwnAccountData(userId) {
+      return isOwner(userId) && deletionRequested(userId);
+    }
+
     function isShareCode(shareCode) {
       return shareCode.matches('^[A-Z0-9]{5,32}$');
     }
@@ -31,6 +50,12 @@ service cloud.firestore {
 
     function ownsShare(data) {
       return verifiedSignedIn() && data.ownerId == request.auth.uid;
+    }
+
+    function canDeleteOwnedShare(data) {
+      return signedIn()
+        && data.ownerId == request.auth.uid
+        && deletionRequested(request.auth.uid);
     }
 
     function hasField(data, field) {
@@ -172,6 +197,7 @@ service cloud.firestore {
     function validSharedScheduleCreate(shareCode) {
       return isShareCode(shareCode)
         && verifiedSignedIn()
+        && !deletionRequested(request.auth.uid)
         && validSharedScheduleDoc(request.resource.data, shareCode)
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.isActive == true
@@ -191,26 +217,46 @@ service cloud.firestore {
     }
 
     match /schedules/{userId} {
-      allow read, write: if isOwnerAndVerified(userId);
+      allow read, delete: if isOwnerAndVerified(userId)
+        || canDeleteOwnAccountData(userId);
+      allow create, update: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId);
     }
 
     match /users/{userId}/{document=**} {
-      allow read, write: if isOwnerAndVerified(userId);
+      allow read, delete: if isOwnerAndVerified(userId)
+        || canDeleteOwnAccountData(userId);
+      allow create, update: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId);
+    }
+
+    match /deleted_accounts/{userId} {
+      allow create: if isOwner(userId)
+        && recentlyAuthenticated()
+        && !deletionRequested(userId)
+        && request.resource.data.keys().hasOnly(["requestedAt"])
+        && request.resource.data.keys().hasAll(["requestedAt"])
+        && request.resource.data.requestedAt == request.time;
+      allow get: if isOwner(userId);
+      allow list, update, delete: if false;
     }
 
     match /shared_schedules/{shareCode} {
       allow get: if isShareCode(shareCode)
         && (!sharedScheduleExists(shareCode)
           || isActivePublicShare(resource.data)
-          || ownsShare(resource.data));
+          || ownsShare(resource.data)
+          || canDeleteOwnedShare(resource.data));
 
-      allow list: if ownsShare(resource.data);
+      allow list: if ownsShare(resource.data)
+        || canDeleteOwnedShare(resource.data);
 
       allow create: if validSharedScheduleCreate(shareCode);
 
       allow update: if false;
 
-      allow delete: if isShareCode(shareCode) && ownsShare(resource.data);
+      allow delete: if isShareCode(shareCode)
+        && (ownsShare(resource.data) || canDeleteOwnedShare(resource.data));
     }
 
     match /{document=**} {

@@ -34,12 +34,13 @@ export async function saveLocalSchedule(data, userId = null) {
   }
 }
 
-export async function clearLocalSchedule(userId = null) {
+export async function clearLocalSchedule(userId = null, options = {}) {
   const key = getStorageKey(userId);
   try {
     await AsyncStorage.removeItem(key);
   } catch (e) {
     console.error(`Failed to clear local schedule for key: ${key}`, e);
+    if (options.throwOnError) throw e;
   }
 }
 

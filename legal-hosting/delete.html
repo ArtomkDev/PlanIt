@@ -4,101 +4,350 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Account Deletion - PlanIt</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="description"
+    content="How to delete a PlanIt account and request deletion of associated schedules, files, shares, devices, and other data.">
+  <title>Account &amp; Data Deletion - PlanIt</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* М'який блок попередження без грубих рамок */
-    .warning {
-      background-color: rgba(255, 59, 48, 0.08);
-      color: #d32f2f;
-      padding: 14px 18px;
-      border-radius: 8px;
-      font-weight: 500;
-      margin: 16px 0;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .warning {
-        background-color: rgba(255, 59, 48, 0.15);
-        color: #ff6b6b;
+    @media (prefers-color-scheme: light) {
+      :root {
+        --accent-color: #1d4ed8;
+        --accent-hover: #1e40af;
+        --app-title-bg: rgba(29, 78, 216, 0.12);
       }
     }
 
-    /* Акуратна кнопка без артефактів */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent-color: #60a5fa;
+        --accent-hover: #93c5fd;
+      }
+
+      .email-btn,
+      .steps li::before {
+        color: #111827 !important;
+      }
+    }
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+    }
+
+    .skip-link:focus {
+      left: 1rem;
+      top: 1rem;
+      z-index: 10;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--primary-color);
+    }
+
+    .legal-meta,
+    .small {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    .summary,
+    .notice,
+    .warning,
+    .danger {
+      margin: 1.5rem 0;
+      padding: 1.25rem 1.4rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--surface-bg);
+    }
+
+    .warning {
+      border-left: 4px solid #d97706;
+    }
+
+    .danger {
+      border-left: 4px solid #dc2626;
+      background: rgba(220, 38, 38, 0.06);
+    }
+
+    h2 {
+      color: var(--primary-color);
+      font-size: 1.35rem;
+      margin: 3rem 0 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--divider-color);
+    }
+
+    h3 {
+      color: var(--primary-color);
+      font-size: 1.08rem;
+      margin: 1.8rem 0 0.6rem;
+    }
+
+    .steps {
+      counter-reset: deletion-step;
+      list-style: none;
+      padding-left: 1.5rem;
+    }
+
+    .steps li {
+      counter-increment: deletion-step;
+      position: relative;
+      padding-left: 2.6rem;
+      min-height: 2rem;
+    }
+
+    .steps li::before {
+      content: counter(deletion-step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1.8rem;
+      height: 1.8rem;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--accent-color);
+      text-align: center;
+      line-height: 1.8rem;
+      font-weight: 700;
+    }
+
     .email-btn {
       display: block;
       width: 100%;
-      text-align: center;
-      margin: 24px 0 16px 0;
-      padding: 14px 24px;
-      background-color: var(--accent-color);
-      color: #ffffff !important;
-      text-decoration: none !important;
-      border-radius: 8px;
-      font-weight: 600;
       box-sizing: border-box;
-      border: none;
-      transition: background-color 0.2s ease;
+      margin: 1.5rem 0;
+      padding: 0.95rem 1.25rem;
+      border-radius: 10px;
+      background: var(--accent-color);
+      color: #fff !important;
+      text-align: center;
+      text-decoration: none !important;
+      font-weight: 700;
     }
 
     .email-btn:hover {
-      background-color: var(--accent-hover);
+      background: var(--accent-hover);
     }
 
-    ul {
-      padding-left: 1.5rem;
-      margin-top: 8px;
-    }
-
-    li {
-      margin-bottom: 6px;
+    code {
+      overflow-wrap: anywhere;
     }
   </style>
 </head>
 
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <div class="wrapper">
     <div class="container">
       <header>
         <div class="app-title">PlanIt</div>
-        <h1>Account Deletion</h1>
-        <nav>
+        <h1>Account &amp; Data Deletion</h1>
+        <nav aria-label="Legal documents">
           <a href="privacy.html" class="nav-link">Privacy Policy</a>
+          <a href="cookies.html" class="nav-link">Cookie Policy</a>
           <a href="terms.html" class="nav-link">Terms &amp; Conditions</a>
-          <a href="delete.html" class="nav-link active">Account Deletion</a>
+          <a href="delete.html" class="nav-link active" aria-current="page">Account Deletion</a>
         </nav>
       </header>
-      <main>
-        <strong>Data Security &amp; Verification</strong>
-        <p>Your data security is our top priority. To prevent unauthorized deletion of your schedules and personal data
-          by third parties, we must verify that you are the legitimate owner of the account.</p>
 
-        <div class="warning">
-          <strong>WARNING:</strong> The easiest, fastest, and most secure way to delete your account is to do it
-          directly within the PlanIt app. Navigate to <strong>Settings &rarr; Account Settings &rarr; Delete
-            Account</strong>.
+      <main id="main-content" tabindex="-1">
+        <p class="legal-meta"><strong>Effective and last updated:</strong> July 24, 2026 &middot; Version 2.2</p>
+
+        <div class="summary">
+          <strong>Choose the path that matches your situation</strong>
+          <ul>
+            <li><strong>Email/password, Google, or Apple account with app access:</strong> use the in-app deletion flow
+              and verify with a linked sign-in method. If Apple is linked, Apple verification is required so its
+              authorization can be revoked.</li>
+            <li><strong>No app access or support-assisted confirmation:</strong> send a verified email request. Support
+              can investigate an incomplete deletion and check for provider-side residuals.</li>
+            <li><strong>Guest Mode only:</strong> there is no cloud account to delete. Clear PlanIt data from every
+              device/browser where you used it.</li>
+          </ul>
         </div>
 
-        <br><strong>How to request account deletion via website:</strong>
-        <p>If you no longer have access to the app, you can send us an email to formally request the deletion of your
-          account and all associated data.</p>
+        <div class="danger">
+          <strong>Deletion is permanent.</strong>
+          <p>After an account is deleted, you may lose schedules, tasks, settings, files, shares, device history, and
+            account access. This generally cannot be undone. Save any information you need before continuing.</p>
+        </div>
 
-        <p><strong>Important Requirements:</strong></p>
-        <ul>
-          <li>The email <strong>MUST</strong> be sent strictly from the exact email address that is linked to your
-            PlanIt account.</li>
-          <li>Requests sent from unverified or mismatched email addresses will be automatically rejected for security
-            reasons.</li>
-        </ul>
+        <section id="in-app">
+          <h2>1. Delete an account in the app</h2>
+          <ol class="steps">
+            <li>Open PlanIt while signed in to the account you want to delete.</li>
+            <li>Open <strong>Settings</strong>.</li>
+            <li>Select <strong>Account Settings</strong>.</li>
+            <li>Select <strong>Delete Account</strong>.</li>
+            <li>Verify with your linked password, Google account, or Apple account.</li>
+            <li>Review the final warning and confirm permanent deletion.</li>
+          </ol>
+          <p>The app uses recent Firebase reauthentication to protect against unauthorized deletion. A successful
+            verification remains usable for five minutes. Google and Apple verification opens the applicable provider
+            flow; PlanIt does not ask you to create a separate password for a social-sign-in account. If Apple is linked,
+            PlanIt requires the Apple flow even when another provider is also linked, because a new Apple token or
+            authorization code is required for revocation.</p>
 
-        <a href="mailto:planit.app.support@gmail.com?subject=PlanIt%20Account%20Deletion%20Request&body=Please%20delete%20my%20account%20and%20all%20my%20data%20from%20the%20PlanIt%20app.%0A%0AMy%20registration%20email:%20[Enter%20your%20email%20here]"
-          class="email-btn">Send Deletion Request to planit.app.support@gmail.com</a>
+          <div class="notice">
+            <strong>How the current in-app flow works</strong>
+            <p>After verification, PlanIt creates a minimal irreversible deletion marker to block new writes from other
+              signed-in devices. It then deletes known Firestore account subcollections, legacy schedule data, stored
+              notifications and devices, every shared-schedule record owned by the account, and all objects below the
+              account's Firebase Storage attachment path. The Firebase Authentication account is deleted only after
+              those cloud steps succeed. A failed step is reported and the sign-in record is kept so cleanup can be
+              retried instead of being reported as a false success.</p>
+            <p>On the current device, PlanIt also attempts to clear the signed-in schedule cache, attachment cache,
+              scheduled notifications, and widget schedule snapshot. This does not erase Guest Mode content,
+              downloaded/exported files, another device's local storage, or recipient-controlled copies.</p>
+          </div>
 
-        <p style="text-align: center; font-size: 0.875rem; color: var(--text-muted); margin-top: 2rem;">
-          Upon verification, your account and all associated User-Generated Content will be permanently removed from our
-          active servers.
-        </p>
+          <div class="warning">
+            <strong>Sign in with Apple authorization</strong>
+            <p>On web, PlanIt asks Firebase to revoke the Apple access token obtained during reauthentication before
+              deletion starts. Native iOS returns an authorization code whose secure exchange requires a trusted
+              server-side Apple credential. PlanIt sends that code to its configured secure revocation endpoint and
+              does not begin deleting PlanIt data unless revocation is confirmed. If revocation cannot be confirmed,
+              retry or contact support. You may separately remove PlanIt from your Apple ID sign-in settings, but that
+              action alone does not delete the PlanIt account. Do not send an authorization code or token by email.</p>
+          </div>
+        </section>
+
+        <section id="email-request">
+          <h2>2. Request deletion by email</h2>
+          <p>Send the request from the email address linked to your PlanIt account whenever possible. For Sign in with
+            Apple, this may be an Apple private-relay address. If you cannot access that address, explain the situation;
+            we will use a reasonable alternative verification method where possible rather than automatically rejecting
+            the request.</p>
+
+          <a
+            href="mailto:planit.app.support@gmail.com?subject=PlanIt%20Account%20and%20Data%20Deletion%20Request&amp;body=I%20request%20permanent%20deletion%20of%20my%20PlanIt%20account%20and%20associated%20personal%20data.%0A%0AAccount%20email%3A%20%5Benter%20the%20email%20linked%20to%20PlanIt%5D%0ASign-in%20method%3A%20%5Bemail%2FGoogle%2FApple%5D%0AShare%20codes%20to%20remove%2C%20if%20known%3A%20%5Boptional%5D%0A%0APlease%20include%20primary%20Firestore%20data%2C%20Firebase%20Authentication%2C%20cloud%20attachments%2C%20active%20or%20stored%20shared-schedule%20records%2C%20device%20records%2C%20and%20notifications.%0A%0AI%20understand%20that%20local%20device%2Fbrowser%20copies%20and%20recipient-controlled%20copies%20cannot%20be%20remotely%20erased."
+            class="email-btn">Email planit.app.support@gmail.com</a>
+
+          <p>Your request should include:</p>
+          <ul>
+            <li>the email address linked to PlanIt;</li>
+            <li>your sign-in method (email, Google, or Apple);</li>
+            <li>a clear request to delete the account and associated data;</li>
+            <li>known share codes or attachment details if you want us to locate residual records; and</li>
+            <li>an explanation if you cannot write from the linked email address.</li>
+          </ul>
+          <p><strong>Do not send your password, authentication token, full payment-card details, or an identity document
+              unless we specifically explain why proportionate identity evidence is legally and operationally
+              necessary.</strong></p>
+        </section>
+
+        <section id="verification">
+          <h2>3. Verification and timing</h2>
+          <p>Verification protects your account from malicious deletion requests. We normally verify control of the
+            linked email address and may ask for limited account information that only the account holder is likely to
+            know. We use verification information only to process and document the request.</p>
+          <p>We will acknowledge a valid request and aim to complete it without undue delay, generally within 30 days.
+            Where the GDPR applies, we respond within one month unless a permitted extension is necessary because of
+            complexity or the number of requests; if so, we will notify you within the initial month and explain the
+            extension. Other laws may require a different period.</p>
+          <p>If we cannot verify the request or must retain limited data, we will explain the reason and available
+            complaint options where required by law.</p>
+        </section>
+
+        <section id="scope">
+          <h2>4. What deletion covers</h2>
+          <p>Subject to successful verification and applicable legal exceptions, a comprehensive request is intended to
+            cover:</p>
+          <ul>
+            <li>the Firebase Authentication account, email, display name, and provider links;</li>
+            <li>cloud schedules, tasks embedded in schedule data, settings, themes, reminders, and synchronization
+              records stored in PlanIt's Firestore account paths;</li>
+            <li>registered-device records, public-IP login history, push tokens, and stored account notifications;</li>
+            <li>cloud attachments and related Firebase Storage metadata that can be located under the account; and</li>
+            <li>active, expired, or stored shared-schedule records that can be located by owner ID or supplied share
+              code.</li>
+          </ul>
+          <p>PlanIt retains an irreversible deletion-prevention marker containing the Firebase user ID and request
+            timestamp, but no email address, schedule, attachment, or profile content. This narrow record prevents old
+            authenticated sessions from recreating data after deletion and documents the security state of the
+            deleted identifier.</p>
+          <p>We may retain the minimum information needed to comply with law, resolve or defend legal claims, prevent
+            fraud or repeated abuse, and document that a rights request was completed. Such retained data will not be
+            used to continue the deleted account.</p>
+        </section>
+
+        <section id="not-remote">
+          <h2>5. What cannot be erased remotely</h2>
+          <ul>
+            <li><strong>Local data outside the current cleanup:</strong> Guest Mode schedules, downloaded files,
+              operating-system or browser backups, provider-managed authentication storage, and data on another
+              device/browser.</li>
+            <li><strong>Recipient-controlled copies:</strong> schedules another person imported, copied, screenshotted,
+              downloaded, or received through a share code or system share sheet.</li>
+            <li><strong>Downloaded/exported files:</strong> copies in device downloads, photo libraries, document
+              folders, backups, cloud drives, email, or other apps.</li>
+            <li><strong>Provider residuals:</strong> encrypted backups, immutable security logs, fraud-prevention
+              records, and provider-controlled analytics or diagnostics until their retention cycles expire.</li>
+            <li><strong>De-identified or aggregated statistics:</strong> information that can no longer reasonably be
+              linked to you may be retained.</li>
+          </ul>
+          <p>Firebase states that Crashlytics crash traces and associated identifiers are retained for 90 days before
+            removal begins. Google Analytics user/event-level retention follows the configured property setting, while
+            aggregated reports may remain longer. Account deletion does not automatically identify every Analytics
+            installation record unless the necessary app-instance identifier is available.</p>
+        </section>
+
+        <section id="local-data">
+          <h2>6. Clear local or Guest Mode data</h2>
+          <h3>Android or iOS</h3>
+          <ol>
+            <li>Delete any files you downloaded or exported from PlanIt.</li>
+            <li>Use PlanIt's reset/cleanup controls where available.</li>
+            <li>In the device's application settings, clear PlanIt storage/data if the platform offers that option.</li>
+            <li>Uninstall PlanIt from every device. Review device or cloud backups if you need those copies removed too.</li>
+          </ol>
+
+          <h3>Web</h3>
+          <ol>
+            <li>Sign out and close all PlanIt tabs.</li>
+            <li>Use the browser's site-data controls to clear storage for the PlanIt web origin, including local storage,
+              IndexedDB, cache, and cookies/storage created by providers.</li>
+            <li>Review the <a href="cookies.html">Cookie &amp; Similar Technologies Policy</a> and use PlanIt's
+              Cookie settings control if you only want to change optional web Analytics consent.</li>
+            <li>Delete downloaded or exported files separately.</li>
+          </ol>
+
+          <h3>Guest Mode</h3>
+          <p>Guest Mode does not create a PlanIt cloud account, so support cannot remotely identify or erase the guest
+            schedule stored on your device. Clearing app/browser data and uninstalling are the deletion method for that
+            content. Technical data already held by advertising, analytics, crash, hosting, update, or network
+            providers follows the rules described in the <a href="privacy.html">Privacy Policy</a>.</p>
+        </section>
+
+        <section id="after">
+          <h2>7. After deletion</h2>
+          <p>The deleted account cannot be restored. You may later create a new account with the same email if Firebase
+            and the sign-in provider permit it, but the new account will have a different user identity and deleted data
+            will not automatically return. A recipient's imported schedule remains in that recipient's account unless
+            they delete it.</p>
+        </section>
+
+        <section id="contact">
+          <h2>8. Contact and complaints</h2>
+          <p><strong>PlanIt deletion contact:</strong><br>
+            <a href="mailto:planit.app.support@gmail.com">planit.app.support@gmail.com</a><br>
+            Recommended subject: <strong>PlanIt Account and Data Deletion Request</strong></p>
+          <p>If you believe a request was mishandled, reply to the support thread with the details. You may also complain
+            to the data-protection authority where you live or work. EEA authorities are listed by the
+            <a href="https://www.edpb.europa.eu/about-edpb/our-members_en" target="_blank"
+              rel="noopener noreferrer">European Data Protection Board</a>; in Ukraine, the relevant supervisory body is
+            the
+            <a href="https://ombudsman.gov.ua/" target="_blank" rel="noopener noreferrer">Ukrainian Parliament
+              Commissioner for Human Rights</a>.</p>
+          <p class="small">For more detail about data categories, providers, retention, international transfers, and
+            rights, read the <a href="privacy.html">PlanIt Privacy Policy</a>.</p>
+        </section>
       </main>
     </div>
   </div>

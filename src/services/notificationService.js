@@ -309,6 +309,36 @@ const writeLocalNotificationState = async (state) => {
   } catch (error) {}
 };
 
+export const clearAllLocalNotifications = async () => {
+  const failures = [];
+
+  if (Platform.OS !== "web") {
+    const notificationResults = await Promise.allSettled([
+      Notifications.cancelAllScheduledNotificationsAsync(),
+      Notifications.dismissAllNotificationsAsync(),
+    ]);
+    notificationResults.forEach((result) => {
+      if (result.status === "rejected") failures.push(result.reason);
+    });
+  }
+
+  try {
+    await AsyncStorage.multiRemove([
+      LOCAL_NOTIFICATION_STORAGE_KEY,
+      LEGACY_LESSON_REMINDER_STORAGE_KEY,
+    ]);
+  } catch (error) {
+    failures.push(error);
+  }
+
+  if (failures.length > 0) {
+    const error = new Error("Local notification cleanup failed.");
+    error.code = "account-deletion/local-notification-cleanup-failed";
+    error.cause = failures[0];
+    throw error;
+  }
+};
+
 const safeIdentifierPart = (value) => (
   String(value || "unknown")
     .replace(/[^a-zA-Z0-9_-]/g, "_")

@@ -4,160 +4,608 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="description"
+    content="How PlanIt collects, uses, shares, retains, and deletes personal data in its mobile and web applications.">
   <title>Privacy Policy - PlanIt</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    @media (prefers-color-scheme: light) {
+      :root {
+        --accent-color: #1d4ed8;
+        --accent-hover: #1e40af;
+        --app-title-bg: rgba(29, 78, 216, 0.12);
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent-color: #60a5fa;
+        --accent-hover: #93c5fd;
+      }
+    }
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+    }
+
+    .skip-link:focus {
+      left: 1rem;
+      top: 1rem;
+      z-index: 10;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--primary-color);
+    }
+
+    .legal-meta,
+    .small {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    .summary,
+    .notice,
+    .warning {
+      margin: 1.5rem 0;
+      padding: 1.25rem 1.4rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--surface-bg);
+    }
+
+    .warning {
+      border-left: 4px solid #d97706;
+    }
+
+    .contents {
+      display: block;
+      margin: 2rem 0;
+      padding: 1.25rem 1.4rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--surface-bg);
+    }
+
+    .contents h2 {
+      margin-top: 0;
+      border: 0;
+      padding: 0;
+      font-size: 1.1rem;
+    }
+
+    .contents ol {
+      margin-bottom: 0;
+      columns: 2;
+      column-gap: 3rem;
+    }
+
+    .contents li {
+      break-inside: avoid;
+    }
+
+    h2 {
+      color: var(--primary-color);
+      font-size: 1.35rem;
+      margin: 3rem 0 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--divider-color);
+    }
+
+    h3 {
+      color: var(--primary-color);
+      font-size: 1.08rem;
+      margin: 1.8rem 0 0.6rem;
+    }
+
+    dl {
+      margin: 1.5rem 0;
+      padding: 1.25rem 1.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--surface-bg);
+    }
+
+    dt {
+      margin-top: 1rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    dt:first-child {
+      margin-top: 0;
+    }
+
+    dd {
+      margin: 0.35rem 0 0;
+    }
+
+    @media (max-width: 640px) {
+      .contents ol {
+        columns: 1;
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <div class="wrapper">
     <div class="container">
       <header>
         <div class="app-title">PlanIt</div>
         <h1>Privacy Policy</h1>
-        <nav>
-          <a href="privacy.html" class="nav-link active">Privacy Policy</a>
+        <nav aria-label="Legal documents">
+          <a href="privacy.html" class="nav-link active" aria-current="page">Privacy Policy</a>
+          <a href="cookies.html" class="nav-link">Cookie Policy</a>
           <a href="terms.html" class="nav-link">Terms &amp; Conditions</a>
           <a href="delete.html" class="nav-link">Account Deletion</a>
         </nav>
       </header>
-      <main>
-        <strong>Privacy Policy</strong>
-        <p>This privacy policy applies to the PlanIt app (hereby referred to as "Application") for mobile and web
-          platforms, created by Artomk (hereby referred to as "Service Provider") as an Ad Supported service. This
-          service is intended for use "AS IS".</p>
 
-        <strong>Information Collection and Use</strong>
-        <p>For a better experience while using the Application, the Service Provider may require you to provide us with
-          certain personally identifiable information. The information that the Service Provider requests will be
-          retained and used as described in this privacy policy. The data collected includes, but is not limited to:</p>
-        <ul>
-          <li><strong>Account Information:</strong> Email Address, First Name, and Last Name (if logging in via Google
-            or Apple).</li>
-          <li><strong>Device & Network Information:</strong> Hashed Device IDs (used primarily for security and personalized advertising delivery for security purposes
-            and managing your active sessions across multiple devices), device name (e.g., "User's iPhone"), device
-            brand, device model, operating system,
-            last login time, and IP addresses (collected automatically by technical and advertising providers for
-            security and localized delivery).</li>
-          <li><strong>User-Generated Content:</strong> Schedules, tasks, events, notes, third-party names (e.g.,
-            teachers), contact
-            information, and app settings entered by the user.</li>
-          <li><strong>Usage Data & Analytics:</strong> Screens visited, interactions within the app, performance
-            metrics, technical diagnostic data, and crash reports.
-          </li>
-        </ul>
+      <main id="main-content" tabindex="-1">
+        <p class="legal-meta"><strong>Effective and last updated:</strong> July 24, 2026 &middot; Version 2.2</p>
 
-        <p>The Application does not gather precise information about the location of your mobile device, nor does it use
-          Artificial Intelligence (AI) technologies to process your data.</p>
-
-        <p><strong>Local Storage:</strong> The Application utilizes local device storage (such as AsyncStorage or web
-          local storage) to save your preferences, offline data, and authentication tokens directly on your device. This
-          is strictly required for the core functionality, offline capabilities, and security of the Application.</p>
-
-        <p><strong>Authentication (Social Login):</strong> The Application allows you to create an account and log in
-          using third-party services (Google Sign-In or Apple Sign-In). When you authenticate via these providers, the
-          Service Provider receives basic profile information authorized by you, strictly to create, manage, and secure
-          your account.</p>
-
-        <p><strong>Offline and Guest Mode:</strong> If you use the Application without creating an account (Guest Mode),
-          your User-Generated Content is stored exclusively locally on your device and is not transmitted to our
-          database. However, standard third-party technical services (such as Analytics and AdMob) remain active and
-          will continue to collect anonymous telemetry and advertising identifiers.</p>
-
-        <p><strong>Advertising Identifiers:</strong> The Application is Ad-Supported. Third-party advertising companies
-          we use (such as AdMob) may collect and use standard advertising identifiers associated with your device (such
-          as Google Advertising ID or Apple IDFA) along with usage data to provide personalized or non-personalized
-          advertisements. In regions with strict data protection laws (such as the EEA), we request your explicit
-          consent before serving personalized advertisements. You can manage, opt-out, or reset these identifiers
-          directly in your device's system settings.
-        </p>
-
-        <strong>Third Party Access</strong>
-        <p>Only aggregated, pseudonymized data (such as device identifiers) is periodically transmitted to external services to aid the Service Provider
-          in improving the Application and serving advertisements. The Service Provider may share your information with third parties in the ways
-          that are described in this privacy statement.</p>
-        <div>
-          <p>The Application utilizes third-party services that have their own Privacy Policies about handling data.
-            Below are the links to the Privacy Policies of the third-party service providers used by the Application:
-          </p>
+        <div class="summary">
+          <strong>Privacy at a glance</strong>
           <ul>
-            <li><a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Play
-                Services</a></li>
-            <li><a href="https://policies.google.com/technologies/ads" target="_blank"
-                rel="noopener noreferrer">AdMob</a></li>
-            <li><a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">Google
-                Analytics for Firebase</a></li>
-            <li><a href="https://firebase.google.com/support/privacy/" target="_blank"
-                rel="noopener noreferrer">Firebase Crashlytics</a></li>
-            <li><a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener noreferrer">Apple</a></li>
-            <li><a href="https://expo.dev/privacy" target="_blank" rel="noopener noreferrer">Expo</a></li>
+            <li>Guest schedules are kept on the device and are not uploaded to PlanIt's account database. Native
+              advertising/analytics, crash reporting, update, and basic network services may still process technical
+              data. Optional web Firebase Analytics remains off until the browser user accepts it.</li>
+            <li>When you use an account, PlanIt uses Firebase to authenticate you and synchronize your schedules,
+              settings, devices, notifications, and cloud attachments.</li>
+            <li>Native builds request non-personalized ads. Google may still use device or advertising identifiers for
+              purposes such as frequency capping, fraud prevention, and aggregated reporting.</li>
+            <li>PlanIt does not request GPS/location permission and does not currently use AI to analyze your content.
+              IP addresses and file metadata may nevertheless reveal an approximate or embedded location.</li>
+            <li>Account deletion is available, but an in-app deletion attempt cannot by itself prove that every
+              provider-side object has been erased, and it cannot remotely erase local copies, recipients' copies, or
+              data that a provider must retain temporarily. See the detailed
+              <a href="delete.html">Account Deletion page</a>.</li>
           </ul>
         </div>
 
-        <p>The Service Provider may disclose User Provided and Automatically Collected Information:</p>
-        <ul>
-          <li>As required by law, such as to comply with a subpoena, or similar legal process;</li>
-          <li>When they believe in good faith that disclosure is necessary to protect their rights, protect your safety
-            or the safety of others, investigate fraud, or respond to a government request.</li>
-        </ul>
+        <nav class="contents" aria-label="Privacy Policy contents">
+          <h2>On this page</h2>
+          <ol>
+            <li><a href="#scope">Scope and controller</a></li>
+            <li><a href="#data">Data we process</a></li>
+            <li><a href="#sources">Where data comes from</a></li>
+            <li><a href="#purposes">Purposes and legal bases</a></li>
+            <li><a href="#guest">Guest mode and local storage</a></li>
+            <li><a href="#sharing">Shared schedules</a></li>
+            <li><a href="#providers">Service providers and recipients</a></li>
+            <li><a href="#ads">Advertising and analytics</a></li>
+            <li><a href="#retention">Retention</a></li>
+            <li><a href="#deletion">Deletion</a></li>
+            <li><a href="#transfers">International transfers</a></li>
+            <li><a href="#security">Security</a></li>
+            <li><a href="#rights">Your rights and choices</a></li>
+            <li><a href="#children">Children</a></li>
+            <li><a href="#changes">Changes</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ol>
+        </nav>
 
-        <strong>Data Security and Encryption</strong>
-        <p>The Service Provider is concerned about safeguarding the confidentiality of your information. All data
-          transmitted between your device and our servers (Firebase/Google Cloud) is encrypted in transit using
-          industry-standard secure protocols (HTTPS). Data at rest in our databases is encrypted by Google Cloud. We
-          provide physical, electronic, and procedural safeguards to
-          protect information we process and maintain.</p>
+        <section id="scope">
+          <h2>1. Scope and controller</h2>
+          <p>This Privacy Policy explains how the PlanIt mobile and web applications, the PlanIt account and
+            synchronization services, and the PlanIt-hosted legal pages (together, the <strong>“Service”</strong>)
+            handle personal data.</p>
+          <p>The Service is operated by the independent developer publishing under the name
+            <strong>Artomk</strong>, based in Ukraine (<strong>“PlanIt,” “we,” “us,”</strong> or
+            <strong>“Controller”</strong>). Questions and privacy requests may be sent to
+            <a href="mailto:planit.app.support@gmail.com">planit.app.support@gmail.com</a>.</p>
+          <p>This Policy does not replace the privacy policies of Google, Apple, Expo, your operating-system provider,
+            your app store, or a third-party website that you open from a user-created link. Those parties may process
+            data as independent controllers under their own terms.</p>
+        </section>
 
-        <strong>International Data Transfer</strong>
-        <p>Your information, including Personal Data, may be transferred to — and maintained on — computers and servers
-          located outside of your state, province, country, or other governmental jurisdiction (such as servers hosted
-          by Google in the United States or Europe) where the data protection laws may differ from those from your
-          jurisdiction. Your consent to this Privacy Policy followed by your submission of such information represents
-          your agreement to that transfer.</p>
+        <section id="data">
+          <h2>2. Data we process</h2>
+          <p>The data processed depends on the platform, the features you use, the permissions you grant, and whether
+            you use Guest Mode or a registered account.</p>
 
-        <strong>Your Data Protection Rights (GDPR & CCPA)</strong>
-        <p>Depending on your location, you may have specific rights regarding your personal data. You have the right to:
-        </p>
-        <ul>
-          <li>Access and receive a copy of your personal data.</li>
-          <li>Rectify or update any inaccurate or incomplete data.</li>
-          <li>Request the deletion of your personal data.</li>
-          <li>Opt-out of targeted advertising by adjusting your device settings.</li>
-        </ul>
+          <dl>
+            <dt>Account and authentication data</dt>
+            <dd>Email address, display name, Firebase user ID, email-verification status, sign-in provider and provider
+              identifiers, authentication/session tokens, and account-security events. If you use email/password
+              sign-in, Firebase Authentication handles the password; PlanIt does not have normal access to your
+              plaintext password. Google or Apple may provide a name and email address that you authorize, including an
+              Apple private-relay address.</dd>
 
-        <strong>Data Retention and Account Deletion</strong>
-        <p>The Service Provider will retain User Provided data for as long as you use the Application. <strong>You have
-            the right to request the complete deletion of your personal data at any time.</strong></p>
-        <p>You can permanently delete your account and all associated User-Generated Content (including schedules,
-          device sessions, and settings) directly within the Application by navigating to the Settings menu &rarr;
-          Account Management &rarr; Delete Account.</p>
-        <p>Alternatively, if you cannot access the Application, you may submit a formal data deletion request by
-          visiting our <a href="delete.html">Account Deletion page</a> or by contacting the Service Provider at
-          <strong>planit.app.support@gmail.com</strong>.</p>
-        <p><strong>Strict Verification Protocol:</strong> To ensure the security of user data and prevent unauthorized
-          deletions, any request submitted via email MUST originate strictly from the exact email address associated
-          with your registered account. The Service Provider reserves the right to categorically reject any request that
-          cannot be verified through this protocol.</p>
+            <dt>Schedules, tasks, and settings</dt>
+            <dd>Schedule names and structure; subjects; dates and times; rooms and buildings; teacher names, email
+              addresses, and phone numbers; links; notes; tasks and due dates; reminders; themes, language, navigation,
+              and other preferences; synchronization versions, timestamps, and deletion markers.</dd>
 
-        <strong>Children's Privacy</strong>
-        <p>The Application does not address anyone under the age of 13 (or the minimum legal age in your country of
-          residence, such as 16 in certain EU jurisdictions). The Service Provider does not knowingly collect
-          personally identifiable information from children under this age limit. In the case the Service Provider
-          discovers that a child under the legal age has provided personal information, the Service Provider will
-          immediately
-          delete this from their servers. If you are a parent or guardian and you are aware that your child has provided
-          us with personal information, please contact the Service Provider so that necessary actions can be taken.</p>
+            <dt>Files and attachments</dt>
+            <dd>Photos and documents you select, their contents, file names, MIME types, sizes, storage paths,
+              tokenized download URLs, upload timestamps, preview information, compression information, and local cache
+              records. Some processed images are re-encoded and marked as having metadata removed, but this is not
+              guaranteed for every image or document. Originals may contain EXIF, author, document-history, or location
+              metadata.</dd>
 
-        <strong>Changes to This Privacy Policy</strong>
-        <p>This Privacy Policy may be updated from time to time for any reason. The Service Provider will notify you of
-          any changes by updating this page. You are advised to consult this Privacy Policy regularly for any changes,
-          as continued use is deemed approval of all changes.</p>
+            <dt>Device, session, and security data</dt>
+            <dd>A pseudonymous device key derived from your user ID and device/browser characteristics; device name,
+              brand, model, platform and operating system; browser user-agent on web; public IP address; last login,
+              last seen, and last synchronization times; push-permission status; Expo push token; and device-removal
+              state. The pseudonymous device key is not anonymous because it is stored under your account.</dd>
 
-        <p>This privacy policy is effective as of 2026-04-16.</p>
+            <dt>Notifications</dt>
+            <dd>Notification preferences, locally scheduled reminder identifiers, login-notification content and
+              status, device name, platform, IP address, timestamps, read status, and push-delivery tokens. Lesson
+              reminders are generally scheduled locally; account-login alerts may be stored in Firestore and delivered
+              through Expo Push Services.</dd>
 
-        <strong>Contact Us</strong>
-        <p>If you have any questions regarding privacy while using the Application, or have questions about our
-          practices, please contact the Service Provider via email at <strong>planit.app.support@gmail.com</strong>.</p>
+            <dt>Shared-schedule data</dt>
+            <dd>Share code, owner ID, optional owner name, schedule name, selected schedule fields, creation time,
+              chosen expiry time, and active status. Depending on your sharing selections, a shared schedule may include
+              teachers' contact details, links, notes, rooms, buildings, and reminder settings. PlanIt sanitizes the
+              shared copy and does not intentionally include tasks or cloud attachments in that copy.</dd>
+
+            <dt>Usage, advertising, and diagnostic data</dt>
+            <dd>App instance and installation identifiers, screen names, app version, device and operating-system
+              information, language/locale, session and event timestamps, ad requests and interactions, coarse location
+              inferred from IP, crash traces, exception messages, performance and memory information, and related
+              diagnostic identifiers. On signed-in native sessions, PlanIt sets the Firebase user ID as the Crashlytics
+              user identifier. PlanIt attempts to redact emails, secrets, and long token-like strings from errors it
+              explicitly records, but no automated redaction is perfect.</dd>
+
+            <dt>Support and rights requests</dt>
+            <dd>Your email address, correspondence, verification information that is reasonably necessary, request
+              history, and the actions taken in response. Never send us your password.</dd>
+
+            <dt>Legal-page and network data</dt>
+            <dd>When you visit these static pages, Firebase Hosting and network providers necessarily receive technical
+              request information such as IP address, browser type, requested URL, and timestamps for delivery,
+              security, and abuse prevention. These pages do not intentionally load third-party fonts, advertising
+              scripts, or PlanIt analytics scripts.</dd>
+          </dl>
+
+          <div class="notice">
+            <strong>No active GPS collection or AI analysis.</strong>
+            <p>PlanIt does not request precise-location permission and does not currently use artificial-intelligence
+              services to analyze user content or make decisions about users. IP-derived coarse location, text you
+              enter, links, and metadata inside files can still reveal location or other sensitive information. Do not
+              upload sensitive data unless it is necessary and you are authorized to do so.</p>
+          </div>
+        </section>
+
+        <section id="sources">
+          <h2>3. Where data comes from</h2>
+          <ul>
+            <li><strong>From you:</strong> account details, schedules, tasks, contacts, notes, files, preferences,
+              sharing choices, support messages, and permissions.</li>
+            <li><strong>From your device or browser:</strong> device characteristics, local identifiers, permission
+              status, app activity, crash information, public IP address, and local storage.</li>
+            <li><strong>From sign-in providers:</strong> Google or Apple account information and authentication tokens
+              you authorize them to provide.</li>
+            <li><strong>From service providers:</strong> authentication status, analytics, ad delivery and reporting,
+              crash reports, hosting logs, update status, and push-delivery results.</li>
+            <li><strong>From another user:</strong> data about you that another user lawfully enters into a schedule or
+              includes in a shared schedule. For example, a user may enter a teacher's name or contact details.</li>
+          </ul>
+        </section>
+
+        <section id="purposes">
+          <h2>4. Why we process data and our legal bases</h2>
+          <p>Where the GDPR, UK GDPR, or a similar law applies, we rely on the legal bases below. The precise basis can
+            vary by feature and jurisdiction.</p>
+          <dl>
+            <dt>Provide the Service and perform our contract</dt>
+            <dd>Authenticate accounts; save, synchronize, display, import, and share schedules; store attachments;
+              manage devices; deliver requested notifications; provide support; and maintain your settings.</dd>
+
+            <dt>Our legitimate interests</dt>
+            <dd>Secure accounts and infrastructure; record login IP and device information; prevent fraud and abuse;
+              diagnose failures; maintain compatibility; understand reliability and basic usage; enforce our terms; and
+              establish, exercise, or defend legal claims. We balance these interests against user rights and
+              expectations.</dd>
+
+            <dt>Consent</dt>
+            <dd>Use permission-controlled features such as notifications, camera, and photo access, and process
+              non-essential device technologies where applicable law requires consent. You can withdraw operating-system
+              permissions in device settings. Withdrawal does not affect earlier lawful processing, but the related
+              feature may stop working.</dd>
+
+            <dt>Legal obligations and vital interests</dt>
+            <dd>Comply with binding law, lawful requests, tax or recordkeeping duties if they arise, and protect users or
+              others from a serious threat where the law permits.</dd>
+          </dl>
+          <p>If required information is not provided, account, synchronization, attachment, security, or notification
+            features may be unavailable. Optional content fields can generally be left blank.</p>
+        </section>
+
+        <section id="guest">
+          <h2>5. Guest Mode and local storage</h2>
+          <p>In Guest Mode, PlanIt stores schedule content in device or browser storage and does not upload that guest
+            schedule to PlanIt's Firebase account collections. Local data may include compressed or encoded values, but
+            encoding and compression are <strong>not encryption</strong>.</p>
+          <p>Local storage may include guest or account schedule caches, Firebase authentication persistence,
+            preferences, scheduled-notification records, widget snapshots, and cached attachments in app files,
+            AsyncStorage, browser local storage, or IndexedDB. Other apps, browser profiles, operating-system backups,
+            or anyone with access to an unlocked or compromised device may be able to access local data.</p>
+          <p>Guest Mode does not disable native advertising, native Firebase Analytics, Firebase Crashlytics, EAS
+            Updates, hosting logs, or basic network processing. On the web, Firebase Analytics is not initialized
+            unless the browser user has accepted analytics through PlanIt's cookie controls. Some services generate
+            installation or device identifiers even without a PlanIt account.</p>
+        </section>
+
+        <section id="sharing">
+          <h2>6. Shared schedules and disclosure to other users</h2>
+          <p>When you create a shared schedule, PlanIt places a sanitized copy in a separate Firestore collection and
+            creates a code that can be used without signing into your account. Anyone who obtains or guesses a valid
+            code may access that shared copy while it is active. Treat share codes and share links as confidential, and
+            do not share sensitive or special-category data.</p>
+          <p>You choose an access period of 1, 3, 7, or 30 days and can remove a share from the “My Shares” area.
+            Expiry blocks normal access but may not immediately delete the stored record. A recipient may import, copy,
+            screenshot, forward, or independently retain information before the share is revoked or expires; PlanIt
+            cannot remotely delete those recipient-controlled copies.</p>
+          <p>You are responsible for having a lawful basis and any required permission before entering or sharing
+            another person's name, contact details, or other personal data.</p>
+        </section>
+
+        <section id="providers">
+          <h2>7. Service providers and other recipients</h2>
+          <p>We disclose data only as needed for the purposes described here. Depending on the service and context, a
+            provider may act as our processor/service provider or as an independent controller.</p>
+          <dl>
+            <dt>Google Firebase and Google Cloud</dt>
+            <dd>Firebase Authentication, Cloud Firestore, Cloud Storage, Firebase Analytics, Firebase Crashlytics, and
+              Firebase Hosting provide authentication, cloud storage/sync, diagnostics, analytics, and hosting. Data
+              can include account data, user content, attachments, identifiers, IP addresses, device information, and
+              crash data. See
+              <a href="https://firebase.google.com/support/privacy" target="_blank"
+                rel="noopener noreferrer">Firebase Privacy and Security</a> and
+              <a href="https://policies.google.com/privacy" target="_blank"
+                rel="noopener noreferrer">Google's Privacy Policy</a>.</dd>
+
+            <dt>Google Mobile Ads (AdMob) and Google Play services</dt>
+            <dd>Native app builds use AdMob to request non-personalized banner ads. Google and participating ad
+              technology providers may receive IP address, device/app identifiers, ad interactions, coarse location,
+              and technical data for ad delivery, frequency capping, aggregated reporting, security, and fraud
+              prevention. See
+              <a href="https://policies.google.com/technologies/ads" target="_blank"
+                rel="noopener noreferrer">How Google uses information for advertising</a>.</dd>
+
+            <dt>Google Sign-In and Sign in with Apple</dt>
+            <dd>If you choose social sign-in, Google or Apple authenticates you and sends authorized identity data to
+              Firebase and PlanIt. See
+              <a href="https://policies.google.com/privacy" target="_blank"
+                rel="noopener noreferrer">Google Privacy</a> and
+              <a href="https://www.apple.com/legal/privacy/" target="_blank"
+                rel="noopener noreferrer">Apple Privacy</a>.</dd>
+
+            <dt>Expo</dt>
+            <dd>EAS Updates distributes application updates and Expo Push Services processes push tokens and
+              notification payloads for enabled push features. Expo may also receive operating-system information,
+              randomized update tokens, IP address, and service diagnostics. See the
+              <a href="https://expo.dev/privacy" target="_blank" rel="noopener noreferrer">Expo Privacy Policy</a>.</dd>
+
+            <dt>ipify</dt>
+            <dd>At account sign-in, the app calls the ipify public-IP service. ipify necessarily sees the request IP and
+              standard request metadata; PlanIt stores the returned public IP with device and login-security records.
+              See the
+              <a href="https://geo.ipify.org/privacy-policy" target="_blank"
+                rel="noopener noreferrer">ipify Privacy Policy</a>.</dd>
+
+            <dt>Recipients you choose</dt>
+            <dd>People who receive a share code, share link, exported file, downloaded attachment, email, or other
+              content through the operating system's share sheet receive the information you choose to disclose.</dd>
+
+            <dt>Authorities, advisers, and business successors</dt>
+            <dd>We may disclose information when reasonably necessary to comply with binding law or legal process,
+              protect rights and safety, investigate abuse, obtain professional advice subject to confidentiality, or
+              complete a merger, transfer, or reorganization with appropriate notice and safeguards.</dd>
+          </dl>
+          <p>We do not exchange personal information for money. Advertising SDK disclosures may nevertheless be treated
+            as a “sale,” “sharing,” or targeted-advertising activity under some laws; the current app requests
+            non-personalized ads and does not use PlanIt schedule content to personalize ads.</p>
+        </section>
+
+        <section id="ads">
+          <h2>8. Advertising, analytics, and diagnostics</h2>
+          <h3>Non-personalized advertising</h3>
+          <p>The current native banner implementation requests non-personalized ads. Such ads are contextual rather than
+            based on past behavior, but Google states that cookies or mobile advertising identifiers may still be used
+            for frequency capping and aggregated reporting, and IP-derived coarse location may affect ad delivery.
+            Device and regional privacy signals may further limit processing.</p>
+          <p>A non-personalized-ad request is not itself a consent mechanism. The current release does not provide a
+            dedicated in-app advertising-consent interface. In regions where prior consent is required for cookies,
+            mobile advertising identifiers, or equivalent device storage, those technologies require an appropriate
+            consent or limited-data treatment in addition to requesting non-personalized ads.</p>
+
+          <h3>Firebase Analytics</h3>
+          <p>PlanIt records screen views and Firebase may automatically collect app-instance, device, session, and
+            engagement events. Analytics helps us understand whether features operate and which screens are used. In
+            the web app, optional Firebase Analytics is not initialized before affirmative analytics consent. Rejecting
+            it does not block core features; the user can later grant or withdraw consent using the persistent Cookie
+            settings control. Withdrawal disables future PlanIt web Analytics collection and attempts to remove
+            accessible first-party Analytics cookies. See the
+            <a href="cookies.html">Cookie &amp; Similar Technologies Policy</a>.</p>
+          <p>Native builds currently do not offer a dedicated Analytics switch. Uninstalling or discontinuing use stops
+            future app-originated collection from that installation but does not automatically erase previously
+            collected provider data. Contact us to exercise applicable objection, deletion, or withdrawal rights.</p>
+
+          <h3>Firebase Crashlytics</h3>
+          <p>Native builds use Crashlytics to collect crashes and selected non-fatal errors. Reports may contain the
+            Firebase user ID for signed-in users, installation IDs, device and app information, stack traces, and
+            sanitized error text. Web builds use a local console-only placeholder and do not send reports through the
+            PlanIt Crashlytics wrapper.</p>
+        </section>
+
+        <section id="retention">
+          <h2>9. How long we keep data</h2>
+          <p>We keep personal data only for as long as reasonably necessary for the stated purpose, subject to the
+            following criteria:</p>
+          <ul>
+            <li><strong>Account and synchronized content:</strong> generally while the account exists, until you delete
+              particular content, or until a verified deletion request is completed.</li>
+            <li><strong>Deletion-prevention marker:</strong> after an in-app deletion request, we retain the deleted
+              Firebase user ID and server request timestamp, without email, profile content, schedules, or files. This
+              narrow tombstone is retained as needed to prevent old authenticated sessions from recreating deleted
+              account data and to preserve the irreversible security state.</li>
+            <li><strong>Attachments:</strong> generally until you delete the file or a comprehensive account-deletion
+              request removes the related Cloud Storage object. Cached local copies remain until cleared on each
+              device/browser.</li>
+            <li><strong>Shared schedules:</strong> normal access ends after the selected 1, 3, 7, or 30-day period or
+              earlier deletion. Expiry alone disables normal access; it does not guarantee automatic deletion of the
+              Firestore record. The record may remain until the owner deletes it, a comprehensive deletion request is
+              completed, or an operational cleanup removes it.</li>
+            <li><strong>Device, login, and notification records:</strong> while needed for active sessions, security,
+              push delivery, and account history, or until removed by the user/account-deletion process.</li>
+            <li><strong>Crashlytics:</strong> Firebase states that crash traces and associated identifiers are retained
+              for 90 days before removal from live and backup systems begins.</li>
+            <li><strong>Analytics:</strong> user- and event-level data follows the retention setting in our Google
+              Analytics property and Google's retention controls. Standard Google Analytics properties offer 2- or
+              14-month user/event retention settings; aggregated reports may remain longer. The selected console
+              setting is not encoded in the PlanIt client repository; contact us if you need confirmation of the
+              setting current at the time of your request.</li>
+            <li><strong>Hosting and provider logs:</strong> providers retain security and request logs under their own
+              documented operational cycles. Firebase states that Hosting IP data is retained for a few months.</li>
+            <li><strong>Support and legal records:</strong> for as long as needed to verify and document the request,
+              resolve disputes, prevent abuse, enforce agreements, or meet legal obligations, and then deleted or
+              de-identified.</li>
+          </ul>
+          <p>Deletion from active systems may not immediately remove encrypted backups, immutable security logs, or
+            provider-controlled records. Such residual data is isolated from ordinary use and removed or overwritten
+            under the applicable backup or retention cycle unless law requires longer retention.</p>
+        </section>
+
+        <section id="deletion">
+          <h2>10. Account and data deletion</h2>
+          <p>See the <a href="delete.html">Account Deletion page</a> for instructions, verification, expected timing,
+            and a precise description of what deletion can and cannot remove.</p>
+          <div class="notice">
+            <strong>Current in-app deletion behavior.</strong>
+            <p>After recent password, Google, or Apple reauthentication, PlanIt records an irreversible
+              deletion-prevention marker, blocks new account writes, and removes known Firestore account
+              subcollections, legacy schedule data, registered devices, stored notifications, owner-created
+              shared-schedule records, and objects under the account's Firebase Storage attachment path. It deletes the
+              Firebase Authentication account only after the known cloud-data steps succeed. If a cloud step fails, the
+              app reports the failure and keeps the sign-in record so deletion can be retried. When Apple is linked,
+              PlanIt requires Apple reauthentication even if password or Google is also linked, because token
+              revocation requires fresh Apple credentials.</p>
+            <p>The current-device cleanup also attempts to remove the signed-in schedule cache, cached attachments,
+              scheduled notifications, and widget schedule data. It does not remove Guest Mode content, downloaded or
+              exported copies, another person's imported copy, or local data on a different device.</p>
+          </div>
+          <div class="warning">
+            <strong>Provider boundary.</strong>
+            <p>PlanIt cannot independently certify deletion inside every provider system. Web Sign in with Apple
+              deletion asks Firebase to revoke the Apple access token returned by reauthentication. Native iOS Apple
+              revocation requires a trusted server-side endpoint because Apple's private credential must not be embedded
+              in the app. PlanIt does not begin its data-deletion steps unless Apple revocation is confirmed. If
+              confirmation fails, retry or contact
+              <a href="mailto:planit.app.support@gmail.com">planit.app.support@gmail.com</a>. Removing PlanIt in your
+              Apple ID settings is a separate provider-side action and does not itself delete the PlanIt account.
+              Provider backups, diagnostics, security logs, and retention-controlled records follow the provider's own
+              lifecycle.</p>
+          </div>
+          <p>Account deletion cannot erase files downloaded to a device, data imported into another user's account,
+            screenshots or forwarded copies, operating-system backups, or local data on a device we cannot control.
+            Clear PlanIt app/browser storage and downloaded files on every device you use.</p>
+        </section>
+
+        <section id="transfers">
+          <h2>11. International data transfers</h2>
+          <p>PlanIt is operated from Ukraine. Providers process data in other countries. Firebase states that Firebase
+            Authentication operates from United States data centers, while other Firebase services may use global
+            Google infrastructure or a configured cloud location. Expo, Apple, advertising providers, and other
+            vendors may also process data outside your country.</p>
+          <p>Where transfer restrictions apply, we rely as appropriate on provider data-processing terms, contractual
+            safeguards such as Standard Contractual Clauses, adequacy decisions, the EU-U.S. Data Privacy Framework and
+            its UK/Swiss extensions where valid and applicable, or another lawful transfer mechanism. You may contact us
+            for information about the safeguards relevant to your request.</p>
+        </section>
+
+        <section id="security">
+          <h2>12. Security</h2>
+          <p>We use reasonable technical and organizational safeguards appropriate to the Service, including HTTPS in
+            transit, provider encryption at rest, verified-account access rules for private Firestore and Storage
+            paths, authentication, file-type and size limits, and redaction of selected diagnostic fields.</p>
+          <p>No method is perfectly secure. PlanIt content is not end-to-end encrypted: PlanIt's cloud providers process
+            it to provide the Service. Encoded or compressed schedule values are not encryption. Tokenized attachment
+            URLs and share codes can grant access to anyone who obtains them. Protect your device and account, use a
+            unique password, keep software updated, review active devices and shares, and avoid storing highly sensitive
+            information in PlanIt.</p>
+          <p>To report a suspected security or privacy issue, email
+            <a href="mailto:planit.app.support@gmail.com?subject=PlanIt%20Security%20Report">planit.app.support@gmail.com</a>
+            with enough detail to investigate, but do not include passwords, authentication tokens, or unnecessary
+            personal data.</p>
+        </section>
+
+        <section id="rights">
+          <h2>13. Your rights and choices</h2>
+          <p>Depending on your location and subject to legal exceptions, you may have the right to:</p>
+          <ul>
+            <li>know whether and how we process your personal data and obtain a copy;</li>
+            <li>correct inaccurate or incomplete data;</li>
+            <li>request deletion or restriction of processing;</li>
+            <li>receive data you provided in a portable, machine-readable format where applicable;</li>
+            <li>object to processing based on legitimate interests or to direct marketing;</li>
+            <li>withdraw consent at any time where processing relies on consent;</li>
+            <li>opt out of a sale, sharing, or targeted advertising where applicable law defines and grants that
+              right;</li>
+            <li>appeal a decision on a privacy request where applicable law provides an appeal right;</li>
+            <li>not be discriminated against for exercising applicable privacy rights; and</li>
+            <li>complain to a competent data-protection authority or seek a judicial remedy.</li>
+          </ul>
+          <p>PlanIt does not currently make decisions producing legal or similarly significant effects solely by
+            automated processing.</p>
+          <p>To exercise a right, email
+            <a href="mailto:planit.app.support@gmail.com?subject=PlanIt%20Privacy%20Request">planit.app.support@gmail.com</a>
+            and describe your request. Use the email linked to your account where possible. We may request proportionate
+            information to verify identity and protect other users, but we will not ask for your password. Where the
+            GDPR applies, we generally respond without undue delay and within one month; a lawful extension may apply
+            to complex or numerous requests, and we will explain it.</p>
+          <p>Rights are not absolute. For example, we may retain narrowly limited information required by law, necessary
+            for legal claims, or needed to protect the rights and safety of others. If we deny a request, we will provide
+            the reason and available complaint options where required.</p>
+          <p>You may find your EEA authority through the
+            <a href="https://www.edpb.europa.eu/about-edpb/our-members_en" target="_blank"
+              rel="noopener noreferrer">European Data Protection Board's authority list</a>. In Ukraine, personal-data
+            protection is supervised by the
+            <a href="https://ombudsman.gov.ua/" target="_blank" rel="noopener noreferrer">Ukrainian Parliament
+              Commissioner for Human Rights</a>. You may also contact the authority where you live or work.</p>
+        </section>
+
+        <section id="children">
+          <h2>14. Children and young users</h2>
+          <p>PlanIt is a general educational organization tool and is not directed to children under 13. A person under
+            13 must not create an account or submit personal data. If local law sets a higher age for valid consent to
+            online-service data processing, a user below that age must have verifiable authorization from a parent or
+            legal guardian before using account or cloud features. In the EEA, that consent age may be between 13 and 16
+            depending on the country.</p>
+          <p>If you are below the age of legal majority, a parent or guardian should review these terms and help you
+            decide what third-party information is appropriate to enter. A parent or guardian who believes a child
+            provided data contrary to this section should contact us. We will investigate and delete or restrict the
+            data where required.</p>
+        </section>
+
+        <section id="changes">
+          <h2>15. Changes to this Policy</h2>
+          <p>We may update this Policy when the Service, providers, law, or data practices change. We will change the
+            “last updated” date and, for material changes, provide additional notice in the Service or require renewed
+            acknowledgement where required. Material changes apply prospectively unless law permits otherwise.</p>
+        </section>
+
+        <section id="contact">
+          <h2>16. Contact</h2>
+          <p><strong>Controller:</strong> Artomk, the independent developer of PlanIt, Ukraine<br>
+            <strong>Email:</strong>
+            <a href="mailto:planit.app.support@gmail.com">planit.app.support@gmail.com</a><br>
+            <strong>Subject line:</strong> “PlanIt Privacy Request”</p>
+          <p class="small">This Policy is intended to provide transparent information and does not limit any
+            non-waivable rights available under applicable law.</p>
+        </section>
       </main>
     </div>
   </div>

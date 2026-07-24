@@ -9,10 +9,12 @@ import {
   getDocsFromServer,
   setDoc,
   query,
-  where
+  where,
+  waitForPendingWrites,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import createDefaultData from './createDefaultData';
+import { deleteAllUserCloudData } from '../services/accountDeletionService';
 import { logCrashlyticsError } from '../utils/analytics/crashlytics';
 import { getDeviceId } from '../utils/deviceService';
 import { getScheduleDataFingerprint } from '../utils/scheduleDataFingerprint';
@@ -26,10 +28,25 @@ import {
 } from '../utils/scheduleDocumentCodec';
 
 let isAccountBeingDeleted = false;
+let accountDeletionLockCount = 0;
 const DEVICE_SYNC_CLEANUP_THROTTLE_MS = 30 * 60 * 1000;
 const DEVICE_WATERMARK_SCAN_TTL_MS = 60 * 60 * 1000;
 const DEAD_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
+const ACCOUNT_DELETION_PENDING_WRITES_TIMEOUT_MS = 15 * 1000;
 const cleanupStateByUser = new Map();
+
+export const beginAccountDeletion = () => {
+  accountDeletionLockCount += 1;
+  isAccountBeingDeleted = true;
+  let isReleased = false;
+
+  return () => {
+    if (isReleased) return;
+    isReleased = true;
+    accountDeletionLockCount = Math.max(0, accountDeletionLockCount - 1);
+    isAccountBeingDeleted = accountDeletionLockCount > 0;
+  };
+};
 
 const parseTimestamp = (ts) => {
   if (!ts) return null;
@@ -543,44 +560,28 @@ export const resetUserSchedules = async (userId) => {
 };
 
 export const deleteAllUserData = async (userId) => {
-  isAccountBeingDeleted = true;
-  
+  const releaseDeletionLock = beginAccountDeletion();
+
   try {
-    try {
-      const schedulesBatch = writeBatch(db);
-      const schedulesRef = collection(db, 'users', userId, 'schedules');
-      const snapshot = await getDocs(schedulesRef);
-      snapshot.docs.forEach((docSnap) => schedulesBatch.delete(docSnap.ref));
-      await schedulesBatch.commit();
-    } catch (e) {}
-
-    try {
-      const notificationsBatch = writeBatch(db);
-      const notificationsRef = collection(db, 'users', userId, 'notifications');
-      const notificationsSnapshot = await getDocs(notificationsRef);
-      notificationsSnapshot.docs.forEach((docSnap) => notificationsBatch.delete(docSnap.ref));
-      await notificationsBatch.commit();
-    } catch (e) {}
-
-    try {
-      const userBatch = writeBatch(db);
-      userBatch.delete(doc(db, 'users', userId, 'global', 'settings'));
-      userBatch.delete(doc(db, 'users', userId));
-      await userBatch.commit();
-    } catch (e) {}
-
-    try {
-      const devicesBatch = writeBatch(db);
-      const devicesRef = collection(db, 'users', userId, 'devices');
-      const devicesSnapshot = await getDocs(devicesRef);
-      devicesSnapshot.docs.forEach((docSnap) => devicesBatch.delete(docSnap.ref));
-      await devicesBatch.commit();
-    } catch (e) {}
-
+    // Flush writes already queued by listeners before server-side deletion starts.
+    let pendingWritesTimeoutId;
+    await Promise.race([
+      waitForPendingWrites(db),
+      new Promise((_, reject) => {
+        pendingWritesTimeoutId = setTimeout(() => {
+          const error = new Error(
+            'Timed out while waiting for pending account writes.',
+          );
+          error.code = 'account-deletion/pending-writes-timeout';
+          reject(error);
+        }, ACCOUNT_DELETION_PENDING_WRITES_TIMEOUT_MS);
+      }),
+    ]).finally(() => clearTimeout(pendingWritesTimeoutId));
+    return await deleteAllUserCloudData(userId);
   } catch (error) {
     logCrashlyticsError(error, 'deleteAllUserData_Firestore');
     throw error;
   } finally {
-    isAccountBeingDeleted = false; 
+    releaseDeletionLock();
   }
 };

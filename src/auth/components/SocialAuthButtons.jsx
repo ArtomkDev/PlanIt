@@ -11,9 +11,16 @@ import { triggerHaptic } from '../../utils/haptics';
 
 import { auth } from '../../config/firebase';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup, OAuthProvider, linkWithPopup } from 'firebase/auth';
-import { linkGoogleAccount, linkAppleAccount } from '../authServices';
+import {
+  createAppleSignInNonce,
+  linkGoogleAccount,
+  linkAppleAccount,
+} from '../authServices';
 
 const isExpoGo = Constants.appOwnership === 'expo';
+const AppleAuthentication = Platform.OS === 'ios'
+  ? require('expo-apple-authentication')
+  : null;
 
 if (Platform.OS !== 'web' && !isExpoGo) {
   const { GoogleSignin } = require('@react-native-google-signin/google-signin');
@@ -108,19 +115,29 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
         }
       } else {
         const AppleAuthentication = require('expo-apple-authentication');
-        
+        const { rawNonce, hashedNonce } = await createAppleSignInNonce();
         const credential = await AppleAuthentication.signInAsync({
+          nonce: hashedNonce,
           requestedScopes: [
             AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
             AppleAuthentication.AppleAuthenticationScope.EMAIL,
           ],
         });
+
+        if (!credential.identityToken) {
+          const tokenError = new Error('Apple did not return an identity token.');
+          tokenError.code = 'auth/missing-apple-identity-token';
+          throw tokenError;
+        }
         
         if (isLinking) {
-          await linkAppleAccount(credential.identityToken);
+          await linkAppleAccount(credential.identityToken, rawNonce);
         } else {
           const provider = new OAuthProvider('apple.com');
-          const firebaseCredential = provider.credential({ idToken: credential.identityToken });
+          const firebaseCredential = provider.credential({
+            idToken: credential.identityToken,
+            rawNonce,
+          });
           await signInWithCredential(auth, firebaseCredential);
         }
       }
@@ -170,7 +187,38 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
           )}
         </TouchableOpacity>
 
-        {Platform.OS !== 'android' && (
+        {Platform.OS === 'ios' && AppleAuthentication ? (
+          <View
+            pointerEvents={loadingProvider || isNativeDisabled ? 'none' : 'auto'}
+            style={[
+              styles.nativeAppleButtonWrapper,
+              isNativeDisabled && { opacity: 0.5 },
+            ]}
+          >
+            {loadingProvider === 'apple' ? (
+              <View style={[
+                styles.nativeAppleLoading,
+                { backgroundColor: isDark ? '#fff' : '#000' },
+              ]}>
+                <MorphingLoader size={24} />
+              </View>
+            ) : (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={
+                  AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
+                }
+                buttonStyle={
+                  isDark
+                    ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                    : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={12}
+                style={styles.nativeAppleButton}
+                onPress={handleAppleAuth}
+              />
+            )}
+          </View>
+        ) : Platform.OS === 'web' ? (
           <TouchableOpacity
             style={[
               styles.socialButton, 
@@ -190,7 +238,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
               </>
             )}
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
     </View>
   );
@@ -209,7 +257,24 @@ const styles = StyleSheet.create({
       web: { cursor: 'pointer', transition: 'all 0.2s ease' },
     })
   },
-  socialButtonText: { fontSize: 16, fontWeight: '600' }
+  socialButtonText: { fontSize: 16, fontWeight: '600' },
+  nativeAppleButtonWrapper: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  nativeAppleButton: {
+    width: '100%',
+    height: 50,
+  },
+  nativeAppleLoading: {
+    width: '100%',
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
 });
 
 export default SocialAuthButtons;

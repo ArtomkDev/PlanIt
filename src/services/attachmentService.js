@@ -1106,6 +1106,47 @@ export const deleteLocalAttachmentCache = async (attachment) => {
   } catch (error) {}
 };
 
+export const clearAllLocalAttachmentCaches = async () => {
+  const failures = [];
+
+  if (canUseWebAttachmentCache()) {
+    try {
+      await runWebAttachmentCacheTransaction("readwrite", (store, resolve, reject) => {
+        const request = store.clear();
+        request.onsuccess = () => resolve(null);
+        request.onerror = () => reject(request.error);
+        return null;
+      });
+      webAttachmentObjectUrls.forEach((objectUrl) => {
+        revokeWebAttachmentObjectUrl(objectUrl);
+      });
+      webAttachmentObjectUrls.clear();
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+
+  if (canUseNativeAttachmentCache()) {
+    try {
+      await AsyncStorage.removeItem(ATTACHMENT_CACHE_MANIFEST_KEY);
+    } catch (error) {
+      failures.push(error);
+    }
+
+    try {
+      await FileSystem.deleteAsync(ATTACHMENT_CACHE_DIR, { idempotent: true });
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+
+  if (failures.length > 0) {
+    const error = makeAttachmentError("cache_clear_failed");
+    error.cause = failures[0];
+    throw error;
+  }
+};
+
 const createDraftAttachment = (asset, source) => {
   const name = sanitizeFileName(getAssetName(asset, source === "camera" ? "photo" : "attachment"));
   const mimeType = inferAttachmentMimeType(name, asset?.mimeType || getAssetFile(asset)?.type);

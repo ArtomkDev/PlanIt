@@ -25,7 +25,11 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.artomk.planit",
-      userInterfaceStyle: "automatic"
+      userInterfaceStyle: "automatic",
+      usesAppleSignIn: true,
+      infoPlist: {
+        CFBundleAllowMixedLocalizations: true
+      }
     },
     android: {
       package: "com.artomk.planit",

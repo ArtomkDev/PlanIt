@@ -6,7 +6,7 @@ import { signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { db, auth } from "../config/firebase";
-import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer, deleteAllUserData, updateDeviceSyncTimeAndCleanUp } from "../config/firestore";
+import { saveSchedule, resetUserSchedules, subscribeToSchedule, getScheduleFromServer, updateDeviceSyncTimeAndCleanUp } from "../config/firestore";
 import { getLocalSchedule, saveLocalSchedule, getDevicePrefs, saveDevicePrefs, clearLocalSchedule } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import useAppLanguage from "../hooks/useAppLanguage";
@@ -1041,27 +1041,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [user, updateIsDirty, syncDevicePrefsUpdate, saveLocalScheduleIfChanged]);
 
-  const hardDeleteEverything = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      isDirtyRef.current = false;
-      updateIsDirty(false);
-
-      if (user) {
-        await deleteAllUserData(user.uid);
-        await clearLocalSchedule(user.uid);
-      }
-      
-      await clearLocalSchedule(null);
-      await AsyncStorage.removeItem('app_device_settings');
-      await safeLogout();
-    } catch (e) {
-      setError("Error hard deleting");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, safeLogout, updateIsDirty]);
-
   const deleteGuestSchedules = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -1173,7 +1152,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     safeLogout,
     reloadAllSchedules,
     resetApplication,
-    hardDeleteEverything,
     deleteGuestSchedules,
   }), [
     selectWidgetSchedule,
@@ -1186,7 +1164,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     safeLogout,
     reloadAllSchedules,
     resetApplication,
-    hardDeleteEverything,
     deleteGuestSchedules,
   ]);
 

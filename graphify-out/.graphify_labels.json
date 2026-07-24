@@ -106,5 +106,14 @@
   "104": "tinycolor2",
   "105": "@gorhom/bottom-sheet",
   "106": "react",
-  "107": "expo-constants"
+  "107": "expo-constants",
+  "108": "react-native-gesture-handler",
+  "109": "AndroidPagerView.android.js",
+  "110": "encodedStoragePrefix",
+  "111": "@react-navigation/stack",
+  "112": "Account deletion deployment",
+  "113": "date-fns",
+  "114": "DeviceManagement.jsx",
+  "115": "NotificationsScreen.jsx",
+  "119": "@expo/metro-runtime"
 }
