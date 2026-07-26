@@ -30,10 +30,12 @@ import tinycolor from "tinycolor2";
 import AppBlur from "../../components/ui/AppBlur";
 import AttachmentImagePreview from "../../components/attachments/AttachmentImagePreview";
 import GradientBackground from "../../components/ui/GradientBackground";
+import LessonViewer from "../Schedule/components/LessonViewer";
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
 import { getIconComponent } from "../../config/subjectIcons";
 import { t } from "../../utils/i18n";
+import { getScheduleDisplayName } from "../../utils/scheduleDisplay";
 import { resolveScheduleColor, scheduleColorWithAlpha } from "../../utils/scheduleColors";
 import {
   addScheduleRecordToMap,
@@ -42,6 +44,7 @@ import {
 import {
   formatOccurrenceDayLabel,
   normalizeLessonRef,
+  resolveOccurrenceFromLessonRef,
   uniqueIds,
 } from "../../utils/taskLessonLinking";
 import { calculateScheduleWeek, parseTimeToMinutes } from "../../utils/scheduleTime";
@@ -901,7 +904,7 @@ function TaskCard({
 
 export default function Tasks({ route, navigation }) {
   const { global, schedule, schedules, lang } = useScheduleData();
-  const { setScheduleDraft, setData, setGlobalDraft } = useScheduleActions();
+  const { setScheduleDraft, setData } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
 
@@ -916,6 +919,7 @@ export default function Tasks({ route, navigation }) {
   const [editingEntry, setEditingEntry] = useState(null);
   const [draftTask, setDraftTask] = useState(null);
   const [draftScheduleId, setDraftScheduleId] = useState(null);
+  const [linkedLessonPreview, setLinkedLessonPreview] = useState(null);
   const [filterVisible, setFilterVisible] = useState(false);
   const headerTopInset = getAppHeaderTopInset(insets.top);
   const headerHeight = getAppHeaderHeight(insets.top);
@@ -976,7 +980,7 @@ export default function Tasks({ route, navigation }) {
         const subjectById = new Map(subjects.map((subject) => [subject?.id, subject]).filter(([id]) => !!id));
         const linksById = new Map(links.map((link) => [link?.id, link]).filter(([id]) => !!id));
         const scheduleColor = resolveScheduleColor(sourceSchedule, themeColors.accentColor);
-        const scheduleName = sourceSchedule?.name || untitledSchedule;
+        const scheduleName = getScheduleDisplayName(sourceSchedule, lang, untitledSchedule);
 
         return tasks.map((task) => {
           const subject = task?.subjectId ? subjectById.get(task.subjectId) : null;
@@ -1056,6 +1060,24 @@ export default function Tasks({ route, navigation }) {
   const filterColor = singleSelectedSchedule
     ? resolveScheduleColor(singleSelectedSchedule, themeColors.accentColor)
     : themeColors.accentColor;
+
+  const navigateToScheduleLesson = useCallback((scheduleId, lessonRef) => {
+    const lessonViewIntent = {
+      requestId: Date.now(),
+      scheduleId,
+      lessonRef,
+    };
+    const tabNavigation = typeof navigation?.jumpTo === "function"
+      ? navigation
+      : navigation?.getParent?.();
+
+    if (typeof tabNavigation?.jumpTo === "function") {
+      tabNavigation.jumpTo("ScheduleTab", { lessonViewIntent });
+      return;
+    }
+
+    navigation?.navigate("ScheduleTab", { lessonViewIntent });
+  }, [navigation]);
 
   const setSelectedSchedules = useCallback((nextIds) => {
     setSelectedScheduleIds(normalizeSelectedScheduleIds(nextIds, schedules, fallbackScheduleId));
@@ -1253,18 +1275,38 @@ export default function Tasks({ route, navigation }) {
     if (!lessonRef?.date || lessonRef.lessonIndex === undefined || lessonRef.lessonIndex === null) return;
 
     const targetScheduleId = lessonRef.scheduleId || entry?.scheduleId;
-    if (targetScheduleId && targetScheduleId !== activeScheduleId) {
-      setGlobalDraft((previous) => ({ ...previous, currentScheduleId: targetScheduleId }));
+    const sourceSchedule = entry?.sourceSchedule || scheduleById.get(targetScheduleId);
+    const occurrence = resolveOccurrenceFromLessonRef(sourceSchedule, lessonRef);
+    const sourceDate = parseTaskDayDate(lessonRef.date);
+
+    if (!sourceSchedule?.id || !occurrence || !sourceDate) {
+      navigateToScheduleLesson(targetScheduleId, lessonRef);
+      return;
     }
 
-    navigation?.navigate("ScheduleTab", {
-      lessonViewIntent: {
-        requestId: Date.now(),
-        scheduleId: targetScheduleId,
-        lessonRef,
+    setLinkedLessonPreview({
+      entry,
+      lessonRef,
+      scheduleId: targetScheduleId,
+      sourceSchedule,
+      sourceDate,
+      lesson: {
+        subjectId: occurrence.subjectId,
+        index: occurrence.lessonIndex,
+        timeInfo: occurrence.timeInfo,
+        data: occurrence.lessonData,
+        lesson: occurrence.lesson,
       },
     });
-  }, [activeScheduleId, navigation, setGlobalDraft]);
+  }, [navigateToScheduleLesson, scheduleById]);
+
+  const goToLinkedLesson = useCallback(() => {
+    const preview = linkedLessonPreview;
+    if (!preview?.lessonRef) return;
+
+    setLinkedLessonPreview(null);
+    navigateToScheduleLesson(preview.scheduleId, preview.lessonRef);
+  }, [linkedLessonPreview, navigateToScheduleLesson]);
 
   const renderTask = useCallback(({ item }) => {
     if (item.type === "todayMarker") {
@@ -1402,6 +1444,17 @@ export default function Tasks({ route, navigation }) {
           />
         </View>
       )}
+
+      <LessonViewer
+        visible={!!linkedLessonPreview}
+        lesson={linkedLessonPreview?.lesson}
+        relatedTasks={linkedLessonPreview?.entry?.task ? [linkedLessonPreview.entry.task] : []}
+        sourceSchedule={linkedLessonPreview?.sourceSchedule}
+        sourceDate={linkedLessonPreview?.sourceDate}
+        readOnly
+        onClose={() => setLinkedLessonPreview(null)}
+        onGoToLesson={goToLinkedLesson}
+      />
 
       <TaskScheduleFilterSheet
         visible={filterVisible}

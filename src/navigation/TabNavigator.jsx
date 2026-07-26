@@ -25,6 +25,7 @@ import ThemeSettings from '../pages/Settings/components/preferences/ThemeSetting
 import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
 import ResetDB from '../pages/Settings/components/ResetDB';
 import AboutApp from '../pages/Settings/components/AboutApp';
+import LegalDocumentScreen from '../pages/Settings/components/LegalDocumentScreen';
 import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
 import DeviceManager from '../pages/Settings/components/managers/DeviceManagement';
 import NotificationsScreen from '../pages/Settings/components/NotificationsScreen';
@@ -76,6 +77,7 @@ function SettingsStack({ screenProps }) {
         <Stack.Screen name="Language" component={LanguageSettings} />
         <Stack.Screen name="ResetDB" component={ResetDB} />
         <Stack.Screen name="AboutApp" component={AboutApp} />
+        <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
         <Stack.Screen name="DeviceManagement" component={DeviceManager} />
         <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
         <Stack.Screen name="FileLibrary" component={FileLibraryScreen} />

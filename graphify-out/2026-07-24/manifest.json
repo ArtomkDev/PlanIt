@@ -65,9 +65,9 @@
     "semantic_hash": "670381b35f5bc165565f75f897231376"
   },
   "src/auth/AuthScreen.jsx": {
-    "mtime": 1784926778.9873397,
-    "ast_hash": "115f902d56d851d058d5fda951c4ff55",
-    "semantic_hash": "115f902d56d851d058d5fda951c4ff55"
+    "mtime": 1784918622.9239743,
+    "ast_hash": "604e446f49018eac1b8d7dcede1377b6",
+    "semantic_hash": "604e446f49018eac1b8d7dcede1377b6"
   },
   "src/auth/authServices.js": {
     "mtime": 1784846098.1372285,
@@ -275,9 +275,9 @@
     "semantic_hash": "1ebb5aef592642dcafa2844be6b1d8f5"
   },
   "src/context/DayScheduleProvider.jsx": {
-    "mtime": 1784924476.9891117,
-    "ast_hash": "8d70e18917c0a5c3d596344d6834f7b4",
-    "semantic_hash": "8d70e18917c0a5c3d596344d6834f7b4"
+    "mtime": 1784137752.2084715,
+    "ast_hash": "65d4630c364e2bb21ecdd29a4c0a166c",
+    "semantic_hash": "65d4630c364e2bb21ecdd29a4c0a166c"
   },
   "src/context/EditorProvider.jsx": {
     "mtime": 1772454017.8824668,
@@ -335,14 +335,14 @@
     "semantic_hash": "3d7ad7537bb5894ec1576baf0fd344b3"
   },
   "src/locales/en.js": {
-    "mtime": 1784924643.6781478,
-    "ast_hash": "aecf0af018169bc68d09247cab9256e9",
-    "semantic_hash": "aecf0af018169bc68d09247cab9256e9"
+    "mtime": 1784919912.5975275,
+    "ast_hash": "4e545e7d4b4e2349d2c422dae7a13661",
+    "semantic_hash": "4e545e7d4b4e2349d2c422dae7a13661"
   },
   "src/locales/uk.js": {
-    "mtime": 1784924672.5063035,
-    "ast_hash": "767139597428f7faf742071b2262b2b9",
-    "semantic_hash": "767139597428f7faf742071b2262b2b9"
+    "mtime": 1784919913.7844288,
+    "ast_hash": "01f794c4bfcfac056a58b7fef5396851",
+    "semantic_hash": "01f794c4bfcfac056a58b7fef5396851"
   },
   "src/navigation/PlanItTabBar.jsx": {
     "mtime": 1784396491.8264356,
@@ -450,9 +450,9 @@
     "semantic_hash": "15d05e6f39f29d9bf7b957c4f917fe49"
   },
   "src/pages/Schedule/components/LessonViewer.jsx": {
-    "mtime": 1784924577.6835465,
-    "ast_hash": "92350bcbca686a97eb47f9478d96f98a",
-    "semantic_hash": "92350bcbca686a97eb47f9478d96f98a"
+    "mtime": 1784623062.7951145,
+    "ast_hash": "8898044a466bde2f9370619bfee3834a",
+    "semantic_hash": "8898044a466bde2f9370619bfee3834a"
   },
   "src/pages/Schedule/components/NotificationInboxPanel.jsx": {
     "mtime": 1784409825.1729007,
@@ -475,9 +475,9 @@
     "semantic_hash": "136eb09409eafec79bbee7398b6e85e3"
   },
   "src/pages/Settings/components/AboutApp.jsx": {
-    "mtime": 1784926777.5968404,
-    "ast_hash": "a64d47fca69140d59de06ccfcdf543c9",
-    "semantic_hash": "a64d47fca69140d59de06ccfcdf543c9"
+    "mtime": 1784919881.8135607,
+    "ast_hash": "8c3705e9a31ce6620e746fcac2f6c5e6",
+    "semantic_hash": "8c3705e9a31ce6620e746fcac2f6c5e6"
   },
   "src/pages/Settings/components/AccountSettings/AccountSettings.jsx": {
     "mtime": 1783868449.3905592,
@@ -560,9 +560,9 @@
     "semantic_hash": "7ec9b74b8f58b5efe17c61401f4868e4"
   },
   "src/pages/Tasks/Tasks.jsx": {
-    "mtime": 1784926764.6128716,
-    "ast_hash": "da6b2a081486d1600c62676b0c4f4313",
-    "semantic_hash": "da6b2a081486d1600c62676b0c4f4313"
+    "mtime": 1784922927.7207878,
+    "ast_hash": "e24d5ad014c87b4e2bbb5c82d40074c6",
+    "semantic_hash": "e24d5ad014c87b4e2bbb5c82d40074c6"
   },
   "src/pages/Tasks/components/TaskEditor.jsx": {
     "mtime": 1784918690.9226296,
@@ -880,9 +880,9 @@
     "semantic_hash": ""
   },
   "src/pages/Settings/components/LegalDocumentScreen.jsx": {
-    "mtime": 1784927122.5267005,
-    "ast_hash": "9f64907eea8b2e8249dcd8ed10eb4aa7",
-    "semantic_hash": "9f64907eea8b2e8249dcd8ed10eb4aa7"
+    "mtime": 1784919873.892378,
+    "ast_hash": "58b3b507dda3aa06ed4794ed32625e92",
+    "semantic_hash": "58b3b507dda3aa06ed4794ed32625e92"
   },
   "src/utils/scheduleDisplay.js": {
     "mtime": 1784918559.3480546,
@@ -895,13 +895,8 @@
     "semantic_hash": "9d6c424b2d8992c36c9002af1a0f8339"
   },
   "src/config/legalDocuments.generated.js": {
-    "mtime": 1784926224.7956483,
+    "mtime": 1784920166.2338614,
     "ast_hash": "17c6baac683aa0a25910a566fd86634d",
     "semantic_hash": "17c6baac683aa0a25910a566fd86634d"
-  },
-  "src/utils/legalDocumentLinks.js": {
-    "mtime": 1784926764.611155,
-    "ast_hash": "b8eebf9041d9082ba7e6562a45bbc593",
-    "semantic_hash": "b8eebf9041d9082ba7e6562a45bbc593"
   }
 }

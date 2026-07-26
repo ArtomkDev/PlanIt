@@ -36,6 +36,7 @@ import { getIconComponent } from "../../../config/subjectIcons";
 import themes from "../../../config/themes";
 import { generateId } from "../../../utils/idGenerator";
 import { t } from "../../../utils/i18n";
+import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import { addScheduleRecordToMap } from "../../../utils/scheduleRecordMerge";
 import { triggerHaptic } from "../../../utils/haptics";
@@ -74,9 +75,7 @@ const sanitizeIdArray = (value) => (
     : []
 );
 
-const getScheduleName = (schedule, lang) => (
-  schedule?.name || t("settings.schedule_switcher.untitled", lang)
-);
+const getScheduleName = (schedule, lang) => getScheduleDisplayName(schedule, lang);
 
 const getGroupTitle = (lessonGroup, lang) => (
   lessonGroup?.label

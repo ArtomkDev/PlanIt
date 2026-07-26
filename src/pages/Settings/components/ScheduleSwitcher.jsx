@@ -27,6 +27,7 @@ import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
 import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
 import { triggerHaptic } from "../../../utils/haptics";
+import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import {
   resolveScheduleColor,
   scheduleColorWithAlpha,
@@ -324,7 +325,7 @@ const ScheduleSwitcher = () => {
             {displaySchedules.map((s, index) => {
               const isSelected = isAccountTab && s.id === global.currentScheduleId;
               const delay = Math.min(index * 40, 200);
-              const scheduleName = s.name || t('settings.schedule_switcher.untitled', lang);
+              const scheduleName = getScheduleDisplayName(s, lang);
               const itemColor = resolveScheduleColor(s, themeColors.accentColor);
               const isItemProcessing = processingIds.has(s.id);
 
@@ -452,7 +453,7 @@ const ScheduleSwitcher = () => {
 
                             <TouchableOpacity 
                               hitSlop={15}
-                              onPress={() => isAccountTab ? handleDelete(s.id, s.name) : handleDeleteGuest(s.id, s.name)}
+                              onPress={() => isAccountTab ? handleDelete(s.id, scheduleName) : handleDeleteGuest(s.id, scheduleName)}
                               style={styles.iconButton}
                             >
                               <Trash size={20} color={themes.accentColors.red} weight="bold" />

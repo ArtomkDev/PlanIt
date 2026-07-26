@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import defaultSchedule from './defaultSchedule';
+import { DEFAULT_SCHEDULE_NAME_KEY } from '../utils/scheduleDisplay';
 
 export default function createDefaultData() {
   const scheduleId = uuidv4();
@@ -21,6 +22,7 @@ export default function createDefaultData() {
     ...defaultSchedule,
     id: scheduleId,
     name: 'Основний розклад',
+    nameKey: DEFAULT_SCHEDULE_NAME_KEY,
     version: 1,           
     baseVersion: 1,       
     lastModified: now,    

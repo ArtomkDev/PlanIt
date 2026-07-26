@@ -9,6 +9,7 @@ export default {
 
   common: {
     schedule: "Schedule",
+    default_schedule: "Main schedule",
     tasks: "Tasks",
     settings: "Settings",
     save: "Save",
@@ -100,6 +101,7 @@ export default {
       privacy_policy: "Privacy Policy",
       and: " and ",
       terms_conditions: "Terms & Conditions",
+      accept_label: "Accept Privacy Policy and Terms of Use",
     },
     settings: { link_with: "Link with" },
     signin: {
@@ -134,6 +136,9 @@ export default {
     fields: {
       email: "Email address",
       password: "Password",
+      show_password: "Show password",
+      hide_password: "Hide password",
+      password_visibility_hint: "Toggles whether the password is visible.",
       name: "Your name",
     },
     errors: {
@@ -262,6 +267,7 @@ export default {
       materials: "MATERIALS",
       default_link: "Link",
       link_error: "Could not open link: ",
+      go_to_lesson: "Go to lesson",
     },
     lesson_editor: {
       edit: "Edit",
@@ -665,11 +671,15 @@ export default {
       privacy_policy: "Privacy Policy",
       terms_of_use: "Terms of Use",
       cookie_policy: "Cookie Policy",
+      account_deletion: "Account & Data Deletion",
       cookie_settings: "Cookie Settings",
+      open_in_browser: "Open in browser",
       support_section: "SUPPORT & COMMUNITY",
       contact_support: "Contact Support",
       share_app: "Share App",
       website: "Our Website",
+      link_open_failed: "Could not open the link.",
+      share_message: "Join {appName} - your class schedule is always at hand! {url}",
     },
 
     alerts: {

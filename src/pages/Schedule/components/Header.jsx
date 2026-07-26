@@ -16,6 +16,7 @@ import { useScheduleData } from "../../../context/ScheduleProvider";
 import { useNotificationDrawer } from "../../../context/NotificationDrawerContext";
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
+import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import useNotifications from "../../../hooks/useNotifications";
 import SchedulePickerSheet from "./SchedulePickerSheet";
@@ -92,7 +93,9 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
     return value.charAt(0).toUpperCase() + value.slice(1);
   }, [currentDate, locale]);
 
-  const scheduleName = schedule?.name || t("common.schedule", lang);
+  const scheduleName = schedule
+    ? getScheduleDisplayName(schedule, lang, t("common.schedule", lang))
+    : t("common.schedule", lang);
 
   const animateResetIcon = (pressed) => {
     if (isToday) return;

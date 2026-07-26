@@ -47,3 +47,5 @@ export const useDaySchedule = () => {
   }
   return ctx;
 };
+
+export const useOptionalDaySchedule = () => useContext(DayScheduleContext);

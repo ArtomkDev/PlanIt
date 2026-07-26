@@ -2,14 +2,16 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, Share, Alert, Platform } from 'react-native';
 import { 
   Cookie, EnvelopeSimple, FileText, Globe, ShareNetwork,
-  ShieldCheck, SlidersHorizontal,
+  ShieldCheck, SlidersHorizontal, Trash,
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
+import { useNavigation } from '@react-navigation/native';
 
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import { useScheduleData } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
+import { getLegalDocumentBrowserUrl } from '../../../utils/legalDocumentLinks';
 import { requestCookiePreferences } from '../../../services/cookieConsentService';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
@@ -17,6 +19,7 @@ import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
 
 export default function AboutApp() {
   const { lang, global } = useScheduleData();
+  const navigation = useNavigation();
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
   const themeColors = themes.getColors(mode, accent);
@@ -35,13 +38,24 @@ export default function AboutApp() {
   });
 
   const openLink = (url) => Linking.openURL(url).catch(() => {
-    Alert.alert(t('common.error', lang), "Не вдалося відкрити посилання.");
+    Alert.alert(t('common.error', lang), t('settings.about_screen.link_open_failed', lang));
   });
+
+  const openLegalDocument = (documentType) => {
+    if (Platform.OS === 'web') {
+      openLink(getLegalDocumentBrowserUrl(documentType, lang));
+      return;
+    }
+
+    navigation.navigate('LegalDocument', { documentType, lang });
+  };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Приєднуйся до ${appName} - твій розклад завжди під рукою! ${WEBSITE_URL}`,
+        message: t('settings.about_screen.share_message', lang)
+          .replace('{appName}', appName)
+          .replace('{url}', WEBSITE_URL),
         url: WEBSITE_URL,
       });
     } catch (error) {
@@ -102,19 +116,25 @@ export default function AboutApp() {
           <SettingsRow 
             label={t('settings.about_screen.privacy_policy', lang)} 
             icon={ShieldCheck} 
-            onPress={() => openLink(`${WEBSITE_URL}/privacy.html`)} 
+            onPress={() => openLegalDocument('privacy')}
             themeColors={themeColors} 
           />
           <SettingsRow 
             label={t('settings.about_screen.terms_of_use', lang)} 
             icon={FileText} 
-            onPress={() => openLink(`${WEBSITE_URL}/terms.html`)} 
+            onPress={() => openLegalDocument('terms')}
             themeColors={themeColors} 
           />
           <SettingsRow
             label={t('settings.about_screen.cookie_policy', lang)}
             icon={Cookie}
-            onPress={() => openLink(`${WEBSITE_URL}/cookies.html`)}
+            onPress={() => openLegalDocument('cookies')}
+            themeColors={themeColors}
+          />
+          <SettingsRow
+            label={t('settings.about_screen.account_deletion', lang)}
+            icon={Trash}
+            onPress={() => openLegalDocument('delete')}
             themeColors={themeColors}
           />
           {Platform.OS === 'web' ? (

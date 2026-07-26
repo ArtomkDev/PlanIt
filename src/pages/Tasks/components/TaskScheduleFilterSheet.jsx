@@ -14,6 +14,7 @@ import themes from "../../../config/themes";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
+import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import {
   resolveScheduleColor,
   scheduleColorWithAlpha,
@@ -156,7 +157,7 @@ export default function TaskScheduleFilterSheet({
       >
         {schedules.map((item) => {
           const isSelected = selectedSet.has(item.id);
-          const name = item.name || t("settings.schedule_switcher.untitled", lang);
+          const name = getScheduleDisplayName(item, lang);
           const itemColor = resolveScheduleColor(item, themeColors.accentColor);
 
           return (

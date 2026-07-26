@@ -80,7 +80,7 @@ const DayPage = memo(({
 });
 
 export default function Schedule({ route, navigation }) {
-  const { global, schedule } = useScheduleData();
+  const { global, schedule, schedules } = useScheduleData();
   const { setGlobalDraft } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -102,6 +102,8 @@ export default function Schedule({ route, navigation }) {
   const isJumping = useRef(false);
   const jumpResetTimeout = useRef(null);
   const handledLessonViewIntentRef = useRef(null);
+  const requestedLessonScheduleSwitchRef = useRef(null);
+  const [pendingLessonViewIntent, setPendingLessonViewIntent] = useState(null);
   const lessonViewIntent = route?.params?.lessonViewIntent;
 
   useEffect(() => () => {
@@ -248,18 +250,47 @@ export default function Schedule({ route, navigation }) {
   useEffect(() => {
     const requestId = lessonViewIntent?.requestId;
     if (!requestId || handledLessonViewIntentRef.current === requestId) return;
+
+    setPendingLessonViewIntent((previous) => (
+      previous?.requestId === requestId ? previous : lessonViewIntent
+    ));
+    navigation?.setParams?.({ lessonViewIntent: undefined });
+  }, [lessonViewIntent, navigation]);
+
+  useEffect(() => {
+    const requestId = pendingLessonViewIntent?.requestId;
+    if (!requestId || handledLessonViewIntentRef.current === requestId) return;
     if (!schedule?.id) return;
 
-    const targetScheduleId = lessonViewIntent.scheduleId || lessonViewIntent.lessonRef?.scheduleId;
+    const targetScheduleId = pendingLessonViewIntent.scheduleId || pendingLessonViewIntent.lessonRef?.scheduleId;
     if (targetScheduleId && targetScheduleId !== schedule.id) {
-      setGlobalDraft((previous) => ({ ...previous, currentScheduleId: targetScheduleId }));
+      const targetScheduleExists = !Array.isArray(schedules)
+        || schedules.some((item) => item?.id === targetScheduleId);
+
+      if (!targetScheduleExists) {
+        handledLessonViewIntentRef.current = requestId;
+        requestedLessonScheduleSwitchRef.current = null;
+        setPendingLessonViewIntent(null);
+        return;
+      }
+
+      const switchKey = `${requestId}:${targetScheduleId}`;
+      if (requestedLessonScheduleSwitchRef.current !== switchKey) {
+        requestedLessonScheduleSwitchRef.current = switchKey;
+        setGlobalDraft((previous) => (
+          previous?.currentScheduleId === targetScheduleId
+            ? previous
+            : { ...previous, currentScheduleId: targetScheduleId }
+        ));
+      }
       return;
     }
 
     handledLessonViewIntentRef.current = requestId;
-    openLessonViewerFromRef(lessonViewIntent.lessonRef);
-    navigation?.setParams?.({ lessonViewIntent: undefined });
-  }, [lessonViewIntent, navigation, openLessonViewerFromRef, schedule?.id, setGlobalDraft]);
+    requestedLessonScheduleSwitchRef.current = null;
+    setPendingLessonViewIntent(null);
+    openLessonViewerFromRef(pendingLessonViewIntent.lessonRef);
+  }, [openLessonViewerFromRef, pendingLessonViewIntent, schedule?.id, schedules, setGlobalDraft]);
 
   const liveViewingLesson = useMemo(() => {
     if (!viewingLesson || !schedule) return viewingLesson;

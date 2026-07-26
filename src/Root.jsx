@@ -15,6 +15,7 @@ import { trackScreenView } from "./utils/analytics/analytics";
 import { setCrashlyticsUser, initGlobalErrorHandling } from "./utils/analytics/crashlytics";
 import AuthScreen from "./auth/AuthScreen"; 
 import MainLayout from "./layouts/MainLayout";
+import LegalDocumentScreen from "./pages/Settings/components/LegalDocumentScreen";
 import { ScheduleProvider } from "./context/ScheduleProvider";
 import { EditorProvider } from "./context/EditorProvider";
 import { registerDevice, listenForDeviceRemoval } from "./utils/deviceService";
@@ -37,6 +38,7 @@ const linking = {
         path: '*',
       },
       Auth: 'auth',
+      LegalDocument: 'legal/:documentType',
     },
   },
 };
@@ -231,6 +233,7 @@ export default function RootApp() {
                 )}
               </Stack.Screen>
             )}
+            <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </ScheduleProvider>

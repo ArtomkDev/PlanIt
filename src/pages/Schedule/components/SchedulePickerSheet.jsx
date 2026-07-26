@@ -14,6 +14,7 @@ import themes from "../../../config/themes";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { triggerHaptic } from "../../../utils/haptics";
 import { t } from "../../../utils/i18n";
+import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import {
   resolveScheduleColor,
   scheduleColorWithAlpha,
@@ -128,7 +129,7 @@ export default function SchedulePickerSheet({
           >
             {schedules.map((item) => {
               const isActive = item.id === (selectedScheduleId ?? global?.currentScheduleId);
-              const name = item.name || t("settings.schedule_switcher.untitled", lang);
+              const name = getScheduleDisplayName(item, lang);
               const itemColor = resolveScheduleColor(item, themeColors.accentColor);
 
               return (

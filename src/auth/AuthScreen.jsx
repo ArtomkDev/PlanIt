@@ -28,6 +28,7 @@ import { t } from '../utils/i18n';
 import MorphingLoader from '../components/ui/MorphingLoader';
 import { setManualLogin } from '../utils/authFlags';
 import { triggerHaptic } from '../utils/haptics';
+import { getLegalDocumentBrowserUrl } from '../utils/legalDocumentLinks';
 
 if (
   Platform.OS === 'android' && 
@@ -179,7 +180,24 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
   );
 };
 
-const InputField = ({ InputIcon, placeholder, secureTextEntry, value, onChangeText, isPasswordButton, isPasswordVisible, setIsPasswordVisible, autoCapitalize="none", keyboardType="default", colors, isDark }) => {
+const InputField = ({
+  InputIcon,
+  placeholder,
+  secureTextEntry,
+  value,
+  onChangeText,
+  isPasswordButton,
+  isPasswordVisible,
+  setIsPasswordVisible,
+  passwordToggleLabel,
+  passwordToggleHint,
+  autoCapitalize="none",
+  keyboardType="default",
+  autoComplete,
+  textContentType,
+  colors,
+  isDark,
+}) => {
   const [isFocused, setIsFocused] = useState(false);
   
   return (
@@ -200,6 +218,8 @@ const InputField = ({ InputIcon, placeholder, secureTextEntry, value, onChangeTe
         onChangeText={onChangeText} 
         autoCapitalize={autoCapitalize} 
         keyboardType={keyboardType}
+        autoComplete={autoComplete}
+        textContentType={textContentType}
         onFocus={() => {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
           setIsFocused(true);
@@ -211,6 +231,9 @@ const InputField = ({ InputIcon, placeholder, secureTextEntry, value, onChangeTe
       />
       {isPasswordButton && (
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={passwordToggleLabel}
+          accessibilityHint={passwordToggleHint}
           onPress={() => {
             triggerHaptic("selection");
             setIsPasswordVisible(!isPasswordVisible);
@@ -249,38 +272,46 @@ const PasswordStrengthBar = ({ password, colors, isDark }) => {
   );
 };
 
-const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormError }) => (
-  <TouchableOpacity 
-    style={styles.checkboxContainer} 
-    onPress={() => {
-      triggerHaptic(acceptedTerms ? "toggleOff" : "toggleOn");
-      setAcceptedTerms(!acceptedTerms);
-      setFormError('');
-    }} 
-    activeOpacity={0.7}
-  >
-    {acceptedTerms ? 
-      <CheckSquare size={22} color={colors.accentColor} weight="fill" /> : 
-      <Square size={22} color={colors.textColor2} weight="regular" />
-    }
-    <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
-      {t('auth.terms.agree_prefix', lang)}
-      <Text style={{ color: colors.accentColor }} onPress={() => {
-        triggerHaptic("open");
-        Linking.openURL('https://planit-hub.web.app/privacy.html');
-      }}>
-        {t('auth.terms.privacy_policy', lang)}
+const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormError, onOpenDocument }) => {
+  const toggleTerms = () => {
+    triggerHaptic(acceptedTerms ? "toggleOff" : "toggleOn");
+    setAcceptedTerms(!acceptedTerms);
+    setFormError('');
+  };
+
+  const openDocument = (documentType) => {
+    triggerHaptic("open");
+    onOpenDocument?.(documentType);
+  };
+
+  return (
+    <View style={styles.checkboxContainer}>
+      <TouchableOpacity
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: acceptedTerms }}
+        accessibilityLabel={t('auth.terms.accept_label', lang)}
+        style={styles.checkboxButton}
+        onPress={toggleTerms}
+        activeOpacity={0.7}
+      >
+        {acceptedTerms ?
+          <CheckSquare size={22} color={colors.accentColor} weight="fill" /> :
+          <Square size={22} color={colors.textColor2} weight="regular" />
+        }
+      </TouchableOpacity>
+      <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
+        <Text onPress={toggleTerms}>{t('auth.terms.agree_prefix', lang)}</Text>
+        <Text style={{ color: colors.accentColor }} onPress={() => openDocument('privacy')}>
+          {t('auth.terms.privacy_policy', lang)}
+        </Text>
+        <Text onPress={toggleTerms}>{t('auth.terms.and', lang)}</Text>
+        <Text style={{ color: colors.accentColor }} onPress={() => openDocument('terms')}>
+          {t('auth.terms.terms_conditions', lang)}
+        </Text>
       </Text>
-      {t('auth.terms.and', lang)}
-      <Text style={{ color: colors.accentColor }} onPress={() => {
-        triggerHaptic("open");
-        Linking.openURL('https://planit-hub.web.app/terms.html');
-      }}>
-        {t('auth.terms.terms_conditions', lang)}
-      </Text>
-    </Text>
-  </TouchableOpacity>
-);
+    </View>
+  );
+};
 
 const AuthMorphingLoader = ({ compact }) => {
   const scale = useRef(new Animated.Value(compact ? 0.58 : 1)).current;
@@ -310,7 +341,7 @@ const AuthMorphingLoader = ({ compact }) => {
   );
 };
 
-const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, setAcceptedTerms, isDark, setFormError, formError }) => {
+const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, setAcceptedTerms, isDark, setFormError, formError, onOpenLegalDocument }) => {
   const checkTerms = (action) => {
     if (!acceptedTerms) {
       triggerHaptic("warning");
@@ -350,14 +381,14 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
           </TouchableOpacity>
         )}
         <View style={{ marginTop: 12 }}>
-          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} />
+          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} onOpenDocument={onOpenLegalDocument} />
         </View>
       </View>
     </View>
   );
 };
 
-const AuthScreen = ({ onGuestLogin }) => {
+const AuthScreen = ({ onGuestLogin, navigation }) => {
   const insets = useSafeAreaInsets();
   const { width: vw, height: vh } = useWindowDimensions(); 
   const { lang, isLangLoading } = useAppLanguage();
@@ -397,6 +428,17 @@ const AuthScreen = ({ onGuestLogin }) => {
     setFormError('');
     setSuccessMessage('');
     setCurrentView(view);
+  };
+
+  const openLegalDocument = (documentType) => {
+    if (Platform.OS === 'web') {
+      Linking.openURL(getLegalDocumentBrowserUrl(documentType, lang)).catch(() => {
+        setFormError(t('settings.about_screen.link_open_failed', lang));
+      });
+      return;
+    }
+
+    navigation?.navigate?.('LegalDocument', { documentType, lang });
   };
 
   useEffect(() => {
@@ -690,6 +732,10 @@ const AuthScreen = ({ onGuestLogin }) => {
               isPasswordButton 
               isPasswordVisible={isPasswordVisible} 
               setIsPasswordVisible={setIsPasswordVisible} 
+              passwordToggleLabel={isPasswordVisible ? t('auth.fields.hide_password', lang) : t('auth.fields.show_password', lang)}
+              passwordToggleHint={t('auth.fields.password_visibility_hint', lang)}
+              autoComplete="password"
+              textContentType="password"
               colors={colors} 
               isDark={isDark} 
             />
@@ -698,7 +744,7 @@ const AuthScreen = ({ onGuestLogin }) => {
             )}
           </View>
           
-          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} />
+          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} onOpenDocument={openLegalDocument} />
           
           {currentView === 'signin' && (
             <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
@@ -799,6 +845,7 @@ const AuthScreen = ({ onGuestLogin }) => {
                 isDark={isDark} 
                 setFormError={setFormError} 
                 formError={formError}
+                onOpenLegalDocument={openLegalDocument}
               />
             )}
 
@@ -856,11 +903,12 @@ const styles = StyleSheet.create({
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 54 },
   inputIcon: { marginRight: 10 },
   input: { flex: 1, height: '100%', fontSize: 16 },
-  eyeButton: { padding: 8, marginRight: -6 },
+  eyeButton: { width: 48, height: 48, marginRight: -12, alignItems: 'center', justifyContent: 'center' },
   forgotPassword: { alignSelf: 'flex-end', marginTop: -4, marginBottom: 4 },
   forgotPasswordText: { fontSize: 14, fontWeight: '500' },
   checkboxContainer: { flexDirection: 'row', alignItems: 'center', paddingRight: 10, marginVertical: 2 },
-  checkboxText: { marginLeft: 10, fontSize: 13, lineHeight: 18, flex: 1 },
+  checkboxButton: { width: 48, height: 48, marginLeft: -13, alignItems: 'center', justifyContent: 'center' },
+  checkboxText: { marginLeft: -2, fontSize: 13, lineHeight: 18, flex: 1 },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   footerText: { fontSize: 14 },
   footerLink: { fontSize: 14, fontWeight: '600' },

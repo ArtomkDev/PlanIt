@@ -23,14 +23,16 @@ import {
   Paperclip,
   ShareNetwork,
   Trash, 
-  PencilSimple 
+  PencilSimple,
+  CalendarDots
 } from "phosphor-react-native";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
-import { useDaySchedule } from "../../../context/DayScheduleProvider";
+import { useOptionalDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { t } from "../../../utils/i18n";
+import { calculateScheduleWeek, getScheduleDayIndex } from "../../../utils/scheduleTime";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 import AttachmentImagePreview from "../../../components/attachments/AttachmentImagePreview";
 import { triggerHaptic } from "../../../utils/haptics";
@@ -49,13 +51,17 @@ export default function LessonViewer({
   visible,
   lesson,
   relatedTasks = [],
+  sourceSchedule = null,
+  sourceDate = null,
+  readOnly = false,
   onClose,
   onEdit,
   onAddTask,
+  onGoToLesson,
 }) {
   const { schedule, global, lang } = useScheduleData();
   const { setScheduleDraft } = useScheduleActions();
-  const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
+  const daySchedule = useOptionalDaySchedule();
   const insets = useSafeAreaInsets();
   const [previewAttachment, setPreviewAttachment] = useState(null);
   
@@ -63,10 +69,16 @@ export default function LessonViewer({
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const subjects = Array.isArray(schedule?.subjects) ? schedule.subjects : [];
-  const teachers = Array.isArray(schedule?.teachers) ? schedule.teachers : [];
-  const links = Array.isArray(schedule?.links) ? schedule.links : [];
-  const gradients = Array.isArray(schedule?.gradients) ? schedule.gradients : [];
+  const viewerSchedule = sourceSchedule || schedule;
+  const currentDate = sourceDate || daySchedule?.currentDate || new Date();
+  const getDayIndex = daySchedule?.getDayIndex || getScheduleDayIndex;
+  const calculateCurrentWeek = daySchedule?.calculateCurrentWeek || ((targetDate) => (
+    calculateScheduleWeek(viewerSchedule, targetDate)
+  ));
+  const subjects = Array.isArray(viewerSchedule?.subjects) ? viewerSchedule.subjects : [];
+  const teachers = Array.isArray(viewerSchedule?.teachers) ? viewerSchedule.teachers : [];
+  const links = Array.isArray(viewerSchedule?.links) ? viewerSchedule.links : [];
+  const gradients = Array.isArray(viewerSchedule?.gradients) ? viewerSchedule.gradients : [];
 
   const subjectId = lesson.subjectId;
   const fullSubject = subjects.find(s => s.id === subjectId) || {};
@@ -441,6 +453,24 @@ export default function LessonViewer({
               </TouchableOpacity>
             )}
 
+            {!!onGoToLesson && (
+              <TouchableOpacity
+                  style={[styles.actionButton, styles.primaryButton, styles.goToLessonButton, { backgroundColor: themeColors.accentColor }]}
+                  onPress={() => {
+                    triggerHaptic("open");
+                    onGoToLesson(lesson);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('schedule.lesson_viewer.go_to_lesson', lang)}
+              >
+                  <CalendarDots size={20} color="#fff" style={{marginRight: 8}} weight="bold" />
+                  <Text style={[styles.actionButtonText, { color: '#fff' }]} numberOfLines={1}>
+                    {t('schedule.lesson_viewer.go_to_lesson', lang)}
+                  </Text>
+              </TouchableOpacity>
+            )}
+
+            {!readOnly && (
             <TouchableOpacity 
                 style={[
                   styles.actionButton,
@@ -456,7 +486,9 @@ export default function LessonViewer({
                   <Text style={[styles.actionButtonText, { color: '#ff4444' }]}>{t('common.delete', lang)}</Text>
                 )}
             </TouchableOpacity>
+            )}
 
+            {!readOnly && !!onEdit && (
             <TouchableOpacity 
                 style={[
                   styles.actionButton,
@@ -484,6 +516,7 @@ export default function LessonViewer({
                   <Text style={[styles.actionButtonText, { color: '#fff' }]}>{t('common.edit', lang)}</Text>
                 )}
             </TouchableOpacity>
+            )}
           </View>
 
     </BottomSheet>
@@ -665,6 +698,10 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   addTaskButton: {
+    flex: 1.65,
+    minWidth: 0,
+  },
+  goToLessonButton: {
     flex: 1.65,
     minWidth: 0,
   },

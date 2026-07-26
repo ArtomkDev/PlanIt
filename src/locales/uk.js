@@ -9,6 +9,7 @@ export default {
 
   common: {
     schedule: "Розклад",
+    default_schedule: "Основний розклад",
     tasks: "Завдання",
     settings: "Налаштування",
     save: "Зберегти",
@@ -100,6 +101,7 @@ export default {
       privacy_policy: "Політикою",
       and: " та ",
       terms_conditions: "Умовами",
+      accept_label: "Прийняти Політику конфіденційності та Умови використання",
     },
     settings: { link_with: "Прив'язати до" },
     signin: {
@@ -134,6 +136,9 @@ export default {
     fields: {
       email: "Email пошта",
       password: "Пароль",
+      show_password: "Показати пароль",
+      hide_password: "Сховати пароль",
+      password_visibility_hint: "Перемикає видимість пароля.",
       name: "Ваше ім'я",
     },
     errors: {
@@ -262,6 +267,7 @@ export default {
       materials: "МАТЕРІАЛИ",
       default_link: "Посилання",
       link_error: "Не вдалося відкрити посилання: ",
+      go_to_lesson: "Перейти до заняття",
     },
     lesson_editor: {
       edit: "Редагування",
@@ -665,11 +671,15 @@ export default {
       privacy_policy: "Політика конфіденційності",
       terms_of_use: "Умови використання",
       cookie_policy: "Політика cookie",
+      account_deletion: "Видалення акаунта й даних",
       cookie_settings: "Налаштування cookie",
+      open_in_browser: "Відкрити в браузері",
       support_section: "ПІДТРИМКА ТА СПІЛЬНОТА",
       contact_support: "Написати в підтримку",
       share_app: "Поділитися додатком",
       website: "Наш веб-сайт",
+      link_open_failed: "Не вдалося відкрити посилання.",
+      share_message: "Приєднуйся до {appName} - твій розклад завжди під рукою! {url}",
     },
 
     alerts: {

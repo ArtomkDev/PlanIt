@@ -880,9 +880,9 @@
     "semantic_hash": ""
   },
   "src/pages/Settings/components/LegalDocumentScreen.jsx": {
-    "mtime": 1784927122.5267005,
-    "ast_hash": "9f64907eea8b2e8249dcd8ed10eb4aa7",
-    "semantic_hash": "9f64907eea8b2e8249dcd8ed10eb4aa7"
+    "mtime": 1784926812.4881122,
+    "ast_hash": "180981393fef5879c682d30c40d4bf25",
+    "semantic_hash": "180981393fef5879c682d30c40d4bf25"
   },
   "src/utils/scheduleDisplay.js": {
     "mtime": 1784918559.3480546,
