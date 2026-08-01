@@ -546,11 +546,11 @@ export const LEGAL_DOCUMENTS = {
     "navigationTitle": "Terms & Conditions",
     "summary": "Important summary",
     "effectiveDateLabel": "Effective and last updated:",
-    "effectiveDate": "2026-07-24",
-    "effectiveDateDisplay": "July 24, 2026",
-    "version": "2.2",
+    "effectiveDate": "2026-08-01",
+    "effectiveDateDisplay": "August 1, 2026",
+    "version": "2.3",
     "type": "terms",
-    "effectiveDateLine": "Effective and last updated: July 24, 2026",
+    "effectiveDateLine": "Effective and last updated: August 1, 2026",
     "browserUrls": {
       "en": "https://planit-hub.web.app/en/wiki/terms",
       "uk": "https://planit-hub.web.app/uk/wiki/terms"
@@ -673,7 +673,7 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "paragraph",
-            "text": "PlanIt and its original software, design, branding, and content are owned by or licensed to the Service Provider and protected by applicable intellectual-property law. These Terms do not transfer ownership to you. You may not copy, sell, sublicense, distribute, modify, or create derivative works from protected parts of the Service except with written permission, under an applicable open-source license, or to the extent applicable law expressly permits despite this restriction. Third-party open-source components remain subject to their own licenses."
+            "text": "PlanIt is proprietary, closed-source software. Its original software, source code, design, branding, and content are owned by or licensed to the Service Provider and protected by applicable intellectual-property law. These Terms do not transfer ownership to you or grant access to PlanIt's source code. You may not copy, sell, sublicense, distribute, modify, or create derivative works from protected parts of the Service except with written permission or to the extent applicable law expressly permits despite this restriction. Third-party components remain subject to their own licenses."
           },
           {
             "type": "paragraph",
@@ -799,7 +799,7 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "bullet",
-            "text": "reverse engineer or circumvent technical protections except where applicable law or an open-source license expressly allows it."
+            "text": "reverse engineer or circumvent technical protections except where applicable law or the license governing a relevant third-party component expressly allows it."
           },
           {
             "type": "paragraph",
@@ -1641,15 +1641,15 @@ export const LEGAL_DOCUMENTS = {
   },
   "licenses": {
     "slug": "licenses",
-    "title": "Open-Source Software Licenses",
-    "navigationTitle": "Open-Source Licenses",
-    "summary": "Open-source notices at a glance",
+    "title": "Third-Party Software Notices",
+    "navigationTitle": "Third-Party Notices",
+    "summary": "Third-party software notices at a glance",
     "effectiveDateLabel": "Effective and last updated:",
-    "effectiveDate": "2026-07-26",
-    "effectiveDateDisplay": "July 26, 2026",
-    "version": "1.0",
+    "effectiveDate": "2026-08-01",
+    "effectiveDateDisplay": "August 1, 2026",
+    "version": "1.1",
     "type": "licenses",
-    "effectiveDateLine": "Effective and last updated: July 26, 2026",
+    "effectiveDateLine": "Effective and last updated: August 1, 2026",
     "browserUrls": {
       "en": "https://planit-hub.web.app/en/wiki/licenses",
       "uk": "https://planit-hub.web.app/uk/wiki/licenses"
@@ -1657,12 +1657,12 @@ export const LEGAL_DOCUMENTS = {
     "sourceFile": "content/legal/licenses.mdx",
     "sections": [
       {
-        "title": "Open-source notices at a glance",
+        "title": "Third-party software notices at a glance",
         "kind": "summary",
         "blocks": [
           {
             "type": "bullet",
-            "text": "PlanIt uses third-party open-source software. Copyright and other rights in those components remain with their respective authors, contributors, and other rightsholders."
+            "text": "PlanIt incorporates third-party software components. Copyright and other rights in those components remain with their respective authors, contributors, and other rightsholders."
           },
           {
             "type": "bullet",
@@ -1692,7 +1692,11 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "paragraph",
-            "text": "PlanIt's original software, branding, and content remain separately protected as described in the Terms & Conditions. Open-source components retain all notices and rights granted or reserved by their respective rightsholders."
+            "text": "PlanIt's proprietary, closed-source software, branding, and content remain separately protected as described in the Terms & Conditions. Third-party components retain all notices and rights granted or reserved by their respective rightsholders."
+          },
+          {
+            "type": "paragraph",
+            "text": "Nothing in this notice grants access to PlanIt's original source code or permission to copy, modify, redistribute, or create derivative works from PlanIt's original software."
           }
         ]
       },
@@ -2178,7 +2182,7 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "paragraph",
-            "text": "Full license texts, copyright notices, attribution files, and any applicable NOTICE materials distributed with a package or published in its linked source record remain controlling. Anyone redistributing PlanIt should preserve and reproduce those materials where the applicable license requires it."
+            "text": "Full license texts, copyright notices, attribution files, and any applicable NOTICE materials distributed with a package or published in its linked source record remain controlling. A party otherwise authorized to redistribute a third-party component or a copy of PlanIt that includes it must preserve and reproduce those materials where the applicable license requires it."
           }
         ]
       },
@@ -2206,7 +2210,7 @@ export const LEGAL_DOCUMENTS = {
         "blocks": [
           {
             "type": "paragraph",
-            "text": "Service Provider: Artomk, independent developer of PlanIt, Ukraine Email: planit.app.support@gmail.com Suggested subject: “PlanIt Open-Source License Question”"
+            "text": "Service Provider: Artomk, independent developer of PlanIt, Ukraine Email: planit.app.support@gmail.com Suggested subject: “PlanIt Third-Party Software License Question”"
           },
           {
             "type": "paragraph",

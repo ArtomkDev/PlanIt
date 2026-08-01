@@ -865,9 +865,9 @@
     "semantic_hash": "e40096310f67e7440d96f9409be7d214"
   },
   "src/config/legalDocuments.generated.js": {
-    "mtime": 1785083622.4070344,
-    "ast_hash": "6d323c3293a24216437a7ef808854dd6",
-    "semantic_hash": "6d323c3293a24216437a7ef808854dd6"
+    "mtime": 1785617471.7614546,
+    "ast_hash": "a69a160196e3b99278bef03334a10eb2",
+    "semantic_hash": "a69a160196e3b99278bef03334a10eb2"
   },
   "src/utils/legalDocumentLinks.js": {
     "mtime": 1784926764.611155,

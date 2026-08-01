@@ -1041,14 +1041,14 @@
       "src_utils_storage_savedeviceprefs"
     ],
     "29": [
-      "expo",
+      "expo_apple_authentication",
       "expo_blur",
       "expo_dev_client",
       "expo_metro_runtime",
       "expo_sharing",
       "expo_updates",
       "package_dependencies",
-      "package_dependencies_expo",
+      "package_dependencies_expo_apple_authentication",
       "package_dependencies_expo_blur",
       "package_dependencies_expo_dev_client",
       "package_dependencies_expo_metro_runtime",
@@ -1316,8 +1316,8 @@
       "src_utils_authflags_setmanuallogin"
     ],
     "60": [
-      "expo_apple_authentication",
-      "package_dependencies_expo_apple_authentication"
+      "expo",
+      "package_dependencies_expo"
     ],
     "61": [
       "expo_clipboard",

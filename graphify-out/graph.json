@@ -11639,46 +11639,6 @@
       "id": "src_components_privacy_cookieconsentbanner_web_styles"
     },
     {
-      "label": "legalDocuments.generated.js",
-      "file_type": "code",
-      "source_file": "src/config/legalDocuments.generated.js",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 49,
-      "norm_label": "legaldocuments.generated.js",
-      "id": "src_config_legaldocuments_generated"
-    },
-    {
-      "label": "LEGAL_DOCUMENT_TYPES",
-      "file_type": "code",
-      "source_file": "src/config/legalDocuments.generated.js",
-      "source_location": "L5",
-      "_origin": "ast",
-      "community": 49,
-      "norm_label": "legal_document_types",
-      "id": "src_config_legaldocuments_generated_legal_document_types"
-    },
-    {
-      "label": "LEGAL_DOCUMENTS",
-      "file_type": "code",
-      "source_file": "src/config/legalDocuments.generated.js",
-      "source_location": "L13",
-      "_origin": "ast",
-      "community": 49,
-      "norm_label": "legal_documents",
-      "id": "src_config_legaldocuments_generated_legal_documents"
-    },
-    {
-      "label": "getLegalDocument()",
-      "file_type": "code",
-      "source_file": "src/config/legalDocuments.generated.js",
-      "source_location": "L2221",
-      "_origin": "ast",
-      "community": 49,
-      "norm_label": "getlegaldocument()",
-      "id": "src_config_legaldocuments_generated_getlegaldocument"
-    },
-    {
       "label": "generate-legal-documents.js",
       "file_type": "code",
       "source_file": "scripts/generate-legal-documents.js",
@@ -12584,7 +12544,7 @@
       "source_file": "package.json",
       "source_location": "L50",
       "_origin": "ast",
-      "community": 29,
+      "community": 60,
       "norm_label": "expo",
       "id": "package_dependencies_expo"
     },
@@ -12594,7 +12554,7 @@
       "source_file": "package.json",
       "source_location": "L50",
       "_origin": "ast",
-      "community": 29,
+      "community": 60,
       "norm_label": "expo",
       "id": "expo"
     },
@@ -12604,7 +12564,7 @@
       "source_file": "package.json",
       "source_location": "L51",
       "_origin": "ast",
-      "community": 60,
+      "community": 29,
       "norm_label": "expo-apple-authentication",
       "id": "package_dependencies_expo_apple_authentication"
     },
@@ -12614,7 +12574,7 @@
       "source_file": "package.json",
       "source_location": "L51",
       "_origin": "ast",
-      "community": 60,
+      "community": 29,
       "norm_label": "expo-apple-authentication",
       "id": "expo_apple_authentication"
     },
@@ -13527,6 +13487,46 @@
       "community": 111,
       "norm_label": "publish-legal-docs.ps1",
       "id": "scripts_publish_legal_docs"
+    },
+    {
+      "label": "legalDocuments.generated.js",
+      "file_type": "code",
+      "source_file": "src/config/legalDocuments.generated.js",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_config_legaldocuments_generated",
+      "community": 49,
+      "norm_label": "legaldocuments.generated.js"
+    },
+    {
+      "label": "LEGAL_DOCUMENT_TYPES",
+      "file_type": "code",
+      "source_file": "src/config/legalDocuments.generated.js",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "src_config_legaldocuments_generated_legal_document_types",
+      "community": 49,
+      "norm_label": "legal_document_types"
+    },
+    {
+      "label": "LEGAL_DOCUMENTS",
+      "file_type": "code",
+      "source_file": "src/config/legalDocuments.generated.js",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "src_config_legaldocuments_generated_legal_documents",
+      "community": 49,
+      "norm_label": "legal_documents"
+    },
+    {
+      "label": "getLegalDocument()",
+      "file_type": "code",
+      "source_file": "src/config/legalDocuments.generated.js",
+      "source_location": "L2225",
+      "_origin": "ast",
+      "id": "src_config_legaldocuments_generated_getlegaldocument",
+      "community": 49,
+      "norm_label": "getlegaldocument()"
     }
   ],
   "links": [
@@ -46982,39 +46982,6 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "src/config/legalDocuments.generated.js",
-      "source_location": "L2221",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "src_config_legaldocuments_generated",
-      "target": "src_config_legaldocuments_generated_getlegaldocument"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "src/config/legalDocuments.generated.js",
-      "source_location": "L5",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "src_config_legaldocuments_generated",
-      "target": "src_config_legaldocuments_generated_legal_document_types"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "src/config/legalDocuments.generated.js",
-      "source_location": "L13",
-      "weight": 1.0,
-      "_origin": "ast",
-      "confidence_score": 1.0,
-      "source": "src_config_legaldocuments_generated",
-      "target": "src_config_legaldocuments_generated_legal_documents"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
       "source_file": "scripts/generate-legal-documents.js",
       "source_location": "L334",
       "weight": 1.0,
@@ -49509,8 +49476,41 @@
       "confidence_score": 1.0,
       "source": "scripts_generate_legal_loading_documents_main",
       "target": "scripts_generate_legal_loading_documents_generateloadingmdxbody"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/legalDocuments.generated.js",
+      "source_location": "L2225",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_config_legaldocuments_generated",
+      "target": "src_config_legaldocuments_generated_getlegaldocument",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/legalDocuments.generated.js",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_config_legaldocuments_generated",
+      "target": "src_config_legaldocuments_generated_legal_document_types",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/legalDocuments.generated.js",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_config_legaldocuments_generated",
+      "target": "src_config_legaldocuments_generated_legal_documents",
+      "confidence_score": 1.0
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "8fd92bfeeac6c45a760332500679222a9599df90"
+  "built_at_commit": "109ce36e29d2335dcc16b2008591ed8aca2e94ab"
 }
