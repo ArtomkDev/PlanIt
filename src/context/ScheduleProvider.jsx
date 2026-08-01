@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { AppState, useColorScheme, Platform } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
-import { v4 as uuidv4 } from 'uuid';
 import { signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -21,6 +20,7 @@ import {
   reconcileLessonRemindersForSchedule,
 } from "../services/notificationService";
 import { setHapticsEnabled } from "../utils/haptics";
+import { generateId } from "../utils/idGenerator";
 
 let requestWidgetUpdate = null;
 let ScheduleWidget = null;
@@ -1092,7 +1092,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       });
       const newLocalSchedule = {
         ...currentConflict.local,
-        id: uuidv4(),
+        id: generateId(),
         name: `${currentConflict.local.name || ""} (Copy)`,
         baseVersion: 1,
         version: 1,

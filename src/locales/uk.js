@@ -672,6 +672,7 @@ export default {
       terms_of_use: "Умови використання",
       cookie_policy: "Політика cookie",
       account_deletion: "Видалення акаунта й даних",
+      open_source_licenses: "Ліцензії бібліотек",
       cookie_settings: "Налаштування cookie",
       open_in_browser: "Відкрити в браузері",
       support_section: "ПІДТРИМКА ТА СПІЛЬНОТА",

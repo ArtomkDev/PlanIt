@@ -15,8 +15,7 @@ import {
   subscribeToCookiePreferenceRequests,
 } from '../../services/cookieConsentService';
 import { t } from '../../utils/i18n';
-
-const COOKIE_POLICY_URL = 'https://planit-hub.web.app/cookies.html';
+import { getLegalDocumentBrowserUrl } from '../../utils/legalDocumentLinks';
 
 export default function CookieConsentBanner({ lang = 'en' }) {
   const { width } = useWindowDimensions();
@@ -97,7 +96,7 @@ export default function CookieConsentBanner({ lang = 'en' }) {
           </Text>
         ) : null}
         <TouchableOpacity
-          onPress={() => Linking.openURL(COOKIE_POLICY_URL)}
+          onPress={() => Linking.openURL(getLegalDocumentBrowserUrl('cookies', lang))}
           accessibilityRole="link"
         >
           <Text style={styles.policyLink}>

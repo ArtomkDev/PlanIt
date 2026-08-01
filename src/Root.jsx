@@ -4,7 +4,6 @@ import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onIdTokenChanged, signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -55,27 +54,12 @@ const AppDarkTheme = {
 export default function RootApp() {
   const [user, setUser] = useState(null);
   const [guest, setGuest] = useState(false);
-  const [fontsLoaded, setFontsLoaded] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const { lang, isLangLoading } = useAppLanguage();
 
   const wasLoggedIn = useRef(false);
   const navigationRef = useRef();
   const routeNameRef = useRef();
-
-  useEffect(() => {
-    let isMounted = true;
-    async function loadFonts() {
-      try {
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        if (isMounted) setFontsLoaded(true);
-      }
-    }
-    loadFonts();
-    return () => { isMounted = false; };
-  }, []);
 
   const verifySession = async (currentUser) => {
     if (!currentUser) return;
@@ -167,7 +151,7 @@ export default function RootApp() {
     };
   }, []);
 
-  const appIsReady = fontsLoaded && authResolved && !isLangLoading;
+  const appIsReady = authResolved && !isLangLoading;
 
   useEffect(() => {
     if (appIsReady) {

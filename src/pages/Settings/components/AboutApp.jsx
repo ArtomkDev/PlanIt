@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, Share, Alert, Platform } from 'react-native';
 import { 
   Cookie, EnvelopeSimple, FileText, Globe, ShareNetwork,
-  ShieldCheck, SlidersHorizontal, Trash,
+  Package, ShieldCheck, SlidersHorizontal, Trash,
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
@@ -135,6 +135,12 @@ export default function AboutApp() {
             label={t('settings.about_screen.account_deletion', lang)}
             icon={Trash}
             onPress={() => openLegalDocument('delete')}
+            themeColors={themeColors}
+          />
+          <SettingsRow
+            label={t('settings.about_screen.open_source_licenses', lang)}
+            icon={Package}
+            onPress={() => openLegalDocument('licenses')}
             themeColors={themeColors}
           />
           {Platform.OS === 'web' ? (

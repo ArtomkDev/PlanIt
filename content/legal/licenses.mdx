@@ -1,0 +1,466 @@
+export const legalMetadata = {
+  "slug": "licenses",
+  "title": "Open-Source Software Licenses",
+  "navigationTitle": "Open-Source Licenses",
+  "summary": "Open-source notices at a glance",
+  "effectiveDateLabel": "Effective and last updated:",
+  "effectiveDate": "2026-07-26",
+  "effectiveDateDisplay": "July 26, 2026",
+  "version": "1.0"
+};
+
+<div className="summary">
+  <strong>{legalMetadata.summary}</strong>
+  <ul>
+    <li>PlanIt uses third-party open-source software. Copyright and other rights in those components remain
+      with their respective authors, contributors, and other rightsholders.</li>
+    <li>This inventory covers all 49 direct production dependencies declared in PlanIt's root
+      <code>package.json</code>, using the exact versions resolved by <code>package-lock.json</code> on the date
+      above.</li>
+    <li>Each component remains governed by its own license. Nothing in this notice transfers ownership of a
+      third-party component to PlanIt or changes the terms of its applicable license.</li>
+    <li>Development-only and transitive dependencies are outside this direct-dependency inventory. The scope
+      and exclusions are explained below.</li>
+  </ul>
+</div>
+
+<nav className="contents" aria-label="Open-source license contents">
+  <h2>On this page</h2>
+  <ol>
+    <li><a href="#scope">Scope and attribution</a></li>
+    <li><a href="#inventory">Direct production dependencies</a></li>
+    <li><a href="#notes">License Notes</a></li>
+    <li><a href="#exclusions">Exclusions and maintenance</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ol>
+</nav>
+
+<section id="scope">
+  <h2>1. Scope and attribution</h2>
+  <p>This notice identifies the direct JavaScript production dependencies used by the PlanIt mobile and web
+    applications. Package names come from the root <code>package.json</code>; versions come from the direct
+    package records in <code>package-lock.json</code>; and license identifiers were checked against the
+    corresponding installed package metadata.</p>
+  <p>The descriptions below summarize each component's current technical role in PlanIt. They do not imply
+    sponsorship, endorsement, affiliation, or ownership. The applicable package license—not this summary—sets
+    the permissions, conditions, and limitations for use of each component.</p>
+  <p>PlanIt's original software, branding, and content remain separately protected as described in the
+    <a href="./terms">Terms &amp; Conditions</a>. Open-source components retain all notices and rights granted or
+    reserved by their respective rightsholders.</p>
+</section>
+
+<section id="inventory">
+  <h2>2. Direct production dependencies</h2>
+  <p>The table records the exact dependency resolution used for this review. Package links lead to the
+    corresponding npm record, where repository, homepage, source, and published package information are
+    available.</p>
+
+  <div className="table-scroll">
+    <table>
+      <caption>Direct production dependencies for PlanIt 0.1.76</caption>
+      <thead>
+        <tr>
+          <th scope="col">Package</th>
+          <th scope="col">Version</th>
+          <th scope="col">License</th>
+          <th scope="col">Purpose in PlanIt</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@expo/metro-runtime" target="_blank"
+              rel="noopener noreferrer"><code>@expo/metro-runtime</code></a></td>
+          <td><code>6.1.2</code></td>
+          <td>MIT</td>
+          <td>Provides Expo runtime support for Metro-bundled application code, including web runtime features.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@gorhom/bottom-sheet" target="_blank"
+              rel="noopener noreferrer"><code>@gorhom/bottom-sheet</code></a></td>
+          <td><code>5.2.10</code></td>
+          <td>MIT</td>
+          <td>Provides interactive bottom-sheet interfaces used for schedule import and other modal controls.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-native-async-storage/async-storage" target="_blank"
+              rel="noopener noreferrer"><code>@react-native-async-storage/async-storage</code></a></td>
+          <td><code>2.2.0</code></td>
+          <td>MIT</td>
+          <td>Stores schedules, preferences, notification state, widget data, and attachment-cache records locally.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-native-community/datetimepicker" target="_blank"
+              rel="noopener noreferrer"><code>@react-native-community/datetimepicker</code></a></td>
+          <td><code>8.4.4</code></td>
+          <td>MIT</td>
+          <td>Supplies native date and time controls for schedule editing and onboarding.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-native-community/netinfo" target="_blank"
+              rel="noopener noreferrer"><code>@react-native-community/netinfo</code></a></td>
+          <td><code>11.4.1</code></td>
+          <td>MIT</td>
+          <td>Detects network availability so synchronization can respond to connectivity changes.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-native-firebase/analytics" target="_blank"
+              rel="noopener noreferrer"><code>@react-native-firebase/analytics</code></a></td>
+          <td><code>24.0.0</code></td>
+          <td>Apache-2.0</td>
+          <td>Connects native builds to Google Analytics for Firebase.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-native-firebase/app" target="_blank"
+              rel="noopener noreferrer"><code>@react-native-firebase/app</code></a></td>
+          <td><code>24.0.0</code></td>
+          <td>Apache-2.0</td>
+          <td>Provides the core native Firebase application integration required by Firebase modules.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-native-firebase/crashlytics" target="_blank"
+              rel="noopener noreferrer"><code>@react-native-firebase/crashlytics</code></a></td>
+          <td><code>24.0.0</code></td>
+          <td>Apache-2.0</td>
+          <td>Reports native crashes and selected non-fatal diagnostic events through Firebase Crashlytics.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-native-google-signin/google-signin" target="_blank"
+              rel="noopener noreferrer"><code>@react-native-google-signin/google-signin</code></a></td>
+          <td><code>16.1.2</code></td>
+          <td>MIT</td>
+          <td>Supports Google account authentication and account linking in native builds.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-navigation/bottom-tabs" target="_blank"
+              rel="noopener noreferrer"><code>@react-navigation/bottom-tabs</code></a></td>
+          <td><code>7.15.10</code></td>
+          <td>MIT</td>
+          <td>Implements the application's bottom-tab navigation structure.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-navigation/native" target="_blank"
+              rel="noopener noreferrer"><code>@react-navigation/native</code></a></td>
+          <td><code>7.2.2</code></td>
+          <td>MIT</td>
+          <td>Provides the navigation container, routing state, and navigation hooks.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/@react-navigation/native-stack" target="_blank"
+              rel="noopener noreferrer"><code>@react-navigation/native-stack</code></a></td>
+          <td><code>7.14.12</code></td>
+          <td>MIT</td>
+          <td>Provides native stack navigation for application and settings screens.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo" target="_blank"
+              rel="noopener noreferrer"><code>expo</code></a></td>
+          <td><code>54.0.35</code></td>
+          <td>MIT</td>
+          <td>Supplies the Expo application runtime, module system, and root-component registration.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-apple-authentication" target="_blank"
+              rel="noopener noreferrer"><code>expo-apple-authentication</code></a></td>
+          <td><code>8.0.8</code></td>
+          <td>MIT</td>
+          <td>Supports Sign in with Apple, account linking, reauthentication, and deletion authorization.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-blur" target="_blank"
+              rel="noopener noreferrer"><code>expo-blur</code></a></td>
+          <td><code>15.0.8</code></td>
+          <td>MIT</td>
+          <td>Renders blurred interface surfaces where the platform supports them.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-clipboard" target="_blank"
+              rel="noopener noreferrer"><code>expo-clipboard</code></a></td>
+          <td><code>8.0.8</code></td>
+          <td>MIT</td>
+          <td>Copies shared-schedule information and other user-requested values to the clipboard.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-constants" target="_blank"
+              rel="noopener noreferrer"><code>expo-constants</code></a></td>
+          <td><code>18.0.13</code></td>
+          <td>MIT</td>
+          <td>Exposes application, build, ownership, and runtime configuration metadata.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-crypto" target="_blank"
+              rel="noopener noreferrer"><code>expo-crypto</code></a></td>
+          <td><code>15.0.8</code></td>
+          <td>MIT</td>
+          <td>Generates cryptographically strong identifiers and random values for local and account features.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-dev-client" target="_blank"
+              rel="noopener noreferrer"><code>expo-dev-client</code></a></td>
+          <td><code>6.0.21</code></td>
+          <td>MIT</td>
+          <td>Supports custom Expo development builds; it is included because it is declared as a direct
+            production dependency, although its current role is development-oriented.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-device" target="_blank"
+              rel="noopener noreferrer"><code>expo-device</code></a></td>
+          <td><code>8.0.10</code></td>
+          <td>MIT</td>
+          <td>Provides device characteristics used for device registration and account-security records.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-document-picker" target="_blank"
+              rel="noopener noreferrer"><code>expo-document-picker</code></a></td>
+          <td><code>14.0.8</code></td>
+          <td>MIT</td>
+          <td>Opens the system document picker when a user selects an attachment.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-file-system" target="_blank"
+              rel="noopener noreferrer"><code>expo-file-system</code></a></td>
+          <td><code>19.0.23</code></td>
+          <td>MIT</td>
+          <td>Manages local attachment files, downloads, and the native attachment cache.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-haptics" target="_blank"
+              rel="noopener noreferrer"><code>expo-haptics</code></a></td>
+          <td><code>15.0.8</code></td>
+          <td>MIT</td>
+          <td>Provides tactile feedback for supported user interactions.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-image-manipulator" target="_blank"
+              rel="noopener noreferrer"><code>expo-image-manipulator</code></a></td>
+          <td><code>14.0.8</code></td>
+          <td>MIT</td>
+          <td>Resizes, compresses, and re-encodes selected image attachments.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-image-picker" target="_blank"
+              rel="noopener noreferrer"><code>expo-image-picker</code></a></td>
+          <td><code>17.0.11</code></td>
+          <td>MIT</td>
+          <td>Lets users select attachment images or capture a photo with the device camera.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-linear-gradient" target="_blank"
+              rel="noopener noreferrer"><code>expo-linear-gradient</code></a></td>
+          <td><code>15.0.8</code></td>
+          <td>MIT</td>
+          <td>Renders gradient themes, backgrounds, and schedule-color controls.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-linking" target="_blank"
+              rel="noopener noreferrer"><code>expo-linking</code></a></td>
+          <td><code>8.0.12</code></td>
+          <td>MIT</td>
+          <td>Creates and handles deep links, shared links, and widget navigation targets.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-localization" target="_blank"
+              rel="noopener noreferrer"><code>expo-localization</code></a></td>
+          <td><code>17.0.8</code></td>
+          <td>MIT</td>
+          <td>Reads device locale information for PlanIt's language selection.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-notifications" target="_blank"
+              rel="noopener noreferrer"><code>expo-notifications</code></a></td>
+          <td><code>0.32.17</code></td>
+          <td>MIT</td>
+          <td>Schedules local reminders and handles enabled push-notification features.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-sharing" target="_blank"
+              rel="noopener noreferrer"><code>expo-sharing</code></a></td>
+          <td><code>14.0.8</code></td>
+          <td>MIT</td>
+          <td>Opens the operating system's share interface for user-selected files.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-splash-screen" target="_blank"
+              rel="noopener noreferrer"><code>expo-splash-screen</code></a></td>
+          <td><code>31.0.13</code></td>
+          <td>MIT</td>
+          <td>Controls the native splash screen while application startup completes.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-status-bar" target="_blank"
+              rel="noopener noreferrer"><code>expo-status-bar</code></a></td>
+          <td><code>3.0.9</code></td>
+          <td>MIT</td>
+          <td>Coordinates status-bar appearance with the active PlanIt theme and layout.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/expo-updates" target="_blank"
+              rel="noopener noreferrer"><code>expo-updates</code></a></td>
+          <td><code>29.0.18</code></td>
+          <td>MIT</td>
+          <td>Fetches and manages EAS-hosted application updates and related assets.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/firebase" target="_blank"
+              rel="noopener noreferrer"><code>firebase</code></a></td>
+          <td><code>11.10.0</code></td>
+          <td>Apache-2.0</td>
+          <td>Provides web and JavaScript access to Firebase Authentication, Firestore, Storage, and Analytics.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/phosphor-react-native" target="_blank"
+              rel="noopener noreferrer"><code>phosphor-react-native</code></a></td>
+          <td><code>3.0.6</code></td>
+          <td>MIT</td>
+          <td>Provides the interface icon set used throughout PlanIt screens and controls.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react" target="_blank"
+              rel="noopener noreferrer"><code>react</code></a></td>
+          <td><code>19.1.0</code></td>
+          <td>MIT</td>
+          <td>Provides the component and state model used to build the user interface.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-dom" target="_blank"
+              rel="noopener noreferrer"><code>react-dom</code></a></td>
+          <td><code>19.1.0</code></td>
+          <td>MIT</td>
+          <td>Renders React components in the browser as part of the PlanIt web build.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native" target="_blank"
+              rel="noopener noreferrer"><code>react-native</code></a></td>
+          <td><code>0.81.5</code></td>
+          <td>MIT</td>
+          <td>Provides the cross-platform native component, styling, and platform APIs used by PlanIt.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-android-widget" target="_blank"
+              rel="noopener noreferrer"><code>react-native-android-widget</code></a></td>
+          <td><code>0.20.1</code></td>
+          <td>MIT</td>
+          <td>Implements PlanIt's Android home-screen schedule widget.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-gesture-handler" target="_blank"
+              rel="noopener noreferrer"><code>react-native-gesture-handler</code></a></td>
+          <td><code>2.28.0</code></td>
+          <td>MIT</td>
+          <td>Provides native gesture handling for sheets, navigation, and attachment previews.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-google-mobile-ads" target="_blank"
+              rel="noopener noreferrer"><code>react-native-google-mobile-ads</code></a></td>
+          <td><code>16.3.3</code></td>
+          <td>Apache-2.0</td>
+          <td>Integrates Google Mobile Ads and displays configured native banner advertising.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-pager-view" target="_blank"
+              rel="noopener noreferrer"><code>react-native-pager-view</code></a></td>
+          <td><code>6.9.1</code></td>
+          <td>MIT</td>
+          <td>Provides paged native views used by the Android attachment-preview interface.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-reanimated" target="_blank"
+              rel="noopener noreferrer"><code>react-native-reanimated</code></a></td>
+          <td><code>4.1.7</code></td>
+          <td>MIT</td>
+          <td>Runs interface animations and transitions used by sheets, settings, and schedule controls.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-safe-area-context" target="_blank"
+              rel="noopener noreferrer"><code>react-native-safe-area-context</code></a></td>
+          <td><code>5.6.2</code></td>
+          <td>MIT</td>
+          <td>Positions screens and controls around device notches, status areas, and other safe-area insets.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-screens" target="_blank"
+              rel="noopener noreferrer"><code>react-native-screens</code></a></td>
+          <td><code>4.16.0</code></td>
+          <td>MIT</td>
+          <td>Supplies native screen primitives used by the React Navigation stack.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-svg" target="_blank"
+              rel="noopener noreferrer"><code>react-native-svg</code></a></td>
+          <td><code>15.12.1</code></td>
+          <td>MIT</td>
+          <td>Renders scalable vector graphics used by PlanIt's animated loading interface.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-web" target="_blank"
+              rel="noopener noreferrer"><code>react-native-web</code></a></td>
+          <td><code>0.21.2</code></td>
+          <td>MIT</td>
+          <td>Maps React Native components and APIs to the browser for the PlanIt web build.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/react-native-worklets" target="_blank"
+              rel="noopener noreferrer"><code>react-native-worklets</code></a></td>
+          <td><code>0.5.1</code></td>
+          <td>MIT</td>
+          <td>Provides the worklet runtime and build integration used by React Native Reanimated.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.npmjs.com/package/tinycolor2" target="_blank"
+              rel="noopener noreferrer"><code>tinycolor2</code></a></td>
+          <td><code>1.6.0</code></td>
+          <td>MIT</td>
+          <td>Parses and transforms colors for themes, gradients, schedules, and task styling.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="notes">
+  <h2>3. License Notes</h2>
+  <p>The review found 44 packages identified as <strong>MIT</strong> and five packages identified as
+    <strong>Apache-2.0</strong>. The Apache-2.0 entries are
+    <code>@react-native-firebase/analytics</code>, <code>@react-native-firebase/app</code>,
+    <code>@react-native-firebase/crashlytics</code>, <code>firebase</code>, and
+    <code>react-native-google-mobile-ads</code>.</p>
+  <p>No direct production dependency had a missing license field, a <code>SEE LICENSE IN</code> reference, an
+    unknown identifier, or a compound <code>AND</code>, <code>OR</code>, or <code>WITH</code> expression in the
+    checked package metadata. No direct package therefore requires a manual review solely because its published
+    license identifier is absent or ambiguous.</p>
+  <div className="notice">
+    <strong>Package and platform boundaries.</strong>
+    <p>The identifiers in this inventory describe the npm packages themselves. A package may connect PlanIt to
+      a separately supplied native SDK, hosted service, operating system, or app-store platform governed by
+      additional license notices or service terms. Those external terms are not replaced or exhaustively listed
+      here.</p>
+  </div>
+  <p>Full license texts, copyright notices, attribution files, and any applicable <code>NOTICE</code> materials
+    distributed with a package or published in its linked source record remain controlling. Anyone
+    redistributing PlanIt should preserve and reproduce those materials where the applicable license requires
+    it.</p>
+</section>
+
+<section id="exclusions">
+  <h2>4. Exclusions and maintenance</h2>
+  <p>This direct-dependency inventory intentionally excludes the development-only dependencies
+    <code>@babel/core</code> and <code>cross-env</code>. They are declared under <code>devDependencies</code>,
+    serve build or local command execution, and are not application runtime features. The direct dependency
+    <code>expo-dev-client</code> is included because the project currently declares it under
+    <code>dependencies</code>, notwithstanding its development-oriented purpose.</p>
+  <p>Transitive npm dependencies, generated native dependency trees such as Gradle or CocoaPods components,
+    operating-system libraries, hosted services, and app-store software are outside this document's stated
+    scope. Their exclusion does not mean that they lack license or notice obligations.</p>
+  <p>This inventory is a snapshot. It should be regenerated and reviewed when PlanIt changes dependencies,
+    updates resolved versions, changes its native build, or prepares a distribution whose contents differ from
+    the dependency records reviewed above.</p>
+</section>
+
+<section id="contact">
+  <h2>5. Contact</h2>
+  <p><strong>Service Provider:</strong> Artomk, independent developer of PlanIt, Ukraine<br />
+    <strong>Email:</strong>
+    <a href="mailto:planit.app.support@gmail.com?subject=PlanIt%20Open-Source%20License%20Question">planit.app.support@gmail.com</a><br />
+    <strong>Suggested subject:</strong> “PlanIt Open-Source License Question”</p>
+  <p className="small">This notice is provided for attribution and transparency. It does not modify any
+    third-party license or limit any non-waivable right or obligation under applicable law.</p>
+</section>

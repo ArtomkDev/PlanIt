@@ -10,7 +10,6 @@ import {
   Hourglass, Coffee, HandWaving, PencilSimple, CaretLeft,
   CaretRight, Check, Eye, EyeSlash, Bell, CheckSquare, Palette
 } from 'phosphor-react-native';
-import { v4 as uuidv4 } from 'uuid';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
@@ -42,6 +41,7 @@ import {
   getTaskAutoLinkMode,
 } from '../../utils/taskLessonLinking';
 import { getLastMondayISODate } from '../../utils/scheduleTime';
+import { generateId } from '../../utils/idGenerator';
 
 const TOTAL_STEPS = 5;
 const STEP_INDICES = Array.from({ length: TOTAL_STEPS }, (_, index) => index);
@@ -269,7 +269,7 @@ export default function OnboardingWizard() {
   const handleFinish = async () => {
     triggerHaptic("success");
     const finalRepeat = Math.max(1, Number(weeksCount) || 1);
-    const scheduleId = uuidv4();
+    const scheduleId = generateId();
     addSchedule({
       ...defaultSchedule,
       id: scheduleId,

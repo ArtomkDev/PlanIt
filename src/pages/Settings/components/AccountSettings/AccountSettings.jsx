@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
-import { User, EnvelopeSimple, LockKey, Trash } from 'phosphor-react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { AppleLogo, EnvelopeSimple, GoogleLogo, LockKey, Trash, User } from 'phosphor-react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth';
 import Constants from 'expo-constants';
@@ -19,8 +18,8 @@ import SettingsRow from '../../../../components/ui/SettingsKit/SettingsRow';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
-const AuthenticGoogleIcon = (props) => <FontAwesome5 name="google" solid {...props} />;
-const AuthenticAppleIcon = (props) => <FontAwesome5 name="apple" solid {...props} />;
+const AuthenticGoogleIcon = (props) => <GoogleLogo {...props} weight="bold" />;
+const AuthenticAppleIcon = (props) => <AppleLogo {...props} weight="fill" />;
 
 if (Platform.OS !== 'web' && !isExpoGo) {
   const { GoogleSignin } = require('@react-native-google-signin/google-signin');

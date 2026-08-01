@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Warning } from 'phosphor-react-native';
 import { useScheduleActions, useScheduleData } from '../../../context/ScheduleProvider';
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import themes from '../../../config/themes';
@@ -88,7 +88,7 @@ export default function ResetDB() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
 
         <View style={[styles.warningBanner, { backgroundColor: mode === 'dark' || mode === 'oled' ? '#451a1a' : '#fef2f2', borderColor: '#f87171' }]}>
-          <Ionicons name="warning" size={32} color="#ef4444" style={styles.warningIcon} />
+          <Warning size={32} color="#ef4444" weight="fill" style={styles.warningIcon} />
           <View style={styles.warningTextContainer}>
             <Text style={[styles.warningTitle, { color: mode === 'dark' || mode === 'oled' ? '#fca5a5' : '#991b1b' }]}>
               {t('settings.reset_db_screen.box_title', lang)}

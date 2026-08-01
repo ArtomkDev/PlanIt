@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import {
   Animated,
@@ -42,7 +42,7 @@ import NotificationInboxPanel from '../pages/Schedule/components/NotificationInb
 import { triggerHaptic } from '../utils/haptics';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 const DRAWER_OPEN_DURATION = 285;
 const DRAWER_CLOSE_DURATION = 240;
 const DRAWER_VISUAL_OPEN_DURATION = 330;
@@ -58,12 +58,11 @@ function SettingsStack({ screenProps }) {
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       <Stack.Navigator
-        detachInactiveScreens={true}
         screenOptions={{
           headerShown: false,
           gestureEnabled: true,
-          cardStyle: { backgroundColor: themeColors.backgroundColor },
-          ...TransitionPresets.SlideFromRightIOS,
+          animation: 'slide_from_right',
+          contentStyle: { backgroundColor: themeColors.backgroundColor },
         }}
       >
         <Stack.Screen name="SettingsOverview">

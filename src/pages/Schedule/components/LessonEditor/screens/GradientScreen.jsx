@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Keyboard } from "react-native";
-import Slider from "@react-native-assets/slider";
 import { LinearGradient } from "expo-linear-gradient";
 import tinycolor from "tinycolor2";
 import GradientBackground from "../../../../../components/ui/GradientBackground";
@@ -11,6 +10,59 @@ import { triggerHaptic } from "../../../../../utils/haptics";
 
 const HUE_COLORS = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000'];
 const HUE_INDICATOR_WIDTH = 32;
+const ANGLE_THUMB_SIZE = 24;
+
+const AngleSlider = ({ value, onChange, themeColors }) => {
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  const updateAngle = useCallback((x) => {
+    if (trackWidth <= 0 || !Number.isFinite(x)) return;
+    const clampedX = Math.max(0, Math.min(x, trackWidth));
+    onChange(Math.round((clampedX / trackWidth) * 360));
+  }, [onChange, trackWidth]);
+
+  const anglePanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onShouldBlockNativeResponder: () => true,
+    onPanResponderGrant: (event) => {
+      triggerHaptic("dragStart", { key: "gradient-angle-slider" });
+      updateAngle(event.nativeEvent.locationX);
+    },
+    onPanResponderMove: (event) => {
+      updateAngle(event.nativeEvent.locationX);
+    },
+  }), [updateAngle]);
+
+  const progress = trackWidth > 0 ? Math.max(0, Math.min(value, 360)) / 360 : 0;
+
+  return (
+    <View
+      style={styles.angleSliderTouchArea}
+      onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
+      {...anglePanResponder.panHandlers}
+    >
+      <View style={[styles.angleTrack, { backgroundColor: themeColors.backgroundColor3 }]}>
+        <View style={[styles.angleTrackFill, { width: `${progress * 100}%`, backgroundColor: themeColors.accentColor }]} />
+      </View>
+      {trackWidth > 0 && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.angleThumb,
+            {
+              left: progress * trackWidth - ANGLE_THUMB_SIZE / 2,
+              backgroundColor: themeColors.accentColor,
+            },
+          ]}
+        />
+      )}
+    </View>
+  );
+};
 
 const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
   const [hsv, setHsv] = useState(() => tinycolor(initialColor).toHsv());
@@ -143,7 +195,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
           <Text style={[styles.value, { color: themeColors.accentColor }]}>{Math.round(angle)}°</Text>
         </View>
         <View style={styles.sliderTrackWrapper} onStartShouldSetResponder={() => true} onResponderTerminationRequest={() => false}>
-          <Slider style={{ width: "100%", height: 40 }} minimumValue={0} maximumValue={360} value={angle} onValueChange={setAngle} onSlidingStart={() => triggerHaptic("dragStart", { key: "gradient-angle-slider" })} step={1} minimumTrackTintColor={themeColors.accentColor} maximumTrackTintColor={themeColors.backgroundColor3} thumbTintColor={themeColors.accentColor} trackHeight={8} thumbSize={24} />
+          <AngleSlider value={angle} onChange={setAngle} themeColors={themeColors} />
         </View>
       </View>
 
@@ -179,6 +231,23 @@ const styles = StyleSheet.create({
   label: { fontSize: 15, fontWeight: "600" },
   value: { fontWeight: "bold", fontSize: 15 },
   sliderTrackWrapper: { paddingHorizontal: 5 },
+  angleSliderTouchArea: { height: 40, justifyContent: "center", position: "relative" },
+  angleTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
+  angleTrackFill: { height: "100%", borderRadius: 4 },
+  angleThumb: {
+    position: "absolute",
+    top: 8,
+    width: ANGLE_THUMB_SIZE,
+    height: ANGLE_THUMB_SIZE,
+    borderRadius: ANGLE_THUMB_SIZE / 2,
+    borderWidth: 3,
+    borderColor: "#fff",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
   inlinePickerContainer: { flex: 1, marginBottom: 20 },
   saturationValuePicker: { flex: 1, minHeight: 180, borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
   pickerIndicator: { width: 24, height: 24, borderRadius: 12, borderColor: '#fff', borderWidth: 2.5, position: 'absolute', elevation: 4, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },

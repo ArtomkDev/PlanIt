@@ -1,9 +1,9 @@
-import { v4 as uuidv4 } from 'uuid';
 import defaultSchedule from './defaultSchedule';
 import { DEFAULT_SCHEDULE_NAME_KEY } from '../utils/scheduleDisplay';
+import { generateId } from '../utils/idGenerator';
 
 export default function createDefaultData() {
-  const scheduleId = uuidv4();
+  const scheduleId = generateId();
   const now = Date.now();
 
   const global = {

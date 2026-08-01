@@ -672,6 +672,7 @@ export default {
       terms_of_use: "Terms of Use",
       cookie_policy: "Cookie Policy",
       account_deletion: "Account & Data Deletion",
+      open_source_licenses: "Open-Source Licenses",
       cookie_settings: "Cookie Settings",
       open_in_browser: "Open in browser",
       support_section: "SUPPORT & COMMUNITY",
