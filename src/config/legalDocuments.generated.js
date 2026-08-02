@@ -42,7 +42,7 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "bullet",
-            "text": "Native builds request non-personalized ads. Google may still use device or advertising identifiers for purposes such as frequency capping, fraud prevention, and aggregated reporting."
+            "text": "Native builds request non-personalized ads only after Google's User Messaging Platform reports that an ad request is permitted. Google may still use device or advertising identifiers for purposes such as frequency capping, fraud prevention, and aggregated reporting."
           },
           {
             "type": "bullet",
@@ -247,7 +247,7 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "definition",
             "term": "Google Mobile Ads (AdMob) and Google Play services",
-            "text": "Native app builds use AdMob to request non-personalized banner ads. Google and participating ad technology providers may receive IP address, device/app identifiers, ad interactions, coarse location, and technical data for ad delivery, frequency capping, aggregated reporting, security, and fraud prevention. See How Google uses information for advertising (https://policies.google.com/technologies/ads)."
+            "text": "Native app builds use AdMob to request non-personalized banner ads. Before an ad request, Google's User Messaging Platform refreshes applicable privacy requirements and presents a Google-rendered message when required. Google and participating ad technology providers may receive IP address, device/app identifiers, ad interactions, coarse location, and technical data for ad delivery, frequency capping, aggregated reporting, security, and fraud prevention. See How Google uses information for advertising (https://policies.google.com/technologies/ads)."
           },
           {
             "type": "definition",
@@ -294,7 +294,11 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "paragraph",
-            "text": "A non-personalized-ad request is not itself a consent mechanism. The current release does not provide a dedicated in-app advertising-consent interface. In regions where prior consent is required for cookies, mobile advertising identifiers, or equivalent device storage, those technologies require an appropriate consent or limited-data treatment in addition to requesting non-personalized ads."
+            "text": "A non-personalized-ad request is not itself a consent mechanism. On each native app launch, PlanIt asks Google's User Messaging Platform to refresh the applicable advertising privacy requirements and to present a Google-rendered message when required. The Mobile Ads SDK and banner request remain disabled unless the platform reports that ads may be requested. App measurement is delayed until that process is complete."
+          },
+          {
+            "type": "paragraph",
+            "text": "When Google requires an ongoing privacy-options entry point, PlanIt displays an Advertising privacy row in Settings so the user can reopen Google's form and change the available choices. A privacy choice does not block PlanIt's core schedule features; it may instead prevent an ad request or limit the data used for a non-personalized ad."
           },
           {
             "type": "subheading",
@@ -745,7 +749,7 @@ export const LEGAL_DOCUMENTS = {
         "blocks": [
           {
             "type": "paragraph",
-            "text": "The current Service is free and ad-supported. Native builds request non-personalized AdMob banners. Non-personalized ads do not use past behavior for ad selection, but advertising identifiers, cookies or equivalent storage, IP-derived coarse location, and technical data may still be used for frequency capping, aggregated reporting, fraud prevention, and delivery as explained in the Privacy Policy. Requesting non-personalized ads does not replace any consent or limited-data treatment required by local law. The current release does not provide a dedicated in-app advertising-consent interface."
+            "text": "The current Service is free and ad-supported. Native builds request non-personalized AdMob banners. Non-personalized ads do not use past behavior for ad selection, but advertising identifiers, cookies or equivalent storage, IP-derived coarse location, and technical data may still be used for frequency capping, aggregated reporting, fraud prevention, and delivery as explained in the Privacy Policy. Requesting non-personalized ads does not replace any consent or limited-data treatment required by local law. Native builds therefore refresh Google's User Messaging Platform privacy status before requesting ads, display a Google-rendered message when required, and expose Google's ongoing advertising privacy options in Settings whenever the platform requires that entry point."
           },
           {
             "type": "paragraph",
@@ -1064,7 +1068,7 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "paragraph",
-            "text": "You can withdraw or grant analytics consent at any time through the persistent Cookie settings control in the web app or through About App → Cookie Settings. Withdrawal disables future PlanIt Analytics collection and attempts to remove first-party Google Analytics cookies accessible to the current origin. It does not retroactively erase lawfully collected records already held by Google; see the Privacy Policy for deletion and objection rights."
+            "text": "You can withdraw or grant analytics consent at any time through Settings → Cookie Settings in the web app. Withdrawal disables future PlanIt Analytics collection and attempts to remove first-party Google Analytics cookies accessible to the current origin. It does not retroactively erase lawfully collected records already held by Google; see the Privacy Policy for deletion and objection rights."
           }
         ]
       },
@@ -1252,7 +1256,7 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "bullet",
-            "text": "Select the persistent Cookie settings control, or open Settings → About App → Cookie Settings."
+            "text": "Open Settings → Cookie Settings."
           },
           {
             "type": "bullet",
@@ -1286,7 +1290,7 @@ export const LEGAL_DOCUMENTS = {
         "blocks": [
           {
             "type": "paragraph",
-            "text": "Native PlanIt apps do not use browser cookies in the same way as the web app. They use app storage, secure authentication state, Firebase app-instance or installation identifiers, local notification data, cached attachments, and—where applicable—mobile advertising identifiers or provider SDK storage. Native builds currently use Firebase Analytics and request non-personalized AdMob banners outside Expo Go. The Privacy Policy describes that processing and the current limitations of native advertising/analytics choices."
+            "text": "Native PlanIt apps do not use browser cookies in the same way as the web app. They use app storage, secure authentication state, Firebase app-instance or installation identifiers, local notification data, cached attachments, and—where applicable—mobile advertising identifiers or provider SDK storage. Native builds currently use Firebase Analytics and may request non-personalized AdMob banners outside Expo Go. Before an ad request, Google's User Messaging Platform refreshes applicable privacy requirements and presents a Google-rendered message when required; the app does not request a banner unless the platform permits it. The Privacy Policy describes that processing and the available native advertising privacy options."
           },
           {
             "type": "paragraph",

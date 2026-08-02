@@ -20,12 +20,11 @@ import { EditorProvider } from "./context/EditorProvider";
 import { registerDevice, listenForDeviceRemoval } from "./utils/deviceService";
 import { consumeManualLogin, setManualLogin } from "./utils/authFlags";
 import useAppLanguage from './hooks/useAppLanguage';
-import { initAds } from './utils/adInit/adInit';
+import { AdsProvider } from './context/AdsContext';
 import CookieConsentBanner from './components/privacy/CookieConsentBanner';
 
 initGlobalErrorHandling();
 SplashScreen.preventAutoHideAsync();
-initAds();
 
 const Stack = createNativeStackNavigator();
 
@@ -171,56 +170,58 @@ export default function RootApp() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
-      <ScheduleProvider guest={guest} user={user}>
-        <NavigationContainer 
-          ref={navigationRef}
-          linking={linking}
-          theme={AppDarkTheme}
-          onReady={() => {
-            if (navigationRef.current) {
-              routeNameRef.current = navigationRef.current.getCurrentRoute().name;
-            }
-            SplashScreen.hideAsync().catch(() => {});
-          }}
-          onStateChange={async () => {
-            const previousRouteName = routeNameRef.current;
-            const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+      <AdsProvider>
+        <ScheduleProvider guest={guest} user={user}>
+          <NavigationContainer
+            ref={navigationRef}
+            linking={linking}
+            theme={AppDarkTheme}
+            onReady={() => {
+              if (navigationRef.current) {
+                routeNameRef.current = navigationRef.current.getCurrentRoute().name;
+              }
+              SplashScreen.hideAsync().catch(() => {});
+            }}
+            onStateChange={async () => {
+              const previousRouteName = routeNameRef.current;
+              const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
 
-            if (previousRouteName !== currentRouteName && currentRouteName) {
-              trackScreenView(currentRouteName);
-            }
-            routeNameRef.current = currentRouteName;
-          }}
-        >
-          <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
-            {user || guest ? (
-              <Stack.Screen name="MainLayout">
-                {(props) => (
-                  <EditorProvider>
-                    <BottomSheetModalProvider>
-                      <MainLayout
-                        {...props}
-                        guest={guest}
-                        onExitGuest={handleExitGuest}
-                      />
-                    </BottomSheetModalProvider>
-                  </EditorProvider>
-                )}
-              </Stack.Screen>
-            ) : (
-              <Stack.Screen name="Auth">
-                {(props) => (
-                  <AuthScreen 
-                    {...props} 
-                    onGuestLogin={() => setGuest(true)} 
-                  />
-                )}
-              </Stack.Screen>
-            )}
-            <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </ScheduleProvider>
+              if (previousRouteName !== currentRouteName && currentRouteName) {
+                trackScreenView(currentRouteName);
+              }
+              routeNameRef.current = currentRouteName;
+            }}
+          >
+            <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
+              {user || guest ? (
+                <Stack.Screen name="MainLayout">
+                  {(props) => (
+                    <EditorProvider>
+                      <BottomSheetModalProvider>
+                        <MainLayout
+                          {...props}
+                          guest={guest}
+                          onExitGuest={handleExitGuest}
+                        />
+                      </BottomSheetModalProvider>
+                    </EditorProvider>
+                  )}
+                </Stack.Screen>
+              ) : (
+                <Stack.Screen name="Auth">
+                  {(props) => (
+                    <AuthScreen
+                      {...props}
+                      onGuestLogin={() => setGuest(true)}
+                    />
+                  )}
+                </Stack.Screen>
+              )}
+              <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </ScheduleProvider>
+      </AdsProvider>
       <CookieConsentBanner lang={lang} />
     </GestureHandlerRootView>
   );

@@ -17,8 +17,9 @@ export const legalMetadata = {
       data. Optional web Firebase Analytics remains off until the browser user accepts it.</li>
     <li>When you use an account, PlanIt uses Firebase to authenticate you and synchronize your schedules,
       settings, devices, notifications, and cloud attachments.</li>
-    <li>Native builds request non-personalized ads. Google may still use device or advertising identifiers for
-      purposes such as frequency capping, fraud prevention, and aggregated reporting.</li>
+    <li>Native builds request non-personalized ads only after Google's User Messaging Platform reports that an
+      ad request is permitted. Google may still use device or advertising identifiers for purposes such as
+      frequency capping, fraud prevention, and aggregated reporting.</li>
     <li>PlanIt does not request GPS/location permission and does not currently use AI to analyze your content.
       IP addresses and file metadata may nevertheless reveal an approximate or embedded location.</li>
     <li>Account deletion is available, but an in-app deletion attempt cannot by itself prove that every
@@ -225,10 +226,11 @@ export const legalMetadata = {
         rel="noopener noreferrer">Google's Privacy Policy</a>.</dd>
 
     <dt>Google Mobile Ads (AdMob) and Google Play services</dt>
-    <dd>Native app builds use AdMob to request non-personalized banner ads. Google and participating ad
-      technology providers may receive IP address, device/app identifiers, ad interactions, coarse location,
-      and technical data for ad delivery, frequency capping, aggregated reporting, security, and fraud
-      prevention. See
+    <dd>Native app builds use AdMob to request non-personalized banner ads. Before an ad request, Google's User
+      Messaging Platform refreshes applicable privacy requirements and presents a Google-rendered message when
+      required. Google and participating ad technology providers may receive IP address, device/app
+      identifiers, ad interactions, coarse location, and technical data for ad delivery, frequency capping,
+      aggregated reporting, security, and fraud prevention. See
       <a href="https://policies.google.com/technologies/ads" target="_blank"
         rel="noopener noreferrer">How Google uses information for advertising</a>.</dd>
 
@@ -274,10 +276,14 @@ export const legalMetadata = {
     based on past behavior, but Google states that cookies or mobile advertising identifiers may still be used
     for frequency capping and aggregated reporting, and IP-derived coarse location may affect ad delivery.
     Device and regional privacy signals may further limit processing.</p>
-  <p>A non-personalized-ad request is not itself a consent mechanism. The current release does not provide a
-    dedicated in-app advertising-consent interface. In regions where prior consent is required for cookies,
-    mobile advertising identifiers, or equivalent device storage, those technologies require an appropriate
-    consent or limited-data treatment in addition to requesting non-personalized ads.</p>
+  <p>A non-personalized-ad request is not itself a consent mechanism. On each native app launch, PlanIt asks
+    Google's User Messaging Platform to refresh the applicable advertising privacy requirements and to present
+    a Google-rendered message when required. The Mobile Ads SDK and banner request remain disabled unless the
+    platform reports that ads may be requested. App measurement is delayed until that process is complete.</p>
+  <p>When Google requires an ongoing privacy-options entry point, PlanIt displays an
+    <strong>Advertising privacy</strong> row in Settings so the user can reopen Google's form and change the
+    available choices. A privacy choice does not block PlanIt's core schedule features; it may instead prevent
+    an ad request or limit the data used for a non-personalized ad.</p>
 
   <h3>Firebase Analytics</h3>
   <p>PlanIt records screen views and Firebase may automatically collect app-instance, device, session, and

@@ -248,3 +248,34 @@ test('does not initialize web Analytics before consent and disables it on withdr
     global.location = previousLocation;
   }
 });
+
+test('shows the web consent banner only without a choice or from Settings', () => {
+  const bannerSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../src/components/privacy/CookieConsentBanner.web.jsx',
+    ),
+    'utf8',
+  );
+  const settingsSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/pages/Settings/Settings.jsx'),
+    'utf8',
+  );
+  const aboutSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../src/pages/Settings/components/AboutApp.jsx',
+    ),
+    'utf8',
+  );
+
+  assert.match(
+    bannerSource,
+    /const shouldShow = !consent \|\| isPreferenceEditorOpen/,
+  );
+  assert.match(bannerSource, /if \(!shouldShow\) return null/);
+  assert.doesNotMatch(bannerSource, /preferencesButton/);
+  assert.match(settingsSource, /Platform\.OS === 'web'/);
+  assert.match(settingsSource, /action: requestCookiePreferences/);
+  assert.doesNotMatch(aboutSource, /requestCookiePreferences/);
+});

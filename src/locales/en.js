@@ -403,6 +403,7 @@ export default {
       files: { title: "Files", desc: "Library, names, storage, local-only files" },
       devices: { title: "Devices", desc: "Authorized devices settings" },
       notifications: { title: "Notifications", desc: "Notification preferences and future push options" },
+      ad_privacy: { title: "Advertising privacy", desc: "Review or change Google ad privacy choices", loading: "Opening..." },
       logout: { title: "Log Out", desc: "End current session" },
       reset_db: { title: "Reset Database", desc: "Complete data wipe" },
     },
@@ -687,6 +688,7 @@ export default {
       logout_title: "Logout",
       logout_confirm: "Are you sure you want to log out?",
       logout_error: "Failed to log out",
+      ad_privacy_error: "Could not open Google advertising privacy options. Please try again.",
       cloud_saving_warning: "Please wait, data is being saved to the cloud...",
     },
   },
@@ -706,6 +708,7 @@ export default {
     accept: "Accept analytics",
     close: "Keep current choice",
     settings: "Cookie settings",
+    settings_description: "Review or change your web analytics choice",
   },
 
   tasks: {

@@ -3,6 +3,45 @@ import pkg from './package.json';
 const versionParts = pkg.version.split('.');
 const versionCode = parseInt(versionParts[0]) * 10000 + parseInt(versionParts[1]) * 100 + parseInt(versionParts[2]);
 
+const forceTestAds = process.env.EXPO_PUBLIC_FORCE_TEST_ADS === 'true';
+const activeBuildPlatform =
+  process.env.EAS_BUILD_PLATFORM || process.env.PLANIT_BUILD_PLATFORM;
+const googleDemoPublisherPrefix = 'ca-app-pub-3940256099942544';
+const appIdPattern = /^ca-app-pub-\d{16}~\d{10}$/;
+const googleDemoAppIds = {
+  android: 'ca-app-pub-3940256099942544~3347511713',
+  ios: 'ca-app-pub-3940256099942544~1458002511',
+};
+
+const resolveAdMobAppId = (platform, configuredId) => {
+  if (forceTestAds) return googleDemoAppIds[platform];
+  if (
+    appIdPattern.test(configuredId || '') &&
+    !configuredId.startsWith(googleDemoPublisherPrefix)
+  ) {
+    return configuredId;
+  }
+
+  if (activeBuildPlatform === platform) {
+    throw new Error(
+      `A valid production AdMob App ID is required for ${platform}.`,
+    );
+  }
+
+  // Expo evaluates both platform configs even for many single-platform tasks.
+  // Leave an untargeted platform empty, but fail above when it is actually built.
+  return '';
+};
+
+const androidAdMobAppId = resolveAdMobAppId(
+  'android',
+  process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID,
+);
+const iosAdMobAppId = resolveAdMobAppId(
+  'ios',
+  process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID,
+);
+
 export default {
   expo: {
     name: "PlanIt",
@@ -72,8 +111,9 @@ export default {
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || "",
-          "iosAppId": process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || ""
+          "androidAppId": androidAdMobAppId,
+          "iosAppId": iosAdMobAppId,
+          "delayAppMeasurementInit": true
         }
       ],
       "@react-native-firebase/app",

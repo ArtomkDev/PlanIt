@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Table, Palette, Translate, SignIn, UserCircle, Cpu, 
-  SignOut, Trash, Info, ShareNetwork, SquaresFour, Bell, Vibrate, Files
+  SignOut, Trash, Info, ShareNetwork, SquaresFour, Bell, Vibrate, Files,
+  Cookie, ShieldCheck
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../context/ScheduleProvider';
@@ -16,12 +17,19 @@ import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
 import AppSwitch from '../../components/ui/AppSwitch';
 import { triggerHaptic } from '../../utils/haptics';
+import { useAds } from '../../context/AdsContext';
+import { requestCookiePreferences } from '../../services/cookieConsentService';
 
 export default function Settings({ guest, onExitGuest }) {
   const navigation = useNavigation();
   const { user, global, schedule, lang } = useScheduleData();
   const { safeLogout, setGlobalDraft } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
+  const {
+    isPrivacyOptionsLoading,
+    openPrivacyOptions,
+    privacyOptionsRequired,
+  } = useAds();
   const insets = useSafeAreaInsets();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -95,6 +103,17 @@ export default function Settings({ guest, onExitGuest }) {
     );
   };
 
+  const handleAdPrivacyOptions = useCallback(async () => {
+    try {
+      await openPrivacyOptions();
+    } catch (_error) {
+      Alert.alert(
+        t('common.error', lang),
+        t('settings.alerts.ad_privacy_error', lang),
+      );
+    }
+  }, [lang, openPrivacyOptions]);
+
   const sections = useMemo(() => ([
     {
       title: t('settings.sections.schedule', lang),
@@ -163,6 +182,22 @@ export default function Settings({ guest, onExitGuest }) {
           icon: Info, 
           desc: t('settings.about_screen.description', lang) 
         },
+        ...(Platform.OS === 'web' ? [{
+          label: t('settings.about_screen.cookie_settings', lang),
+          action: requestCookiePreferences,
+          icon: Cookie,
+          desc: t('cookie_consent.settings_description', lang),
+        }] : []),
+        ...(Platform.OS !== 'web' && privacyOptionsRequired ? [{
+          label: t('settings.menu.ad_privacy.title', lang),
+          action: handleAdPrivacyOptions,
+          icon: ShieldCheck,
+          desc: t('settings.menu.ad_privacy.desc', lang),
+          meta: isPrivacyOptionsLoading
+            ? t('settings.menu.ad_privacy.loading', lang)
+            : undefined,
+          showCaret: !isPrivacyOptionsLoading,
+        }] : []),
       ],
     },
     {
@@ -172,7 +207,17 @@ export default function Settings({ guest, onExitGuest }) {
         { label: t('settings.menu.reset_db.title', lang), screen: 'ResetDB', icon: Trash, desc: t('settings.menu.reset_db.desc', lang), danger: true },
       ],
     },
-  ]), [guest, user, lang, hapticsEnabled, handleToggleHaptics, themeColors]);
+  ]), [
+    guest,
+    user,
+    lang,
+    hapticsEnabled,
+    handleToggleHaptics,
+    themeColors,
+    privacyOptionsRequired,
+    handleAdPrivacyOptions,
+    isPrivacyOptionsLoading,
+  ]);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const sectionPositions = useRef([]);

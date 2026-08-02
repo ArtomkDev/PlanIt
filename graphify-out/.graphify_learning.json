@@ -1,5 +1,86 @@
 {
-  "generated_at": "2026-07-23T21:36:40.074839+00:00",
-  "nodes": {},
+  "generated_at": "2026-08-01T22:39:39.551854+00:00",
+  "nodes": {
+    "src_components_adbanner_adbanner_native": {
+      "code_fingerprint": "4267a4dfcb79ba301723ab51f9ec07d3deb0d361b508d54c5778e15801ee7574",
+      "label": "AdBanner.native.jsx",
+      "last": "2026-08-01T22:29:23.859146+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:29:23.859146+00:00",
+          "outcome": "useful",
+          "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
+        }
+      ],
+      "score": 0.999835366,
+      "source_file": "src/components/AdBanner/AdBanner.native.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_context_adscontext_native": {
+      "code_fingerprint": "f74e751105afbe626ab271055e9f265fcaa5da09d5ebaa76e175d4e946a730d8",
+      "label": "AdsContext.native.jsx",
+      "last": "2026-08-01T22:29:23.859146+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:29:23.859146+00:00",
+          "outcome": "useful",
+          "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
+        }
+      ],
+      "score": 0.999835366,
+      "source_file": "src/context/AdsContext.native.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_services_notificationservice": {
+      "code_fingerprint": "2b9b426c39ac2466150ef6c8a2b8fdb3e6e6feb8bd705d978f1ddfd0fc230859",
+      "label": "notificationService.js",
+      "last": "2026-08-01T22:29:23.859146+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:29:23.859146+00:00",
+          "outcome": "useful",
+          "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
+        }
+      ],
+      "score": 0.999835366,
+      "source_file": "src/services/notificationService.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_utils_adinit_adinit_native": {
+      "code_fingerprint": "feac23364e8e47e6d32189fc5c6c0dfe5e367544e213e2bd49ffd9898eec8c4c",
+      "label": "adInit.native.js",
+      "last": "2026-08-01T22:29:23.859146+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:29:23.859146+00:00",
+          "outcome": "useful",
+          "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
+        }
+      ],
+      "score": 0.999835366,
+      "source_file": "src/utils/adInit/adInit.native.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_utils_deviceservice": {
+      "code_fingerprint": "9f2fbf9da972544eda8f5bb8f391fffa6336a2057dc60b7fbaee6d705e339a60",
+      "label": "deviceService.js",
+      "last": "2026-08-01T22:29:23.859146+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:29:23.859146+00:00",
+          "outcome": "useful",
+          "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
+        }
+      ],
+      "score": 0.999835366,
+      "source_file": "src/utils/deviceService.js",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
   "version": 1
 }

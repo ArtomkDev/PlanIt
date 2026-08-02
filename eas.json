@@ -11,7 +11,8 @@
       },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
-        "EAS_BUILD_NPM_INSTALL_COMMAND": "npm install --legacy-peer-deps"
+        "EAS_BUILD_NPM_INSTALL_COMMAND": "npm install --legacy-peer-deps",
+        "EXPO_PUBLIC_FORCE_TEST_ADS": "true"
       }
     },
     "production": {
@@ -22,6 +23,7 @@
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
         "EAS_BUILD_NPM_INSTALL_COMMAND": "npm install --legacy-peer-deps",
+        "EXPO_PUBLIC_FORCE_TEST_ADS": "false",
         "GOOGLE_SERVICES_FILE": "./google-services.json"
       }
     }

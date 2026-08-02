@@ -6,6 +6,11 @@ Write-Host "--- Starting Development Build (Debug APK) ---" -ForegroundColor Cya
 
 Set-Location $PROJECT_ROOT
 
+# Debug APKs must use Google's demo ad inventory even when local env values
+# contain valid production AdMob identifiers.
+$env:EXPO_PUBLIC_FORCE_TEST_ADS = "true"
+$env:PLANIT_BUILD_PLATFORM = "android"
+
 Write-Host "Step 1: Running Expo Prebuild..." -ForegroundColor Yellow
 npx expo prebuild --platform android --no-install
 

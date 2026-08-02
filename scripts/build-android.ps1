@@ -1,3 +1,8 @@
+param(
+    [ValidateSet("production", "test")]
+    [string]$AdsMode = "production"
+)
+
 if (Test-Path ".env") {
     Get-Content .env | ForEach-Object {
         $line = $_.Trim()
@@ -7,6 +12,16 @@ if (Test-Path ".env") {
         }
     }
 }
+
+# The default is deliberately production so release commands can never inherit
+# EXPO_PUBLIC_FORCE_TEST_ADS=true from the local .env file. The test mode must be
+# requested explicitly by the dedicated npm command.
+$isTestAdsBuild = $AdsMode -eq "test"
+$env:EXPO_PUBLIC_FORCE_TEST_ADS = if ($isTestAdsBuild) { "true" } else { "false" }
+$env:PLANIT_BUILD_PLATFORM = "android"
+
+$adsLabel = if ($isTestAdsBuild) { "GOOGLE TEST ADS" } else { "PRODUCTION ADS" }
+Write-Host "Ad mode: $adsLabel" -ForegroundColor Cyan
 
 $packageJson = Get-Content -Raw -Path package.json | ConvertFrom-Json
 $version = $packageJson.version
@@ -38,7 +53,12 @@ cd ..
 
 if (!(Test-Path -Path $buildsDir)) { New-Item -ItemType Directory -Path $buildsDir | Out-Null }
 $apkSource = "android\app\build\outputs\apk\release\app-release.apk"
-$apkDest = "$buildsDir\PlanIt_v$version`_$date.apk"
+$apkFileName = if ($isTestAdsBuild) {
+    "PlanIt-TestAds_v$version`_$date.apk"
+} else {
+    "PlanIt_v$version`_$date.apk"
+}
+$apkDest = Join-Path $buildsDir $apkFileName
 
 if (Test-Path -Path $apkSource) {
     Move-Item -Path $apkSource -Destination $apkDest -Force

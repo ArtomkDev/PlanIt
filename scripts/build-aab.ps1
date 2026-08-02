@@ -8,6 +8,10 @@ if (Test-Path ".env") {
     }
 }
 
+# Release artifacts must never inherit the local development test-ad switch.
+$env:EXPO_PUBLIC_FORCE_TEST_ADS = "false"
+$env:PLANIT_BUILD_PLATFORM = "android"
+
 $packageJson = Get-Content -Raw -Path package.json | ConvertFrom-Json
 $version = $packageJson.version
 $date = Get-Date -Format "yyyy-MM-dd_HH-mm"

@@ -97,9 +97,8 @@ export const legalMetadata = {
     only the policy version, whether analytics was accepted or rejected, the time of the choice, and its expiry;
     it does not contain an account ID, email address, random consent ID, or advertising identifier. If browser
     storage is unavailable, the choice may apply only to the current page and may need to be made again.</p>
-  <p>You can withdraw or grant analytics consent at any time through the persistent
-    <strong>Cookie settings</strong> control in the web app or through
-    <strong>About App → Cookie Settings</strong>. Withdrawal disables future PlanIt Analytics collection and
+  <p>You can withdraw or grant analytics consent at any time through
+    <strong>Settings → Cookie Settings</strong> in the web app. Withdrawal disables future PlanIt Analytics collection and
     attempts to remove first-party Google Analytics cookies accessible to the current origin. It does not
     retroactively erase lawfully collected records already held by Google; see the Privacy Policy for deletion
     and objection rights.</p>
@@ -261,8 +260,7 @@ export const legalMetadata = {
   <h3>Change PlanIt's analytics choice</h3>
   <ol>
     <li>Open the PlanIt web app.</li>
-    <li>Select the persistent <strong>Cookie settings</strong> control, or open
-      <strong>Settings → About App → Cookie Settings</strong>.</li>
+    <li>Open <strong>Settings → Cookie Settings</strong>.</li>
     <li>Select <strong>Accept analytics</strong> or <strong>Reject analytics</strong>. The new choice applies
       to future collection from that browser profile.</li>
   </ol>
@@ -287,9 +285,11 @@ export const legalMetadata = {
   <p>Native PlanIt apps do not use browser cookies in the same way as the web app. They use app storage, secure
     authentication state, Firebase app-instance or installation identifiers, local notification data, cached
     attachments, and—where applicable—mobile advertising identifiers or provider SDK storage. Native builds
-    currently use Firebase Analytics and request non-personalized AdMob banners outside Expo Go. The
-    <a href="./privacy">Privacy Policy</a> describes that processing and the current limitations of native
-    advertising/analytics choices.</p>
+    currently use Firebase Analytics and may request non-personalized AdMob banners outside Expo Go. Before an
+    ad request, Google's User Messaging Platform refreshes applicable privacy requirements and presents a
+    Google-rendered message when required; the app does not request a banner unless the platform permits it.
+    The <a href="./privacy">Privacy Policy</a> describes that processing and the available native advertising
+    privacy options.</p>
   <p>The web cookie preference controls only web Firebase Analytics for the browser profile where the choice is
     made. It does not automatically change native app settings or Google/Apple account-level preferences.</p>
 </section>

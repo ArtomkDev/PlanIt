@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Animated, AppState } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 
@@ -14,6 +15,8 @@ import { t } from '../utils/i18n';
 import MigrationModal from '../components/modals/MigrationModal';
 import AppBlur from '../components/ui/AppBlur';
 import MorphingLoader from '../components/ui/MorphingLoader';
+import AdBanner from '../components/AdBanner/AdBanner';
+import { useAds } from '../context/AdsContext';
 
 import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
 import OnboardingWizard from '../pages/Onboarding/OnboardingWizard';
@@ -23,6 +26,8 @@ import SchedulePickerSheet from '../pages/Schedule/components/SchedulePickerShee
 const MainStack = createNativeStackNavigator();
 
 export default function MainLayout({ guest, onExitGuest }) {
+  const insets = useSafeAreaInsets();
+  const { canShowAds, isLoading: adsLoading } = useAds();
   const {
     user,
     global,
@@ -159,10 +164,26 @@ export default function MainLayout({ guest, onExitGuest }) {
   const [currentTheme, currentAccent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(currentTheme, currentAccent);
   const isLightMode = currentTheme === 'light';
+  const shouldReserveBannerSpace =
+    hasSchedules && !isBlocking && !showOverlay && (adsLoading || canShowAds);
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       <StatusBar translucent style={isLightMode ? 'dark' : 'light'} />
+
+      {shouldReserveBannerSpace ? (
+        <View
+          style={[
+            styles.adSafeArea,
+            {
+              paddingTop: insets.top,
+              backgroundColor: themeColors.backgroundColor,
+            },
+          ]}
+        >
+          <AdBanner />
+        </View>
+      ) : null}
 
       <View style={styles.container}>
         <View style={{ flex: 1 }}>
@@ -253,6 +274,7 @@ export default function MainLayout({ guest, onExitGuest }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  adSafeArea: { width: '100%' },
   overlay: { zIndex: 1000, justifyContent: 'center', alignItems: 'center' },
   overlayContent: { padding: 24, borderRadius: 20, alignItems: 'center', justifyContent: 'center', width: '85%', maxWidth: 400, elevation: 10 },
   statusText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },

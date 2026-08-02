@@ -180,8 +180,10 @@ export const legalMetadata = {
     Non-personalized ads do not use past behavior for ad selection, but advertising identifiers, cookies or
     equivalent storage, IP-derived coarse location, and technical data may still be used for frequency capping,
     aggregated reporting, fraud prevention, and delivery as explained in the Privacy Policy. Requesting
-    non-personalized ads does not replace any consent or limited-data treatment required by local law. The
-    current release does not provide a dedicated in-app advertising-consent interface.</p>
+    non-personalized ads does not replace any consent or limited-data treatment required by local law. Native
+    builds therefore refresh Google's User Messaging Platform privacy status before requesting ads, display a
+    Google-rendered message when required, and expose Google's ongoing advertising privacy options in Settings
+    whenever the platform requires that entry point.</p>
   <p>The web app does not initialize optional Firebase Analytics until the user affirmatively accepts analytics
     in PlanIt's cookie notice. Rejecting analytics does not block core web features, and the choice can be
     changed through the persistent Cookie settings control. See the

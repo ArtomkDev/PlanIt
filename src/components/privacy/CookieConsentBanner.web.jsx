@@ -20,16 +20,16 @@ import { getLegalDocumentBrowserUrl } from '../../utils/legalDocumentLinks';
 export default function CookieConsentBanner({ lang = 'en' }) {
   const { width } = useWindowDimensions();
   const [consent, setConsent] = useState(() => readCookieConsent());
-  const [isOpen, setIsOpen] = useState(() => !readCookieConsent());
+  const [isPreferenceEditorOpen, setIsPreferenceEditorOpen] = useState(false);
   const isNarrow = width < 700;
+  const shouldShow = !consent || isPreferenceEditorOpen;
 
   useEffect(() => {
     const unsubscribeConsent = subscribeToCookieConsent((nextConsent) => {
       setConsent(nextConsent);
-      if (!nextConsent) setIsOpen(true);
     });
     const unsubscribePreferences = subscribeToCookiePreferenceRequests(() => {
-      setIsOpen(true);
+      setIsPreferenceEditorOpen(true);
     });
 
     return () => {
@@ -41,23 +41,10 @@ export default function CookieConsentBanner({ lang = 'en' }) {
   const chooseAnalytics = (status) => {
     const nextConsent = saveCookieConsent(status);
     setConsent(nextConsent);
-    setIsOpen(false);
+    setIsPreferenceEditorOpen(false);
   };
 
-  if (!isOpen) {
-    return (
-      <TouchableOpacity
-        style={styles.preferencesButton}
-        onPress={() => setIsOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={t('cookie_consent.settings', lang)}
-      >
-        <Text style={styles.preferencesButtonText}>
-          {t('cookie_consent.settings', lang)}
-        </Text>
-      </TouchableOpacity>
-    );
-  }
+  if (!shouldShow) return null;
 
   return (
     <View
@@ -127,7 +114,7 @@ export default function CookieConsentBanner({ lang = 'en' }) {
         {consent ? (
           <TouchableOpacity
             style={styles.closeButton}
-            onPress={() => setIsOpen(false)}
+            onPress={() => setIsPreferenceEditorOpen(false)}
             accessibilityRole="button"
           >
             <Text style={styles.closeButtonText}>
@@ -237,28 +224,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
-  },
-  preferencesButton: {
-    position: 'fixed',
-    left: 12,
-    bottom: 12,
-    zIndex: 9999,
-    minHeight: 38,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#64748B',
-    backgroundColor: '#111827',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-  },
-  preferencesButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
 });

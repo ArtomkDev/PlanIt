@@ -3,7 +3,6 @@ import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-nat
 import { useScheduleData } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import AppBlur from '../components/ui/AppBlur';
-import AdBanner from '../components/AdBanner/AdBanner';
 import { NAVIGATION_METRICS } from './navigationMetrics';
 import { triggerHaptic } from '../utils/haptics';
 
@@ -305,10 +304,6 @@ export default function PlanItTabBar({ state, descriptors, navigation, insets, o
 
   return (
     <View key={`tabbar-${configKey}`} style={styles.root} onLayout={onLayout}>
-      <View style={styles.adWrapper}>
-        <AdBanner />
-      </View>
-
       <View
         key={`surface-${configKey}`}
         collapsable={false}
@@ -369,12 +364,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  adWrapper: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 4,
   },
   surfaceOuter: {
     position: 'relative',

@@ -1,6 +1,6 @@
 {
   "name": "planit",
-  "version": "0.1.76",
+  "version": "0.1.78",
   "main": "index.js",
   "scripts": {
     "legal:sync": "node scripts/generate-legal-documents.js",
@@ -15,11 +15,12 @@
     "dev": "start /MIN D:\\Android\\Sdk\\emulator\\emulator.exe -avd Pixel_8_Pro -no-skin && npm run legal:sync && cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start",
     "eas-build-pre-install": "cp $GOOGLE_SERVICES_JSON ./google-services.json",
     "fix": "node scripts/fix-build.js",
-    "build:apk": "npm run legal:sync && npx expo prebuild --platform android && powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1",
+    "build:apk": "npm run legal:sync && powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1",
+    "build:test-apk": "npm run legal:sync && powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1 -AdsMode test",
     "release:patch": "npm version patch --no-git-tag-version && npm run build:apk",
     "release:minor": "npm version minor --no-git-tag-version && npm run build:apk",
     "release:major": "npm version major --no-git-tag-version && npm run build:apk",
-    "build:aab": "npm run legal:sync && npx expo prebuild --platform android && powershell -ExecutionPolicy Bypass -File ./scripts/build-aab.ps1",
+    "build:aab": "npm run legal:sync && powershell -ExecutionPolicy Bypass -File ./scripts/build-aab.ps1",
     "playstore:patch": "npm version patch --no-git-tag-version && npm run build:aab",
     "playstore:minor": "npm version minor --no-git-tag-version && npm run build:aab",
     "playstore:major": "npm version major --no-git-tag-version && npm run build:aab",
@@ -32,7 +33,9 @@
     "graphify:query": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 query",
     "graphify:install-codex": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 install --project --platform codex",
     "test:account-deletion": "node --test tests/accountDeletionService.test.cjs tests/accountDeletionAuth.test.cjs",
-    "test:cookie-consent": "node --test tests/cookieConsent.test.cjs"
+    "test:cookie-consent": "node --test tests/cookieConsent.test.cjs",
+    "test:ads": "node --test tests/adMobCompliance.test.cjs",
+    "test:native-guards": "node --test tests/nativeModuleGuards.test.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

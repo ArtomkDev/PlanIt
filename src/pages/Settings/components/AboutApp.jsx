@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, Share, Alert, Platform } from 'react-native';
 import { 
   Cookie, EnvelopeSimple, FileText, Globe, ShareNetwork,
-  Package, ShieldCheck, SlidersHorizontal, Trash,
+  Package, ShieldCheck, Trash,
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
@@ -12,7 +12,6 @@ import { useScheduleData } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 import { getLegalDocumentBrowserUrl } from '../../../utils/legalDocumentLinks';
-import { requestCookiePreferences } from '../../../services/cookieConsentService';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
@@ -143,14 +142,6 @@ export default function AboutApp() {
             onPress={() => openLegalDocument('licenses')}
             themeColors={themeColors}
           />
-          {Platform.OS === 'web' ? (
-            <SettingsRow
-              label={t('settings.about_screen.cookie_settings', lang)}
-              icon={SlidersHorizontal}
-              onPress={requestCookiePreferences}
-              themeColors={themeColors}
-            />
-          ) : null}
         </SettingsGroup>
 
       </ScrollView>

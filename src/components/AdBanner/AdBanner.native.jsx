@@ -1,60 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Constants from 'expo-constants';
-import MorphingLoader from '../ui/MorphingLoader';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { isRunningInExpoGo } from 'expo';
 
-const isExpoGo = Constants.appOwnership === 'expo';
+import { useAds } from '../../context/AdsContext';
+
+const isExpoGo = isRunningInExpoGo();
 
 export default function AdBanner() {
+  const { canShowAds } = useAds();
   const [RealAdComponent, setRealAdComponent] = useState(null);
 
   useEffect(() => {
-    if (!isExpoGo) {
+    let active = true;
+
+    if (!isExpoGo && canShowAds) {
       import('./AdBannerImpl')
         .then((module) => {
-          setRealAdComponent(() => module.default);
+          if (active) setRealAdComponent(() => module.default);
         })
-        .catch((err) => console.warn('Failed to load Ad module:', err));
+        .catch((error) => {
+          if (__DEV__) {
+            console.warn('Failed to load the AdMob banner module:', error);
+          }
+        });
+    } else {
+      setRealAdComponent(null);
     }
-  }, []);
 
-  if (isExpoGo || !RealAdComponent) {
-    return (
-      <View style={styles.placeholderContainer}>
-        <View style={styles.placeholderBox}>
-          {isExpoGo ? (
-            <Text style={styles.placeholderText}>AdMob Placeholder (Expo Go)</Text>
-          ) : (
-            <MorphingLoader size={28} />
-          )}
-        </View>
-      </View>
-    );
-  }
+    return () => {
+      active = false;
+    };
+  }, [canShowAds]);
 
-  return <RealAdComponent />;
+  return (
+    <View
+      pointerEvents={canShowAds ? 'box-none' : 'none'}
+      style={styles.placement}
+    >
+      {RealAdComponent ? <RealAdComponent /> : null}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  placeholderContainer: { 
-    width: '100%', 
-    alignItems: 'center', 
-    paddingVertical: 10 
-  },
-  placeholderBox: {
-    width: '90%', 
-    height: 60, 
-    backgroundColor: 'rgba(150,150,150,0.1)',
-    borderRadius: 12, 
-    borderWidth: 1, 
-    borderColor: 'rgba(150,150,150,0.2)',
-    borderStyle: 'dashed', 
-    alignItems: 'center', 
+  placement: {
+    width: '100%',
+    minHeight: 75,
+    paddingTop: 12,
+    paddingBottom: 12,
+    alignItems: 'center',
     justifyContent: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(127,127,127,0.32)',
   },
-  placeholderText: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    color: '#999' 
-  }
 });

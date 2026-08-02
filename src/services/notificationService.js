@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
+import { isRunningInExpoGo } from "expo";
 import {
   addDoc,
   collection,
@@ -41,6 +41,14 @@ const EXPO_PUSH_SEND_ENDPOINT = "https://exp.host/--/api/v2/push/send";
 const EXPO_PUSH_TIMEOUT_MS = 4500;
 const LESSON_REMINDER_HORIZON_DAYS = 21;
 const MAX_LESSON_REMINDER_NOTIFICATIONS = 60;
+const isExpoGo = isRunningInExpoGo();
+const Notifications = Platform.OS !== "web" && !isExpoGo
+  ? require("expo-notifications")
+  : null;
+const unsupportedNotificationStatus = isExpoGo
+  ? "unsupported_expo_go"
+  : "unsupported";
+const dateTriggerType = Notifications?.SchedulableTriggerInputTypes?.DATE || "date";
 
 const CHANNELS_BY_TYPE = {
   [NOTIFICATION_TYPES.ACCOUNT_LOGIN]: {
@@ -55,7 +63,7 @@ const CHANNELS_BY_TYPE = {
 
 let configuredChannels = {};
 
-if (Platform.OS !== "web" && Notifications.setNotificationHandler) {
+if (Notifications?.setNotificationHandler) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -111,13 +119,16 @@ export const createNotificationPreferencesWithPush = (preferencesOrGlobal, type,
 
 const getPermissionGranted = (settings) => (
   !!settings?.granted
-  || settings?.ios?.status === Notifications.IosAuthorizationStatus?.PROVISIONAL
-  || settings?.ios?.status === Notifications.IosAuthorizationStatus?.AUTHORIZED
+  || settings?.ios?.status === Notifications?.IosAuthorizationStatus?.PROVISIONAL
+  || settings?.ios?.status === Notifications?.IosAuthorizationStatus?.AUTHORIZED
 );
 
 const ensureNativeNotificationPermissions = async ({ request = false } = {}) => {
   if (Platform.OS === "web") {
     return { granted: true, status: "unsupported" };
+  }
+  if (!Notifications) {
+    return { granted: false, status: unsupportedNotificationStatus };
   }
 
   try {
@@ -166,7 +177,7 @@ export const ensureLessonReminderPermissions = (options = {}) => (
 );
 
 export const getCurrentDevicePushRegistration = async ({ request = false } = {}) => {
-  if (Platform.OS === "web") return null;
+  if (Platform.OS === "web" || !Notifications) return null;
 
   const permission = await ensureNativeNotificationPermissions({ request });
   const registration = {
@@ -213,7 +224,7 @@ export const syncDevicePushRegistration = async (userId, deviceId, options = {})
 };
 
 const ensureAndroidChannel = async (type) => {
-  if (Platform.OS !== "android") return null;
+  if (Platform.OS !== "android" || !Notifications) return null;
 
   const channel = CHANNELS_BY_TYPE[type] || CHANNELS_BY_TYPE[NOTIFICATION_TYPES.LESSON_REMINDER];
   if (configuredChannels[channel.id]) return channel.id;
@@ -241,8 +252,8 @@ const withAndroidChannel = async (type, trigger) => {
 };
 
 const dispatchLocalPushNotification = async (type, content, options = {}) => {
-  if (Platform.OS === "web") {
-    return { id: null, status: "unsupported" };
+  if (Platform.OS === "web" || !Notifications) {
+    return { id: null, status: unsupportedNotificationStatus };
   }
 
   const permission = await ensureNotificationPushPermissionsForType(type, {
@@ -312,7 +323,7 @@ const writeLocalNotificationState = async (state) => {
 export const clearAllLocalNotifications = async () => {
   const failures = [];
 
-  if (Platform.OS !== "web") {
+  if (Notifications) {
     const notificationResults = await Promise.allSettled([
       Notifications.cancelAllScheduledNotificationsAsync(),
       Notifications.dismissAllNotificationsAsync(),
@@ -481,7 +492,7 @@ export const buildLessonReminderRequests = (schedule, options = {}) => {
         },
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        type: dateTriggerType,
         date: triggerAt,
       },
       metadata: {
@@ -509,7 +520,7 @@ export const cancelLessonRemindersForSchedule = async (scheduleId) => {
     .map((record) => (typeof record === "string" ? record : record?.id))
     .filter(Boolean);
 
-  if (Platform.OS !== "web" && ids.length > 0) {
+  if (Notifications && ids.length > 0) {
     await Promise.allSettled(
       ids.map((id) => Notifications.cancelScheduledNotificationAsync(id))
     );
@@ -549,8 +560,8 @@ export const reconcileLessonRemindersForSchedule = async (schedule, options = {}
     return { scheduled: 0, canceled, status: "disabled_by_preference" };
   }
 
-  if (Platform.OS === "web") {
-    return { scheduled: 0, canceled, status: "unsupported" };
+  if (Platform.OS === "web" || !Notifications) {
+    return { scheduled: 0, canceled, status: unsupportedNotificationStatus };
   }
 
   const requests = buildLessonReminderRequests(schedule, options);
