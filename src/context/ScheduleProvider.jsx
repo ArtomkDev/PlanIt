@@ -22,15 +22,6 @@ import {
 import { setHapticsEnabled } from "../utils/haptics";
 import { generateId } from "../utils/idGenerator";
 
-let requestWidgetUpdate = null;
-let ScheduleWidget = null;
-if (Platform.OS === 'android') {
-  try {
-    requestWidgetUpdate = require('react-native-android-widget').requestWidgetUpdate;
-    ScheduleWidget = require('../widgets/ScheduleWidget').ScheduleWidget;
-  } catch (e) {}
-}
-
 const ScheduleContext = createContext(null);
 const ScheduleDataContext = createContext(null);
 const ScheduleActionsContext = createContext(null);

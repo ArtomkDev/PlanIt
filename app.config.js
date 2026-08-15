@@ -132,7 +132,8 @@ export default {
             }
           ]
         }
-      ]
+      ],
+      "./plugins/withWidgetUpdateScheduler"
     ]
   }
 };

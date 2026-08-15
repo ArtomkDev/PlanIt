@@ -1,6 +1,5 @@
 import React from 'react';
 import { FlexWidget, TextWidget, SvgWidget, ListWidget } from 'react-native-android-widget';
-import { parseRealSchedule } from './scheduleCore';
 
 const BASE_WIDTH = 320;
 const BASE_HEIGHT = 400;
@@ -18,26 +17,18 @@ function buildScale(width, height) {
   return (base) => Math.max(1, Math.round(base * s));
 }
 
-export function ScheduleWidget({ schedule, dateOffset = 0, width, height }) {
+export function ScheduleWidget({ model }) {
+  const {
+    hasSchedule,
+    items,
+    headerText,
+    dateInfo,
+    isTodayActive,
+    targetDateIso,
+    width,
+    height,
+  } = model;
   const sc = buildScale(width || 0, height || 0);
-
-  const targetDate = new Date();
-  targetDate.setDate(targetDate.getDate() + dateOffset);
-
-  const daysUk = ['Нд', 'Пн', 'Вв', 'Ср', 'Чт', 'Пт', 'Сб'];
-  const monthsUk = [
-    'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
-    'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня',
-  ];
-
-  const { items, currentWeekNum, totalWeeks } = parseRealSchedule(schedule, targetDate, dateOffset);
-
-  const headerText =
-    dateOffset === 0 ? 'Сьогодні' : dateOffset === 1 ? 'Завтра' : daysUk[targetDate.getDay()];
-  const dateInfo = `${targetDate.getDate()} ${monthsUk[targetDate.getMonth()]}${
-    totalWeeks > 1 ? ` • Тиждень ${currentWeekNum}` : ''
-  }`;
-  const isTodayActive = dateOffset === 0;
 
   const hPad = sc(16);
   const borderRadius = sc(24);
@@ -105,7 +96,7 @@ export function ScheduleWidget({ schedule, dateOffset = 0, width, height }) {
     </FlexWidget>
   );
 
-  if (!schedule) {
+  if (!hasSchedule) {
     return (
       <RootContainer>
         <FlexWidget
@@ -189,7 +180,7 @@ export function ScheduleWidget({ schedule, dateOffset = 0, width, height }) {
                   <FlexWidget
                     key={`lesson-${idx}`}
                     clickAction="OPEN_LESSON"
-                    clickActionData={{ targetDateStr: targetDate.toISOString(), lessonIndex: item.lessonIndex }}
+                    clickActionData={{ targetDateStr: targetDateIso, lessonIndex: item.lessonIndex }}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'stretch',

@@ -1,27 +1,69 @@
 export const formatTime = (mins) =>
   `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 
-export function parseRealSchedule(scheduleData, targetDate, dateOffset) {
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+
+const parseTime = (value, fallback) => {
+  if (typeof value !== 'string') return fallback;
+  const match = /^(\d{1,2}):(\d{1,2})$/.exec(value.trim());
+  if (!match) return fallback;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return fallback;
+  return hours * 60 + minutes;
+};
+
+const toUtcDay = (date) => Date.UTC(
+  date.getFullYear(),
+  date.getMonth(),
+  date.getDate(),
+);
+
+const parseUtcCalendarDay = (value) => {
+  if (typeof value === 'string') {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (match) {
+      return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : toUtcDay(date);
+};
+
+const createBoundaryTimestamp = (date, minutes) => {
+  const boundary = new Date(date);
+  boundary.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return boundary.getTime();
+};
+
+export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput = new Date()) {
   if (!scheduleData || !scheduleData.schedule) {
-    return { items: [], currentWeekNum: 1, totalWeeks: 1 };
+    return { items: [], currentWeekNum: 1, totalWeeks: 1, nextTransitionAt: null };
   }
 
   try {
+    const now = new Date(nowInput);
     let dayIndex = targetDate.getDay() - 1;
     if (dayIndex < 0) dayIndex = 6;
 
     let currentWeekNum = 1;
-    let totalWeeks = scheduleData.repeat || 1;
+    const parsedRepeat = Number(scheduleData.repeat);
+    const totalWeeks = Number.isFinite(parsedRepeat) && parsedRepeat > 0
+      ? Math.floor(parsedRepeat)
+      : 1;
 
     if (scheduleData.starting_week && totalWeeks > 1) {
-      const start = new Date(scheduleData.starting_week);
-      start.setHours(0, 0, 0, 0);
-      const target = new Date(targetDate);
-      target.setHours(0, 0, 0, 0);
-      const weeksPassed = Math.floor((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7));
-      let mod = weeksPassed % totalWeeks;
-      if (mod < 0) mod += totalWeeks;
-      currentWeekNum = mod + 1;
+      const startDay = parseUtcCalendarDay(scheduleData.starting_week);
+      if (startDay !== null) {
+        // Calendar days in UTC avoid an off-by-one week around DST changes.
+        const weeksPassed = Math.floor((toUtcDay(targetDate) - startDay) / WEEK_MS);
+        let mod = weeksPassed % totalWeeks;
+        if (mod < 0) mod += totalWeeks;
+        currentWeekNum = mod + 1;
+      }
     }
 
     const weekKey = `week${currentWeekNum}`;
@@ -32,17 +74,18 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset) {
     const teachersList = scheduleData.teachers || [];
     const gradients = scheduleData.gradients || [];
     const breaks = scheduleData.breaks || [];
-    const duration = scheduleData.duration || 45;
+    const parsedDuration = Number(scheduleData.duration);
+    const duration = Number.isFinite(parsedDuration) && parsedDuration > 0
+      ? parsedDuration
+      : 45;
 
-    let baseMins = 8 * 60 + 30;
-    if (scheduleData.start_time) {
-      const [h, m] = scheduleData.start_time.split(':').map(Number);
-      if (!isNaN(h) && !isNaN(m)) baseMins = h * 60 + m;
-    }
+    const baseMins = parseTime(scheduleData.start_time, 8 * 60 + 30);
 
     const isToday = dateOffset === 0;
-    const now = new Date();
-    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const nowMins = now.getHours() * 60
+      + now.getMinutes()
+      + now.getSeconds() / 60
+      + now.getMilliseconds() / 60000;
 
     const timeline = [];
     let currentMins = baseMins;
@@ -59,17 +102,15 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset) {
         const lessonData = isInstance ? item : {};
         const subjectId = isInstance ? (item.subjectId || item.subject || item.id) : item;
 
-        if (lessonData.startTime) {
-          const [h, m] = lessonData.startTime.split(':').map(Number);
-          if (!isNaN(h) && !isNaN(m)) actualStart = h * 60 + m;
-        }
+        actualStart = parseTime(lessonData.startTime, actualStart);
 
         if (lessonData.endTime) {
-          const [h, m] = lessonData.endTime.split(':').map(Number);
-          if (!isNaN(h) && !isNaN(m)) actualEnd = h * 60 + m;
+          actualEnd = parseTime(lessonData.endTime, actualEnd);
         } else if (lessonData.startTime) {
           actualEnd = actualStart + duration;
         }
+
+        if (actualEnd <= actualStart) actualEnd = actualStart + duration;
 
         timeline.push({ item, isLesson: true, actualStart, actualEnd, subjectId, lessonData });
       } else {
@@ -143,7 +184,7 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset) {
       if (extraInfo) detailsArray.push(extraInfo);
 
       const isCurrentLesson = isToday && nowMins >= tInfo.actualStart && nowMins < tInfo.actualEnd;
-      const minutesLeft = tInfo.actualEnd - nowMins;
+      const minutesLeft = Math.ceil(tInfo.actualEnd - nowMins);
 
       items.push({
         type: 'lesson',
@@ -184,8 +225,23 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset) {
       }
     }
 
-    return { items, currentWeekNum, totalWeeks };
+    const nextBoundaryMinutes = isToday
+      ? timeline
+        .filter(({ isLesson }) => isLesson)
+        .flatMap(({ actualStart, actualEnd }) => [actualStart, actualEnd])
+        .filter((minutes) => minutes > nowMins)
+        .sort((left, right) => left - right)[0]
+      : undefined;
+
+    return {
+      items,
+      currentWeekNum,
+      totalWeeks,
+      nextTransitionAt: nextBoundaryMinutes === undefined
+        ? null
+        : createBoundaryTimestamp(targetDate, nextBoundaryMinutes),
+    };
   } catch (_) {
-    return { items: [], currentWeekNum: 1, totalWeeks: 1 };
+    return { items: [], currentWeekNum: 1, totalWeeks: 1, nextTransitionAt: null };
   }
 }
