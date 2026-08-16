@@ -48,6 +48,8 @@ export default {
     slug: "PlanIt",
     version: pkg.version,
     scheme: "planit",
+    // Keep the existing iOS behavior. The Android compliance plugin removes
+    // this generated restriction only from MainActivity for Android 16.
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
@@ -90,11 +92,24 @@ export default {
       }
     },
     owner: "artomk",
-    runtimeVersion: "1.0.0",
+    // Native configuration changes must not share an OTA runtime with older
+    // binaries. Each app version gets its own compatible update runtime.
+    runtimeVersion: {
+      policy: "appVersion"
+    },
     updates: {
       url: "https://u.expo.dev/c405e09d-0c69-44bd-859a-d6123086964f"
     },
     plugins: [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ],
       "expo-localization",
       "expo-notifications",
       [
@@ -133,7 +148,8 @@ export default {
           ]
         }
       ],
-      "./plugins/withWidgetUpdateScheduler"
+      "./plugins/withWidgetUpdateScheduler",
+      "./plugins/withAndroidPlayCompliance"
     ]
   }
 };

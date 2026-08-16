@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
 import { X, PlusCircle, Trash } from "phosphor-react-native";
 
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
@@ -10,10 +10,10 @@ import { triggerHaptic } from "../../../../../utils/haptics";
 import SettingsSelectionRow from "../../../../../components/ui/SettingsKit/SettingsSelectionRow";
 import SettingsActionRow from "../../../../../components/ui/SettingsKit/SettingsActionRow";
 
-const { width } = Dimensions.get('window');
 const GRID_SPACING = 10;
-const COLUMNS = 5;
-const ITEM_SIZE = (width - 32 - (COLUMNS - 1) * GRID_SPACING) / COLUMNS;
+const PHONE_COLUMNS = 5;
+const LARGE_SCREEN_COLUMNS = 8;
+const EDITOR_MAX_WIDTH = 800;
 
 export default function LessonEditorPickerScreen({
   options,
@@ -27,7 +27,12 @@ export default function LessonEditorPickerScreen({
   layout = 'list',
 }) {
   const { lang } = useScheduleData();
+  const { width } = useWindowDimensions();
   const [tempSelected, setTempSelected] = useState([]);
+
+  const columns = width >= 600 ? LARGE_SCREEN_COLUMNS : PHONE_COLUMNS;
+  const gridWidth = Math.min(width, EDITOR_MAX_WIDTH) - 32;
+  const itemSize = (gridWidth - (columns - 1) * GRID_SPACING) / columns;
 
   useEffect(() => {
     setTempSelected(Array.isArray(selectedValues) ? selectedValues : [selectedValues]);
@@ -57,7 +62,8 @@ export default function LessonEditorPickerScreen({
       <TouchableOpacity
         key={itemKey}
         style={[
-          styles.gridItem, 
+          styles.gridItem,
+          { width: itemSize, height: itemSize },
           { 
             backgroundColor: isSelected ? themeColors.accentColor + '25' : themeColors.backgroundColor2, 
             borderColor: isSelected ? themeColors.accentColor : 'transparent', 
@@ -193,8 +199,6 @@ const styles = StyleSheet.create({
     gap: GRID_SPACING 
   },
   gridItem: { 
-    width: ITEM_SIZE, 
-    height: ITEM_SIZE, 
     borderRadius: 12, 
     justifyContent: 'center', 
     alignItems: 'center' 

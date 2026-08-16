@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, Platform } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Animated, Platform, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useScheduleData, useScheduleLayout } from "../../../context/ScheduleProvider";
@@ -10,8 +10,6 @@ import { t } from "../../../utils/i18n";
 import { buildLessonTimes } from "../../../utils/scheduleTime";
 import { APP_HEADER_CONTENT_GAP, getAppHeaderHeight } from "../../../config/layoutMetrics";
 import { triggerHaptic } from "../../../utils/haptics";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function DaySchedule({ 
   targetDate, 
@@ -25,6 +23,7 @@ export default function DaySchedule({
   const { schedule, global, lang } = useScheduleData();
   const { tabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -59,7 +58,7 @@ export default function DaySchedule({
     >
       <TouchableOpacity 
         activeOpacity={1} 
-        style={{ minHeight: SCREEN_HEIGHT * 0.6 }} 
+        style={{ minHeight: screenHeight * 0.6 }}
         onLongPress={handleEmptyLongPress}
         delayLongPress={500}
       >

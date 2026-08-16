@@ -193,7 +193,7 @@ export default function MainLayout({ guest, onExitGuest }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
-      <StatusBar translucent style={isLightMode ? 'dark' : 'light'} />
+      <StatusBar style={isLightMode ? 'dark' : 'light'} />
 
       {shouldReserveBannerSpace ? (
         <View

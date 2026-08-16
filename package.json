@@ -1,6 +1,6 @@
 {
   "name": "planit",
-  "version": "0.1.78",
+  "version": "0.1.79",
   "main": "index.js",
   "scripts": {
     "legal:sync": "node scripts/generate-legal-documents.js",
@@ -36,6 +36,7 @@
     "test:cookie-consent": "node --test tests/cookieConsent.test.cjs",
     "test:ads": "node --test tests/adMobCompliance.test.cjs",
     "test:native-guards": "node --test tests/nativeModuleGuards.test.cjs",
+    "test:android-compliance": "node --test tests/androidPlayCompliance.test.cjs",
     "test:widgets": "node --test tests/widgetCore.test.cjs",
     "test:sync": "node --test tests/scheduleSync.test.cjs tests/localStorageDurability.test.cjs tests/firestoreSync.test.cjs"
   },
@@ -55,6 +56,7 @@
     "expo": "~54.0.33",
     "expo-apple-authentication": "~8.0.8",
     "expo-blur": "~15.0.8",
+    "expo-build-properties": "~1.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.8",
