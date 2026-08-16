@@ -37,8 +37,8 @@ import {
   cacheAttachmentFromLocalUri,
   buildAttachmentPickResultFromWebFiles,
   deleteCloudAttachmentObject,
+  deleteLocalAttachmentCache,
   deleteStoredAttachments,
-  deleteStoredAttachment,
   ensureLocalAttachment,
   formatAttachmentError,
   formatFileSize,
@@ -621,7 +621,6 @@ export default function FileLibraryScreen() {
       if (!cacheState?.uri || (cacheState.status !== "local" && cacheState.status !== "source")) {
         throw makeFileLibraryAttachmentError("cache_unavailable", { name: file.name });
       }
-      await deleteCloudAttachmentObject(file);
       updateFileRecord(cachedLocalFile);
       rememberPhotoPreview(cachedLocalFile);
       triggerHaptic("success");
@@ -711,8 +710,8 @@ export default function FileLibraryScreen() {
     setBusyFileId(file.id);
     setError("");
     try {
-      await deleteStoredAttachment(file);
       setLibraryAndRemoveReferences(file.id);
+      await deleteLocalAttachmentCache(file);
       triggerHaptic("success");
     } catch (deleteError) {
       setFileError(formatAttachmentError(deleteError, lang));

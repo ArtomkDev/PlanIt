@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules, Platform } from 'react-native';
-import { decodeStorageValue, encodeStorageValue, isEncodedStorageValue } from '../utils/dataCodec';
 import { parseRealSchedule } from './scheduleCore';
 
 export const SCHEDULE_WIDGET_NAME = 'ScheduleWidget';
@@ -94,11 +93,7 @@ export async function readWidgetState() {
     const entries = await AsyncStorage.multiGet([SCHEDULE_KEY, OFFSET_KEY]);
     const values = Object.fromEntries(entries);
     const rawSchedule = values[SCHEDULE_KEY];
-    const schedule = rawSchedule ? decodeStorageValue(rawSchedule) : null;
-
-    if (schedule && !isEncodedStorageValue(rawSchedule)) {
-      await AsyncStorage.setItem(SCHEDULE_KEY, encodeStorageValue(schedule));
-    }
+    const schedule = rawSchedule ? JSON.parse(rawSchedule) : null;
 
     return {
       schedule,
@@ -121,10 +116,10 @@ export function persistWidgetSchedule(schedule) {
       return;
     }
 
-    const encoded = encodeStorageValue(schedule);
+    const serialized = JSON.stringify(schedule);
     const existing = await AsyncStorage.getItem(SCHEDULE_KEY);
-    if (existing !== encoded) {
-      await AsyncStorage.setItem(SCHEDULE_KEY, encoded);
+    if (existing !== serialized) {
+      await AsyncStorage.setItem(SCHEDULE_KEY, serialized);
     }
   });
 }

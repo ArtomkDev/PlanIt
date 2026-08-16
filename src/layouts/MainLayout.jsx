@@ -58,9 +58,14 @@ export default function MainLayout({ guest, onExitGuest }) {
   const [importCode, setImportCode] = useState("");
 
   const hasSchedules = schedules && schedules.length > 0;
+  const hasUsableSchedule = hasSchedules && !!schedule;
   const isInitialSync = user && !guest && !hasSchedules && cloudSyncState === 'syncing';
-  const isBlocking = isLoading || isInitialSync || error || (hasSchedules && !schedule);
-  const isErrorState = error || isFatalTimeout;
+  // Network/sync errors must never hide an already loaded schedule behind the
+  // destructive recovery screen. That screen is only for an actual unusable
+  // data state; expected conflicts are handled by SyncConflictScreen.
+  const hasFatalDataError = !!error && !hasUsableSchedule;
+  const isBlocking = isLoading || isInitialSync || hasFatalDataError || (hasSchedules && !schedule);
+  const isErrorState = hasFatalDataError || isFatalTimeout;
 
   const [showOverlay, setShowOverlay] = useState(true);
   const overlayOpacity = useRef(new Animated.Value(1)).current;

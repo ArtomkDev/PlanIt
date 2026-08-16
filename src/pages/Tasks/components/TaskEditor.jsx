@@ -41,7 +41,7 @@ import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import { addScheduleRecordToMap } from "../../../utils/scheduleRecordMerge";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
-  deleteStoredAttachments,
+  deleteLocalAttachmentCaches,
   MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
   normalizeAttachmentDraftList,
   normalizeAttachmentLibrary,
@@ -991,7 +991,7 @@ export default function TaskEditor({
     });
 
     if (removedStoredAttachments.length > 0) {
-      deleteStoredAttachments(removedStoredAttachments).catch(() => {});
+      deleteLocalAttachmentCaches(removedStoredAttachments).catch(() => {});
     }
     setRemovedStoredAttachments([]);
     setAttachmentUploadState({ uploading: false });
@@ -1005,7 +1005,7 @@ export default function TaskEditor({
 
     triggerHaptic("success");
     onDelete?.(sourceSchedule?.id || targetSchedule.id, task.id);
-    deleteStoredAttachments([
+    deleteLocalAttachmentCaches([
       ...normalizeAttachmentDraftList(task?.attachments).filter((attachment) => !attachment?.fileId),
     ]).catch(() => {});
     dismissEditor();

@@ -37,7 +37,7 @@ import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet
 import AttachmentImagePreview from "../../../components/attachments/AttachmentImagePreview";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
-  deleteStoredAttachments,
+  deleteLocalAttachmentCaches,
   formatAttachmentError,
   formatFileSize,
   getAttachmentShareLabel,
@@ -182,7 +182,7 @@ export default function LessonViewer({
               }
               return next;
             });
-            deleteStoredAttachments(instanceData.attachments).catch(() => {});
+            deleteLocalAttachmentCaches(instanceData.attachments).catch(() => {});
             onClose();
           }
         }

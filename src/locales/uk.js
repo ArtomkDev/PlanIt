@@ -208,12 +208,15 @@ export default {
     title: "Конфлікт даних",
     subtitle: "Знайдено різні версії розкладів. Оберіть варіант для синхронізації.",
     untitled: "Без назви",
+    settings_and_files: "Налаштування та бібліотека файлів",
     this_device: "Цей пристрій",
     overwrite_cloud: "Перезаписати хмару",
     cloud_copy: "Хмарна копія",
+    cloud_deleted: "Видалено у хмарі",
     delete_local: "Видалити локальні зміни",
     keep_both: "Зберегти обидві",
     create_duplicate: "Створити дублікат розкладу",
+    merge_settings: "Об’єднати налаштування та зберегти всі файли",
   },
 
   migration_modal: {

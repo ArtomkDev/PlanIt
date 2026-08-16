@@ -1,253 +1,52 @@
-const normalizePrimitive = (value) => {
-  if (value === undefined || value === null) return "";
-  if (Array.isArray(value)) return value.join(",");
-  if (typeof value === "object") return "";
-  return String(value);
-};
+const UNDEFINED_SENTINEL = "__planit_undefined__";
+const CIRCULAR_SENTINEL = "__planit_circular__";
 
-const getReminderFingerprint = (reminder) => {
-  if (!reminder || typeof reminder !== "object" || Array.isArray(reminder)) return "";
-  const enabled = reminder.enabled === true || reminder.enabled === "true";
-  if (!enabled) {
-    return reminder.enabled === false || reminder.enabled === "false" ? "off" : "";
+const normalizeForFingerprint = (value, seen) => {
+  if (value === undefined) return UNDEFINED_SENTINEL;
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value;
   }
-  return `on:${normalizePrimitive(reminder.minutesBefore)}`;
-};
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : String(value);
+  }
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "function" || typeof value === "symbol") {
+    return String(value);
+  }
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeForFingerprint(item, seen));
+  }
+  if (typeof value !== "object") return String(value);
+  if (seen.has(value)) return CIRCULAR_SENTINEL;
 
-const getNotificationPreferencesFingerprint = (preferences) => {
-  if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) return "";
-  const pushByType = preferences.pushByType || {};
-
-  return Object.keys(pushByType)
-    .sort()
-    .map((type) => `${type}:${pushByType[type] === true ? 1 : 0}`)
-    .join(",");
-};
-
-const countLessons = (scheduleGrid) => {
-  if (!Array.isArray(scheduleGrid)) return 0;
-
-  return scheduleGrid.reduce((total, day) => {
-    if (!day || typeof day !== "object") return total;
-
-    return total + Object.keys(day).reduce((dayTotal, weekKey) => {
-      const weekLessons = day[weekKey];
-      return dayTotal + (Array.isArray(weekLessons) ? weekLessons.length : 0);
-    }, 0);
-  }, 0);
-};
-
-const getArrayItemsFingerprint = (items, keys) => {
-  if (!Array.isArray(items)) return "";
-
-  return items
-    .map((item = {}) => keys.map((key) => (
-      key === "reminder" ? getReminderFingerprint(item[key]) : normalizePrimitive(item[key])
-    )).join(","))
-    .sort()
-    .join(";");
-};
-
-const getAttachmentsFingerprint = (attachments) => {
-  if (!Array.isArray(attachments)) return "";
-
-  return attachments
-    .map((attachment = {}) => [
-      attachment.id,
-      attachment.fileId,
-      attachment.name,
-      attachment.mimeType,
-      attachment.size,
-      attachment.storageMode,
-      attachment.storagePath,
-      attachment.downloadURL,
-      attachment.cacheKey,
-      attachment.cloudRevision,
-      attachment.uploadedAt,
-      attachment.privacySanitized ? 1 : 0,
-    ].map(normalizePrimitive).join(","))
-    .sort()
-    .join(";");
-};
-
-const getFileLibraryFingerprint = (files) => getAttachmentsFingerprint(files);
-
-const getSubjectsFingerprint = (subjects) => {
-  if (!Array.isArray(subjects)) return "";
-
-  return subjects
-    .map((subject = {}) => [
-      subject.id,
-      subject.name,
-      subject.shortName,
-      subject.type,
-      subject.room,
-      subject.building,
-      subject.color,
-      subject.colorGradient,
-      getReminderFingerprint(subject.reminder),
-      getAttachmentsFingerprint(subject.attachments),
-    ].map(normalizePrimitive).join(","))
-    .sort()
-    .join(";");
-};
-
-const getLessonsFingerprint = (scheduleGrid) => {
-  if (!Array.isArray(scheduleGrid)) return "";
-
-  const lessonParts = [];
-  scheduleGrid.forEach((day, dayIndex) => {
-    if (!day || typeof day !== "object") return;
-
-    Object.keys(day).forEach((weekKey) => {
-      const weekLessons = day[weekKey];
-      if (!Array.isArray(weekLessons)) return;
-
-      weekLessons.forEach((lesson = {}, lessonIndex) => {
-        lessonParts.push([
-          dayIndex,
-          weekKey,
-          lessonIndex,
-          lesson.id,
-          lesson.subjectId,
-          lesson.type,
-          lesson.room,
-          lesson.building,
-          lesson.start,
-          lesson.end,
-          lesson.startTime,
-          lesson.endTime,
-          lesson.timeInfo?.start,
-          lesson.timeInfo?.end,
-          Array.isArray(lesson.teachers) ? lesson.teachers.join(",") : lesson.teacher,
-          Array.isArray(lesson.links) ? lesson.links.join(",") : lesson.link,
-          getAttachmentsFingerprint(lesson.attachments),
-          lesson.note,
-          lesson.color,
-          lesson.gradient,
-        ].map(normalizePrimitive).join(","));
-      });
-    });
+  seen.add(value);
+  const normalized = {};
+  Object.keys(value).sort().forEach((key) => {
+    normalized[key] = normalizeForFingerprint(value[key], seen);
   });
-
-  return lessonParts.join(";");
+  seen.delete(value);
+  return normalized;
 };
 
-const getTasksFingerprint = (tasks) => {
-  if (!Array.isArray(tasks)) return "";
+const normalizeScheduleData = (data) => {
+  const normalized = normalizeForFingerprint(data, new WeakSet());
+  if (!normalized || !Array.isArray(normalized.schedules)) return normalized;
 
-  return tasks
-    .map((task = {}) => {
-      const taskLinks = Array.isArray(task.links)
-        ? task.links.map(normalizePrimitive).sort().join(",")
-        : "";
-      const taskAttachments = getAttachmentsFingerprint(task.attachments);
-      const lessonRef = task.lessonRef && typeof task.lessonRef === "object" && !Array.isArray(task.lessonRef)
-        ? [
-          task.lessonRef.scheduleId,
-          task.lessonRef.subjectId,
-          task.lessonRef.date,
-          task.lessonRef.dayIndex,
-          task.lessonRef.weekKey,
-          task.lessonRef.lessonIndex,
-          task.lessonRef.start,
-          task.lessonRef.end,
-        ].map(normalizePrimitive).join(",")
-        : "";
-
-      return [
-        task.id,
-        task.subjectId,
-        task.text,
-        task.completed === true ? 1 : 0,
-        task.createdAt,
-        task.updatedAt,
-        taskLinks,
-        taskAttachments,
-        lessonRef,
-      ].map(normalizePrimitive).join(",");
-    })
-    .sort()
-    .join(";");
-};
-
-const getGlobalFingerprint = (global = {}) => {
-  const keys = [
-    "version",
-    "baseVersion",
-    "lastModified",
-    "lastSynced",
-    "watermark",
-    "currentScheduleId",
-    "language",
-    "theme",
-    "blur",
-    "navigationStyle",
-    "navigationLabels",
-    "navigationAnimations",
-    "hapticsEnabled",
-    "starting_week",
-    "notificationPreferences",
-    "fileLibrary",
-  ];
-
-  return keys.map((key) => {
-    const value = key === "notificationPreferences"
-      ? getNotificationPreferencesFingerprint(global?.[key])
-      : key === "fileLibrary"
-        ? getFileLibraryFingerprint(global?.[key])
-        : normalizePrimitive(global?.[key]);
-    return `${key}:${value}`;
-  }).join(";");
-};
-
-const getScheduleFingerprint = (schedule = {}) => {
-  const keyParts = [
-    schedule.id,
-    schedule.version || 0,
-    schedule.baseVersion || 0,
-    schedule.lastModified || 0,
-    schedule.lastSynced || 0,
-    schedule.isDeleted ? 1 : 0,
-    schedule.deletedAt || 0,
-    schedule.name || "",
-    schedule.repeat || "",
-    schedule.start_time || "",
-    schedule.duration || "",
-    schedule.taskAutoLinkMode || "",
-    getReminderFingerprint(schedule.reminder),
-    Array.isArray(schedule.breaks) ? schedule.breaks.join(",") : "",
-    Array.isArray(schedule.subjects) ? schedule.subjects.length : 0,
-    getSubjectsFingerprint(schedule.subjects),
-    Array.isArray(schedule.teachers) ? schedule.teachers.length : 0,
-    getArrayItemsFingerprint(schedule.teachers, ["id", "name", "shortName", "email", "phone"]),
-    Array.isArray(schedule.links) ? schedule.links.length : 0,
-    getArrayItemsFingerprint(schedule.links, ["id", "name", "url"]),
-    Array.isArray(schedule.gradients) ? schedule.gradients.length : 0,
-    getArrayItemsFingerprint(schedule.gradients, ["id", "name", "colors"]),
-    Array.isArray(schedule.tasks) ? schedule.tasks.length : 0,
-    getTasksFingerprint(schedule.tasks),
-    countLessons(schedule.schedule),
-    getLessonsFingerprint(schedule.schedule),
-  ];
-
-  return keyParts.map(normalizePrimitive).join(":");
+  return {
+    ...normalized,
+    // Firestore does not guarantee collection order. Everything within an
+    // individual schedule stays ordered because that order is user data.
+    schedules: [...normalized.schedules].sort((left, right) => (
+      String(left?.id ?? "").localeCompare(String(right?.id ?? ""))
+    )),
+  };
 };
 
 export const getScheduleDataFingerprint = (data) => {
-  if (!data) return "null";
-
-  const schedules = Array.isArray(data.schedules) ? data.schedules : [];
-  const schedulesFingerprint = schedules
-    .map(getScheduleFingerprint)
-    .sort()
-    .join("|");
-
-  return [
-    `global{${getGlobalFingerprint(data.global || {})}`,
-    `schedules:${schedules.length}`,
-    schedulesFingerprint,
-  ].join("}");
+  if (data === undefined) return UNDEFINED_SENTINEL;
+  return JSON.stringify(normalizeScheduleData(data));
 };
 
 export const hasScheduleDataChanged = (previousData, nextData) => (

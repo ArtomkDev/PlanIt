@@ -36,7 +36,8 @@
     "test:cookie-consent": "node --test tests/cookieConsent.test.cjs",
     "test:ads": "node --test tests/adMobCompliance.test.cjs",
     "test:native-guards": "node --test tests/nativeModuleGuards.test.cjs",
-    "test:widgets": "node --test tests/widgetCore.test.cjs"
+    "test:widgets": "node --test tests/widgetCore.test.cjs",
+    "test:sync": "node --test tests/scheduleSync.test.cjs tests/localStorageDurability.test.cjs tests/firestoreSync.test.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

@@ -11,6 +11,8 @@ import {
   query,
   where,
   waitForPendingWrites,
+  runTransaction,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import createDefaultData from './createDefaultData';
@@ -18,22 +20,27 @@ import { deleteAllUserCloudData } from '../services/accountDeletionService';
 import { logCrashlyticsError } from '../utils/analytics/crashlytics';
 import { getDeviceId } from '../utils/deviceService';
 import { getScheduleDataFingerprint } from '../utils/scheduleDataFingerprint';
-import {
-  decodeGlobalDocument,
-  decodeScheduleDocument,
-  encodeGlobalDocument,
-  encodeScheduleDocument,
-  needsGlobalDocumentRewrite,
-  needsScheduleDocumentRewrite,
-} from '../utils/scheduleDocumentCodec';
 
 let isAccountBeingDeleted = false;
 let accountDeletionLockCount = 0;
 const DEVICE_SYNC_CLEANUP_THROTTLE_MS = 30 * 60 * 1000;
 const DEVICE_WATERMARK_SCAN_TTL_MS = 60 * 60 * 1000;
-const DEAD_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
+const DEAD_DEVICE_MS = 180 * 24 * 60 * 60 * 1000;
+const TOMBSTONE_MIN_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const TOMBSTONE_WATERMARK_SAFETY_MS = 5 * 60 * 1000;
 const ACCOUNT_DELETION_PENDING_WRITES_TIMEOUT_MS = 15 * 1000;
+const MAX_SYNC_TRANSACTION_ENTITIES = 450;
 const cleanupStateByUser = new Map();
+
+export class ScheduleSyncConflictError extends Error {
+  constructor(conflicts, committed = null) {
+    super('Cloud data changed while this device was saving.');
+    this.name = 'ScheduleSyncConflictError';
+    this.code = 'sync/conflict';
+    this.conflicts = conflicts;
+    this.committed = committed;
+  }
+}
 
 export const beginAccountDeletion = () => {
   accountDeletionLockCount += 1;
@@ -59,60 +66,79 @@ const parseTimestamp = (ts) => {
 const ensureVersioning = (data) => {
   const now = Date.now();
   const lastMod = parseTimestamp(data.lastModified) || now;
-  return {
+  const version = Number(data.version) || 1;
+  const normalized = {
     ...data,
-    version: data.version || 1,
-    baseVersion: data.baseVersion || 1,
+    version,
+    baseVersion: version,
     lastModified: lastMod,
     lastSynced: lastMod, 
   };
+  if (data.deletedAt) normalized.deletedAt = parseTimestamp(data.deletedAt) || data.deletedAt;
+  return normalized;
 };
 
-const migrateGlobalDocumentIfNeeded = (globalRef, rawData, decodedData) => {
-  if (isAccountBeingDeleted || !needsGlobalDocumentRewrite(rawData)) return;
+const createMissingGlobalData = () => ({
+  ...createDefaultData().global,
+  currentScheduleId: null,
+  version: 0,
+  baseVersion: 0,
+  lastModified: 0,
+  lastSynced: 0,
+  _cloudMissing: true,
+});
 
-  setDoc(globalRef, encodeGlobalDocument(decodedData)).catch((error) => {
-    logCrashlyticsError(error, 'migrateGlobalDocument_Firestore');
-  });
-};
-
-const migrateScheduleSnapshotIfNeeded = (snapshot) => {
-  if (isAccountBeingDeleted || !snapshot || snapshot.empty) return;
-
-  try {
-    const batch = writeBatch(db);
-    let hasLegacyDocuments = false;
-
-    snapshot.docs.forEach((docSnap) => {
-      const rawData = docSnap.data();
-      if (!needsScheduleDocumentRewrite(rawData)) return;
-
-      hasLegacyDocuments = true;
-      batch.set(
-        docSnap.ref,
-        encodeScheduleDocument(decodeScheduleDocument(rawData, docSnap.id))
-      );
-    });
-
-    if (hasLegacyDocuments) {
-      batch.commit().catch((error) => {
-        logCrashlyticsError(error, 'migrateScheduleDocuments_Firestore');
-      });
-    }
-  } catch (error) {
-    logCrashlyticsError(error, 'prepareScheduleDocumentsMigration_Firestore');
+const removeUndefinedValues = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => (
+      item === undefined ? null : removeUndefinedValues(item)
+    ));
   }
+  if (!value || typeof value !== 'object') return value;
+  if (value instanceof Date || typeof value.toMillis === 'function') return value;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, item]) => item !== undefined)
+      .map(([key, item]) => [key, removeUndefinedValues(item)]),
+  );
+};
+
+// Firestore stores one readable document per entity. `id`, `baseVersion`, and
+// `lastSynced` are client state derived from the document path/version and are
+// intentionally not duplicated in the cloud document.
+const toCloudDocument = (entity = {}) => {
+  const {
+    id: _localId,
+    baseVersion: _localBaseVersion,
+    lastSynced: _localLastSynced,
+    _cloudMissing: _localMissingMarker,
+    ...cloudData
+  } = entity;
+  return removeUndefinedValues(cloudData);
+};
+
+const fromCloudDocument = (data = {}, id = null) => {
+  if (data?._c || data?._p) {
+    const error = new Error('Compressed Firestore documents are not supported by the current schema.');
+    error.code = 'sync/unsupported-cloud-schema';
+    throw error;
+  }
+  return ensureVersioning({
+    ...data,
+    ...(id ? { id } : {}),
+  });
 };
 
 const getDeviceSyncWatermark = async (userId, now = Date.now()) => {
   const devicesRef = collection(db, 'users', userId, 'devices');
-  const devicesSnap = await getDocs(devicesRef);
+  const devicesSnap = await getDocsFromServer(devicesRef);
 
   let watermark = now;
   let activeDevices = 0;
 
   devicesSnap.docs.forEach(docSnap => {
-    const syncTime = docSnap.data().lastSyncTime || 0;
+    const syncTime = parseTimestamp(docSnap.data().lastSyncTime) || 0;
     if (now - syncTime < DEAD_DEVICE_MS) {
       activeDevices++;
       if (syncTime < watermark) watermark = syncTime;
@@ -124,7 +150,7 @@ const getDeviceSyncWatermark = async (userId, now = Date.now()) => {
 
 const getCleanupWatermark = async (userId, now = Date.now()) => {
   const globalRef = doc(db, 'users', userId, 'global', 'settings');
-  const globalSnap = await getDoc(globalRef);
+  const globalSnap = await getDocFromServer(globalRef);
   const globalData = globalSnap.exists() ? globalSnap.data() : {};
   const cachedWatermark = Number(globalData.watermark) || 0;
   const cachedAt = parseTimestamp(globalData.watermarkUpdatedAt) || 0;
@@ -140,6 +166,14 @@ const getCleanupWatermark = async (userId, now = Date.now()) => {
   };
 };
 
+export const isTombstoneSafeToDelete = (data, watermark, now = Date.now()) => {
+  if (!data?.isDeleted) return false;
+  const deletedAt = parseTimestamp(data.deletedAt) || parseTimestamp(data.lastModified) || 0;
+  if (deletedAt <= 0 || now - deletedAt < TOMBSTONE_MIN_RETENTION_MS) return false;
+  const safeWatermark = Math.max(0, (Number(watermark) || 0) - TOMBSTONE_WATERMARK_SAFETY_MS);
+  return deletedAt <= safeWatermark;
+};
+
 const runDeviceSyncTimeAndCleanUp = async (userId) => {
   try {
     const deviceId = await getDeviceId();
@@ -147,22 +181,20 @@ const runDeviceSyncTimeAndCleanUp = async (userId) => {
     
     const now = Date.now();
     const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
-    await setDoc(deviceRef, { lastSyncTime: now }, { merge: true });
+    await setDoc(deviceRef, { lastSyncTime: serverTimestamp() }, { merge: true });
 
     // A stale watermark can only delay tombstone deletion; advancing it requires a rare device scan.
     const { globalRef, watermark, scannedDevices } = await getCleanupWatermark(userId, now);
-    const safeWatermark = watermark + 2000;
-
     const schedulesRef = collection(db, 'users', userId, 'schedules');
     const deletedSchedulesQuery = query(schedulesRef, where('isDeleted', '==', true));
-    const schedulesSnap = await getDocs(deletedSchedulesQuery);
+    const schedulesSnap = await getDocsFromServer(deletedSchedulesQuery);
     
     const batch = writeBatch(db);
     let hasDeletions = false;
 
     schedulesSnap.docs.forEach(docSnap => {
       const data = docSnap.data();
-      if (data.isDeleted && (data.deletedAt || data.lastModified || 0) <= safeWatermark) {
+      if (isTombstoneSafeToDelete(data, watermark, now)) {
         batch.delete(docSnap.ref);
         hasDeletions = true;
       }
@@ -232,9 +264,26 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   let schedulesFromCache = true;
   let globalHasPendingWrites = false;
   let schedulesHasPendingWrites = false;
-  let globalSnapshotCount = 0;
   let lastEmittedFingerprint = null;
   let lastEmittedFromCache = null;
+  let lastEmittedPendingWrites = null;
+  let subscriptionActive = true;
+  // Firestore does not await async snapshot handlers. Keep deliveries strictly
+  // ordered so an older, slower snapshot can never finish after a newer one and
+  // overwrite the UI with stale data.
+  let deliveryQueue = Promise.resolve();
+
+  const enqueueDataUpdate = (payload, isFromCache, metadata) => {
+    deliveryQueue = deliveryQueue
+      .then(() => (
+        subscriptionActive
+          ? onDataUpdate(payload, isFromCache, metadata)
+          : undefined
+      ))
+      .catch((error) => {
+        if (onError) onError(error);
+      });
+  };
 
   const checkAndEmit = () => {
     if (globalData !== null && schedulesList !== null) {
@@ -244,54 +293,35 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
       const fingerprint = getScheduleDataFingerprint(payload);
       const hasDataChanged = fingerprint !== lastEmittedFingerprint;
       const cacheStateChanged = isFromCache !== lastEmittedFromCache;
+      const pendingStateChanged = hasPendingWrites !== lastEmittedPendingWrites;
 
-      if (!hasDataChanged && !cacheStateChanged) return;
+      if (!hasDataChanged && !cacheStateChanged && !pendingStateChanged) return;
 
       lastEmittedFingerprint = fingerprint;
       lastEmittedFromCache = isFromCache;
+      lastEmittedPendingWrites = hasPendingWrites;
 
-      onDataUpdate(payload, isFromCache, {
+      enqueueDataUpdate(payload, isFromCache, {
         hasDataChanged,
         cacheStateChanged,
         hasPendingWrites,
+        pendingStateChanged,
       });
     }
   };
 
   const globalRef = doc(db, 'users', userId, 'global', 'settings');
   
-  const unsubGlobal = onSnapshot(globalRef, (docSnap) => {
-    const currentCount = ++globalSnapshotCount;
+  const unsubGlobal = onSnapshot(globalRef, { includeMetadataChanges: true }, (docSnap) => {
     globalFromCache = docSnap.metadata.fromCache; 
     globalHasPendingWrites = docSnap.metadata.hasPendingWrites;
 
     if (docSnap.exists()) {
-      const rawData = docSnap.data();
-      const data = decodeGlobalDocument(rawData);
-      const lastMod = parseTimestamp(data.lastModified) || Date.now();
-      globalData = { ...data, lastModified: lastMod, lastSynced: lastMod };
-      migrateGlobalDocumentIfNeeded(globalRef, rawData, data);
+      globalData = fromCloudDocument(docSnap.data());
       checkAndEmit();
     } else {
-      const userDocRef = doc(db, "users", userId);
-      getDoc(userDocRef).then((userDocSnap) => {
-        if (currentCount !== globalSnapshotCount) return;
-
-        if (userDocSnap.exists() && userDocSnap.data().global) {
-          const rawData = userDocSnap.data().global;
-          const data = decodeGlobalDocument(rawData);
-          const lastMod = parseTimestamp(data.lastModified) || Date.now();
-          globalData = { ...data, lastModified: lastMod, lastSynced: lastMod };
-          migrateGlobalDocumentIfNeeded(globalRef, rawData, data);
-        } else {
-          globalData = createDefaultData().global;
-        }
-        checkAndEmit();
-      }).catch(() => {
-        if (currentCount !== globalSnapshotCount) return;
-        globalData = createDefaultData().global;
-        checkAndEmit();
-      });
+      globalData = createMissingGlobalData();
+      checkAndEmit();
     }
   }, (error) => {
     if (onError) onError(error);
@@ -299,21 +329,20 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
 
   const schedulesRef = collection(db, 'users', userId, 'schedules');
   
-  const unsubSchedules = onSnapshot(schedulesRef, (querySnapshot) => {
+  const unsubSchedules = onSnapshot(schedulesRef, { includeMetadataChanges: true }, (querySnapshot) => {
     schedulesFromCache = querySnapshot.metadata.fromCache; 
     schedulesHasPendingWrites = querySnapshot.metadata.hasPendingWrites;
     
-    schedulesList = querySnapshot.docs.map(docSnap => ({
-      id: docSnap.id,
-      ...ensureVersioning(decodeScheduleDocument(docSnap.data(), docSnap.id)) 
-    }));
-    migrateScheduleSnapshotIfNeeded(querySnapshot);
+    schedulesList = querySnapshot.docs.map((docSnap) => (
+      fromCloudDocument(docSnap.data(), docSnap.id)
+    ));
     checkAndEmit();
   }, (error) => {
     if (onError) onError(error);
   });
 
   return () => {
+    subscriptionActive = false;
     unsubGlobal();
     unsubSchedules();
   };
@@ -326,39 +355,22 @@ export const getSchedule = async (userId) => {
     
     let globalData = null;
     if (globalSnap.exists()) {
-      const rawData = globalSnap.data();
-      const data = decodeGlobalDocument(rawData);
-      const lastMod = parseTimestamp(data.lastModified) || Date.now();
-      globalData = { ...data, lastModified: lastMod, lastSynced: lastMod };
-      migrateGlobalDocumentIfNeeded(globalRef, rawData, data);
-    } else {
-      const userDocRef = doc(db, "users", userId);
-      const userDocSnap = await getDoc(userDocRef);
-      if (userDocSnap.exists() && userDocSnap.data().global) {
-        const rawData = userDocSnap.data().global;
-        const data = decodeGlobalDocument(rawData);
-        const lastMod = parseTimestamp(data.lastModified) || Date.now();
-        globalData = { ...data, lastModified: lastMod, lastSynced: lastMod };
-        migrateGlobalDocumentIfNeeded(globalRef, rawData, data);
-      }
+      globalData = fromCloudDocument(globalSnap.data());
     }
 
     const schedulesRef = collection(db, 'users', userId, 'schedules');
     const schedulesSnap = await getDocs(schedulesRef);
 
-    let schedulesList = schedulesSnap.docs.map(docSnap => ({
-      id: docSnap.id,
-      ...ensureVersioning(decodeScheduleDocument(docSnap.data(), docSnap.id)) 
-    }));
-    migrateScheduleSnapshotIfNeeded(schedulesSnap);
+    const schedulesList = schedulesSnap.docs.map((docSnap) => (
+      fromCloudDocument(docSnap.data(), docSnap.id)
+    ));
 
     if (!globalData && schedulesList.length === 0) {
       return createDefaultData(); 
     }
 
     if (!globalData) {
-      const def = createDefaultData();
-      globalData = def.global;
+      globalData = createMissingGlobalData();
     }
 
     return { global: globalData, schedules: schedulesList };
@@ -374,39 +386,22 @@ export const getScheduleFromServer = async (userId) => {
     
     let globalData = null;
     if (globalSnap.exists()) {
-      const rawData = globalSnap.data();
-      const data = decodeGlobalDocument(rawData);
-      const lastMod = parseTimestamp(data.lastModified) || Date.now();
-      globalData = { ...data, lastModified: lastMod, lastSynced: lastMod };
-      migrateGlobalDocumentIfNeeded(globalRef, rawData, data);
-    } else {
-      const userDocRef = doc(db, "users", userId);
-      const userDocSnap = await getDocFromServer(userDocRef); 
-      if (userDocSnap.exists() && userDocSnap.data().global) {
-        const rawData = userDocSnap.data().global;
-        const data = decodeGlobalDocument(rawData);
-        const lastMod = parseTimestamp(data.lastModified) || Date.now();
-        globalData = { ...data, lastModified: lastMod, lastSynced: lastMod };
-        migrateGlobalDocumentIfNeeded(globalRef, rawData, data);
-      }
+      globalData = fromCloudDocument(globalSnap.data());
     }
 
     const schedulesRef = collection(db, 'users', userId, 'schedules');
     const schedulesSnap = await getDocsFromServer(schedulesRef); 
 
-    let schedulesList = schedulesSnap.docs.map(docSnap => ({
-      id: docSnap.id,
-      ...ensureVersioning(decodeScheduleDocument(docSnap.data(), docSnap.id)) 
-    }));
-    migrateScheduleSnapshotIfNeeded(schedulesSnap);
+    const schedulesList = schedulesSnap.docs.map((docSnap) => (
+      fromCloudDocument(docSnap.data(), docSnap.id)
+    ));
 
     if (!globalData && schedulesList.length === 0) {
       return null; 
     }
 
     if (!globalData) {
-      const def = createDefaultData();
-      globalData = def.global;
+      globalData = createMissingGlobalData();
     }
 
     return { global: globalData, schedules: schedulesList };
@@ -415,97 +410,141 @@ export const getScheduleFromServer = async (userId) => {
   }
 };
 
+const commitCloudEntity = async ({ kind, id, entity, ref, now }) => (
+  runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const remote = snapshot.exists()
+      ? fromCloudDocument(snapshot.data(), kind === 'schedule' ? id : null)
+      : null;
+    const remoteVersion = remote ? Number(remote.version) || 1 : 0;
+    const expectedVersion = Number(entity.baseVersion) || Number(entity.version) || 0;
+    const wasPreviouslySynced = (Number(entity.lastSynced) || 0) > 0;
+    const missingPreviouslySyncedSchedule = kind === 'schedule'
+      && !remote
+      && expectedVersion > 0
+      && wasPreviouslySynced
+      && !entity.isDeleted;
+
+    if ((remote && remoteVersion !== expectedVersion) || missingPreviouslySyncedSchedule) {
+      throw new ScheduleSyncConflictError([{
+        kind,
+        id,
+        expectedVersion,
+        remoteVersion,
+      }]);
+    }
+
+    if (kind === 'schedule' && !remote && entity.isDeleted) {
+      return {
+        ...entity,
+        version: expectedVersion,
+        baseVersion: expectedVersion,
+        lastSynced: now,
+      };
+    }
+
+    const nextVersion = remoteVersion + 1;
+    const committed = {
+      ...entity,
+      version: nextVersion,
+      baseVersion: nextVersion,
+      lastSynced: now,
+    };
+    transaction.set(ref, toCloudDocument(committed));
+    return committed;
+  })
+);
+
 export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
-  if (isAccountBeingDeleted) return;
+  if (isAccountBeingDeleted) {
+    const error = new Error('Account deletion is in progress.');
+    error.code = 'sync/account-deletion-in-progress';
+    throw error;
+  }
+  if (!userId) {
+    const error = new Error('A user id is required to save a schedule.');
+    error.code = 'sync/invalid-user';
+    throw error;
+  }
 
-  const batch = writeBatch(db);
+  const schedules = Array.isArray(data?.schedules)
+    ? data.schedules.filter((schedule) => schedule?.id)
+    : [];
+  const entityCount = schedules.length + (data?.global ? 1 : 0);
+  if (entityCount > MAX_SYNC_TRANSACTION_ENTITIES) {
+    const error = new Error('Too many changed schedules for one save operation.');
+    error.code = 'sync/too-many-entities';
+    throw error;
+  }
+
   const now = Date.now();
+  const entries = [
+    ...(data?.global ? [{
+      kind: 'global',
+      id: '__global__',
+      entity: data.global,
+      ref: doc(db, 'users', userId, 'global', 'settings'),
+    }] : []),
+    ...schedules.map((schedule) => ({
+      kind: 'schedule',
+      id: schedule.id,
+      entity: schedule,
+      ref: doc(db, 'users', userId, 'schedules', schedule.id),
+    })),
+  ];
 
-  let deviceId = null;
-  try {
-    deviceId = await getDeviceId();
-  } catch (e) {}
+  const settled = await Promise.allSettled(
+    entries.map((entry) => commitCloudEntity({ ...entry, now })),
+  );
+  const committed = {
+    global: null,
+    schedules: [],
+    committedAt: now,
+    partial: isPartialUpdate !== false,
+  };
+  const conflicts = [];
+  const failures = [];
 
-  if (deviceId) {
-    const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
-    batch.set(deviceRef, { lastSyncTime: now }, { merge: true });
-  }
-
-  const shouldScanWatermark = !isPartialUpdate;
-  const incomingWatermark = data.global?.watermark;
-  const watermark = shouldScanWatermark
-    ? await getDeviceSyncWatermark(userId, now)
-    : (typeof incomingWatermark === 'number' ? incomingWatermark : 0);
-  const safeWatermark = watermark + 2000;
-
-  let hasGlobalUpdates = false;
-  let globalUpdateData = {};
-
-  if (data.global) {
-    globalUpdateData = { ...data.global };
-    if (shouldScanWatermark || typeof incomingWatermark === 'number') {
-      globalUpdateData.watermark = watermark;
-      if (shouldScanWatermark) {
-        globalUpdateData.watermarkUpdatedAt = now;
-      }
+  settled.forEach((result, index) => {
+    const entry = entries[index];
+    if (result.status === 'fulfilled') {
+      if (entry.kind === 'global') committed.global = result.value;
+      else committed.schedules.push(result.value);
+      return;
     }
-    hasGlobalUpdates = true;
-  } else if (shouldScanWatermark) {
-    globalUpdateData = { watermark, watermarkUpdatedAt: now };
-    hasGlobalUpdates = true;
-  }
-
-  if (hasGlobalUpdates) {
-    const globalRef = doc(db, 'users', userId, 'global', 'settings');
-    const globalDocData = encodeGlobalDocument(globalUpdateData, { includePayload: !!data.global });
-    if (data.global) {
-      batch.set(globalRef, globalDocData);
+    if (result.reason?.code === 'sync/conflict') {
+      conflicts.push(...(result.reason.conflicts || []));
     } else {
-      batch.set(globalRef, globalDocData, { merge: true });
+      failures.push(result.reason);
     }
-  }
-
-  if (data.schedules && Array.isArray(data.schedules)) {
-    if (!isPartialUpdate) {
-      const schedulesRef = collection(db, 'users', userId, 'schedules');
-      const snapshot = await getDocs(schedulesRef);
-      
-      const activeIds = data.schedules.map(s => s.id);
-
-      snapshot.docs.forEach(docSnap => {
-        if (!activeIds.includes(docSnap.id)) {
-          const existingData = decodeScheduleDocument(docSnap.data(), docSnap.id);
-          batch.set(docSnap.ref, encodeScheduleDocument({ 
-            id: docSnap.id,
-            isDeleted: true, 
-            version: (existingData.version || 1) + 1,
-            baseVersion: (existingData.baseVersion || 1) + 1,
-            lastModified: now,
-            deletedAt: now
-          }));
-        }
-      });
-    }
-
-    data.schedules.forEach((schedule) => {
-      if (schedule && schedule.id) {
-        const scheduleDocRef = doc(db, 'users', userId, 'schedules', schedule.id);
-        
-        // Partial autosaves avoid device scans; tombstones are hard-deleted by the throttled cleanup path.
-        if (!isPartialUpdate && schedule.isDeleted && (schedule.deletedAt || schedule.lastModified || 0) <= safeWatermark) {
-          batch.delete(scheduleDocRef);
-        } else {
-          batch.set(scheduleDocRef, encodeScheduleDocument(schedule));
-        }
-      }
-    });
-  }
+  });
 
   try {
-    await batch.commit();
+    const deviceId = await getDeviceId();
+    if (deviceId) {
+      await setDoc(
+        doc(db, 'users', userId, 'devices', deviceId),
+        { lastSyncTime: serverTimestamp() },
+        { merge: true },
+      );
+    }
   } catch (error) {
-    logCrashlyticsError(error, 'saveSchedule_Firestore');
+    logCrashlyticsError(error, 'updateDeviceAfterSave_Firestore');
   }
+
+  if (conflicts.length > 0) {
+    const error = new ScheduleSyncConflictError(conflicts, committed);
+    logCrashlyticsError(error, 'saveSchedule_Firestore');
+    throw error;
+  }
+  if (failures.length > 0) {
+    const error = failures[0];
+    error.committed = committed;
+    logCrashlyticsError(error, 'saveSchedule_Firestore');
+    throw error;
+  }
+
+  return committed;
 };
 
 export const deleteUserSchedule = async (userId, scheduleId) => {
@@ -513,19 +552,24 @@ export const deleteUserSchedule = async (userId, scheduleId) => {
 
   try {
     const scheduleRef = doc(db, 'users', userId, 'schedules', scheduleId);
-    const docSnap = await getDoc(scheduleRef);
-    const data = docSnap.exists() ? decodeScheduleDocument(docSnap.data(), scheduleId) : {};
-    
-    await setDoc(scheduleRef, encodeScheduleDocument({ 
-      id: scheduleId,
-      isDeleted: true, 
-      version: (data.version || 1) + 1,
-      baseVersion: (data.baseVersion || 1) + 1,
-      lastModified: Date.now(),
-      deletedAt: Date.now()
-    }));
+    const docSnap = await getDocFromServer(scheduleRef);
+    const data = docSnap.exists() ? fromCloudDocument(docSnap.data(), scheduleId) : {};
+
+    const now = Date.now();
+    await saveSchedule(userId, {
+      schedules: [{
+        id: scheduleId,
+        isDeleted: true,
+        version: Number(data.version) || 0,
+        baseVersion: Number(data.version) || 0,
+        lastModified: now,
+        lastSynced: parseTimestamp(data.lastModified) || 0,
+        deletedAt: now,
+      }],
+    }, true);
   } catch (error) {
     logCrashlyticsError(error, 'deleteUserSchedule_Firestore');
+    throw error;
   }
 };
 
@@ -533,29 +577,29 @@ export const resetUserSchedules = async (userId) => {
   if (isAccountBeingDeleted) return;
 
   try {
-    const batch = writeBatch(db);
     const schedulesRef = collection(db, 'users', userId, 'schedules');
-    const snapshot = await getDocs(schedulesRef);
+    const snapshot = await getDocsFromServer(schedulesRef);
 
     if (snapshot.empty) return;
 
     const now = Date.now();
 
-    snapshot.docs.forEach((docSnap) => {
-      const data = decodeScheduleDocument(docSnap.data(), docSnap.id);
-      batch.set(docSnap.ref, encodeScheduleDocument({ 
+    const tombstones = snapshot.docs.map((docSnap) => {
+      const data = fromCloudDocument(docSnap.data(), docSnap.id);
+      return {
         id: docSnap.id,
         isDeleted: true, 
-        version: (data.version || 1) + 1,
-        baseVersion: (data.baseVersion || 1) + 1,
+        version: Number(data.version) || 0,
+        baseVersion: Number(data.version) || 0,
         lastModified: now,
+        lastSynced: parseTimestamp(data.lastModified) || 0,
         deletedAt: now
-      }));
+      };
     });
-
-    await batch.commit();
+    await saveSchedule(userId, { schedules: tombstones }, true);
   } catch (error) {
     logCrashlyticsError(error, 'resetUserSchedules_Firestore');
+    throw error;
   }
 };
 

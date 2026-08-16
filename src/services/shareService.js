@@ -1,10 +1,6 @@
 import { doc, getDoc, collection, query, where, getDocs, deleteDoc, setDoc } from "firebase/firestore";
 import * as Crypto from "expo-crypto";
 import { db } from "../config/firebase";
-import {
-  decodeSharedScheduleDocument,
-  encodeSharedScheduleDocument,
-} from "../utils/scheduleDocumentCodec";
 
 const SHARE_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const MIN_SHARE_CODE_LENGTH = 5;
@@ -53,7 +49,7 @@ export const createSharedSchedule = async (user, scheduleData, durationDays) => 
     for (let attempt = 0; attempt < SHARE_CODE_ATTEMPTS_PER_LENGTH; attempt += 1) {
       const shareCode = generateShareCode(length);
       const docRef = doc(db, "shared_schedules", shareCode);
-      const sharedDoc = encodeSharedScheduleDocument({
+      const sharedDoc = {
         id: shareCode,
         ownerId: user.uid,
         ownerName: user.displayName || user.email || "User",
@@ -62,7 +58,7 @@ export const createSharedSchedule = async (user, scheduleData, durationDays) => 
         createdAt,
         expiresAt: expiresAtDate,
         isActive: true,
-      });
+      };
 
       try {
         await setDoc(docRef, sharedDoc);
@@ -87,7 +83,7 @@ export const fetchSharedSchedule = async (shareCode) => {
     throw new Error("not_found");
   }
 
-  const data = decodeSharedScheduleDocument(docSnap.data());
+  const data = docSnap.data();
 
   if (!data.isActive) {
     throw new Error("inactive");
@@ -109,7 +105,7 @@ export const getUserSharedSchedules = async (userId) => {
   const querySnapshot = await getDocs(q);
 
   return querySnapshot.docs
-    .map(doc => decodeSharedScheduleDocument(doc.data()))
+    .map(doc => doc.data())
     .sort((a, b) => b.createdAt - a.createdAt);
 };
 

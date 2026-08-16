@@ -73,11 +73,6 @@ test('builds a presentation-ready model and schedules the next boundary', () => 
   const widgetCorePath = path.resolve(__dirname, '../src/widgets/widgetCore.js');
   const widgetCore = compileCommonJsModule(widgetCorePath, new Map([
     ['./scheduleCore', scheduleCore],
-    ['../utils/dataCodec', {
-      decodeStorageValue: () => null,
-      encodeStorageValue: () => '',
-      isEncodedStorageValue: () => true,
-    }],
     ['@react-native-async-storage/async-storage', {
       __esModule: true,
       default: {},

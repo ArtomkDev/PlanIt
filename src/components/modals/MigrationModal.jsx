@@ -2,19 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity
 } from 'react-native';
-import { doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { CloudArrowUp, CheckSquare, Square } from 'phosphor-react-native';
 
-import { db } from '../../config/firebase';
-import createDefaultData from '../../config/createDefaultData';
+import { saveSchedule } from '../../config/firestore';
 import { generateId } from '../../utils/idGenerator';
 import { getLocalSchedule, saveLocalSchedule } from '../../utils/storage';
-import {
-  decodeGlobalDocument,
-  decodeScheduleDocument,
-  encodeGlobalDocument,
-  encodeScheduleDocument,
-} from '../../utils/scheduleDocumentCodec';
 import { useScheduleData } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import { t } from '../../utils/i18n';
@@ -108,52 +100,23 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
     triggerHaptic("selection");
     setIsMigrating(true);
     try {
-      const globalRef = doc(db, 'users', userId, 'global', 'settings');
-      const globalSnap = await getDoc(globalRef);
-      
-      const schedulesRef = collection(db, 'users', userId, 'schedules');
-      const schedulesSnap = await getDocs(schedulesRef);
-      
-      const cloudSchedules = schedulesSnap.docs.map(doc => ({
-        id: doc.id,
-        ...decodeScheduleDocument(doc.data(), doc.id)
-      }));
-
-      const existingIds = new Set(cloudSchedules.map(s => s.id));
-      const mergedSchedules = [];
-
       const schedulesToMigrate = localSchedules.filter(s => selectedIds.has(s.id));
-
-      for (const ls of schedulesToMigrate) {
+      const mergedSchedules = schedulesToMigrate.map((ls) => {
         const copy = JSON.parse(JSON.stringify(ls));
         copy.isCloud = true;
+        // Always allocate a new cloud id. A collision must never overwrite an
+        // unrelated schedule created on another device.
+        copy.id = generateId();
+        copy.version = 0;
+        copy.baseVersion = 0;
+        copy.lastSynced = 0;
         copy.lastModified = Date.now();
-        
-        if (existingIds.has(copy.id)) {
-          copy.id = generateId(); 
-        }
-        mergedSchedules.push(copy);
-      }
-
-      const batch = writeBatch(db);
-
-      const mergedGlobal = globalSnap.exists() 
-        ? { ...localDataFull.global, ...decodeGlobalDocument(globalSnap.data()) } 
-        : (localDataFull.global || createDefaultData().global);
-        
-      batch.set(globalRef, encodeGlobalDocument(mergedGlobal));
-
-      mergedSchedules.forEach((schedule) => {
-        if (schedule && schedule.id) {
-          const scheduleRef = doc(db, 'users', userId, 'schedules', schedule.id);
-          batch.set(scheduleRef, encodeScheduleDocument(schedule));
-        }
+        return copy;
       });
-
-      await batch.commit();
+      await saveSchedule(userId, { schedules: mergedSchedules }, true);
 
       const updatedLocalSchedules = (localDataFull.schedules || []).map(s => {
-         return { ...s, isCloud: true };
+        return selectedIds.has(s.id) ? { ...s, isCloud: true } : s;
       });
 
       await saveLocalSchedule({
@@ -167,8 +130,8 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
     } catch (err) {
       triggerHaptic("error");
       console.warn('Migration error:', err);
-      setIsVisible(false);
-      onComplete();
+      // Keep the sheet open so a transient network/conflict error is retryable.
+      setIsVisible(true);
     } finally {
       setIsMigrating(false);
     }

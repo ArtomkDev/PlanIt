@@ -2075,6 +2075,24 @@ export const deleteStoredAttachments = async (attachments) => {
   );
 };
 
+export const deleteLocalAttachmentCaches = async (attachments) => {
+  const uniqueAttachments = new Map();
+  normalizeAttachmentDraftList(attachments).forEach((attachment) => {
+    const key = attachment?.storagePath
+      || attachment?.localUri
+      || attachment?.uri
+      || attachment?.id
+      || attachment?.name;
+    if (key) uniqueAttachments.set(key, attachment);
+  });
+
+  await Promise.allSettled(
+    Array.from(uniqueAttachments.values()).map((attachment) => (
+      deleteLocalAttachmentCache(attachment)
+    )),
+  );
+};
+
 const getCacheBustedUrl = (url) => {
   if (!String(url || "").startsWith("http")) return url;
   return `${url}${url.includes("?") ? "&" : "?"}planitDownload=${Date.now()}`;

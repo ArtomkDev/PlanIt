@@ -201,7 +201,7 @@ export const LEGAL_DOCUMENTS = {
         "blocks": [
           {
             "type": "paragraph",
-            "text": "In Guest Mode, PlanIt stores schedule content in device or browser storage and does not upload that guest schedule to PlanIt's Firebase account collections. Local data may include compressed or encoded values, but encoding and compression are not encryption."
+            "text": "In Guest Mode, PlanIt stores schedule content in device or browser storage and does not upload that guest schedule to PlanIt's Firebase account collections. Schedule and preference records are stored as structured JSON data. This readable storage format is not encryption."
           },
           {
             "type": "paragraph",
@@ -430,7 +430,7 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "paragraph",
-            "text": "No method is perfectly secure. PlanIt content is not end-to-end encrypted: PlanIt's cloud providers process it to provide the Service. Encoded or compressed schedule values are not encryption. Tokenized attachment URLs and share codes can grant access to anyone who obtains them. Protect your device and account, use a unique password, keep software updated, review active devices and shares, and avoid storing highly sensitive information in PlanIt."
+            "text": "No method is perfectly secure. PlanIt content is not end-to-end encrypted: PlanIt's cloud providers process it to provide the Service. Schedule records are stored as structured fields and are not encryption. Tokenized attachment URLs and share codes can grant access to anyone who obtains them. Protect your device and account, use a unique password, keep software updated, review active devices and shares, and avoid storing highly sensitive information in PlanIt."
           },
           {
             "type": "paragraph",

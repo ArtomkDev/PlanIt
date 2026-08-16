@@ -17,7 +17,6 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
-import { decodeGlobalDocument } from "../utils/scheduleDocumentCodec";
 import { t } from "../utils/i18n";
 import { buildLessonOccurrences } from "../utils/scheduleTime";
 import {
@@ -665,7 +664,7 @@ export async function getUserNotificationContext(userId) {
     const globalSnap = await getDoc(globalRef);
     if (!globalSnap.exists()) return { notificationPreferences: {}, language: "en" };
 
-    const globalData = decodeGlobalDocument(globalSnap.data()) || {};
+    const globalData = globalSnap.data() || {};
 
     return {
       notificationPreferences: globalData.notificationPreferences || {},

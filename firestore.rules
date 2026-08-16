@@ -131,9 +131,46 @@ service cloud.firestore {
         && listWithMax(data.schedule, 7);
     }
 
-    function validEncodedPayload(data) {
-      return data._c == "planit.lz.v1"
-        && stringWithMax(data._p, 900000);
+    function validVersionFields(data) {
+      return data.version is int
+        && data.version >= 1;
+    }
+
+    function validScheduleDocument(data) {
+      return data.keys().hasAll(["version", "lastModified"])
+        && validVersionFields(data)
+        && data.lastModified is number
+        && !hasField(data, "_c")
+        && !hasField(data, "_p")
+        && !hasField(data, "id")
+        && !hasField(data, "baseVersion")
+        && !hasField(data, "lastSynced")
+        && optionalStringWithMax(data, "name", 120)
+        && optionalListWithMax(data, "subjects", 500)
+        && optionalListWithMax(data, "teachers", 500)
+        && optionalListWithMax(data, "links", 500)
+        && optionalListWithMax(data, "gradients", 250)
+        && optionalListWithMax(data, "tasks", 2000)
+        && optionalListWithMax(data, "schedule", 14)
+        && (!hasField(data, "isDeleted") || data.isDeleted is bool)
+        && (!hasField(data, "deletedAt") || data.deletedAt is number);
+    }
+
+    function validGlobalDocument(data) {
+      return data.keys().hasAll(["version", "lastModified"])
+        && validVersionFields(data)
+        && data.lastModified is number
+        && !hasField(data, "_c")
+        && !hasField(data, "_p")
+        && !hasField(data, "baseVersion")
+        && !hasField(data, "lastSynced")
+        && (!hasField(data, "watermark") || data.watermark is number)
+        && (!hasField(data, "watermarkUpdatedAt") || data.watermarkUpdatedAt is number);
+    }
+
+    function isMonotonicVersionUpdate() {
+      return resource.data.version is int
+        && request.resource.data.version == resource.data.version + 1;
     }
 
     function validSharedScheduleBase(data, shareCode) {
@@ -155,7 +192,7 @@ service cloud.firestore {
         && data.isActive is bool;
     }
 
-    function validLegacySharedScheduleDoc(data, shareCode) {
+    function validSharedScheduleDoc(data, shareCode) {
       return validSharedScheduleBase(data, shareCode)
         && data.keys().hasAll(["scheduleData"])
         && data.keys().hasOnly([
@@ -170,28 +207,6 @@ service cloud.firestore {
         ])
         && data.scheduleData is map
         && validScheduleData(data.scheduleData);
-    }
-
-    function validEncodedSharedScheduleDoc(data, shareCode) {
-      return validSharedScheduleBase(data, shareCode)
-        && data.keys().hasAll(["_c", "_p"])
-        && data.keys().hasOnly([
-          "id",
-          "ownerId",
-          "ownerName",
-          "scheduleName",
-          "createdAt",
-          "expiresAt",
-          "isActive",
-          "_c",
-          "_p"
-        ])
-        && validEncodedPayload(data);
-    }
-
-    function validSharedScheduleDoc(data, shareCode) {
-      return validLegacySharedScheduleDoc(data, shareCode)
-        || validEncodedSharedScheduleDoc(data, shareCode);
     }
 
     function validSharedScheduleCreate(shareCode) {
@@ -223,7 +238,49 @@ service cloud.firestore {
         && !deletionRequested(userId);
     }
 
-    match /users/{userId}/{document=**} {
+    match /users/{userId} {
+      allow read, delete: if isOwnerAndVerified(userId)
+        || canDeleteOwnAccountData(userId);
+      allow create, update: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId);
+    }
+
+    match /users/{userId}/schedules/{scheduleId} {
+      allow read, delete: if isOwnerAndVerified(userId)
+        || canDeleteOwnAccountData(userId);
+      allow create: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId)
+        && validScheduleDocument(request.resource.data);
+      allow update: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId)
+        && validScheduleDocument(request.resource.data)
+        && isMonotonicVersionUpdate();
+    }
+
+    match /users/{userId}/global/{documentId} {
+      allow read, delete: if isOwnerAndVerified(userId)
+        || canDeleteOwnAccountData(userId);
+      allow create: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId)
+        && validGlobalDocument(request.resource.data);
+      allow update: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId)
+        && validGlobalDocument(request.resource.data)
+        && (
+          isMonotonicVersionUpdate()
+          || request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["watermark", "watermarkUpdatedAt"])
+        );
+    }
+
+    match /users/{userId}/devices/{deviceId} {
+      allow read, delete: if isOwnerAndVerified(userId)
+        || canDeleteOwnAccountData(userId);
+      allow create, update: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId);
+    }
+
+    match /users/{userId}/notifications/{notificationId} {
       allow read, delete: if isOwnerAndVerified(userId)
         || canDeleteOwnAccountData(userId);
       allow create, update: if isOwnerAndVerified(userId)

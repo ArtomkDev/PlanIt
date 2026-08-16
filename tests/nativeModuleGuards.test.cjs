@@ -48,7 +48,6 @@ const loadNotificationService = ({ isExpoGo = true } = {}) => {
     ['expo', { isRunningInExpoGo: () => isExpoGo }],
     ['firebase/firestore', {}],
     ['../config/firebase', { db: {} }],
-    ['../utils/scheduleDocumentCodec', { decodeGlobalDocument: () => ({}) }],
     ['../utils/i18n', { t: (key) => key }],
     ['../utils/scheduleTime', { buildLessonOccurrences: () => [] }],
     ['../utils/reminderSettings', {

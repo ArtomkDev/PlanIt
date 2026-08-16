@@ -15,10 +15,11 @@ export default function SyncConflictScreen({
   const { colors } = useSystemThemeColors();
   const insets = useSafeAreaInsets();
   const [headerHeight, setHeaderHeight] = useState(200);
+  const [resolvingId, setResolvingId] = useState(null);
 
   if (!conflictQueue?.length) return null;
 
-  const ActionButton = ({ icon: Icon, title, subtitle, onPress, type }) => {
+  const ActionButton = ({ icon: Icon, title, subtitle, onPress, type, disabled }) => {
     const getBgColor = () => {
       if (type === 'local') return colors.accentColor;
       if (type === 'cloud') return colors.backgroundColor3;
@@ -27,11 +28,12 @@ export default function SyncConflictScreen({
 
     return (
       <Pressable 
+        disabled={disabled}
         style={({ pressed }) => [
           styles.actionBtn, 
           { 
             backgroundColor: getBgColor(),
-            opacity: pressed ? 0.85 : 1 
+            opacity: disabled ? 0.5 : (pressed ? 0.85 : 1)
           },
           type === 'both' && { 
             borderStyle: 'dashed', 
@@ -39,9 +41,10 @@ export default function SyncConflictScreen({
             borderColor: colors.borderColor 
           }
         ]} 
-        onPress={() => {
+        onPress={async () => {
+          if (disabled) return;
           triggerHaptic(type === 'cloud' ? "warning" : "success");
-          onPress?.();
+          await onPress?.();
         }}
       >
         <View style={styles.actionIconWrapper}>
@@ -77,8 +80,20 @@ export default function SyncConflictScreen({
           const localSch = conflict?.local;
           if (!localSch) return null;
 
-          const localName = localSch.name || t('sync_conflict.untitled', lang);
-          const conflictId = localSch.id || `conflict-${index}`;
+          const localName = conflict.kind === 'global'
+            ? t('sync_conflict.settings_and_files', lang)
+            : (localSch.name || t('sync_conflict.untitled', lang));
+          const conflictId = conflict.id || localSch.id || `conflict-${index}`;
+          const isResolving = resolvingId !== null;
+          const resolveOnce = async (action) => {
+            if (isResolving) return;
+            setResolvingId(conflictId);
+            try {
+              await handleResolveConflict(conflictId, action);
+            } finally {
+              setResolvingId(null);
+            }
+          };
 
           return (
             <View key={conflictId} style={[styles.card, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
@@ -94,23 +109,36 @@ export default function SyncConflictScreen({
                   icon={DeviceMobile}
                   title={t('sync_conflict.this_device', lang)}
                   subtitle={t('sync_conflict.overwrite_cloud', lang)}
-                  onPress={() => handleResolveConflict(conflictId, 'local')}
+                  disabled={isResolving}
+                  onPress={() => resolveOnce('local')}
                 />
                 
                 <ActionButton 
                   type="cloud"
                   icon={CloudArrowDown}
-                  title={t('sync_conflict.cloud_copy', lang)}
+                  title={t(
+                    conflict.reason === 'remote-missing'
+                      ? 'sync_conflict.cloud_deleted'
+                      : 'sync_conflict.cloud_copy',
+                    lang,
+                  )}
                   subtitle={t('sync_conflict.delete_local', lang)}
-                  onPress={() => handleResolveConflict(conflictId, 'cloud')}
+                  disabled={isResolving}
+                  onPress={() => resolveOnce('cloud')}
                 />
 
                 <ActionButton 
                   type="both"
                   icon={Copy}
                   title={t('sync_conflict.keep_both', lang)}
-                  subtitle={t('sync_conflict.create_duplicate', lang)}
-                  onPress={() => handleResolveConflict(conflictId, 'both')}
+                  subtitle={t(
+                    conflict.kind === 'global'
+                      ? 'sync_conflict.merge_settings'
+                      : 'sync_conflict.create_duplicate',
+                    lang,
+                  )}
+                  disabled={isResolving}
+                  onPress={() => resolveOnce('both')}
                 />
               </View>
             </View>

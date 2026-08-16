@@ -30,7 +30,7 @@ import AdvancedColorPicker from "../../../components/ui/AdvancedColorPicker";
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
-  deleteStoredAttachments,
+  deleteLocalAttachmentCaches,
   MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
   normalizeAttachmentDraftList,
   normalizeAttachmentLibrary,
@@ -400,7 +400,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
     const attachmentsToDelete = removedStoredAttachments;
     if (attachmentsToDelete.length > 0) {
-      deleteStoredAttachments(attachmentsToDelete).catch(() => {});
+      deleteLocalAttachmentCaches(attachmentsToDelete).catch(() => {});
     }
     setRemovedStoredAttachments([]);
     setAttachmentUploadState({ uploading: false });

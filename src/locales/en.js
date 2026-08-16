@@ -208,12 +208,15 @@ export default {
     title: "Data Conflict",
     subtitle: "Different schedule versions found. Choose an option to sync.",
     untitled: "Untitled",
+    settings_and_files: "Settings and file library",
     this_device: "This device",
     overwrite_cloud: "Overwrite cloud",
     cloud_copy: "Cloud copy",
+    cloud_deleted: "Deleted in cloud",
     delete_local: "Delete local changes",
     keep_both: "Keep both",
     create_duplicate: "Create a duplicate schedule",
+    merge_settings: "Merge settings and keep all file records",
   },
 
   migration_modal: {
