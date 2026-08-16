@@ -95,13 +95,22 @@ export default function RootApp() {
           try {
             await registerDevice(firebaseUser.uid, {
               createLoginNotification: shouldCreateLoginNotification,
+              allowReactivation: shouldCreateLoginNotification,
               lang,
             });
             if (currentUid === firebaseUser.uid) {
               deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
             }
           } catch (error) {
+            if (error?.code === 'device/revoked') {
+              await signOut(auth).catch(() => {});
+              return;
+            }
             console.error(error);
+            if (currentUid === firebaseUser.uid) {
+              deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut)
+                .catch(() => () => {});
+            }
           }
         } else {
           currentUid = null;

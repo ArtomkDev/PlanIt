@@ -5,14 +5,18 @@ import { isRunningInExpoGo } from "expo";
 import {
   addDoc,
   collection,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
-  setDoc,
+  Timestamp,
+  updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 
@@ -40,6 +44,11 @@ const EXPO_PUSH_SEND_ENDPOINT = "https://exp.host/--/api/v2/push/send";
 const EXPO_PUSH_TIMEOUT_MS = 4500;
 const LESSON_REMINDER_HORIZON_DAYS = 21;
 const MAX_LESSON_REMINDER_NOTIFICATIONS = 60;
+export const NOTIFICATION_RETENTION_DAYS = 90;
+export const NOTIFICATION_INBOX_LIMIT = 100;
+const NOTIFICATION_WRITE_BATCH_LIMIT = 450;
+const EXPO_PUSH_MESSAGE_BATCH_LIMIT = 100;
+const ACTIVE_DEVICE_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 const isExpoGo = isRunningInExpoGo();
 const Notifications = Platform.OS !== "web" && !isExpoGo
   ? require("expo-notifications")
@@ -76,7 +85,31 @@ if (Notifications?.setNotificationHandler) {
 const notificationsCollection = (userId) => collection(db, "users", userId, "notifications");
 const devicesCollection = (userId) => collection(db, "users", userId, "devices");
 
-const nowIso = () => new Date().toISOString();
+const nowTimestamp = () => Timestamp.now();
+const timestampToMs = (value) => {
+  if (!value) return null;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value.seconds) return value.seconds * 1000;
+  return null;
+};
+
+const boundedText = (value, fallback, maxLength) => {
+  const normalized = typeof value === "string" && value.trim() ? value.trim() : fallback;
+  return String(normalized || "").slice(0, maxLength);
+};
+
+const isActiveDevice = (device = {}, now = Date.now()) => {
+  if ((device.status || "active") !== "active") return false;
+  const lastSeenAt = timestampToMs(device.lastSeenAt)
+    || timestampToMs(device.lastLogin)
+    || 0;
+  return lastSeenAt <= 0 || now - lastSeenAt < ACTIVE_DEVICE_MAX_AGE_MS;
+};
 
 const withTimeout = (promise, timeoutMs, label) => {
   let timeoutId;
@@ -182,7 +215,7 @@ export const getCurrentDevicePushRegistration = async ({ request = false } = {})
   const registration = {
     pushPermissionStatus: permission.status || "unknown",
     pushTokenPlatform: Platform.OS,
-    pushTokenUpdatedAt: nowIso(),
+    pushTokenUpdatedAt: nowTimestamp(),
   };
 
   if (!permission.granted) {
@@ -203,11 +236,13 @@ export const getCurrentDevicePushRegistration = async ({ request = false } = {})
     return {
       ...registration,
       expoPushToken: token?.data || null,
+      pushTokenError: deleteField(),
     };
   } catch (error) {
     return {
       ...registration,
-      pushTokenError: error?.code || error?.message || "token_error",
+      expoPushToken: null,
+      pushTokenError: boundedText(error?.code || error?.message, "token_error", 160),
     };
   }
 };
@@ -215,10 +250,18 @@ export const getCurrentDevicePushRegistration = async ({ request = false } = {})
 export const syncDevicePushRegistration = async (userId, deviceId, options = {}) => {
   if (!userId || !deviceId) return null;
 
+  const deviceRef = doc(db, "users", userId, "devices", deviceId);
+  const deviceSnap = await getDoc(deviceRef);
+  if (!deviceSnap.exists() || !isActiveDevice(deviceSnap.data())) {
+    const error = new Error("Cannot register push notifications for an inactive device.");
+    error.code = "device/revoked";
+    throw error;
+  }
+
   const registration = await getCurrentDevicePushRegistration(options);
   if (!registration) return null;
 
-  await setDoc(doc(db, "users", userId, "devices", deviceId), registration, { merge: true });
+  await updateDoc(deviceRef, registration);
   return registration;
 };
 
@@ -400,29 +443,34 @@ const sendExpoPushMessages = async (messages) => {
   const validMessages = (Array.isArray(messages) ? messages : [messages]).filter(Boolean);
   if (validMessages.length === 0) return { sent: 0, tickets: [] };
 
-  const response = await withTimeout(
-    fetch(EXPO_PUSH_SEND_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(validMessages.length === 1 ? validMessages[0] : validMessages),
-    }),
-    EXPO_PUSH_TIMEOUT_MS,
-    "expo_push_send"
-  );
+  const tickets = [];
+  for (let offset = 0; offset < validMessages.length; offset += EXPO_PUSH_MESSAGE_BATCH_LIMIT) {
+    const messageBatch = validMessages.slice(offset, offset + EXPO_PUSH_MESSAGE_BATCH_LIMIT);
+    const response = await withTimeout(
+      fetch(EXPO_PUSH_SEND_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(messageBatch.length === 1 ? messageBatch[0] : messageBatch),
+      }),
+      EXPO_PUSH_TIMEOUT_MS,
+      "expo_push_send"
+    );
 
-  if (!response.ok) {
-    throw new Error(`expo_push_send_failed:${response.status}`);
+    if (!response.ok) {
+      throw new Error(`expo_push_send_failed:${response.status}`);
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const batchTickets = Array.isArray(payload?.data)
+      ? payload.data
+      : payload?.data
+        ? [payload.data]
+        : [];
+    tickets.push(...batchTickets);
   }
-
-  const payload = await response.json().catch(() => ({}));
-  const tickets = Array.isArray(payload?.data)
-    ? payload.data
-    : payload?.data
-      ? [payload.data]
-      : [];
 
   return { sent: validMessages.length, tickets };
 };
@@ -619,6 +667,7 @@ const sendAccountLoginPushToOtherDevices = async (userId, notification, options 
   try {
     const devicesSnap = await getDocs(devicesCollection(userId));
     const messages = [];
+    const targets = [];
     const seenTokens = new Set();
     const content = buildAccountLoginContent(notification, options.lang || "en");
 
@@ -626,11 +675,13 @@ const sendAccountLoginPushToOtherDevices = async (userId, notification, options 
       if (sourceDeviceId && deviceSnap.id === sourceDeviceId) return;
 
       const device = deviceSnap.data() || {};
+      if (!isActiveDevice(device)) return;
       const token = device.expoPushToken;
       if (sourceExpoPushToken && token === sourceExpoPushToken) return;
       if (!isExpoPushToken(token) || seenTokens.has(token)) return;
 
       seenTokens.add(token);
+      targets.push(deviceSnap.ref);
       messages.push({
         to: token,
         sound: "default",
@@ -640,7 +691,9 @@ const sendAccountLoginPushToOtherDevices = async (userId, notification, options 
           type: NOTIFICATION_TYPES.ACCOUNT_LOGIN,
           notificationId: notification.id,
           deviceId: notification.deviceId || null,
-          createdAt: notification.createdAt || null,
+          createdAt: timestampToMs(notification.createdAt)
+            ? new Date(timestampToMs(notification.createdAt)).toISOString()
+            : null,
         },
       });
     });
@@ -650,6 +703,31 @@ const sendAccountLoginPushToOtherDevices = async (userId, notification, options 
     }
 
     const result = await sendExpoPushMessages(messages);
+    const invalidTargetRefs = (result.tickets || [])
+      .map((ticket, index) => (
+        ticket?.status === "error" && ticket?.details?.error === "DeviceNotRegistered"
+          ? targets[index]
+          : null
+      ))
+      .filter(Boolean);
+
+    for (
+      let offset = 0;
+      offset < invalidTargetRefs.length;
+      offset += NOTIFICATION_WRITE_BATCH_LIMIT
+    ) {
+      const batch = writeBatch(db);
+      invalidTargetRefs
+        .slice(offset, offset + NOTIFICATION_WRITE_BATCH_LIMIT)
+        .forEach((deviceRef) => {
+          batch.update(deviceRef, {
+            expoPushToken: deleteField(),
+            pushTokenError: "DeviceNotRegistered",
+            pushTokenUpdatedAt: nowTimestamp(),
+          });
+        });
+      await batch.commit();
+    }
     return { ...result, status: "sent" };
   } catch (error) {
     return { sent: 0, status: "failed", error };
@@ -689,32 +767,46 @@ export async function createLoginNotification(userId, loginInfo = {}) {
   const notificationPreferences = loginInfo.notificationPreferences
     || context.notificationPreferences
     || {};
-  const createdAt = loginInfo.createdAt || nowIso();
-  const deviceName = !loginInfo.deviceName || loginInfo.deviceName === "Unknown Device"
+  const createdAt = nowTimestamp();
+  const expiresAt = Timestamp.fromMillis(
+    createdAt.toMillis() + NOTIFICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  );
+  const rawDeviceName = !loginInfo.deviceName || loginInfo.deviceName === "Unknown Device"
     ? t("settings.device_screen.unknown_device", lang)
     : loginInfo.deviceName === "Web Browser"
       ? t("settings.notifications.web_browser", lang)
     : loginInfo.deviceName;
-  const platform = !loginInfo.platform || loginInfo.platform === "Unknown"
+  const rawPlatform = !loginInfo.platform || loginInfo.platform === "Unknown"
     ? t("settings.notifications.unknown_platform", lang)
     : loginInfo.platform;
-  const ipAddress = !loginInfo.ipAddress || loginInfo.ipAddress === "Unknown IP"
+  const rawIpAddress = !loginInfo.ipAddress || loginInfo.ipAddress === "Unknown IP"
     ? t("settings.notifications.unknown_ip", lang)
     : loginInfo.ipAddress;
+  const deviceName = boundedText(rawDeviceName, "Unknown Device", 240);
+  const platform = boundedText(rawPlatform, "Unknown", 40);
+  const ipAddress = boundedText(rawIpAddress, "Unknown IP", 64);
   const localizedContent = buildAccountLoginContent({ deviceName }, lang);
 
   const payload = {
     type: NOTIFICATION_TYPES.ACCOUNT_LOGIN,
-    title: loginInfo.title || localizedContent.title,
-    message: loginInfo.message || localizedContent.body,
+    title: boundedText(loginInfo.title || localizedContent.title, "PlanIt", 160),
+    message: boundedText(loginInfo.message || localizedContent.body, "", 500),
     createdAt,
+    expiresAt,
     readAt: null,
-    deviceId: loginInfo.deviceId || null,
+    deviceId: loginInfo.deviceId
+      ? boundedText(loginInfo.deviceId, "", 96)
+      : null,
     deviceName,
     platform,
     ipAddress,
     metadata: {
-      ...(loginInfo.metadata || {}),
+      brand: loginInfo.metadata?.brand
+        ? boundedText(loginInfo.metadata.brand, "", 80)
+        : null,
+      model: loginInfo.metadata?.model
+        ? boundedText(loginInfo.metadata.model, "", 120)
+        : null,
     },
   };
 
@@ -734,9 +826,12 @@ export async function createLoginNotification(userId, loginInfo = {}) {
 export function subscribeToNotifications(userId, callback) {
   if (!userId) return () => {};
 
+  cleanupExpiredNotifications(userId).catch(() => {});
+
   const notificationsQuery = query(
     notificationsCollection(userId),
-    orderBy("createdAt", "desc")
+    orderBy("createdAt", "desc"),
+    limit(NOTIFICATION_INBOX_LIMIT)
   );
 
   return onSnapshot(
@@ -760,30 +855,53 @@ export async function markNotificationAsRead(userId, notificationId) {
 
   const notificationRef = doc(db, "users", userId, "notifications", notificationId);
   const batch = writeBatch(db);
-  batch.update(notificationRef, { readAt: nowIso() });
+  batch.update(notificationRef, { readAt: nowTimestamp() });
   await batch.commit();
 }
 
 export async function markAllNotificationsAsRead(userId) {
   if (!userId) return;
 
-  const snapshot = await getDocs(notificationsCollection(userId));
-  if (snapshot.empty) return;
+  while (true) {
+    const unreadQuery = query(
+      notificationsCollection(userId),
+      where("readAt", "==", null),
+      limit(NOTIFICATION_WRITE_BATCH_LIMIT)
+    );
+    const snapshot = await getDocs(unreadQuery);
+    if (snapshot.empty) return;
 
-  const batch = writeBatch(db);
-  const readAt = nowIso();
-  let hasUpdates = false;
-
-  snapshot.docs.forEach((docSnap) => {
-    if (!docSnap.data().readAt) {
-      batch.update(docSnap.ref, { readAt });
-      hasUpdates = true;
-    }
-  });
-
-  if (hasUpdates) {
+    const batch = writeBatch(db);
+    const readAt = nowTimestamp();
+    snapshot.docs.forEach((docSnap) => batch.update(docSnap.ref, { readAt }));
     await batch.commit();
+    if (snapshot.size < NOTIFICATION_WRITE_BATCH_LIMIT) return;
   }
+}
+
+export async function cleanupExpiredNotifications(userId, options = {}) {
+  if (!userId) return 0;
+
+  const maxBatches = Math.max(1, Math.min(Number(options.maxBatches) || 4, 20));
+  let deleted = 0;
+
+  for (let batchIndex = 0; batchIndex < maxBatches; batchIndex += 1) {
+    const expiredQuery = query(
+      notificationsCollection(userId),
+      where("expiresAt", "<=", nowTimestamp()),
+      limit(NOTIFICATION_WRITE_BATCH_LIMIT)
+    );
+    const snapshot = await getDocs(expiredQuery);
+    if (snapshot.empty) break;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+    await batch.commit();
+    deleted += snapshot.size;
+    if (snapshot.size < NOTIFICATION_WRITE_BATCH_LIMIT) break;
+  }
+
+  return deleted;
 }
 
 export async function deleteNotification(userId, notificationId) {

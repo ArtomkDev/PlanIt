@@ -23,6 +23,18 @@ import SettingsGroup from "../../../../components/ui/SettingsKit/SettingsGroup";
 import SettingsRow from "../../../../components/ui/SettingsKit/SettingsRow";
 import SettingsActionRow from "../../../../components/ui/SettingsKit/SettingsActionRow";
 
+const timestampToMs = (value) => {
+  if (!value) return null;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value.seconds) return value.seconds * 1000;
+  return null;
+};
+
 export default function DeviceManager() {
   const { user, global, lang } = useScheduleData();
   const [devices, setDevices] = useState([]);
@@ -37,7 +49,7 @@ export default function DeviceManager() {
     if (!user) return;
 
     const fetchCurrentDeviceId = async () => {
-      const id = await getDeviceId(user.uid);
+      const id = await getDeviceId();
       setCurrentDeviceId(id);
     };
 
@@ -45,7 +57,9 @@ export default function DeviceManager() {
 
     const devicesRef = collection(db, "users", user.uid, "devices");
     const unsubscribe = onSnapshot(devicesRef, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const list = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((device) => (device.status || "active") === "active");
       setDevices(list);
       setLoading(false);
     });
@@ -57,7 +71,7 @@ export default function DeviceManager() {
     return [...devices].sort((a, b) => {
       if (a.id === currentDeviceId) return -1;
       if (b.id === currentDeviceId) return 1;
-      return new Date(b.lastLogin) - new Date(a.lastLogin);
+      return (timestampToMs(b.lastLogin) || 0) - (timestampToMs(a.lastLogin) || 0);
     });
   }, [devices, currentDeviceId]);
 
@@ -112,8 +126,9 @@ export default function DeviceManager() {
   };
 
   const formatDate = (isoString) => {
-    if (!isoString) return t('settings.device_screen.unknown_date', lang);
-    return new Date(isoString).toLocaleString(undefined, {
+    const timestamp = timestampToMs(isoString);
+    if (!timestamp) return t('settings.device_screen.unknown_date', lang);
+    return new Date(timestamp).toLocaleString(undefined, {
       month: "short",
       day: "numeric",
       hour: "2-digit",

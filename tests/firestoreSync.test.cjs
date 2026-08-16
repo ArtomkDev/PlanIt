@@ -111,6 +111,14 @@ const makeFakes = (initialDocuments = []) => {
       runTransaction,
       serverTimestamp: () => ({ __serverTimestamp: true }),
       setDoc: async (reference, value) => documents.set(reference.path, value),
+      updateDoc: async (reference, value) => {
+        if (!documents.has(reference.path)) {
+          const error = new Error(`Document does not exist: ${reference.path}`);
+          error.code = 'not-found';
+          throw error;
+        }
+        documents.set(reference.path, { ...documents.get(reference.path), ...value });
+      },
       waitForPendingWrites: async () => {},
       where: () => ({}),
       writeBatch: () => ({

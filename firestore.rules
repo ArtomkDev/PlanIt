@@ -38,6 +38,10 @@ service cloud.firestore {
       return shareCode.matches('^[A-Z0-9]{5,32}$');
     }
 
+    function isInstallationId(deviceId) {
+      return deviceId.matches('^[A-Za-z0-9_-]{16,96}$');
+    }
+
     function isActivePublicShare(data) {
       return data.isActive == true
         && data.expiresAt is timestamp
@@ -80,6 +84,128 @@ service cloud.firestore {
 
     function optionalListWithMax(data, field, max) {
       return !hasField(data, field) || listWithMax(data[field], max);
+    }
+
+    function optionalNullableStringWithMax(data, field, max) {
+      return !hasField(data, field)
+        || data[field] == null
+        || stringWithMax(data[field], max);
+    }
+
+    function optionalTimestamp(data, field) {
+      return !hasField(data, field) || data[field] is timestamp;
+    }
+
+    function validDeviceDocument(data) {
+      return data.keys().hasAll(["status"])
+        && data.keys().hasOnly([
+          "status",
+          "name",
+          "platform",
+          "brand",
+          "model",
+          "createdAt",
+          "lastLogin",
+          "lastSeenAt",
+          "lastIpAddress",
+          "lastIpUpdatedAt",
+          "lastLoginNotificationAt",
+          "lastSyncTime",
+          "expoPushToken",
+          "pushPermissionStatus",
+          "pushTokenPlatform",
+          "pushTokenUpdatedAt",
+          "pushTokenError",
+          "revokedAt",
+          "revokedReason"
+        ])
+        && data.status in ["active", "revoked", "expired"]
+        && optionalNullableStringWithMax(data, "name", 512)
+        && optionalNullableStringWithMax(data, "platform", 40)
+        && optionalNullableStringWithMax(data, "brand", 80)
+        && optionalNullableStringWithMax(data, "model", 120)
+        && optionalNullableStringWithMax(data, "lastIpAddress", 64)
+        && optionalNullableStringWithMax(data, "expoPushToken", 256)
+        && optionalNullableStringWithMax(data, "pushPermissionStatus", 80)
+        && optionalNullableStringWithMax(data, "pushTokenPlatform", 40)
+        && optionalNullableStringWithMax(data, "pushTokenError", 160)
+        && optionalNullableStringWithMax(data, "revokedReason", 40)
+        && optionalTimestamp(data, "createdAt")
+        && optionalTimestamp(data, "lastLogin")
+        && optionalTimestamp(data, "lastSeenAt")
+        && optionalTimestamp(data, "lastIpUpdatedAt")
+        && optionalTimestamp(data, "lastLoginNotificationAt")
+        && optionalTimestamp(data, "lastSyncTime")
+        && optionalTimestamp(data, "pushTokenUpdatedAt")
+        && optionalTimestamp(data, "revokedAt")
+        && (
+          (
+            data.status == "active"
+            && data.keys().hasAll([
+              "name",
+              "platform",
+              "brand",
+              "model",
+              "createdAt",
+              "lastLogin",
+              "lastSeenAt"
+            ])
+            && !hasField(data, "revokedAt")
+            && !hasField(data, "revokedReason")
+          )
+          || (
+            data.status in ["revoked", "expired"]
+            && data.keys().hasAll(["revokedAt", "revokedReason"])
+          )
+        );
+    }
+
+    function validNotificationMetadata(data) {
+      return data is map
+        && data.keys().hasOnly(["brand", "model"])
+        && optionalNullableStringWithMax(data, "brand", 80)
+        && optionalNullableStringWithMax(data, "model", 120);
+    }
+
+    function validNotificationDocument(data) {
+      return data.keys().hasAll([
+          "type",
+          "title",
+          "message",
+          "createdAt",
+          "expiresAt",
+          "readAt",
+          "deviceId",
+          "deviceName",
+          "platform",
+          "ipAddress",
+          "metadata"
+        ])
+        && data.keys().hasOnly([
+          "type",
+          "title",
+          "message",
+          "createdAt",
+          "expiresAt",
+          "readAt",
+          "deviceId",
+          "deviceName",
+          "platform",
+          "ipAddress",
+          "metadata"
+        ])
+        && data.type == "account_login"
+        && stringWithMax(data.title, 160)
+        && stringWithMax(data.message, 500)
+        && data.createdAt is timestamp
+        && data.expiresAt is timestamp
+        && (data.readAt == null || data.readAt is timestamp)
+        && optionalNullableStringWithMax(data, "deviceId", 96)
+        && (data.deviceId == null || isInstallationId(data.deviceId))
+        && stringWithMax(data.deviceName, 512)
+        && stringWithMax(data.platform, 40)
+        && stringWithMax(data.ipAddress, 64)
+        && validNotificationMetadata(data.metadata);
     }
 
     function validReminder(value) {
@@ -274,17 +400,53 @@ service cloud.firestore {
     }
 
     match /users/{userId}/devices/{deviceId} {
-      allow read, delete: if isOwnerAndVerified(userId)
+      allow read: if isOwnerAndVerified(userId)
         || canDeleteOwnAccountData(userId);
-      allow create, update: if isOwnerAndVerified(userId)
-        && !deletionRequested(userId);
+      allow create: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId)
+        && isInstallationId(deviceId)
+        && validDeviceDocument(request.resource.data)
+        && request.resource.data.status == "active";
+      allow update: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId)
+        && isInstallationId(deviceId)
+        && validDeviceDocument(request.resource.data)
+        && (
+          (
+            resource.data.status == "active"
+            && request.resource.data.status == "active"
+            && request.resource.data.createdAt == resource.data.createdAt
+          )
+          || (
+            resource.data.status == "active"
+            && request.resource.data.status in ["revoked", "expired"]
+          )
+          || (
+            resource.data.status in ["revoked", "expired"]
+            && request.resource.data.status == "active"
+            && recentlyAuthenticated()
+          )
+        );
+      allow delete: if canDeleteOwnAccountData(userId);
     }
 
     match /users/{userId}/notifications/{notificationId} {
       allow read, delete: if isOwnerAndVerified(userId)
         || canDeleteOwnAccountData(userId);
-      allow create, update: if isOwnerAndVerified(userId)
-        && !deletionRequested(userId);
+      allow create: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId)
+        && validNotificationDocument(request.resource.data)
+        && request.resource.data.readAt == null
+        && request.resource.data.createdAt >= request.time - duration.value(5, "m")
+        && request.resource.data.createdAt <= request.time + duration.value(5, "m")
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(91, "d");
+      allow update: if isOwnerAndVerified(userId)
+        && !deletionRequested(userId)
+        && validNotificationDocument(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["readAt"])
+        && request.resource.data.readAt is timestamp
+        && request.resource.data.readAt <= request.time + duration.value(5, "m");
     }
 
     match /deleted_accounts/{userId} {

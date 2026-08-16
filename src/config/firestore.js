@@ -13,6 +13,7 @@ import {
   waitForPendingWrites,
   runTransaction,
   serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import createDefaultData from './createDefaultData';
@@ -58,6 +59,10 @@ export const beginAccountDeletion = () => {
 const parseTimestamp = (ts) => {
   if (!ts) return null;
   if (typeof ts === 'number') return ts;
+  if (typeof ts === 'string') {
+    const parsed = Date.parse(ts);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
   if (typeof ts.toMillis === 'function') return ts.toMillis();
   if (ts.seconds) return ts.seconds * 1000;
   return null;
@@ -138,7 +143,9 @@ const getDeviceSyncWatermark = async (userId, now = Date.now()) => {
   let activeDevices = 0;
 
   devicesSnap.docs.forEach(docSnap => {
-    const syncTime = parseTimestamp(docSnap.data().lastSyncTime) || 0;
+    const deviceData = docSnap.data() || {};
+    if ((deviceData.status || 'active') !== 'active') return;
+    const syncTime = parseTimestamp(deviceData.lastSyncTime) || 0;
     if (now - syncTime < DEAD_DEVICE_MS) {
       activeDevices++;
       if (syncTime < watermark) watermark = syncTime;
@@ -181,7 +188,10 @@ const runDeviceSyncTimeAndCleanUp = async (userId) => {
     
     const now = Date.now();
     const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
-    await setDoc(deviceRef, { lastSyncTime: serverTimestamp() }, { merge: true });
+    await updateDoc(deviceRef, {
+      lastSyncTime: serverTimestamp(),
+      lastSeenAt: serverTimestamp(),
+    });
 
     // A stale watermark can only delay tombstone deletion; advancing it requires a rare device scan.
     const { globalRef, watermark, scannedDevices } = await getCleanupWatermark(userId, now);
@@ -522,11 +532,10 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
   try {
     const deviceId = await getDeviceId();
     if (deviceId) {
-      await setDoc(
-        doc(db, 'users', userId, 'devices', deviceId),
-        { lastSyncTime: serverTimestamp() },
-        { merge: true },
-      );
+      await updateDoc(doc(db, 'users', userId, 'devices', deviceId), {
+        lastSyncTime: serverTimestamp(),
+        lastSeenAt: serverTimestamp(),
+      });
     }
   } catch (error) {
     logCrashlyticsError(error, 'updateDeviceAfterSave_Firestore');
