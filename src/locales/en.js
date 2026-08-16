@@ -178,8 +178,10 @@ export default {
 
   onboarding: {
     welcome_main_title: "WELCOME TO PlanIt",
-    welcome_main_desc: "It looks like you're using our app for the first time. Let's create your first schedule!",
+    welcome_main_desc: "Create your own schedule or immediately import a ready-made schedule from a friend.",
     welcome_badge: "First setup",
+    import_friend_title: "Import a Friend’s Schedule",
+    import_friend_desc: "Enter the access code and the ready-made schedule will appear in your account.",
     swipe_to_continue: "Swipe to continue",
     swipe_hint_sub: "Swipe between screens, or use the bottom bar (you can enable it via the 'Navigation' button above).",
     welcome_title: "Create Your First Schedule",
@@ -803,7 +805,7 @@ export default {
     find_btn: "Find Schedule",
     download_btn: "Download Schedule",
     import_new: "Import via Code",
-    enter_code: "Enter access code",
+    enter_code: "Enter the access code",
     success_title: "Schedule ready to share!",
     schedule_name: "Schedule Name",
     author: "Author",

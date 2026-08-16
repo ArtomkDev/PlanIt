@@ -52,18 +52,36 @@ export default function MainLayout({ guest, onExitGuest }) {
   const url = Linking.useURL();
 
   const [isFatalTimeout, setIsFatalTimeout] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [confirmedEmptyScope, setConfirmedEmptyScope] = useState(null);
   const [showWidgetConfig, setShowWidgetConfig] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importCode, setImportCode] = useState("");
 
   const hasSchedules = schedules && schedules.length > 0;
   const hasUsableSchedule = hasSchedules && !!schedule;
-  const isInitialSync = user && !guest && !hasSchedules && cloudSyncState === 'syncing';
+  const emptyStateScope = guest ? 'guest' : (user?.uid || 'none');
+  const hasConfirmedEmptyState = confirmedEmptyScope === emptyStateScope;
   // Network/sync errors must never hide an already loaded schedule behind the
   // destructive recovery screen. That screen is only for an actual unusable
   // data state; expected conflicts are handled by SyncConflictScreen.
   const hasFatalDataError = !!error && !hasUsableSchedule;
+  const canConfirmEmptyState = (
+    !isLoading
+    && !hasSchedules
+    && !hasFatalDataError
+    && (guest || !user || cloudSyncState === 'synced' || cloudSyncState === 'offline')
+  );
+  // Once an authoritative empty state has been observed, keep onboarding
+  // mounted through transient syncing/cache metadata changes. It is dismissed
+  // only when the user actually creates (or receives) an active schedule.
+  const showOnboarding = !hasSchedules && (hasConfirmedEmptyState || canConfirmEmptyState);
+  const isInitialSync = (
+    user
+    && !guest
+    && !hasSchedules
+    && !hasConfirmedEmptyState
+    && cloudSyncState === 'syncing'
+  );
   const isBlocking = isLoading || isInitialSync || hasFatalDataError || (hasSchedules && !schedule);
   const isErrorState = hasFatalDataError || isFatalTimeout;
 
@@ -113,13 +131,14 @@ export default function MainLayout({ guest, onExitGuest }) {
   }, []);
 
   useEffect(() => {
-    if (!isBlocking && !hasSchedules) {
-      const timeout = setTimeout(() => setShowOnboarding(true), 150);
-      return () => clearTimeout(timeout);
-    } else {
-      setShowOnboarding(false);
+    if (hasSchedules) {
+      setConfirmedEmptyScope(null);
+      return;
     }
-  }, [isBlocking, hasSchedules]);
+    if (canConfirmEmptyState) {
+      setConfirmedEmptyScope(emptyStateScope);
+    }
+  }, [hasSchedules, canConfirmEmptyState, emptyStateScope]);
 
   useEffect(() => {
     let timer;
@@ -194,7 +213,16 @@ export default function MainLayout({ guest, onExitGuest }) {
         <View style={{ flex: 1 }}>
           <MainStack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
             {showOnboarding ? (
-              <MainStack.Screen name="Onboarding" component={OnboardingWizard} />
+              <MainStack.Screen name="Onboarding">
+                {() => (
+                  <OnboardingWizard
+                    onImportSchedule={() => {
+                      setImportCode("");
+                      setImportModalVisible(true);
+                    }}
+                  />
+                )}
+              </MainStack.Screen>
             ) : (
               <MainStack.Screen name="Tabs">
                 {() => <TabNavigator screenProps={{ guest, onExitGuest }} />}

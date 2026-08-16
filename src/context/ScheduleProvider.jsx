@@ -5,7 +5,13 @@ import { signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { app, auth } from "../config/firebase";
-import { saveSchedule, subscribeToSchedule, getScheduleFromServer, updateDeviceSyncTimeAndCleanUp } from "../config/firestore";
+import {
+  saveSchedule,
+  subscribeToSchedule,
+  getScheduleFromServer,
+  resetUserSchedules,
+  updateDeviceSyncTimeAndCleanUp,
+} from "../config/firestore";
 import {
   getLocalSchedule,
   saveLocalSchedule,
@@ -215,6 +221,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const [isCloudSaving, setIsCloudSaving] = useState(false);
   const isCloudSavingRef = useRef(false);
+  const resetInProgressRef = useRef(false);
 
   const [conflictQueue, setConflictQueue] = useState([]);
   const [isOnline, setIsOnline] = useState(true);
@@ -1257,8 +1264,41 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   }, [isOnline, cloudSyncState, saveNow, refreshActiveLessonReminders, user, guest, reloadAllSchedules]);
 
   const resetApplication = useCallback(async () => {
+    if (resetInProgressRef.current) return false;
+
+    resetInProgressRef.current = true;
     setIsLoading(true);
+    let ownsSaveLock = false;
     try {
+      // A reset must never race an autosave that was already in flight. Wait for
+      // that write to release the shared save lock before constructing the
+      // tombstones, otherwise the older save can resurrect data after the reset.
+      let attempts = 0;
+      while ((isSavingRef.current || isCloudSavingRef.current) && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        attempts++;
+      }
+      if (isSavingRef.current || isCloudSavingRef.current) {
+        const resetBusyError = new Error('Unable to reset while synchronization is still saving.');
+        resetBusyError.code = 'sync/reset-save-timeout';
+        throw resetBusyError;
+      }
+
+      // Claim the same lock as saveNow before changing data. Firestore emits
+      // snapshots for each document committed during the reset; without this
+      // synchronous guard the initiating device can mistake its own partial
+      // snapshot for a concurrent edit and open a false conflict screen.
+      ownsSaveLock = true;
+      setIsSaving(true);
+      isSavingRef.current = true;
+      setIsCloudSaving(true);
+      isCloudSavingRef.current = true;
+      setCloudSyncState(user ? 'syncing' : 'synced');
+      setPendingImmediateSave(false);
+      conflictQueueRef.current = [];
+      setConflictQueue([]);
+      setError(null);
+
       const currentGlobal = dataRef.current?.global || createDefaultData().global;
       const currentSchedules = dataRef.current?.schedules || [];
       
@@ -1295,6 +1335,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       setData(newData);
       dataRef.current = newData;
+      updateIsDirty(!!user);
 
       if (user) {
         await saveScheduleRecoverySnapshot(
@@ -1302,23 +1343,52 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
           user.uid,
           'before-reset',
         );
-        const committed = await saveSchedule(user.uid, {
-          global: newData.global,
-          schedules: newData.schedules
-        }, true);
-        const committedData = applyCommittedSync(newData, newData, committed);
+        // Persist the reset draft locally before touching the cloud. If the
+        // network disappears mid-reset, both the pre-reset recovery copy and
+        // the pending reset intent remain recoverable on this device.
+        await saveLocalScheduleIfChanged(newData, user.uid);
+        const authoritativeResetData = await resetUserSchedules(user.uid);
+        const committedData = authoritativeResetData || {
+          global: {
+            ...currentGlobal,
+            currentScheduleId: null,
+          },
+          schedules: [],
+        };
         dataRef.current = committedData;
         setData(committedData);
         await saveLocalScheduleIfChanged(committedData, user.uid);
       } else {
         await saveLocalScheduleIfChanged(newData, null);
       }
+
+      // A completed reset supersedes any conflict that was visible before the
+      // destructive confirmation. Clear both the ref and React state so this
+      // device follows the other devices directly to first-schedule onboarding.
+      conflictQueueRef.current = [];
+      setConflictQueue([]);
       updateIsDirty(false);
+      setCloudSyncState('synced');
+      setError(null);
+      return true;
     } catch (e) {
       updateIsDirty(hasDirtyScheduleData(dataRef.current));
       setError(e?.message || "Error");
+      setCloudSyncState(prevOnlineRef.current ? 'syncing' : 'offline');
+      return false;
     } finally {
+      if (ownsSaveLock) {
+        setIsSaving(false);
+        isSavingRef.current = false;
+        setIsCloudSaving(false);
+        isCloudSavingRef.current = false;
+      }
+      resetInProgressRef.current = false;
       setIsLoading(false);
+      if (deferredCloudRefreshRef.current) {
+        deferredCloudRefreshRef.current = false;
+        setDeferredCloudRefreshSeq((sequence) => sequence + 1);
+      }
     }
   }, [user, updateIsDirty, syncDevicePrefsUpdate, saveLocalScheduleIfChanged]);
 

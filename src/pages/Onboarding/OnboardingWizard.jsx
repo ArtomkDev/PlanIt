@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   CalendarDots, Clock, CalendarBlank, CaretDown, Trash, Plus,
   Hourglass, Coffee, HandWaving, PencilSimple, CaretLeft,
-  CaretRight, Check, Eye, EyeSlash, Bell, CheckSquare, Palette
+  CaretRight, Check, Eye, EyeSlash, Bell, CheckSquare, Palette, DownloadSimple
 } from 'phosphor-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -60,7 +60,7 @@ const expandFirstOutputRange = (firstValue, restValue) => [
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-export default function OnboardingWizard() {
+export default function OnboardingWizard({ onImportSchedule }) {
   const { width } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const { lang, global } = useScheduleData();
@@ -172,6 +172,11 @@ export default function OnboardingWizard() {
     setIsDurationExpanded(false);
     setIsBreaksExpanded(false);
   };
+
+  const handleImportSchedule = useCallback(() => {
+    triggerHaptic("open");
+    onImportSchedule?.();
+  }, [onImportSchedule]);
   const toggleDurationExpand = () => {
     setIsDurationExpanded(prev => !prev);
     setIsTimeExpanded(false);
@@ -416,6 +421,33 @@ export default function OnboardingWizard() {
       </View>
       <Text style={[styles.title, styles.welcomeTitle, { color: themeColors.textColor }]}>{t('onboarding.welcome_main_title', lang)}</Text>
       <Text style={[styles.subtitle, styles.welcomeSubtitle, { color: themeColors.textColor2 }]}>{t('onboarding.welcome_main_desc', lang)}</Text>
+      <TouchableOpacity
+        style={[
+          styles.importScheduleCard,
+          {
+            backgroundColor: themeColors.accentColor + '12',
+            borderColor: themeColors.accentColor + '45',
+          },
+        ]}
+        onPress={handleImportSchedule}
+        activeOpacity={0.76}
+        accessibilityRole="button"
+        accessibilityLabel={t('onboarding.import_friend_title', lang)}
+        testID="onboarding-import-schedule"
+      >
+        <View style={[styles.importScheduleIcon, { backgroundColor: themeColors.accentColor + '20' }]}>
+          <DownloadSimple size={25} color={themeColors.accentColor} weight="bold" />
+        </View>
+        <View style={styles.importScheduleText}>
+          <Text style={[styles.importScheduleTitle, { color: themeColors.textColor }]}>
+            {t('onboarding.import_friend_title', lang)}
+          </Text>
+          <Text style={[styles.importScheduleDesc, { color: themeColors.textColor2 }]}>
+            {t('onboarding.import_friend_desc', lang)}
+          </Text>
+        </View>
+        <CaretRight size={20} color={themeColors.accentColor} weight="bold" />
+      </TouchableOpacity>
       <Text style={[styles.swipeHint, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_to_continue', lang)} -&gt;</Text>
       <Text style={[styles.swipeHintSub, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_hint_sub', lang)}</Text>
     </View>
@@ -847,7 +879,12 @@ const styles = StyleSheet.create({
   welcomeBadgeText: { fontSize: 13, fontWeight: '700' },
   welcomeTitle: { marginBottom: 10 },
   welcomeSubtitle: { marginBottom: 8 },
-  swipeHint: { fontSize: 15, fontWeight: '600', marginTop: 40, opacity: 0.6 },
+  importScheduleCard: { width: '100%', maxWidth: 520, minHeight: 88, borderRadius: 20, borderWidth: 1, padding: 14, marginTop: 24, flexDirection: 'row', alignItems: 'center' },
+  importScheduleIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  importScheduleText: { flex: 1, paddingRight: 10 },
+  importScheduleTitle: { fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  importScheduleDesc: { fontSize: 13, lineHeight: 18 },
+  swipeHint: { fontSize: 15, fontWeight: '600', marginTop: 28, opacity: 0.6 },
   swipeHintSub: { fontSize: 13, marginTop: 12, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 },
   inputGroup: { width: '100%', marginBottom: 24 },
   label: { fontSize: 14, fontWeight: '600', marginBottom: 6, opacity: 0.9 },

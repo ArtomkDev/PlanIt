@@ -26,6 +26,14 @@ const syncPath = path.resolve(__dirname, '../src/utils/scheduleSync.js');
 const sync = compileModule(syncPath, new Map([
   ['./scheduleDataFingerprint', fingerprint],
 ]));
+const createDefaultDataPath = path.resolve(__dirname, '../src/config/createDefaultData.js');
+const createDefaultData = compileModule(createDefaultDataPath).default;
+const shareServicePath = path.resolve(__dirname, '../src/services/shareService.js');
+const shareService = compileModule(shareServicePath, new Map([
+  ['firebase/firestore', {}],
+  ['expo-crypto', {}],
+  ['../config/firebase', { db: {} }],
+]));
 
 const schedule = (overrides = {}) => ({
   id: 'schedule-1',
@@ -49,6 +57,24 @@ const data = (item, globalOverrides = {}) => ({
     ...globalOverrides,
   },
   schedules: item ? [item] : [],
+});
+
+test('initial data never creates a schedule before onboarding finishes', () => {
+  const initialData = createDefaultData();
+  assert.deepEqual(initialData.schedules, []);
+  assert.equal(initialData.global.currentScheduleId, null);
+});
+
+test('friend schedule import accepts a raw code or a complete share link', () => {
+  assert.equal(shareService.normalizeShareCodeInput('abc12'), 'ABC12');
+  assert.equal(
+    shareService.normalizeShareCodeInput('https://planit.app/share/Friend42?source=chat'),
+    'FRIEND42',
+  );
+  assert.throws(
+    () => shareService.normalizeShareCodeInput('https://planit.app/not-a-share-link'),
+    /invalid_code/,
+  );
 });
 
 test('fingerprint covers arbitrary and nested user fields', () => {
@@ -275,6 +301,51 @@ test('main layout keeps a usable schedule visible during a transient sync error'
   assert.doesNotMatch(layoutSource, /isLoading \|\| isInitialSync \|\| error \|\|/);
 });
 
+test('confirmed empty state keeps onboarding mounted through transient resyncs', () => {
+  const layoutSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/layouts/MainLayout.jsx'),
+    'utf8',
+  );
+  const emptyStateStart = layoutSource.indexOf('const canConfirmEmptyState');
+  const emptyStateEnd = layoutSource.indexOf('const isBlocking', emptyStateStart);
+  const emptyStateLogic = layoutSource.slice(emptyStateStart, emptyStateEnd);
+  const latchEffectStart = layoutSource.indexOf('if (hasSchedules) {', emptyStateEnd);
+  const latchEffectEnd = layoutSource.indexOf('useEffect(() => {', latchEffectStart + 1);
+  const latchEffect = layoutSource.slice(latchEffectStart, latchEffectEnd);
+
+  assert.notEqual(emptyStateStart, -1);
+  assert.match(emptyStateLogic, /hasConfirmedEmptyState \|\| canConfirmEmptyState/);
+  assert.match(emptyStateLogic, /!hasConfirmedEmptyState[\s\S]*cloudSyncState === 'syncing'/);
+  assert.match(layoutSource, /confirmedEmptyScope === emptyStateScope/);
+  assert.match(latchEffect, /setConfirmedEmptyScope\(null\)/);
+  assert.match(latchEffect, /setConfirmedEmptyScope\(emptyStateScope\)/);
+  assert.doesNotMatch(latchEffect, /cloudSyncState === 'syncing'[\s\S]*setConfirmedEmptyScope\(null\)/);
+  assert.doesNotMatch(layoutSource, /setTimeout\(\(\) => setShowOnboarding/);
+});
+
+test('first-schedule onboarding offers the existing safe import flow', () => {
+  const layoutSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/layouts/MainLayout.jsx'),
+    'utf8',
+  );
+  const onboardingSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/pages/Onboarding/OnboardingWizard.jsx'),
+    'utf8',
+  );
+  const importModalSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/components/modals/ImportScheduleModal.jsx'),
+    'utf8',
+  );
+
+  assert.match(layoutSource, /<OnboardingWizard[\s\S]*onImportSchedule=/);
+  assert.match(layoutSource, /setImportModalVisible\(true\)/);
+  assert.match(onboardingSource, /testID="onboarding-import-schedule"/);
+  assert.match(onboardingSource, /onImportSchedule\?\.\(\)/);
+  assert.match(importModalSource, /sanitizeImportedSchedule/);
+  assert.match(importModalSource, /addSchedule\(newSchedule\)/);
+  assert.match(importModalSource, /maxLength=\{256\}/);
+});
+
 test('conflict choices are locked while one resolution is being persisted', () => {
   const screenSource = fs.readFileSync(
     path.resolve(__dirname, '../src/pages/SyncConflict/SyncConflictScreen.jsx'),
@@ -299,6 +370,30 @@ test('foregrounding performs a server reconciliation without requiring a restart
   assert.match(appStateHandler, /nextAppState === "active"/);
   assert.match(appStateHandler, /conflictQueueRef\.current\.length === 0/);
   assert.match(appStateHandler, /reloadAllSchedules\(\)/);
+});
+
+test('the device that initiates a reset cannot interpret its own cloud snapshots as conflicts', () => {
+  const providerSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/context/ScheduleProvider.jsx'),
+    'utf8',
+  );
+  const resetStart = providerSource.indexOf('const resetApplication');
+  const resetEnd = providerSource.indexOf('const deleteGuestSchedules', resetStart);
+  const resetHandler = providerSource.slice(resetStart, resetEnd);
+  const lockIndex = resetHandler.indexOf('isCloudSavingRef.current = true');
+  const resetCallIndex = resetHandler.indexOf('await resetUserSchedules(user.uid)');
+  const successConflictClearIndex = resetHandler.lastIndexOf('conflictQueueRef.current = []');
+
+  assert.notEqual(resetStart, -1);
+  assert.match(resetHandler, /if \(resetInProgressRef\.current\) return false/);
+  assert.match(resetHandler, /while \(\(isSavingRef\.current \|\| isCloudSavingRef\.current\)/);
+  assert.ok(lockIndex >= 0 && lockIndex < resetCallIndex);
+  assert.match(resetHandler, /await saveLocalScheduleIfChanged\(newData, user\.uid\)/);
+  assert.ok(successConflictClearIndex > resetCallIndex);
+  assert.match(resetHandler, /isCloudSavingRef\.current = false/);
+  assert.match(resetHandler, /setDeferredCloudRefreshSeq/);
+  assert.match(resetHandler, /setCloudSyncState\('synced'\)/);
+  assert.match(resetHandler, /setError\(null\)/);
 });
 
 test('removing a schedule through a generic updater creates a tombstone', () => {

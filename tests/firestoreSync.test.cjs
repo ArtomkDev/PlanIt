@@ -19,6 +19,16 @@ const makeFakes = (initialDocuments = []) => {
     id: reference.path.split('/').at(-1),
     ref: reference,
   });
+  const collectionSnapshotFor = (reference) => {
+    const prefix = `${reference.path}/`;
+    const docs = [...documents.entries()]
+      .filter(([documentPath]) => {
+        if (!documentPath.startsWith(prefix)) return false;
+        return !documentPath.slice(prefix.length).includes('/');
+      })
+      .map(([documentPath]) => snapshotFor({ path: documentPath, kind: 'doc' }));
+    return { docs, empty: docs.length === 0, metadata: {} };
+  };
   const runTransaction = async (_db, operation) => {
     if (transactionFailure) throw transactionFailure;
     const staged = [];
@@ -81,8 +91,8 @@ const makeFakes = (initialDocuments = []) => {
       doc,
       getDoc: async (reference) => snapshotFor(reference),
       getDocFromServer: async (reference) => snapshotFor(reference),
-      getDocs: async () => ({ docs: [], empty: true, metadata: {} }),
-      getDocsFromServer: async () => ({ docs: [], empty: true, metadata: {} }),
+      getDocs: async (reference) => collectionSnapshotFor(reference),
+      getDocsFromServer: async (reference) => collectionSnapshotFor(reference),
       onSnapshot: (reference, ...args) => {
         const callbacks = args.filter((argument) => typeof argument === 'function');
         const listener = { next: callbacks[0], error: callbacks[1] };
@@ -422,6 +432,51 @@ test('network and permission errors are rethrown instead of reported as success'
       schedules: [{ id: 'new-id', version: 0, baseVersion: 0, lastModified: 1, lastSynced: 0 }],
     }, true),
     (error) => error.code === 'permission-denied',
+  );
+});
+
+test('account reset uses authoritative cloud versions and returns a fully deleted snapshot', async () => {
+  const fakes = makeFakes([
+    {
+      path: 'users/user-reset/global/settings',
+      data: {
+        version: 4,
+        lastModified: 400,
+        currentScheduleId: 'main',
+        language: 'uk',
+      },
+    },
+    {
+      path: 'users/user-reset/schedules/main',
+      data: { version: 9, lastModified: 900, name: 'Newest cloud copy' },
+    },
+    {
+      path: 'users/user-reset/schedules/already-deleted',
+      data: {
+        version: 3,
+        lastModified: 300,
+        deletedAt: 300,
+        isDeleted: true,
+      },
+    },
+  ]);
+  const firestore = loadFirestore(fakes);
+
+  const result = await firestore.resetUserSchedules('user-reset');
+
+  assert.equal(result.global.currentScheduleId, null);
+  assert.equal(result.global.language, 'uk');
+  assert.equal(result.global.version, 5);
+  assert.equal(result.schedules.length, 2);
+  assert.equal(result.schedules.every((schedule) => schedule.isDeleted), true);
+  assert.equal(result.schedules.find((schedule) => schedule.id === 'main').version, 10);
+  assert.equal(
+    fakes.documents.get('users/user-reset/schedules/main').isDeleted,
+    true,
+  );
+  assert.equal(
+    fakes.documents.get('users/user-reset/schedules/already-deleted').version,
+    3,
   );
 });
 

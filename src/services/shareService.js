@@ -30,8 +30,10 @@ export const generateShareCode = (length = MIN_SHARE_CODE_LENGTH) => {
   return code;
 };
 
-const normalizeShareCode = (shareCode) => {
-  const normalized = String(shareCode || "").trim().toUpperCase();
+export const normalizeShareCodeInput = (shareInput) => {
+  const rawInput = String(shareInput || "").trim();
+  const sharedLinkMatch = rawInput.match(/\/share\/([a-z0-9]{5,32})/i);
+  const normalized = String(sharedLinkMatch?.[1] || rawInput).trim().toUpperCase();
   if (!SHARE_CODE_RE.test(normalized)) {
     throw new Error("invalid_code");
   }
@@ -76,7 +78,7 @@ export const createSharedSchedule = async (user, scheduleData, durationDays) => 
 export const fetchSharedSchedule = async (shareCode) => {
   if (!shareCode) throw new Error("Code is required");
 
-  const docRef = doc(db, "shared_schedules", normalizeShareCode(shareCode));
+  const docRef = doc(db, "shared_schedules", normalizeShareCodeInput(shareCode));
   const docSnap = await getDoc(docRef);
 
   if (!docSnap.exists()) {

@@ -168,9 +168,9 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                     <BottomSheetTextInput
                       style={[styles.input, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: error ? "#FF3B30" : themeColors.borderColor }]}
                       value={code}
-                      onChangeText={(text) => { setCode(text.toUpperCase()); setError(null); }}
+                      onChangeText={(text) => { setCode(text); setError(null); }}
                       autoCapitalize="characters"
-                      maxLength={32}
+                      maxLength={256}
                       autoCorrect={false}
                       autoFocus={Platform.OS === "ios"}
                     />

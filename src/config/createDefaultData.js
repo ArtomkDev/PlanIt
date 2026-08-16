@@ -1,13 +1,8 @@
-import defaultSchedule from './defaultSchedule';
-import { DEFAULT_SCHEDULE_NAME_KEY } from '../utils/scheduleDisplay';
-import { generateId } from '../utils/idGenerator';
-
 export default function createDefaultData() {
-  const scheduleId = generateId();
   const now = Date.now();
 
   const global = {
-    currentScheduleId: scheduleId,
+    currentScheduleId: null,
     theme: ['dark', 'cyan'],
     navigationStyle: 'classic',
     navigationLabels: true,
@@ -18,20 +13,12 @@ export default function createDefaultData() {
     lastSynced: 0, 
   };
 
-  const newSchedule = {
-    ...defaultSchedule,
-    id: scheduleId,
-    name: 'Основний розклад',
-    nameKey: DEFAULT_SCHEDULE_NAME_KEY,
-    version: 1,           
-    baseVersion: 1,       
-    lastModified: now,    
-    lastSynced: 0, 
-  };
-
   return { 
-      global, 
-      schedules: [newSchedule],
-      deletedSchedules: []
+    global,
+    // The first schedule is created only by OnboardingWizard after the user
+    // finishes the setup. Keeping defaults empty prevents a background draft
+    // from racing the onboarding screen and briefly replacing it with Tabs.
+    schedules: [],
+    deletedSchedules: [],
   };
 }

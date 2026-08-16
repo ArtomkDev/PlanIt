@@ -574,29 +574,82 @@ export const deleteUserSchedule = async (userId, scheduleId) => {
 };
 
 export const resetUserSchedules = async (userId) => {
-  if (isAccountBeingDeleted) return;
+  if (isAccountBeingDeleted) return null;
+  if (!userId) {
+    const error = new Error('A user id is required to reset schedules.');
+    error.code = 'sync/invalid-user';
+    throw error;
+  }
 
   try {
-    const schedulesRef = collection(db, 'users', userId, 'schedules');
-    const snapshot = await getDocsFromServer(schedulesRef);
+    // A reset is an explicitly confirmed destructive operation. Always build it
+    // from authoritative server versions instead of the initiating device's
+    // possibly stale cache. If another device writes during the reset,
+    // saveSchedule reports a version conflict; re-read and retry so the reset
+    // cannot finish in a half-deleted state.
+    const maxAttempts = 5;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const cloudData = await getScheduleFromServer(userId);
+      if (!cloudData) return null;
 
-    if (snapshot.empty) return;
+      const now = Date.now();
+      const activeSchedules = (cloudData.schedules || []).filter((schedule) => !schedule.isDeleted);
+      const tombstones = activeSchedules.map((schedule) => {
+        const deletedAt = Math.max(
+          now,
+          (Number(schedule.lastModified) || 0) + 1,
+          (Number(schedule.deletedAt) || 0) + 1,
+        );
+        return {
+          ...schedule,
+          isDeleted: true,
+          deletedAt,
+          lastModified: deletedAt,
+        };
+      });
+      const shouldClearCurrentSchedule = cloudData.global?.currentScheduleId != null;
+      const schedulesPerAttempt = MAX_SYNC_TRANSACTION_ENTITIES - (shouldClearCurrentSchedule ? 1 : 0);
+      const tombstoneBatch = tombstones.slice(0, schedulesPerAttempt);
 
-    const now = Date.now();
+      if (tombstones.length === 0 && !shouldClearCurrentSchedule) {
+        return cloudData;
+      }
 
-    const tombstones = snapshot.docs.map((docSnap) => {
-      const data = fromCloudDocument(docSnap.data(), docSnap.id);
-      return {
-        id: docSnap.id,
-        isDeleted: true, 
-        version: Number(data.version) || 0,
-        baseVersion: Number(data.version) || 0,
-        lastModified: now,
-        lastSynced: parseTimestamp(data.lastModified) || 0,
-        deletedAt: now
+      const resetDraft = {
+        ...(shouldClearCurrentSchedule ? {
+          global: {
+            ...cloudData.global,
+            currentScheduleId: null,
+            lastModified: Math.max(
+              now,
+              (Number(cloudData.global?.lastModified) || 0) + 1,
+            ),
+          },
+        } : {}),
+        ...(tombstoneBatch.length > 0 ? { schedules: tombstoneBatch } : {}),
       };
-    });
-    await saveSchedule(userId, { schedules: tombstones }, true);
+
+      try {
+        await saveSchedule(userId, resetDraft, true);
+      } catch (error) {
+        if (error?.code === 'sync/conflict' && attempt < maxAttempts - 1) {
+          continue;
+        }
+        throw error;
+      }
+
+      const verifiedCloudData = await getScheduleFromServer(userId);
+      const hasActiveSchedules = (verifiedCloudData?.schedules || []).some(
+        (schedule) => !schedule.isDeleted,
+      );
+      if (!hasActiveSchedules && verifiedCloudData?.global?.currentScheduleId == null) {
+        return verifiedCloudData;
+      }
+    }
+
+    const error = new Error('Schedules changed continuously while the reset was being completed.');
+    error.code = 'sync/reset-incomplete';
+    throw error;
   } catch (error) {
     logCrashlyticsError(error, 'resetUserSchedules_Firestore');
     throw error;
