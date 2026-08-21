@@ -10,6 +10,7 @@ const {
 
 const MATERIAL_VERSION = '1.14.0';
 const OPTIMIZED_RESOURCE_SHRINKING = 'android.r8.optimizedResourceShrinking';
+const GRADLE_JVM_ARGS = '-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8';
 const DEPENDENCY_BLOCK_START = '// @generated begin planit-play-compliance';
 const DEPENDENCY_BLOCK_END = '// @generated end planit-play-compliance';
 
@@ -96,6 +97,13 @@ const withAndroidPlayCompliance = (config) => {
       gradleConfig.modResults,
       OPTIMIZED_RESOURCE_SHRINKING,
       'true',
+    );
+    // R8 processes the complete release graph and needs more metaspace than
+    // Expo's default on this app. Keep this generated and reproducible.
+    upsertGradleProperty(
+      gradleConfig.modResults,
+      'org.gradle.jvmargs',
+      GRADLE_JVM_ARGS,
     );
     return gradleConfig;
   });

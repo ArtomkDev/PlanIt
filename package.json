@@ -1,6 +1,6 @@
 {
   "name": "planit",
-  "version": "0.1.79",
+  "version": "0.1.80",
   "main": "index.js",
   "scripts": {
     "legal:sync": "node scripts/generate-legal-documents.js",
