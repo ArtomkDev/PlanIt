@@ -478,7 +478,6 @@ export const sanitizeImportedSchedule = (input, now = Date.now()) => {
   return {
     ...sanitized,
     id: generateId(),
-    isCloud: false,
     isDeleted: false,
     version: 1,
     baseVersion: 1,

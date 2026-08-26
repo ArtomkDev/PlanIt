@@ -14,7 +14,6 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   updateProfile,
-  sendPasswordResetEmail,
   sendEmailVerification,
   signOut
 } from 'firebase/auth';
@@ -29,6 +28,12 @@ import MorphingLoader from '../components/ui/MorphingLoader';
 import { setManualLogin } from '../utils/authFlags';
 import { triggerHaptic } from '../utils/haptics';
 import { getLegalDocumentBrowserUrl } from '../utils/legalDocumentLinks';
+import { requestPasswordResetEmailForEmail } from './passwordResetService';
+import PasswordStrengthBar from './components/PasswordStrengthBar';
+import {
+  getPasswordPolicyMessage,
+  isPasswordAllowed,
+} from './passwordPolicy';
 
 if (
   Platform.OS === 'android' && 
@@ -250,28 +255,6 @@ const InputField = ({
   );
 };
 
-const PasswordStrengthBar = ({ password, colors, isDark }) => {
-  if (!password) return null;
-  
-  const getStrength = (pass) => {
-    if (pass.length < 6) return { width: '30%', color: '#ef4444' };
-    const hasLetters = /[a-zA-Z]/.test(pass);
-    const hasNumbers = /[0-9]/.test(pass);
-    if (hasLetters && hasNumbers && pass.length >= 8) {
-      return { width: '100%', color: '#10b981' };
-    }
-    return { width: '65%', color: '#f59e0b' };
-  };
-
-  const strength = getStrength(password);
-
-  return (
-    <View style={[styles.strengthContainer, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
-      <View style={[styles.strengthBar, { width: strength.width, backgroundColor: strength.color }]} />
-    </View>
-  );
-};
-
 const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormError, onOpenDocument }) => {
   const toggleTerms = () => {
     triggerHaptic(acceptedTerms ? "toggleOff" : "toggleOn");
@@ -406,6 +389,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [passwordResetCooldown, setPasswordResetCooldown] = useState(0);
   
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -479,6 +463,15 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
+  useEffect(() => {
+    if (passwordResetCooldown <= 0) return undefined;
+    const timer = setTimeout(
+      () => setPasswordResetCooldown((seconds) => Math.max(0, seconds - 1)),
+      1000,
+    );
+    return () => clearTimeout(timer);
+  }, [passwordResetCooldown]);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -526,9 +519,6 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       triggerHaptic("error");
       setManualLogin(false);
       let msg = t('auth.errors.wrong_credentials', lang);
-      if (error.code === 'auth/user-not-found') msg = t('auth.errors.user_not_found', lang);
-      if (error.code === 'auth/wrong-password') msg = t('auth.errors.wrong_password', lang);
-      if (error.code === 'auth/invalid-credential') msg = t('auth.errors.invalid_credential', lang);
       if (error.code === 'auth/too-many-requests') msg = t('auth.errors.too_many_requests', lang);
       setFormError(msg);
     } finally { 
@@ -549,9 +539,9 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       triggerHaptic("warning");
       return setFormError(t('auth.errors.invalid_email_format', lang));
     }
-    if (password.length < 6) {
+    if (!isPasswordAllowed(password)) {
       triggerHaptic("warning");
-      return setFormError(t('auth.errors.password_too_short', lang));
+      return setFormError(getPasswordPolicyMessage(lang));
     }
     if (!acceptedTerms) {
       triggerHaptic("warning");
@@ -571,7 +561,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       let msg = t('auth.errors.signup_failed', lang);
       if (error.code === 'auth/email-already-in-use') msg = t('auth.errors.email_in_use', lang);
       if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
-      if (error.code === 'auth/weak-password') msg = t('auth.errors.weak_password', lang);
+      if (error.code === 'auth/weak-password') msg = getPasswordPolicyMessage(lang);
       setFormError(msg);
     } finally { 
       configureAuthLayoutAnimation();
@@ -581,28 +571,46 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
 
   const handleForgotPassword = async () => {
     const trimmedEmail = email.trim();
+    if (passwordResetCooldown > 0 || isLoading) {
+      return;
+    }
     if (!trimmedEmail) {
       triggerHaptic("warning");
-      return setFormError(t('auth.forgot_password.req_email', lang));
+      setFormError(t('auth.forgot_password.req_email', lang));
+      return;
     }
     if (!validateEmail(trimmedEmail)) {
       triggerHaptic("warning");
-      return setFormError(t('auth.errors.invalid_email_format', lang));
+      setFormError(t('auth.errors.invalid_email_format', lang));
+      return;
     }
-    
+
+    setIsLoading(true);
     try {
-      await sendPasswordResetEmail(auth, trimmedEmail);
+      await requestPasswordResetEmailForEmail({ email: trimmedEmail, lang });
       triggerHaptic("success");
+      setPasswordResetCooldown(60);
       setSuccessMessage(t('auth.forgot_password.success_msg', lang));
     } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        triggerHaptic("success");
+        setPasswordResetCooldown(60);
+        setSuccessMessage(t('auth.forgot_password.success_msg', lang));
+        return;
+      }
+
       triggerHaptic("error");
-      let msg = t('auth.errors.reset_failed', lang);
-      if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
-      if (error.code === 'auth/user-not-found') msg = t('auth.errors.user_not_found', lang);
+      if (error.code === 'auth/too-many-requests') {
+        setPasswordResetCooldown(60);
+      }
+      const msg = error.code === 'auth/invalid-email'
+        ? t('auth.errors.invalid_email', lang)
+        : t('auth.errors.reset_failed', lang);
       setFormError(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
-
   const handleCancelVerification = async () => {
     triggerHaptic("warning");
     try {
@@ -740,15 +748,23 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
               isDark={isDark} 
             />
             {currentView === 'signup' && (
-              <PasswordStrengthBar password={password} colors={colors} isDark={isDark} />
+              <PasswordStrengthBar password={password} isDark={isDark} />
             )}
           </View>
           
           <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} onOpenDocument={openLegalDocument} />
           
           {currentView === 'signin' && (
-            <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
-              <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>{t('auth.signin.forgot_password', lang)}</Text>
+            <TouchableOpacity
+              style={styles.forgotPassword}
+              onPress={handleForgotPassword}
+              disabled={isLoading || passwordResetCooldown > 0}
+            >
+              <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>
+                {passwordResetCooldown > 0
+                  ? `${t('auth.signin.forgot_password', lang)} (${passwordResetCooldown})`
+                  : t('auth.signin.forgot_password', lang)}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -760,7 +776,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
             <AuthMorphingLoader compact />
           ) : (
             <TouchableOpacity 
-              style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms || (currentView === 'signup' && password.length < 6) ? 0.6 : 1 }]} 
+              style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms || (currentView === 'signup' && !isPasswordAllowed(password)) ? 0.6 : 1 }]}
               onPress={currentView === 'signin' ? handleSignIn : handleSignUp}
             >
               <Text style={styles.primaryButtonText}>
@@ -917,8 +933,6 @@ const styles = StyleSheet.create({
   verifyTextContainer: { alignItems: 'center', width: '100%' },
   buttonLoaderContainer: { height: 54, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', marginTop: 14 },
   socialGroup: { marginTop: 14 },
-  strengthContainer: { width: '100%', height: 3, borderRadius: 2, marginTop: 6, overflow: 'hidden' },
-  strengthBar: { height: '100%', borderRadius: 2 },
   errorBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', gap: 10 },
   errorText: { color: '#ef4444', fontSize: 14, fontWeight: '500', flex: 1 },
   successBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.3)', gap: 10 },

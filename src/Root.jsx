@@ -22,6 +22,8 @@ import { consumeManualLogin, setManualLogin } from "./utils/authFlags";
 import useAppLanguage from './hooks/useAppLanguage';
 import { AdsProvider } from './context/AdsContext';
 import CookieConsentBanner from './components/privacy/CookieConsentBanner';
+import PasswordResetScreen from './auth/PasswordResetScreen';
+import { createPasswordResetNavigationUrl } from './auth/passwordResetService';
 
 initGlobalErrorHandling();
 SplashScreen.preventAutoHideAsync();
@@ -30,12 +32,24 @@ const Stack = createNativeStackNavigator();
 
 const linking = {
   prefixes: [LinkingExpo.createURL('/'), 'planit://'],
+  getInitialURL: async () => {
+    const url = await LinkingExpo.getInitialURL();
+    return createPasswordResetNavigationUrl(url);
+  },
+  subscribe: (listener) => {
+    const subscription = LinkingExpo.addEventListener('url', ({ url }) => {
+      listener(createPasswordResetNavigationUrl(url));
+    });
+
+    return () => subscription.remove();
+  },
   config: {
     screens: {
       MainLayout: {
         path: '*',
       },
       Auth: 'auth',
+      PasswordReset: 'password-reset',
       LegalDocument: 'legal/:documentType',
     },
   },
@@ -128,18 +142,6 @@ export default function RootApp() {
           setGuest(false);
           wasLoggedIn.current = false;
           setAuthResolved(true);
-          
-          try {
-            const keys = await AsyncStorage.getAllKeys();
-            const keysToRemove = keys.filter(key => 
-              key.toLowerCase().includes('schedule') && key !== 'guest_schedule'
-            );
-            if (keysToRemove.length > 0) {
-              await AsyncStorage.multiRemove(keysToRemove);
-            }
-          } catch (e) {
-            console.warn(e);
-          }
         } else {
           try {
             const localSchedule = await AsyncStorage.getItem("guest_schedule");
@@ -180,7 +182,11 @@ export default function RootApp() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
       <AdsProvider>
-        <ScheduleProvider guest={guest} user={user}>
+        <ScheduleProvider
+          key={user?.uid || (guest ? 'guest' : 'signed-out')}
+          guest={guest}
+          user={user}
+        >
           <NavigationContainer
             ref={navigationRef}
             linking={linking}
@@ -226,6 +232,14 @@ export default function RootApp() {
                   )}
                 </Stack.Screen>
               )}
+              <Stack.Screen name="PasswordReset">
+                {(props) => (
+                  <PasswordResetScreen
+                    {...props}
+                    fallbackRoute={user || guest ? 'MainLayout' : 'Auth'}
+                  />
+                )}
+              </Stack.Screen>
               <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
             </Stack.Navigator>
           </NavigationContainer>

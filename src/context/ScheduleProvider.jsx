@@ -42,6 +42,10 @@ import {
   resolveConflictChoice,
   resolveSyncConflict,
 } from "../utils/scheduleSync";
+import {
+  markScheduleAsAccountOwned,
+  markScheduleAsDeviceLocal,
+} from "../utils/scheduleOwnership";
 
 const ScheduleContext = createContext(null);
 const ScheduleDataContext = createContext(null);
@@ -258,9 +262,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     const loadLocal = async () => {
       setLoadedScopeKey(null);
       setIsLoading(true);
+      dataRef.current = null;
+      setData(null);
+      lastLocalSaveFingerprintRef.current = null;
       conflictQueueRef.current = [];
       setConflictQueue([]);
       setPendingImmediateSave(false);
+      setError(null);
       updateIsDirty(false);
       const prefs = await getDevicePrefs();
       if (cancelled) return;
@@ -485,6 +493,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   useEffect(() => {
     let unsubscribeCloud = null;
+    let subscriptionActive = true;
     if (!cloudSubscriptionUserId) return;
 
     logSyncDiagnostic('subscription-start', {
@@ -496,6 +505,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     unsubscribeCloud = subscribeToSchedule(
       cloudSubscriptionUserId,
       async (fetchedCloudData, isFromCache, metadata = {}) => {
+        if (!subscriptionActive) return;
         if (conflictQueueRef.current.length > 0) {
           deferredCloudRefreshRef.current = true;
           return;
@@ -524,7 +534,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
         try {
           const currentLocal = dataRef.current || await getLocalSchedule(cloudSubscriptionUserId);
-          if (!currentLocal) return;
+          if (!subscriptionActive || !currentLocal) return;
           const localChangedWhileReading = dataRef.current && hasScheduleDataChanged(currentLocal, dataRef.current);
           if (localChangedWhileReading) return;
 
@@ -544,6 +554,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
               cloudSubscriptionUserId,
               'conflict-detected',
             ).catch(() => {});
+            if (!subscriptionActive) return;
             conflictQueueRef.current = conflicts;
             setConflictQueue(conflicts);
             setCloudSyncState('synced');
@@ -558,6 +569,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
               cloudSubscriptionUserId,
               'before-cloud-merge',
             ).catch(() => {});
+            if (!subscriptionActive) return;
             // The user may have edited locally while the recovery snapshot was
             // being written. Never apply a cloud result calculated from an old
             // local base; schedule one authoritative server reconciliation.
@@ -581,11 +593,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             updateIsDirty(hasDirtyScheduleData(mergedChanged ? mergedData : currentLocal));
           }
         } catch (e) {
+          if (!subscriptionActive) return;
           setError(e?.message || 'Unable to merge cloud data');
           updateIsDirty(hasDirtyScheduleData(dataRef.current));
         }
       },
       (subscriptionError) => {
+        if (!subscriptionActive) return;
         logSyncDiagnostic('subscription-error', {
           code: subscriptionError?.code || null,
           message: subscriptionError?.message || 'Cloud synchronization failed',
@@ -596,6 +610,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     );
 
     return () => {
+      subscriptionActive = false;
       if (unsubscribeCloud) unsubscribeCloud();
     };
   }, [cloudSubscriptionUserId, updateIsDirty, saveLocalScheduleIfChanged]);
@@ -864,11 +879,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const addSchedule = useCallback((scheduleObj) => {
     setData((prev) => {
       if (!prev) return prev;
+      const ownedSchedule = guest
+        ? markScheduleAsDeviceLocal(scheduleObj)
+        : markScheduleAsAccountOwned(scheduleObj);
       const newSchedule = {
-        ...scheduleObj,
+        ...ownedSchedule,
         version: 0,
         baseVersion: 0,
-        lastModified: nextLogicalTimestamp(scheduleObj),
+        lastModified: nextLogicalTimestamp(ownedSchedule),
         lastSynced: 0
       };
       const nextData = { ...prev, schedules: [...(prev.schedules || []), newSchedule] };

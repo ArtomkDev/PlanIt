@@ -29,6 +29,10 @@ import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
 import { triggerHaptic } from "../../../utils/haptics";
 import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import {
+  markScheduleAsAccountOwned,
+  markScheduleAsDeviceLocal,
+} from "../../../utils/scheduleOwnership";
+import {
   resolveScheduleColor,
   scheduleColorWithAlpha,
 } from "../../../utils/scheduleColors";
@@ -169,8 +173,10 @@ const ScheduleSwitcher = () => {
     enqueueOperation(async () => {
       startProcessing(guestSchedule.id);
       try {
-        const scheduleCopy = JSON.parse(JSON.stringify(guestSchedule));
-        scheduleCopy.isCloud = true;
+        const scheduleCopy = markScheduleAsAccountOwned(
+          JSON.parse(JSON.stringify(guestSchedule)),
+        );
+
         const oldId = scheduleCopy.id;
         scheduleCopy.id = generateId();
         scheduleCopy.lastModified = Date.now();
@@ -183,7 +189,13 @@ const ScheduleSwitcher = () => {
           
           guestData.schedules = guestData.schedules.map(s => {
             if (s.id === oldId) {
-              return { ...s, isDeleted: true, lastModified: Date.now() };
+              const movedAt = Date.now();
+              return {
+                ...markScheduleAsAccountOwned(s),
+                isDeleted: true,
+                deletedAt: movedAt,
+                lastModified: movedAt,
+              };
             }
             return s;
           });
@@ -214,8 +226,11 @@ const ScheduleSwitcher = () => {
           return;
         }
 
-        const scheduleCopy = JSON.parse(JSON.stringify(accountSchedule));
-        scheduleCopy.isCloud = false; 
+        const scheduleCopy = markScheduleAsDeviceLocal(
+          JSON.parse(JSON.stringify(accountSchedule)),
+          { offerCloudMigration: false },
+        );
+
         const oldId = scheduleCopy.id;
         scheduleCopy.id = generateId();
         scheduleCopy.lastModified = Date.now();
@@ -262,7 +277,13 @@ const ScheduleSwitcher = () => {
               if (guestData) {
                 guestData.schedules = guestData.schedules.map(s => {
                   if (s.id === scheduleId) {
-                    return { ...s, isDeleted: true, lastModified: Date.now() };
+                    const deletedAt = Date.now();
+                    return {
+                      ...s,
+                      isDeleted: true,
+                      deletedAt,
+                      lastModified: deletedAt,
+                    };
                   }
                   return s;
                 });

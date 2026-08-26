@@ -1,6 +1,38 @@
 {
-  "generated_at": "2026-08-01T22:39:39.551854+00:00",
+  "generated_at": "2026-08-23T16:38:11.963231+00:00",
   "nodes": {
+    "src_auth_authscreen": {
+      "code_fingerprint": "7ed0af5f238bebf35fb83c49bcaedebba5f770fa3ce0bbff021a29f46d8826e2",
+      "label": "AuthScreen.jsx",
+      "last": "2026-08-21T23:55:12.821596+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-21T23:55:12.821596+00:00",
+          "outcome": "useful",
+          "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
+        }
+      ],
+      "score": 0.961560412,
+      "source_file": "src/auth/AuthScreen.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_auth_components_passwordstrengthbar_passwordstrengthbar": {
+      "code_fingerprint": "71130a7516d5bc32fdf3ed88926e5f3b83bddd0b969cdb1c3061a3d96eb0c94f",
+      "label": "PasswordStrengthBar()",
+      "last": "2026-08-21T23:55:12.821596+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-21T23:55:12.821596+00:00",
+          "outcome": "useful",
+          "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
+        }
+      ],
+      "score": 0.961560412,
+      "source_file": "src/auth/components/PasswordStrengthBar.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
     "src_components_adbanner_adbanner_native": {
       "code_fingerprint": "4267a4dfcb79ba301723ab51f9ec07d3deb0d361b508d54c5778e15801ee7574",
       "label": "AdBanner.native.jsx",
@@ -12,8 +44,24 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.999835366,
+      "score": 0.60491161,
       "source_file": "src/components/AdBanner/AdBanner.native.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_components_privacy_cookieconsentbanner_web": {
+      "code_fingerprint": "a94639daa8088507d5e0436a7c1c810b83c527f87c12b925626e780f6ff84540",
+      "label": "CookieConsentBanner.web.jsx",
+      "last": "2026-08-01T22:45:37.950536+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:45:37.950536+00:00",
+          "outcome": "useful",
+          "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
+        }
+      ],
+      "score": 0.605069204,
+      "source_file": "src/components/privacy/CookieConsentBanner.web.jsx",
       "status": "tentative",
       "uses": 1
     },
@@ -28,13 +76,77 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.999835366,
+      "score": 0.60491161,
       "source_file": "src/context/AdsContext.native.jsx",
       "status": "tentative",
       "uses": 1
     },
+    "src_pages_settings_components_aboutapp_aboutapp": {
+      "code_fingerprint": "5cd56f144ebe59b99fe4feca0018e2ab264a85f6912a24e5e82ea5ac6f7feda3",
+      "label": "AboutApp()",
+      "last": "2026-08-01T22:45:37.950536+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:45:37.950536+00:00",
+          "outcome": "useful",
+          "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
+        }
+      ],
+      "score": 0.605069204,
+      "source_file": "src/pages/Settings/components/AboutApp.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_settings_components_accountsettings_components_changepasswordscreen_changepasswordscreen": {
+      "code_fingerprint": "810993154b1dd13ba75cdacfab92604cd4b2f409ac822837476df80b2c810257",
+      "label": "ChangePasswordScreen()",
+      "last": "2026-08-21T23:55:12.821596+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-21T23:55:12.821596+00:00",
+          "outcome": "useful",
+          "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
+        }
+      ],
+      "score": 0.961560412,
+      "source_file": "src/pages/Settings/components/AccountSettings/components/ChangePasswordScreen.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_settings_settings_settings": {
+      "code_fingerprint": "b31b80ffc77cfea8ce66d23d295ccf6e1e5b300862eb7294a9829c48a0865c94",
+      "label": "Settings()",
+      "last": "2026-08-01T22:45:37.950536+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:45:37.950536+00:00",
+          "outcome": "useful",
+          "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
+        }
+      ],
+      "score": 0.605069204,
+      "source_file": "src/pages/Settings/Settings.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_services_cookieconsentservice_web": {
+      "code_fingerprint": "90a35c79c7971d59590a39c333af6dba11402b33906f54ef89eb5d6118fd78fc",
+      "label": "cookieConsentService.web.js",
+      "last": "2026-08-01T22:45:37.950536+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:45:37.950536+00:00",
+          "outcome": "useful",
+          "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
+        }
+      ],
+      "score": 0.605069204,
+      "source_file": "src/services/cookieConsentService.web.js",
+      "status": "tentative",
+      "uses": 1
+    },
     "src_services_notificationservice": {
-      "code_fingerprint": "2b9b426c39ac2466150ef6c8a2b8fdb3e6e6feb8bd705d978f1ddfd0fc230859",
+      "code_fingerprint": "7e608f7f372ffc064e1fa63b3f381196994160183ece5740eb9501a0a894e92c",
       "label": "notificationService.js",
       "last": "2026-08-01T22:29:23.859146+00:00",
       "provenance": [
@@ -44,7 +156,7 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.999835366,
+      "score": 0.60491161,
       "source_file": "src/services/notificationService.js",
       "status": "tentative",
       "uses": 1
@@ -60,13 +172,29 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.999835366,
+      "score": 0.60491161,
       "source_file": "src/utils/adInit/adInit.native.js",
       "status": "tentative",
       "uses": 1
     },
+    "src_utils_analytics_analytics_web": {
+      "code_fingerprint": "825771e09b48c04d2022e78fc902603b30629266a9ad971827660289a69cb692",
+      "label": "analytics.web.js",
+      "last": "2026-08-01T22:45:37.950536+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-01T22:45:37.950536+00:00",
+          "outcome": "useful",
+          "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
+        }
+      ],
+      "score": 0.605069204,
+      "source_file": "src/utils/analytics/analytics.web.js",
+      "status": "tentative",
+      "uses": 1
+    },
     "src_utils_deviceservice": {
-      "code_fingerprint": "9f2fbf9da972544eda8f5bb8f391fffa6336a2057dc60b7fbaee6d705e339a60",
+      "code_fingerprint": "6dfc10224b4e2beea9e9597d6a1d0b12b26eb11cf6d7aaafa6d3c0d2f1706a1f",
       "label": "deviceService.js",
       "last": "2026-08-01T22:29:23.859146+00:00",
       "provenance": [
@@ -76,7 +204,7 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.999835366,
+      "score": 0.60491161,
       "source_file": "src/utils/deviceService.js",
       "status": "tentative",
       "uses": 1

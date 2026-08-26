@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity
 } from 'react-native';
@@ -7,6 +7,12 @@ import { CloudArrowUp, CheckSquare, Square } from 'phosphor-react-native';
 import { saveSchedule } from '../../config/firestore';
 import { generateId } from '../../utils/idGenerator';
 import { getLocalSchedule, saveLocalSchedule } from '../../utils/storage';
+import {
+  consumeCloudMigrationOffers,
+  finalizeCloudMigration,
+  getPendingCloudMigrationSchedules,
+  markScheduleAsAccountOwned,
+} from '../../utils/scheduleOwnership';
 import { useScheduleData } from '../../context/ScheduleProvider';
 import themes from '../../config/themes';
 import { t } from '../../utils/i18n';
@@ -25,37 +31,53 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isMigrating, setIsMigrating] = useState(false);
   const [localDataFull, setLocalDataFull] = useState(null);
+  const [migrationTargetIds, setMigrationTargetIds] = useState({});
+  const committedTargetIdsRef = useRef(new Set());
 
   useEffect(() => {
-    if (userId) {
-      checkLocalData();
-    }
-  }, [userId]);
+    let cancelled = false;
+    setIsVisible(false);
+    setLocalSchedules([]);
+    setSelectedIds(new Set());
+    setLocalDataFull(null);
+    setMigrationTargetIds({});
+    committedTargetIdsRef.current = new Set();
 
-  const checkLocalData = async () => {
-    try {
-      const localData = await getLocalSchedule(null);
-      if (!localData) {
-        onComplete();
-        return;
-      }
-      setLocalDataFull(localData);
+    const checkLocalData = async () => {
+      if (!userId) return;
+      try {
+        const localData = await getLocalSchedule(null);
+        if (cancelled) return;
+        const needsMigration = getPendingCloudMigrationSchedules(localData);
+        if (needsMigration.length === 0) {
+          onComplete();
+          return;
+        }
 
-      const schedules = localData.schedules || [];
-      const needsMigration = schedules.filter(s => !s.isCloud && !s.isDeleted);
+        // Consume the offer before showing it. Closing, skipping, signing out,
+        // or an app crash must never make the same schedule prompt again.
+        const consumedData = consumeCloudMigrationOffers(localData);
+        await saveLocalSchedule(consumedData, null);
+        if (cancelled) return;
 
-      if (needsMigration.length > 0) {
+        setLocalDataFull(consumedData);
         setLocalSchedules(needsMigration);
-        setSelectedIds(new Set(needsMigration.map(s => s.id)));
+        setSelectedIds(new Set(needsMigration.map((schedule) => schedule.id)));
+        setMigrationTargetIds(Object.fromEntries(
+          needsMigration.map((schedule) => [schedule.id, generateId()]),
+        ));
         setIsVisible(true);
-      } else {
+      } catch (error) {
+        console.warn('Migration check error:', error);
         onComplete();
       }
-    } catch (error) {
-      console.warn('Migration check error:', error);
-      onComplete();
-    }
-  };
+    };
+
+    checkLocalData();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const toggleSelection = (id) => {
     const newSelected = new Set(selectedIds);
@@ -69,74 +91,85 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
     setSelectedIds(newSelected);
   };
 
-  const handleSkip = async () => {
+  const handleSkip = () => {
     triggerHaptic("warning");
-    try {
-      if (localDataFull) {
-        const updatedLocalSchedules = (localDataFull.schedules || []).map(s => ({
-          ...s,
-          isCloud: true
-        }));
-        
-        await saveLocalSchedule({
-          ...localDataFull,
-          schedules: updatedLocalSchedules
-        }, null);
-      }
-    } catch (error) {
-      console.warn('Skip migration error:', error);
-    } finally {
-      setIsVisible(false);
-      onComplete();
-    }
+    setIsVisible(false);
+    onComplete();
   };
 
   const handleMigrate = async () => {
     if (selectedIds.size === 0) {
-      await handleSkip();
+      handleSkip();
       return;
     }
 
     triggerHaptic("selection");
     setIsMigrating(true);
     try {
-      const schedulesToMigrate = localSchedules.filter(s => selectedIds.has(s.id));
-      const mergedSchedules = schedulesToMigrate.map((ls) => {
-        const copy = JSON.parse(JSON.stringify(ls));
-        copy.isCloud = true;
-        // Always allocate a new cloud id. A collision must never overwrite an
-        // unrelated schedule created on another device.
-        copy.id = generateId();
-        copy.version = 0;
-        copy.baseVersion = 0;
-        copy.lastSynced = 0;
-        copy.lastModified = Date.now();
-        return copy;
-      });
-      await saveSchedule(userId, { schedules: mergedSchedules }, true);
+      const selectedSourceIds = [...selectedIds];
+      const schedulesToMigrate = localSchedules.filter(
+        (schedule) => selectedIds.has(schedule.id),
+      );
+      const pendingCopies = schedulesToMigrate
+        .map((localSchedule) => {
+          const copy = markScheduleAsAccountOwned(
+            JSON.parse(JSON.stringify(localSchedule)),
+          );
+          copy.id = migrationTargetIds[localSchedule.id] || generateId();
+          copy.version = 0;
+          copy.baseVersion = 0;
+          copy.lastSynced = 0;
+          copy.lastModified = Date.now();
+          return copy;
+        })
+        .filter((copy) => !committedTargetIdsRef.current.has(copy.id));
 
-      const updatedLocalSchedules = (localDataFull.schedules || []).map(s => {
-        return selectedIds.has(s.id) ? { ...s, isCloud: true } : s;
-      });
+      for (let index = 0; index < pendingCopies.length; index += 400) {
+        const batch = pendingCopies.slice(index, index + 400);
+        try {
+          const committed = await saveSchedule(
+            userId,
+            { schedules: batch },
+            true,
+          );
+          (committed?.schedules || []).forEach((schedule) => {
+            committedTargetIdsRef.current.add(schedule.id);
+          });
+        } catch (cloudError) {
+          (cloudError?.committed?.schedules || []).forEach((schedule) => {
+            committedTargetIdsRef.current.add(schedule.id);
+          });
+          throw cloudError;
+        }
+      }
 
-      await saveLocalSchedule({
-        ...localDataFull,
-        schedules: updatedLocalSchedules
-      }, null);
+      const allSelectedWereCommitted = schedulesToMigrate.every((schedule) => (
+        committedTargetIdsRef.current.has(migrationTargetIds[schedule.id])
+      ));
+      if (!allSelectedWereCommitted) {
+        throw new Error('Not all selected schedules were transferred.');
+      }
 
+      const finalizedLocalData = finalizeCloudMigration(
+        localDataFull,
+        new Set(selectedSourceIds),
+        Date.now(),
+      );
+      await saveLocalSchedule(finalizedLocalData, null);
+      setLocalDataFull(finalizedLocalData);
       setIsVisible(false);
       triggerHaptic("success");
       onComplete();
     } catch (err) {
       triggerHaptic("error");
       console.warn('Migration error:', err);
-      // Keep the sheet open so a transient network/conflict error is retryable.
+      // Target ids and committed ids survive retries in this session, so a
+      // partial cloud write can be completed without creating duplicates.
       setIsVisible(true);
     } finally {
       setIsMigrating(false);
     }
   };
-
   return (
     <BottomSheet
       visible={isVisible}

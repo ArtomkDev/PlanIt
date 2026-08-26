@@ -13,6 +13,34 @@ const googleDemoAppIds = {
   ios: 'ca-app-pub-3940256099942544~1458002511',
 };
 
+const normalizeHost = (value) => (value || '')
+  .trim()
+  .replace(/^https?:\/\//, '')
+  .split('/')[0];
+const firebaseProjectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+const firebaseAuthLinkHost = normalizeHost(
+  process.env.EXPO_PUBLIC_FIREBASE_AUTH_LINK_DOMAIN
+  || process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+  || (firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : ''),
+);
+const authLinkIntentFilters = firebaseAuthLinkHost ? [{
+  action: 'VIEW',
+  autoVerify: true,
+  data: [
+    {
+      scheme: 'https',
+      host: firebaseAuthLinkHost,
+      pathPrefix: '/__/auth/links',
+    },
+    {
+      scheme: 'https',
+      host: firebaseAuthLinkHost,
+      pathPrefix: '/password-reset',
+    },
+  ],
+  category: ['BROWSABLE', 'DEFAULT'],
+}] : [];
+
 const resolveAdMobAppId = (platform, configuredId) => {
   if (forceTestAds) return googleDemoAppIds[platform];
   if (
@@ -68,6 +96,12 @@ export default {
       bundleIdentifier: "com.artomk.planit",
       userInterfaceStyle: "automatic",
       usesAppleSignIn: true,
+      googleServicesFile:
+        process.env.GOOGLE_SERVICE_INFO_PLIST
+        || "./GoogleService-Info.plist",
+      ...(firebaseAuthLinkHost
+        ? { associatedDomains: [`applinks:${firebaseAuthLinkHost}`] }
+        : {}),
       infoPlist: {
         CFBundleAllowMixedLocalizations: true
       }
@@ -76,6 +110,9 @@ export default {
       package: "com.artomk.planit",
       versionCode: versionCode,
       googleServicesFile: "./google-services.json",
+      ...(authLinkIntentFilters.length
+        ? { intentFilters: authLinkIntentFilters }
+        : {}),
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff"

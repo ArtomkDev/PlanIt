@@ -88,7 +88,7 @@ test('corrupt primary data is recovered from the verified mirror', async () => {
   assert.equal(recovered.schedules[0].name, 'durable');
   assert.deepEqual(
     JSON.parse(fake.values.get('user_schedule_user-2')),
-    recovered,
+    { ...recovered, _localScopeOwner: 'user:user-2' },
   );
 });
 
@@ -153,7 +153,48 @@ test('local schedule storage is plain readable JSON without a compression prefix
   const raw = fake.values.get('user_schedule_user-readable');
 
   assert.equal(raw.startsWith('PZ1:'), false);
-  assert.deepEqual(JSON.parse(raw), original);
+  assert.deepEqual(
+    JSON.parse(raw),
+    { ...original, _localScopeOwner: 'user:user-readable' },
+  );
+});
+
+test('guest and account stores remain isolated on the same device', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  await storage.saveLocalSchedule(makeData('guest'), null);
+  await storage.saveLocalSchedule(makeData('account-a'), 'account-a');
+  await storage.saveLocalSchedule(makeData('account-b'), 'account-b');
+
+  assert.equal((await storage.getLocalSchedule(null)).schedules[0].name, 'guest');
+  assert.equal((await storage.getLocalSchedule('account-a')).schedules[0].name, 'account-a');
+  assert.equal((await storage.getLocalSchedule('account-b')).schedules[0].name, 'account-b');
+});
+
+test('a payload marked for another account is never returned from the current scope', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  fake.values.set('user_schedule_account-b', JSON.stringify({
+    ...makeData('private-a'),
+    _localScopeOwner: 'user:account-a',
+  }));
+  fake.values.set('guest_schedule', JSON.stringify({
+    ...makeData('private-b'),
+    _localScopeOwner: 'user:account-b',
+  }));
+
+  assert.equal(await storage.getLocalSchedule('account-b'), null);
+  assert.equal(await storage.getLocalSchedule(null), null);
+});
+
+test('legacy unmarked data remains readable only from the key where it already lives', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  fake.values.set('guest_schedule', JSON.stringify(makeData('legacy-guest')));
+
+  const legacy = await storage.getLocalSchedule(null);
+  assert.equal(legacy.schedules[0].name, 'legacy-guest');
+  assert.equal(await storage.getLocalSchedule('another-account'), null);
 });
 
 test('old compressed local values are not migrated by the plain JSON store', async () => {

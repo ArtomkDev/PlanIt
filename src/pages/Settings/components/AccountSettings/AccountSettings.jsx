@@ -243,18 +243,11 @@ export default function AccountSettings() {
         <SettingsRow 
           icon={LockKey} 
           label={t('settings.account_settings.password', lang)} 
-          value="••••••••" 
+          value={isSocialOnly
+            ? t('settings.account_settings.password_not_set', lang)
+            : '••••••••'}
           themeColors={themeColors}
-          onPress={() => {
-            if (isSocialOnly) {
-              Alert.alert(
-                t('settings.account_settings.change_password.social_login_title', lang),
-                t('settings.account_settings.change_password.social_login_desc', lang)
-              );
-            } else {
-              navigation.navigate('ChangePassword');
-            }
-          }}
+          onPress={() => navigation.navigate('ChangePassword')}
         />
       </SettingsGroup>
 
