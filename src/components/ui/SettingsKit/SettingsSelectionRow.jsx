@@ -14,7 +14,8 @@ export default function SettingsSelectionRow({
   onLongPress,
   onEdit, 
   rightContent, 
-  themeColors
+  themeColors,
+  editAccessibilityLabel,
 }) {
   
   const androidBg = isSelected ? (themeColors.accentColor + '15') : themeColors.backgroundColor2;
@@ -37,6 +38,10 @@ export default function SettingsSelectionRow({
 
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      accessibilityState={{ selected: isSelected, disabled: isAlreadySelected }}
       style={[
         styles.container, 
         { 
@@ -74,7 +79,12 @@ export default function SettingsSelectionRow({
         {rightContent}
         
         {onEdit && (
-          <TouchableOpacity hitSlop={15} onPress={handleEdit} style={styles.editButton}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={editAccessibilityLabel || label}
+            accessibilityHint={hint}
+            hitSlop={15}
+            onPress={handleEdit} style={styles.editButton}>
             <PencilSimple size={20} color={themeColors.textColor2} weight="bold" />
           </TouchableOpacity>
         )}

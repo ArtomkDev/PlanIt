@@ -136,7 +136,8 @@ export default function SchedulePickerSheet({
                 <TouchableOpacity
                   key={item.id}
                   accessibilityRole="radio"
-                  accessibilityState={{ checked: isActive }}
+                  accessibilityLabel={name}
+                  accessibilityState={{ checked: isActive, selected: isActive }}
                   onPress={() => selectSchedule(item.id)}
                   onLongPress={onEditSchedule ? () => handleEditSchedule(item.id) : undefined}
                   delayLongPress={450}
@@ -192,6 +193,7 @@ export default function SchedulePickerSheet({
             {!!onAddSchedule && (
               <TouchableOpacity
                 accessibilityRole="button"
+                accessibilityLabel={t("settings.schedule_switcher.add_new", lang)}
                 onPress={handleAddSchedule}
                 activeOpacity={0.75}
                 style={[
@@ -236,7 +238,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "800",
-    letterSpacing: -0.4,
+    letterSpacing: 0,
   },
   subtitle: {
     fontSize: 13,

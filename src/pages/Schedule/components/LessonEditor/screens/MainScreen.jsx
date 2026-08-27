@@ -26,6 +26,7 @@ import { getIconComponent } from "../../../../../config/subjectIcons";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
+import useReducedMotionPreference from "../../../../../hooks/useReducedMotionPreference";
 import {
   CUSTOM_REMINDER_FALLBACK_MINUTES,
   REMINDER_PRESET_MINUTES,
@@ -77,6 +78,7 @@ export default function LessonEditorMainScreen({
 }) {
   const { global, lang } = useScheduleData();
   const [expandedField, setExpandedField] = useState(null);
+  const reduceMotion = useReducedMotionPreference();
   const [customSubjectReminderMinutes, setCustomSubjectReminderMinutes] = useState(String(CUSTOM_REMINDER_FALLBACK_MINUTES));
   const scrollViewRef = useRef(null);
 
@@ -105,7 +107,7 @@ export default function LessonEditorMainScreen({
 
   const toggleExpand = (field) => {
     triggerHaptic(expandedField === field ? "sheetClose" : "expand");
-    if (Platform.OS === 'android') {
+    if (Platform.OS === 'android' || reduceMotion) {
         setExpandedField(field);
     } else {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -321,6 +323,10 @@ export default function LessonEditorMainScreen({
               onScopeChangeHandler(scope === "local" ? "global" : "local");
             }}
             activeOpacity={0.7}
+            accessibilityRole="switch"
+            accessibilityLabel={t('schedule.lesson_editor.selection', lang)}
+            accessibilityState={{ checked: scope === "local" }}
+            hitSlop={6}
           >
             <Text style={{ fontSize: 12, fontWeight: "600", color: scope === "local" ? "#fff" : themeColors.textColor }}>
               {scope === "local" ? t('schedule.lesson_editor.scope_local', lang) : t('schedule.lesson_editor.scope_global', lang)}
@@ -336,6 +342,9 @@ export default function LessonEditorMainScreen({
               onAdd();
             }}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('schedule.lesson_editor.add_new', lang)}
+            hitSlop={6}
           >
             <Plus size={18} color={themeColors.textColor} weight="bold" />
           </TouchableOpacity>
@@ -349,6 +358,9 @@ export default function LessonEditorMainScreen({
               onReset();
             }}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.reset', lang)}
+            hitSlop={6}
           >
             <ArrowsCounterClockwise size={18} color={themeColors.textColor} weight="bold" />
           </TouchableOpacity>
@@ -451,6 +463,9 @@ export default function LessonEditorMainScreen({
                     ]}
                     onPress={() => handleSubjectReminderSelection(option.id)}
                     activeOpacity={0.75}
+                    accessibilityRole="radio"
+                    accessibilityLabel={option.label}
+                    accessibilityState={{ selected, checked: selected }}
                   >
                     <Text style={[styles.reminderChoiceText, { color: selected ? "#fff" : themeColors.textColor }]}>
                       {option.label}
@@ -464,6 +479,7 @@ export default function LessonEditorMainScreen({
               <View style={[styles.reminderInputWrapper, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.accentColor }]}>
                 <TextInput
                   style={[styles.reminderInput, { color: themeColors.textColor }]}
+                  accessibilityLabel={t('schedule.reminders.custom_placeholder', lang)}
                   value={customSubjectReminderMinutes}
                   onChangeText={handleSubjectCustomReminderChange}
                   placeholder={t('schedule.reminders.custom_placeholder', lang)}
@@ -656,8 +672,8 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   headerActionButton: {
-    width: 34,
-    height: 30,
+    width: 44,
+    minHeight: 44,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
@@ -680,7 +696,7 @@ const styles = StyleSheet.create({
   },
   reminderChoice: {
     minWidth: 64,
-    height: 40,
+    minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',

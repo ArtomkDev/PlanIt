@@ -40,6 +40,7 @@ import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import { addScheduleRecordToMap } from "../../../utils/scheduleRecordMerge";
 import { triggerHaptic } from "../../../utils/haptics";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import {
   deleteLocalAttachmentCaches,
   MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
@@ -293,6 +294,9 @@ function LessonCatalogueScreen({
       <TouchableOpacity
         key={lessonGroup.key}
         activeOpacity={0.76}
+        accessibilityRole="button"
+        accessibilityLabel={[getGroupTitle(lessonGroup, lang), subtitle, formatOccurrenceCount(lessonGroup.occurrenceCount, lang)].filter(Boolean).join(" - ")}
+        accessibilityState={{ selected }}
         onPress={() => {
           triggerHaptic(selected ? "selection" : "open");
           onOpenLessonGroup(record, lessonGroup);
@@ -330,6 +334,8 @@ function LessonCatalogueScreen({
       {canDetachLessonOccurrence && (
         <TouchableOpacity
           activeOpacity={0.76}
+          accessibilityRole="button"
+          accessibilityLabel={t("tasks.editor.detach_lesson_occurrence", lang)}
           onPress={() => {
             triggerHaptic("warning");
             onDetachLessonOccurrence();
@@ -357,6 +363,7 @@ function LessonCatalogueScreen({
       <View style={[styles.lessonSearchBox, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
         <TextInput
           value={query}
+          accessibilityLabel={t("tasks.editor.lesson_search_placeholder", lang)}
           onChangeText={setQuery}
           placeholder={t("tasks.editor.lesson_search_placeholder", lang)}
           placeholderTextColor={themeColors.textColor2 + "80"}
@@ -366,7 +373,7 @@ function LessonCatalogueScreen({
       </View>
 
       {filteredSections.length === 0 ? (
-        <View style={styles.lessonPickerEmpty}>
+        <View style={styles.lessonPickerEmpty} accessibilityRole="text">
           <Text style={[styles.lessonPickerEmptyTitle, { color: themeColors.textColor }]}>
             {t("tasks.editor.no_lessons_found", lang)}
           </Text>
@@ -466,6 +473,9 @@ function LessonOccurrenceScreen({
       <TouchableOpacity
         key={`${draft.lessonRef.date}:${draft.lessonRef.weekKey}:${draft.lessonRef.lessonIndex}`}
         activeOpacity={0.76}
+        accessibilityRole="button"
+        accessibilityLabel={[timeLabel || "--:--", subtitle].filter(Boolean).join(" - ")}
+        accessibilityState={{ selected }}
         onPress={() => {
           triggerHaptic(selected ? "selection" : "success");
           onSelectOccurrence(schedule, occurrence);
@@ -545,6 +555,9 @@ function LessonOccurrenceScreen({
           <TouchableOpacity
             activeOpacity={0.76}
             disabled={!nextOccurrence}
+            accessibilityRole="button"
+            accessibilityLabel={t("tasks.editor.bind_next_same_lesson", lang)}
+            accessibilityState={{ disabled: !nextOccurrence }}
             onPress={() => {
               if (!nextOccurrence) return;
               triggerHaptic("success");
@@ -572,6 +585,8 @@ function LessonOccurrenceScreen({
 
           <TouchableOpacity
             activeOpacity={0.76}
+            accessibilityRole="button"
+            accessibilityLabel={dateFilter ? t("tasks.editor.choose_another_date", lang) : t("tasks.editor.choose_date", lang)}
             onPress={() => {
               onChooseDate();
             }}
@@ -650,6 +665,7 @@ export default function TaskEditor({
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
+  const reduceMotion = useReducedMotionPreference();
 
   const allSchedules = useMemo(() => {
     const map = new Map();
@@ -726,6 +742,12 @@ export default function TaskEditor({
 
   const handleExpand = (withHaptic = true) => {
     if (withHaptic) triggerHaptic("expand");
+    if (reduceMotion) {
+      minimizeAnim.setValue(0);
+      setIsMinimized(false);
+      return;
+    }
+
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
@@ -739,6 +761,12 @@ export default function TaskEditor({
 
   const handleCloseMinimized = () => {
     triggerHaptic("sheetClose");
+    if (reduceMotion) {
+      minimizeAnim.setValue(0);
+      closeEditor();
+      return;
+    }
+
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
@@ -792,6 +820,11 @@ export default function TaskEditor({
 
   useEffect(() => {
     if (isMinimized) {
+      if (reduceMotion) {
+        minimizeAnim.setValue(1);
+        return;
+      }
+
       Animated.spring(minimizeAnim, {
         toValue: 1,
         stiffness: 300,
@@ -801,7 +834,7 @@ export default function TaskEditor({
     } else {
       minimizeAnim.setValue(0);
     }
-  }, [isMinimized, minimizeAnim]);
+  }, [isMinimized, minimizeAnim, reduceMotion]);
 
   if (!targetSchedule) return null;
 
@@ -1276,11 +1309,11 @@ export default function TaskEditor({
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
       {currentScreen === "main" || isInitialLessonPicker ? (
-        <TouchableOpacity onPress={handleCancel} hitSlop={15}>
+        <TouchableOpacity onPress={handleCancel} hitSlop={15} accessibilityRole="button" accessibilityLabel={t("common.cancel", lang)}>
           <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t("common.cancel", lang)}</Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={15}>
+        <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={15} accessibilityRole="button" accessibilityLabel={t("common.back", lang)}>
           <CaretLeft size={24} color={themeColors.accentColor} weight="bold" />
           <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t("common.back", lang)}</Text>
         </TouchableOpacity>
@@ -1292,7 +1325,7 @@ export default function TaskEditor({
 
       <View style={styles.headerRight}>
         {currentScreen === "main" && (
-          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15}>
+          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15} accessibilityRole="button" accessibilityLabel={attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.done", lang)} accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}>
             <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
               {attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.done", lang)}
             </Text>
@@ -1319,6 +1352,8 @@ export default function TaskEditor({
     return (
       <TouchableOpacity
         activeOpacity={0.76}
+        accessibilityRole="button"
+        accessibilityLabel={label}
         onPress={onPress}
         style={[
           styles.lessonQuickButton,
@@ -1519,6 +1554,7 @@ export default function TaskEditor({
             <NotePencil size={22} color={themeColors.textColor2} weight="bold" style={styles.textAreaIcon} />
             <TextInput
               value={text}
+              accessibilityLabel={t("tasks.editor.task_text", lang)}
               onChangeText={setText}
               placeholder={t("tasks.editor.task_text_placeholder", lang)}
               placeholderTextColor={themeColors.textColor2 + "80"}
@@ -1623,6 +1659,8 @@ export default function TaskEditor({
               style={styles.minimizedContent}
               onPress={() => handleExpand()}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={minimizedTitle + ": " + minimizedSubtitle}
             >
               <View style={[styles.minimizedIcon, { backgroundColor: themeColors.accentColor + "20" }]}>
                 <NotePencil size={18} color={themeColors.accentColor} weight="bold" />
@@ -1639,11 +1677,11 @@ export default function TaskEditor({
 
             <View style={styles.minimizedActions}>
               {canSave && (
-                <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn}>
+                <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn} accessibilityRole="button" accessibilityLabel={t("common.save", lang)}>
                   <CheckCircle size={30} color={themeColors.accentColor} weight="fill" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]}>
+              <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]} accessibilityRole="button" accessibilityLabel={t("common.close", lang)}>
                 <XCircle size={30} color={themeColors.accentColor} weight="fill" />
               </TouchableOpacity>
             </View>
@@ -1831,7 +1869,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   minimizedActionBtn: {
-    padding: 2,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerRight: {
     minWidth: 60,
@@ -1941,7 +1982,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   lessonQuickButton: {
-    minHeight: 40,
+    minHeight: 44,
     maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",

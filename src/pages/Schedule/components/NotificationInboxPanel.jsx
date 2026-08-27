@@ -22,6 +22,7 @@ import themes from "../../../config/themes";
 import { useNotificationDrawer } from "../../../context/NotificationDrawerContext";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import useNotifications from "../../../hooks/useNotifications";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import MorphingLoader from "../../../components/ui/MorphingLoader";
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
@@ -84,6 +85,7 @@ export default function NotificationInboxPanel() {
   const [markingAll, setMarkingAll] = useState(false);
   const [readingId, setReadingId] = useState(null);
   const [expandedNotificationIds, setExpandedNotificationIds] = useState(() => new Set());
+  const reduceMotion = useReducedMotionPreference();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -133,7 +135,9 @@ export default function NotificationInboxPanel() {
     if (!notification?.id) return;
 
     triggerHaptic(notification.readAt ? "selection" : "success");
-    configureCardLayoutAnimation();
+    if (!reduceMotion) {
+      configureCardLayoutAnimation();
+    }
     setExpandedNotificationIds((currentIds) => {
       const nextIds = new Set(currentIds);
       if (nextIds.has(notification.id)) {
@@ -147,7 +151,7 @@ export default function NotificationInboxPanel() {
     if (!notification.readAt) {
       handleMarkAsRead(notification);
     }
-  }, [handleMarkAsRead]);
+  }, [handleMarkAsRead, reduceMotion]);
 
   const getTitle = (notification) => {
     if (notification.type === NOTIFICATION_TYPES.ACCOUNT_LOGIN) {
@@ -179,6 +183,7 @@ export default function NotificationInboxPanel() {
       <TouchableOpacity
         key={notification.id}
         accessibilityRole="button"
+        accessibilityLabel={`${getTitle(notification)}${message ? `. ${message}` : ""}`}
         accessibilityState={{ expanded: isExpanded }}
         activeOpacity={0.74}
         onPress={() => handleNotificationPress(notification)}
@@ -352,15 +357,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   headerAction: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
   headerActionPlaceholder: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
   },
   titleGroup: {
     flex: 1,

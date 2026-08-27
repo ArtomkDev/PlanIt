@@ -12,7 +12,7 @@ const HUE_COLORS = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff0
 const HUE_INDICATOR_WIDTH = 32;
 const ANGLE_THUMB_SIZE = 24;
 
-const AngleSlider = ({ value, onChange, themeColors }) => {
+const AngleSlider = ({ value, onChange, themeColors, accessibilityLabel }) => {
   const [trackWidth, setTrackWidth] = useState(0);
 
   const updateAngle = useCallback((x) => {
@@ -42,6 +42,9 @@ const AngleSlider = ({ value, onChange, themeColors }) => {
   return (
     <View
       style={styles.angleSliderTouchArea}
+      accessibilityRole="adjustable"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={{ min: 0, max: 360, now: Math.round(value) }}
       onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
       {...anglePanResponder.panHandlers}
     >
@@ -64,7 +67,7 @@ const AngleSlider = ({ value, onChange, themeColors }) => {
   );
 };
 
-const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
+const InlineColorPicker = ({ initialColor, onChange, themeColors, accessibilityLabel }) => {
   const [hsv, setHsv] = useState(() => tinycolor(initialColor).toHsv());
   const [pickerSize, setPickerSize] = useState({ width: 0, height: 0 });
   const [hueSliderWidth, setHueSliderWidth] = useState(0);
@@ -126,12 +129,12 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors }) => {
 
   return (
     <View style={styles.inlinePickerContainer}>
-      <View onLayout={(e) => setPickerSize(e.nativeEvent.layout)} {...satValPanResponder.panHandlers} style={[styles.saturationValuePicker, { borderColor: themeColors.borderColor }]}>
+      <View accessibilityRole="adjustable" accessibilityLabel={accessibilityLabel + " saturation and brightness"} onLayout={(e) => setPickerSize(e.nativeEvent.layout)} {...satValPanResponder.panHandlers} style={[styles.saturationValuePicker, { borderColor: themeColors.borderColor }]}>
         <LinearGradient colors={['#fff', tinycolor({ h: hsv.h, s: 1, v: 1 }).toHexString()]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} />
         <LinearGradient colors={['transparent', '#000']} style={StyleSheet.absoluteFill} />
         {pickerSize.width > 0 && <View style={[styles.pickerIndicator, { top: (1 - hsv.v) * pickerSize.height - 12, left: hsv.s * pickerSize.width - 12 }]} />}
       </View>
-      <View onLayout={(e) => setHueSliderWidth(e.nativeEvent.layout.width)} {...huePanResponder.panHandlers} style={styles.hueSliderContainer}>
+      <View accessibilityRole="adjustable" accessibilityLabel={accessibilityLabel + " hue"} onLayout={(e) => setHueSliderWidth(e.nativeEvent.layout.width)} {...huePanResponder.panHandlers} style={styles.hueSliderContainer}>
         <LinearGradient colors={HUE_COLORS} style={styles.hueSlider} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} />
         {hueSliderWidth > 0 && <View style={[styles.hueIndicator, { left: (hsv.h / 360) * hueSliderWidth - (HUE_INDICATOR_WIDTH / 2), backgroundColor: tinycolor(hsv).toHexString() }]} />}
       </View>
@@ -195,7 +198,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
           <Text style={[styles.value, { color: themeColors.accentColor }]}>{Math.round(angle)}°</Text>
         </View>
         <View style={styles.sliderTrackWrapper} onStartShouldSetResponder={() => true} onResponderTerminationRequest={() => false}>
-          <AngleSlider value={angle} onChange={setAngle} themeColors={themeColors} />
+          <AngleSlider value={angle} onChange={setAngle} themeColors={themeColors} accessibilityLabel={t('schedule.lesson_editor.gradient_angle', lang)} />
         </View>
       </View>
 
@@ -214,8 +217,9 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
         themeColors={themeColors} 
         initialColor={activeTab === 0 ? color1 : color2} 
         onChange={(newColor) => activeTab === 0 ? setColor1(newColor) : setColor2(newColor)} 
+        accessibilityLabel={tabs[activeTab].label}
       />
-      <TouchableOpacity style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} onPress={handleSave}>
+      <TouchableOpacity style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} onPress={handleSave} accessibilityRole="button" accessibilityLabel={t('schedule.lesson_editor.save_gradient', lang)}>
         <Text style={styles.saveText}>{t('schedule.lesson_editor.save_gradient', lang)}</Text>
       </TouchableOpacity>
     </View>
@@ -231,7 +235,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 15, fontWeight: "600" },
   value: { fontWeight: "bold", fontSize: 15 },
   sliderTrackWrapper: { paddingHorizontal: 5 },
-  angleSliderTouchArea: { height: 40, justifyContent: "center", position: "relative" },
+  angleSliderTouchArea: { minHeight: 44, justifyContent: "center", position: "relative" },
   angleTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
   angleTrackFill: { height: "100%", borderRadius: 4 },
   angleThumb: {
@@ -251,7 +255,7 @@ const styles = StyleSheet.create({
   inlinePickerContainer: { flex: 1, marginBottom: 20 },
   saturationValuePicker: { flex: 1, minHeight: 180, borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
   pickerIndicator: { width: 24, height: 24, borderRadius: 12, borderColor: '#fff', borderWidth: 2.5, position: 'absolute', elevation: 4, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
-  hueSliderContainer: { height: 40, marginTop: 16, justifyContent: 'center' },
+  hueSliderContainer: { minHeight: 44, marginTop: 16, justifyContent: 'center' },
   hueSlider: { height: 20, borderRadius: 10, width: '100%' },
   hueIndicator: { width: HUE_INDICATOR_WIDTH, height: 28, borderRadius: 8, position: 'absolute', borderWidth: 2.5, borderColor: '#fff', elevation: 4, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
   saveBtn: { paddingVertical: 16, borderRadius: 14, alignItems: "center", marginBottom: 30 },

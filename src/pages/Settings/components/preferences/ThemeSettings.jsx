@@ -84,6 +84,9 @@ const ThemeSettings = () => {
     return (
       <TouchableOpacity
         key={colorKey}
+        accessibilityRole="radio"
+        accessibilityLabel={colorKey}
+        accessibilityState={{ selected: isSelected, checked: isSelected }}
         style={[
           styles.colorTile,
           { backgroundColor: colorValue },
@@ -114,6 +117,9 @@ const ThemeSettings = () => {
           ].map((item) => (
             <TouchableOpacity
               key={item.key}
+              accessibilityRole="radio"
+              accessibilityLabel={item.label}
+              accessibilityState={{ selected: selectedMode === item.key, checked: selectedMode === item.key }}
               style={[
                 styles.themeCard,
                 { backgroundColor: themeColors.backgroundColor2 },
@@ -148,6 +154,7 @@ const ThemeSettings = () => {
               </Text>
             </View>
             <AppSwitch
+              accessibilityLabel={t('settings.theme_screen.blur_title', lang)}
               value={isBlurEnabled}
               onValueChange={handleToggleBlur}
               themeColors={themeColors}
@@ -162,6 +169,9 @@ const ThemeSettings = () => {
         <View style={styles.colorsContainer}>
           {predefinedKeys.map((colorName) => renderColorOption(colorName))}
           <TouchableOpacity
+            accessibilityRole="radio"
+            accessibilityLabel={t('settings.theme_screen.accent_title', lang)}
+            accessibilityState={{ selected: isCustomColor, checked: isCustomColor }}
             style={[
               styles.colorTile,
               styles.customTile,
@@ -238,6 +248,7 @@ const styles = StyleSheet.create({
   },
   themeCard: {
     flex: 1,
+    minHeight: 52,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
@@ -289,7 +300,6 @@ const styles = StyleSheet.create({
   colorTileSelected: {
     borderWidth: 3,
     borderColor: "#fff",
-    transform: [{ scale: 1.05 }],
     ...Platform.select({
       web: { boxShadow: '0px 0px 5px rgba(0,0,0,0.4)' },
       default: { shadowOpacity: 0.4, shadowRadius: 5 }

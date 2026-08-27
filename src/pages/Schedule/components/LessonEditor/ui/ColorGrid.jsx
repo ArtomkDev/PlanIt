@@ -20,6 +20,9 @@ export default function ColorPicker({ selected, onSelect }) {
         return (
           <TouchableOpacity
             style={[styles.colorTile, { backgroundColor: color }]}
+            accessibilityRole="radio"
+            accessibilityLabel={key}
+            accessibilityState={{ selected: isSelected, checked: isSelected }}
             onPress={() => {
               triggerHaptic(isSelected ? "selection" : "success");
               onSelect(key);
@@ -40,11 +43,13 @@ const styles = StyleSheet.create({
   },
   colorTile: {
     width: "16%",
+    minHeight: 44,
     aspectRatio: 1,
     borderRadius: 14,
     margin: "2%",
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
   selectedMark: {
     width: 16,

@@ -131,7 +131,13 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
               <Text style={[styles.title, { color: themeColors.textColor }]}>
                 {t("share.modal_title", lang)}
               </Text>
-              <TouchableOpacity onPress={resetAndClose} hitSlop={15}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("common.close", lang)}
+                onPress={resetAndClose}
+                hitSlop={15}
+                style={styles.closeButton}
+              >
                 <X size={24} color={themeColors.textColor} weight="bold" />
               </TouchableOpacity>
             </View>
@@ -171,6 +177,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                         </Text>
                       </View>
                       <AppSwitch
+                        accessibilityLabel={t("share.include_teachers", lang) || "Поділитися викладачами"}
                         value={shareTeachers}
                         onValueChange={toggleShareOption(setShareTeachers)}
                         themeColors={themeColors}
@@ -187,6 +194,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                         </Text>
                       </View>
                       <AppSwitch
+                        accessibilityLabel={t("share.include_colors", lang) || "Зберегти кольори та градієнти"}
                         value={shareGradients}
                         onValueChange={toggleShareOption(setShareGradients)}
                         themeColors={themeColors}
@@ -203,6 +211,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                         </Text>
                       </View>
                       <AppSwitch
+                        accessibilityLabel={t("share.include_links", lang) || "Поділитися посиланнями"}
                         value={shareLinks}
                         onValueChange={toggleShareOption(setShareLinks)}
                         themeColors={themeColors}
@@ -219,6 +228,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                         </Text>
                       </View>
                       <AppSwitch
+                        accessibilityLabel={t("share.include_notes", lang) || "Включити нотатки до занять"}
                         value={shareNotes}
                         onValueChange={toggleShareOption(setShareNotes)}
                         themeColors={themeColors}
@@ -235,6 +245,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                         </Text>
                       </View>
                       <AppSwitch
+                        accessibilityLabel={t("share.include_author", lang) || "Показувати моє ім'я відправника"}
                         value={shareAuthorName}
                         onValueChange={toggleShareOption(setShareAuthorName)}
                         themeColors={themeColors}
@@ -243,19 +254,19 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                   </View>
                   
                   <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={t("share.generate_btn", lang)}
+                    accessibilityState={{ disabled: loading, busy: loading }}
                     style={[styles.primaryBtn, { backgroundColor: themeColors.accentColor }]}
                     onPress={handleGenerate}
                     disabled={loading}
                   >
-                    {loading ? (
-                      <MorphingLoader size={28} />
-                    ) : (
-                      <Text style={styles.primaryBtnText}>{t("share.generate_btn", lang)}</Text>
-                    )}
+                    {loading && <MorphingLoader size={24} />}
+                    <Text style={styles.primaryBtnText}>{t("share.generate_btn", lang)}</Text>
                   </TouchableOpacity>
 
                   {errorMessage ? (
-                    <Text style={styles.errorText}>{errorMessage}</Text>
+                    <Text accessibilityRole="alert" style={styles.errorText}>{errorMessage}</Text>
                   ) : null}
                 </>
               ) : (
@@ -272,6 +283,8 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
 
                   <View style={styles.actionRow}>
                     <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={copied ? t("common.copied", lang) : t("common.copy", lang)}
                       style={[styles.actionBtn, { backgroundColor: themeColors.backgroundColor2 }]}
                       onPress={handleCopy}
                     >
@@ -282,6 +295,8 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                     </TouchableOpacity>
 
                     <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={t("common.share", lang)}
                       style={[styles.actionBtn, { backgroundColor: themeColors.accentColor }]}
                       onPress={handleShareSystem}
                     >
@@ -301,6 +316,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
 const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  closeButton: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 20, fontWeight: "700" },
   content: { padding: 20, paddingBottom: 40 },
   label: { fontSize: 13, fontWeight: "700", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.8 },
@@ -310,7 +326,7 @@ const styles = StyleSheet.create({
   optionLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   optionText: { fontSize: 15, fontWeight: "600", flex: 1 },
   separator: { height: StyleSheet.hairlineWidth, width: "100%" },
-  primaryBtn: { width: "100%", paddingVertical: 16, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 28 },
+  primaryBtn: { width: "100%", minHeight: 52, flexDirection: "row", paddingVertical: 16, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 8, marginTop: 28 },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   errorText: { color: "#FF3B30", fontSize: 14, textAlign: "center", marginTop: 12, fontWeight: "600" },
   resultContainer: { alignItems: "center", paddingVertical: 10 },
@@ -318,6 +334,6 @@ const styles = StyleSheet.create({
   codeBox: { paddingVertical: 24, paddingHorizontal: 40, borderRadius: 16, borderWidth: 1, marginBottom: 24, width: "100%", alignItems: "center" },
   codeText: { fontSize: 36, fontWeight: "900", letterSpacing: 4 },
   actionRow: { flexDirection: "row", gap: 12, width: "100%" },
-  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 16, gap: 8 },
+  actionBtn: { flex: 1, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 16, gap: 8 },
   actionBtnText: { fontSize: 15, fontWeight: "600" },
 });

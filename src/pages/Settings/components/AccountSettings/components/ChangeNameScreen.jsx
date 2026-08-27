@@ -74,6 +74,7 @@ export default function ChangeNameScreen() {
       </Text>
       <TextInput
         style={styles.input}
+        accessibilityLabel={t('settings.account_settings.change_name.input_label', lang) || "New name"}
         placeholder={t('settings.account_settings.name', lang) || "Ваше ім'я"}
         placeholderTextColor={themeColors.textColor2}
         value={newName}
@@ -84,17 +85,27 @@ export default function ChangeNameScreen() {
         autoCapitalize="words"
         autoCorrect={false}
         maxLength={50}
+        textContentType="name"
+        autoComplete="name"
       />
 
-      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+      {errorMsg ? <Text accessibilityRole="alert" style={styles.errorText}>{errorMsg}</Text> : null}
 
       <TouchableOpacity 
         style={[styles.actionButton, { backgroundColor: themeColors.accentColor }, loading && styles.actionButtonDisabled]} 
         onPress={handleChangeName}
         disabled={loading}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.save', lang) || "Save"}
+        accessibilityState={{ disabled: loading, busy: loading }}
       >
         {loading ? (
-          <MorphingLoader size={26} />
+          <View style={styles.loadingButtonContent}>
+            <MorphingLoader size={22} />
+            <Text style={styles.actionButtonText}>
+              {t('common.save', lang) || "Зберегти"}
+            </Text>
+          </View>
         ) : (
           <Text style={styles.actionButtonText}>
             {t('common.save', lang) || "Зберегти"}
@@ -115,5 +126,6 @@ const getStyles = (themeColors) => StyleSheet.create({
   errorText: { color: '#FF3B30', fontSize: 14, marginBottom: 16, marginLeft: 4 },
   actionButton: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   actionButtonDisabled: { opacity: 0.6 },
+  loadingButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   actionButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });

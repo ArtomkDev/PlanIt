@@ -19,6 +19,7 @@ import { triggerHaptic } from "../../../utils/haptics";
 import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import useNotifications from "../../../hooks/useNotifications";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import SchedulePickerSheet from "./SchedulePickerSheet";
 
 const isSameDay = (left, right) =>
@@ -30,8 +31,13 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 function ScaleTouchable({ style, onPressIn, onPressOut, children, ...props }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotionPreference();
 
   const animateTo = (value) => {
+    if (reduceMotion) {
+      scale.setValue(1);
+      return;
+    }
     Animated.spring(scale, {
       toValue: value,
       speed: 28,
@@ -65,6 +71,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [schedulePickerVisible, setSchedulePickerVisible] = useState(false);
+  const reduceMotion = useReducedMotionPreference();
   const resetIconPress = useRef(new Animated.Value(0)).current;
   const bellPulse = useRef(new Animated.Value(0)).current;
   const seenUnreadIdsRef = useRef(new Set());
@@ -99,6 +106,10 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
 
   const animateResetIcon = (pressed) => {
     if (isToday) return;
+    if (reduceMotion) {
+      resetIconPress.setValue(0);
+      return;
+    }
     resetIconPress.stopAnimation();
     Animated.spring(resetIconPress, {
       toValue: pressed ? 1 : 0,
@@ -157,14 +168,17 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
       triggerHaptic("notification", { key: "new-unread-notification" });
       bellPulse.stopAnimation();
       bellPulse.setValue(0);
+      if (reduceMotion) {
+        return;
+      }
       Animated.timing(bellPulse, {
         toValue: 1,
-        duration: 1700,
+        duration: 640,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }).start(() => bellPulse.setValue(0));
     }
-  }, [bellPulse, notifications, notificationsEnabled, notificationsLoading]);
+  }, [bellPulse, notifications, notificationsEnabled, notificationsLoading, reduceMotion]);
 
   const openScheduleSettings = (scheduleId = schedule?.id) => {
     if (!scheduleId) return;
@@ -359,8 +373,8 @@ const styles = StyleSheet.create({
   scheduleButton: {
     maxWidth: "42%",
     flexShrink: 1,
-    minHeight: 30,
-    borderRadius: 11,
+    minHeight: 44,
+    borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 10,
     flexDirection: "row",
@@ -389,7 +403,7 @@ const styles = StyleSheet.create({
   dateButton: {
     flexShrink: 1,
     minWidth: 0,
-    minHeight: 30,
+    minHeight: 44,
     justifyContent: "center",
     alignItems: "flex-end",
   },
@@ -401,8 +415,8 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   iconButton: {
-    width: 30,
-    height: 30,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",

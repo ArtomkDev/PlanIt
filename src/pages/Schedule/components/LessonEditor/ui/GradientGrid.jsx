@@ -1,9 +1,13 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from "react-native";
 import GradientBackground from "../../../../../components/ui/GradientBackground";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
+import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
 
 export default function GradientGrid({ gradients, selected, onSelect, onEdit, onAddGradient, themeColors }) {
+  const { lang } = useScheduleData();
+
   return (
     <FlatList
       data={gradients || []}
@@ -17,6 +21,9 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
         return (
           <TouchableOpacity
             style={styles.gradientTile}
+            accessibilityRole="radio"
+            accessibilityLabel={item?.name || t("schedule.lesson_editor.selection", lang) + " " + item.id}
+            accessibilityState={{ selected: isSelected, checked: isSelected }}
             onPress={() => {
               triggerHaptic(isSelected ? "selection" : "success");
               onSelect(item.id);
@@ -25,6 +32,7 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
               triggerHaptic("longPress");
               onEdit?.(item);
             }}
+            accessibilityHint={onEdit ? t("common.edit", lang) : undefined}
             activeOpacity={0.8}
           >
             <GradientBackground
@@ -38,13 +46,15 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
       ListFooterComponent={
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
+          accessibilityRole="button"
+          accessibilityLabel={t("schedule.lesson_editor.add_new", lang)}
           onPress={() => {
             triggerHaptic("open");
             onAddGradient?.();
           }}
           activeOpacity={0.8}
         >
-          <Text style={styles.addButtonText}>+ Створити градієнт</Text>
+          <Text style={styles.addButtonText}>+ {t("schedule.lesson_editor.add_new", lang)}</Text>
         </TouchableOpacity>
       }
     />
@@ -56,6 +66,7 @@ const styles = StyleSheet.create({
   gradientTile: {
     flex: 1,
     height: 80,
+    minWidth: 44,
     margin: 6,
     borderRadius: 12,
     overflow: "hidden",

@@ -5,6 +5,7 @@ import themes from '../config/themes';
 import AppBlur from '../components/ui/AppBlur';
 import { NAVIGATION_METRICS } from './navigationMetrics';
 import { triggerHaptic } from '../utils/haptics';
+import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 
 const ACTIVE_SPRING = {
   damping: 14,
@@ -286,11 +287,12 @@ function TabItem({
 
 export default function PlanItTabBar({ state, descriptors, navigation, insets, onLayout }) {
   const { global } = useScheduleData();
+  const reduceMotion = useReducedMotionPreference();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
   const styleVariant = NAVIGATION_METRICS[global?.navigationStyle] ? global.navigationStyle : 'classic';
   const showLabels = global?.navigationLabels ?? true;
-  const animationsEnabled = global?.navigationAnimations ?? true;
+  const animationsEnabled = (global?.navigationAnimations ?? true) && !reduceMotion;
   const metrics = NAVIGATION_METRICS[styleVariant];
   const strategy = TAB_BAR_VARIANTS[styleVariant] || TAB_BAR_VARIANTS.classic;
   const contentHeight = showLabels ? metrics.heightWithLabels : metrics.heightIconsOnly;

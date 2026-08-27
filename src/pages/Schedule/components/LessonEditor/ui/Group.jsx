@@ -5,15 +5,14 @@ import Animated, { FadeIn, LinearTransition, Easing } from "react-native-reanima
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
+import useReducedMotionPreference from "../../../../../hooks/useReducedMotionPreference";
 
 const isWeb = Platform.OS === "web";
 
-const customLayoutTransition = isWeb 
-  ? undefined 
-  : LinearTransition.duration(200).easing(Easing.out(Easing.quad));
-
 export default function Group({ title, children, onAdd, onReset, themeColors, showScopeToggle, scope, onScopeChange }) {
   const { lang } = useScheduleData();
+  const reduceMotion = useReducedMotionPreference();
+  const customLayoutTransition = isWeb || reduceMotion ? undefined : LinearTransition.duration(180).easing(Easing.out(Easing.quad));
 
   const handleScopeChange = () => {
     triggerHaptic(scope === "local" ? "toggleOff" : "toggleOn");
@@ -49,6 +48,10 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
               ]}
               onPress={handleScopeChange}
               activeOpacity={0.7}
+              accessibilityRole="switch"
+              accessibilityLabel={t('schedule.lesson_editor.selection', lang)}
+              accessibilityState={{ checked: scope === "local" }}
+              hitSlop={6}
             >
               <Text style={[styles.scopeText, { color: scope === "local" ? "#fff" : themeColors.textColor }]}>
                 {scope === "local" ? t('schedule.lesson_editor.scope_local', lang) : t('schedule.lesson_editor.scope_global', lang)}
@@ -61,6 +64,9 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
               style={[styles.actionButton, styles.iconButton, { backgroundColor: themeColors.backgroundColor2 }]}
               onPress={handleAdd}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('schedule.lesson_editor.add_new', lang)}
+              hitSlop={6}
             >
               <Plus size={18} color={themeColors.textColor} weight="bold" />
             </TouchableOpacity>
@@ -69,6 +75,9 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
               style={[styles.actionButton, styles.iconButton, { backgroundColor: themeColors.backgroundColor2 }]}
               onPress={handleReset}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.reset', lang)}
+              hitSlop={6}
             >
               <ArrowsCounterClockwise size={18} color={themeColors.textColor} weight="bold" />
             </TouchableOpacity>
@@ -92,7 +101,7 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
           return (
             <Animated.View 
               key={itemKey}
-              entering={isWeb ? undefined : FadeIn.duration(200)}
+              entering={isWeb || reduceMotion ? undefined : FadeIn.duration(160).easing(Easing.out(Easing.quad))}
             >
               {child}
               {!isLast && <View style={[styles.separator, { backgroundColor: themeColors.borderColor || "#ccc" }]} />}
@@ -125,14 +134,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   actionButton: {
-    height: 30, 
+    minHeight: 44,
     paddingHorizontal: 10,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
   },
   iconButton: {
-    width: 36, 
+    width: 44,
     paddingHorizontal: 0,
   },
   scopeText: {

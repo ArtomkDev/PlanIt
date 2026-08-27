@@ -6,6 +6,7 @@ import tinycolor from "tinycolor2";
 import BottomSheet, { SheetScrollView } from "./BottomSheet";
 import themes from "../../config/themes";
 import { useScheduleData } from "../../context/ScheduleProvider";
+import { t } from "../../utils/i18n";
 import { triggerHaptic } from "../../utils/haptics";
 
 const HUE_COLORS = [
@@ -21,7 +22,7 @@ const HUE_INDICATOR_WIDTH = 40;
 const HUE_INDICATOR_HEIGHT = 32;
 
 export default function AdvancedColorPicker({ visible, initialColor, onSave, onClose }) {
-  const { global } = useScheduleData();
+  const { global, lang } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   const [hsv, setHsv] = useState(() => tinycolor(initialColor).toHsv());
@@ -125,6 +126,7 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
   );
 
   const currentColor = tinycolor(hsv).toHexString();
+  const title = t("schedule.lesson_editor.selection", lang);
   const pickerIndicatorPosition = {
     top: (1 - hsv.v) * pickerSize.height - 10,
     left: hsv.s * pickerSize.width - 10,
@@ -153,8 +155,8 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
       backgroundColor={themeColors.backgroundColor2}
       handleColor={themeColors.textColor3}
       enableContentPanningGesture={false}
-      accessibilityLabel="Вибір кольору"
-      closeAccessibilityLabel="Закрити"
+      accessibilityLabel={title}
+      closeAccessibilityLabel={t("common.close", lang)}
       testID="advanced-color-picker-sheet"
     >
       <SheetScrollView
@@ -164,16 +166,16 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose} hitSlop={10}>
-            <Text style={[styles.backText, { color: themeColors.accentColor }]}>{"< Назад"}</Text>
+          <TouchableOpacity onPress={handleClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.back", lang)} style={styles.backButton}>
+            <Text style={[styles.backText, { color: themeColors.accentColor }]}>{"< " + t("common.back", lang)}</Text>
           </TouchableOpacity>
-          <Text style={[styles.title, { color: themeColors.textColor }]}>Вибір кольору</Text>
+          <Text style={[styles.title, { color: themeColors.textColor }]}>{title}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
         <View style={styles.inputContainer}>
           <TextInput
-            accessibilityLabel="HEX color"
+            accessibilityLabel="HEX"
             style={[
               styles.hexInput,
               {
@@ -191,11 +193,14 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
             }}
             autoCapitalize="none"
             autoCorrect={false}
+            autoComplete="off"
           />
         </View>
 
         <View
+          accessibilityRole="adjustable"
           accessibilityLabel="Saturation and brightness"
+          accessibilityHint="Use the HEX field for precise keyboard input."
           onLayout={(event) => setPickerSize(event.nativeEvent.layout)}
           {...satValPanResponder.panHandlers}
           style={[styles.saturationValuePicker, { borderColor: themeColors.borderColor }]}
@@ -213,7 +218,9 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
         </View>
 
         <View
+          accessibilityRole="adjustable"
           accessibilityLabel="Hue"
+          accessibilityHint="Use the HEX field for precise keyboard input."
           onLayout={(event) => setHueSliderWidth(event.nativeEvent.layout.width)}
           {...huePanResponder.panHandlers}
           style={styles.hueSliderContainer}
@@ -237,10 +244,11 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
 
         <TouchableOpacity
           accessibilityRole="button"
+          accessibilityLabel={t("common.save", lang)}
           style={[styles.saveButton, { backgroundColor: currentColor }]}
           onPress={handleSave}
         >
-          <Text style={styles.saveButtonText}>Обрати</Text>
+          <Text style={styles.saveButtonText}>{t("common.save", lang)}</Text>
         </TouchableOpacity>
       </SheetScrollView>
     </BottomSheet>
@@ -261,6 +269,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerSpacer: { width: 58 },
+  backButton: { minHeight: 44, justifyContent: "center" },
   backText: { fontSize: 16 },
   title: { fontSize: 18, fontWeight: "700" },
   inputContainer: { marginBottom: 20, alignItems: "center" },

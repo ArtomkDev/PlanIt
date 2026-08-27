@@ -61,6 +61,7 @@ import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
 import SettingsActionRow from '../../../components/ui/SettingsKit/SettingsActionRow';
 import AppSwitch from '../../../components/ui/AppSwitch';
 import { triggerHaptic } from '../../../utils/haptics';
+import useReducedMotionPreference from '../../../hooks/useReducedMotionPreference';
 
 if (
   Platform.OS === 'android' && 
@@ -75,6 +76,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
+  const reduceMotion = useReducedMotionPreference();
   
   const params = route.params || propsRoute?.params || {};
   const { scheduleId, isInitialSetup, isNew } = params;
@@ -131,6 +133,11 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded || isReminderExpanded;
   const finalBottomPadding = baseBottomPadding + (isAnyExpanded ? screenHeight * 0.5 : 0);
 
+  const configureEditorLayoutAnimation = () => {
+    if (reduceMotion || !LayoutAnimation?.configureNext) return;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  };
+
   const scrollToElement = (section, card, yOffset = 0, delay = 150) => {
     setTimeout(() => {
       const sY = sectionYs.current[section] || 0;
@@ -139,13 +146,13 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
       
       if (scrollViewRef.current) {
         const scrollNode = scrollViewRef.current.scrollTo ? scrollViewRef.current : scrollViewRef.current.getNode?.();
-        scrollNode?.scrollTo({ y: Math.max(0, targetY), animated: true });
+        scrollNode?.scrollTo({ y: Math.max(0, targetY), animated: !reduceMotion });
       }
     }, delay);
   };
 
   const toggleWeeksExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    configureEditorLayoutAnimation();
     const willExpand = !isWeeksExpanded;
     setIsWeeksExpanded(willExpand);
     if (willExpand) {
@@ -155,7 +162,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   };
 
   const toggleDurationExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    configureEditorLayoutAnimation();
     const willExpand = !isDurationExpanded;
     setIsDurationExpanded(willExpand);
     if (willExpand) {
@@ -165,7 +172,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   };
 
   const toggleTimeExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    configureEditorLayoutAnimation();
     const willExpand = !isTimeExpanded;
     setIsTimeExpanded(willExpand);
     if (willExpand) {
@@ -175,7 +182,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   };
 
   const toggleBreaksExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    configureEditorLayoutAnimation();
     const willExpand = !isBreaksExpanded;
     setIsBreaksExpanded(willExpand);
     if (willExpand) {
@@ -185,7 +192,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   };
 
   const toggleReminderExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    configureEditorLayoutAnimation();
     const willExpand = !isReminderExpanded;
     setIsReminderExpanded(willExpand);
     if (willExpand) {
@@ -271,7 +278,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   };
 
   const handleAddBreak = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    configureEditorLayoutAnimation();
     setLocalData(prev => {
       const nextBreaks = [...prev.breaks, "10"];
       
@@ -292,7 +299,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   };
 
   const handleRemoveBreak = (index) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    configureEditorLayoutAnimation();
     setLocalData(prev => ({ ...prev, breaks: prev.breaks.filter((_, i) => i !== index) }));
   };
 
@@ -346,7 +353,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
 
   const saveButtonElement = (
-    <TouchableOpacity onPress={handleFinalSave} style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={isInitialSetup ? t('common.done', lang) : t('common.save', lang)} onPress={handleFinalSave} style={{ minHeight: 44, paddingHorizontal: 12, paddingVertical: 6, justifyContent: 'center' }}>
       <Text style={{ color: themeColors.accentColor, fontSize: 17, fontWeight: '600' }}>
         {isInitialSetup ? t('common.done', lang) : t('common.save', lang)}
       </Text>
@@ -389,6 +396,9 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                   placeholderTextColor={themeColors.textColor2} 
                   returnKeyType="done" 
                   maxLength={40} 
+                  accessibilityLabel={t('settings.schedule_editor.enter_name', lang)}
+                  textContentType="name"
+                  autoComplete="name"
                   onFocus={() => scrollToElement('general', 'name', 0, 300)}
                 />
               </View>
@@ -453,6 +463,9 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                       return (
                         <TouchableOpacity
                           key={option.id}
+                          accessibilityRole="radio"
+                          accessibilityLabel={option.label}
+                          accessibilityState={{ selected, checked: selected }}
                           style={[
                             styles.reminderChoice,
                             {
@@ -482,6 +495,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                         keyboardType="number-pad"
                         maxLength={4}
                         returnKeyType="done"
+                        accessibilityLabel={t('schedule.reminders.custom_placeholder', lang)}
                         onFocus={() => scrollToElement('general', 'reminder', 90, 300)}
                       />
                       <Text style={[styles.inputSuffix, { color: themeColors.textColor2 }]}>
@@ -548,7 +562,8 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                       placeholderTextColor={themeColors.textColor2} 
                       keyboardType="number-pad" 
                       maxLength={2} 
-                      returnKeyType="done" 
+                      returnKeyType="done"
+                      accessibilityLabel={t('settings.week_manager.repeat_label', lang)}
                       onFocus={() => scrollToElement('general', 'weeks', 60, 300)}
                     />
                   </View>
@@ -610,7 +625,8 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                       placeholderTextColor={themeColors.textColor2} 
                       keyboardType="number-pad" 
                       maxLength={3} 
-                      returnKeyType="done" 
+                      returnKeyType="done"
+                      accessibilityLabel={t('schedule.main_screen.duration', lang)}
                       onFocus={() => scrollToElement('time', 'duration', 60, 300)}
                     />
                   </View>
@@ -669,6 +685,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                             onChangeText={(t) => handleBreakChange(t, idx)} 
                             keyboardType="number-pad" 
                             maxLength={3} 
+                            accessibilityLabel={`${t('schedule.day_schedule.break', lang)} ${idx + 1}`}
                             selectTextOnFocus 
                             onFocus={() => scrollToElement('time', 'breaks', 60 + (idx * 56), 300)}
                           />
@@ -676,6 +693,8 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                         </View>
 
                         <TouchableOpacity 
+                          accessibilityRole="button"
+                          accessibilityLabel={t('common.delete', lang)}
                           onPress={() => handleRemoveBreak(idx)} 
                           style={styles.trashBtn}
                           activeOpacity={0.7}
@@ -804,7 +823,7 @@ const styles = StyleSheet.create({
   },
   reminderChoice: {
     minWidth: 64,
-    height: 40,
+    minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
@@ -858,7 +877,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems: 'center', 
     paddingHorizontal: 12, 
-    height: 36, 
+    minHeight: 44,
     borderRadius: 10, 
     marginRight: 8 
   }, 
@@ -875,8 +894,8 @@ const styles = StyleSheet.create({
     opacity: 0.8 
   }, 
   trashBtn: { 
-    width: 36, 
-    height: 36, 
+    width: 44,
+    height: 44,
     borderRadius: 10, 
     backgroundColor: '#FF3B3015', 
     justifyContent: 'center', 

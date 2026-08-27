@@ -20,12 +20,15 @@ export default function SettingsRow({
   iconBgColor,
   iconWeight,
   skipHaptic = false,
+  accessibilityLabel,
+  accessibilityHint,
 }) {
   const Component = onPress ? TouchableOpacity : View;
   
   const mainColor = danger ? '#FF3B30' : themeColors.textColor;
   const calculatedIconColor = iconColor || (danger ? '#FF3B30' : themeColors.accentColor);
   const calculatedIconBgColor = iconBgColor || (danger ? '#FF3B3015' : themeColors.accentColor + '15');
+  const resolvedAccessibilityLabel = accessibilityLabel || [label, typeof value === "string" ? value : null].filter(Boolean).join(", ");
 
   const handlePress = () => {
     if (!onPress || disabled) return;
@@ -35,6 +38,10 @@ export default function SettingsRow({
   
   return (
     <Component 
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={onPress ? resolvedAccessibilityLabel : undefined}
+      accessibilityHint={onPress ? accessibilityHint : undefined}
+      accessibilityState={onPress ? { disabled } : undefined}
       style={[
         styles.row, 
         disabled && styles.disabled,

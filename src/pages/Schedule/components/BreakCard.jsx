@@ -7,6 +7,7 @@ import Animated, {
     withTiming, 
     withSpring, 
     Easing, 
+    ReduceMotion,
     runOnJS 
 } from "react-native-reanimated";
 import { t } from "../../../utils/i18n";
@@ -78,9 +79,9 @@ const AnimatedBreakCard = React.memo(({ isVisible, isBreakNow, timeLeft, duratio
     useEffect(() => {
         if (isVisible) {
             setIsMounted(true);
-            expandProgress.value = withTiming(1, { duration: 450, easing: Easing.inOut(Easing.cubic) });
+            expandProgress.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System });
         } else {
-            expandProgress.value = withTiming(0, { duration: 450, easing: Easing.inOut(Easing.cubic) }, (finished) => {
+            expandProgress.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System }, (finished) => {
                 if (finished) runOnJS(setIsMounted)(false);
             });
         }
@@ -91,9 +92,9 @@ const AnimatedBreakCard = React.memo(({ isVisible, isBreakNow, timeLeft, duratio
 
     useEffect(() => {
         if (isBreakNow !== isTimerIcon) {
-            iconScale.value = withTiming(0, { duration: 150 }, () => {
+            iconScale.value = withTiming(0.92, { duration: 100, reduceMotion: ReduceMotion.System }, () => {
                 runOnJS(setIsTimerIcon)(isBreakNow);
-                iconScale.value = withSpring(1, { damping: 12, stiffness: 100 });
+                iconScale.value = withSpring(1, { damping: 14, stiffness: 140, reduceMotion: ReduceMotion.System });
             });
         }
     }, [isBreakNow]);

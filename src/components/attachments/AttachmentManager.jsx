@@ -336,6 +336,9 @@ export default function AttachmentManager({
 
   const renderActionButton = ({ label, icon: Icon, onPress }) => (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: disabled || activeUploadState?.uploading, busy: !!activeUploadState?.uploading }}
       activeOpacity={0.75}
       disabled={disabled || activeUploadState?.uploading}
       onPress={onPress}
@@ -404,6 +407,8 @@ export default function AttachmentManager({
               returnKeyType="done"
               selectTextOnFocus
               maxLength={140}
+              accessibilityLabel={t("attachments.rename_placeholder", lang)}
+              autoCorrect={false}
               style={[
                 styles.renameInput,
                 {
@@ -421,6 +426,9 @@ export default function AttachmentManager({
           </View>
         ) : (
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${attachment.name || t("attachments.file", lang)}${details ? `. ${details}` : ""}`}
+            accessibilityState={{ disabled: isUploading, busy: isUploading }}
             activeOpacity={0.72}
             style={styles.attachmentBody}
             onPress={() => handleOpen(attachment)}
@@ -448,7 +456,9 @@ export default function AttachmentManager({
                   saveRenamedAttachment(attachment);
                 }}
                 style={styles.iconButton}
+                accessibilityRole="button"
                 accessibilityLabel={t("attachments.rename_save", lang)}
+                accessibilityState={{ disabled: isUploading || disabled }}
               >
                 <Check size={18} color={themeColors.accentColor} weight="bold" />
               </TouchableOpacity>
@@ -460,7 +470,9 @@ export default function AttachmentManager({
                   cancelRenamingAttachment();
                 }}
                 style={styles.iconButton}
+                accessibilityRole="button"
                 accessibilityLabel={t("attachments.rename_cancel", lang)}
+                accessibilityState={{ disabled: isUploading || disabled }}
               >
                 <X size={18} color={themeColors.textColor2} weight="bold" />
               </TouchableOpacity>
@@ -475,7 +487,9 @@ export default function AttachmentManager({
                   startRenamingAttachment(attachment);
                 }}
                 style={styles.iconButton}
+                accessibilityRole="button"
                 accessibilityLabel={t("attachments.rename", lang)}
+                accessibilityState={{ disabled: isUploading || disabled }}
               >
                 <PencilSimple size={18} color={themeColors.textColor2} weight="bold" />
               </TouchableOpacity>
@@ -487,7 +501,9 @@ export default function AttachmentManager({
                   handleOpen(attachment);
                 }}
                 style={styles.iconButton}
+                accessibilityRole="button"
                 accessibilityLabel={t("attachments.open", lang)}
+                accessibilityState={{ disabled: isUploading }}
               >
                 <ArrowUpRight size={18} color={themeColors.textColor2} weight="bold" />
               </TouchableOpacity>
@@ -499,7 +515,9 @@ export default function AttachmentManager({
                   handleOpen(attachment, true);
                 }}
                 style={styles.iconButton}
+                accessibilityRole="button"
                 accessibilityLabel={t("attachments.download", lang)}
+                accessibilityState={{ disabled: isUploading }}
               >
                 <DownloadSimple size={18} color={themeColors.textColor2} weight="bold" />
               </TouchableOpacity>
@@ -512,7 +530,9 @@ export default function AttachmentManager({
                     handleShare(attachment);
                   }}
                   style={styles.iconButton}
+                  accessibilityRole="button"
                   accessibilityLabel={getAttachmentShareLabel(lang)}
+                  accessibilityState={{ disabled: isUploading }}
                 >
                   <ShareNetwork size={18} color={themeColors.textColor2} weight="bold" />
                 </TouchableOpacity>
@@ -525,7 +545,9 @@ export default function AttachmentManager({
                   removeAttachment(attachment);
                 }}
                 style={styles.iconButton}
+                accessibilityRole="button"
                 accessibilityLabel={t("attachments.delete", lang)}
+                accessibilityState={{ disabled: isUploading || disabled }}
               >
                 <Trash size={18} color="#FF3B30" weight="bold" />
               </TouchableOpacity>
@@ -564,7 +586,7 @@ export default function AttachmentManager({
       </View>
 
       {!!displayError && (
-        <View style={[styles.errorBox, { backgroundColor: "#FF3B3012", borderColor: "#FF3B3030" }]}>
+        <View accessibilityRole="alert" style={[styles.errorBox, { backgroundColor: "#FF3B3012", borderColor: "#FF3B3030" }]}>
           <WarningCircle size={17} color="#FF3B30" weight="bold" />
           <Text style={styles.errorText}>{displayError}</Text>
         </View>
@@ -573,7 +595,7 @@ export default function AttachmentManager({
       {libraryOpen && onFileLibraryChange && (
         <View style={[styles.libraryPanel, { borderColor: themeColors.borderColor, backgroundColor: themeColors.backgroundColor }]}>
           {availableLibraryFiles.length === 0 ? (
-            <Text style={[styles.libraryEmptyText, { color: themeColors.textColor2 }]}>
+            <Text accessibilityRole="text" style={[styles.libraryEmptyText, { color: themeColors.textColor2 }]}>
               {t("attachments.library_empty", lang)}
             </Text>
           ) : (
@@ -582,6 +604,8 @@ export default function AttachmentManager({
               return (
                 <TouchableOpacity
                   key={file.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${file.name || t("attachments.file", lang)}${formatFileSize(file.size) ? `. ${formatFileSize(file.size)}` : ""}`}
                   activeOpacity={0.72}
                   style={styles.libraryFileRow}
                   onPress={() => attachLibraryFile(file)}
@@ -603,7 +627,7 @@ export default function AttachmentManager({
       )}
 
       {displayAttachments.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <View accessibilityRole="text" style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
             {t("attachments.empty", lang)}
           </Text>
@@ -649,7 +673,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   actionButton: {
-    minHeight: 38,
+    minHeight: 44,
     maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
@@ -748,7 +772,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   renameInput: {
-    height: 34,
+    minHeight: 44,
     maxWidth: "100%",
     borderRadius: 8,
     borderWidth: StyleSheet.hairlineWidth,
@@ -771,8 +795,8 @@ const styles = StyleSheet.create({
     gap: Platform.OS === "web" ? 2 : 0,
   },
   iconButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 8,

@@ -460,7 +460,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { color: themeColors.textColor }]}>{t('onboarding.step1_title', lang)}</Text>
         <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.step1_desc', lang)}</Text>
-        <TextInput style={[styles.textInput, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: themeColors.borderColor }]} placeholder={t('onboarding.schedule_name_placeholder', lang)} placeholderTextColor={themeColors.textColor2} value={scheduleName} onChangeText={setScheduleName} />
+        <TextInput accessibilityLabel={t('onboarding.step1_title', lang)} style={[styles.textInput, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: themeColors.borderColor }]} placeholder={t('onboarding.schedule_name_placeholder', lang)} placeholderTextColor={themeColors.textColor2} value={scheduleName} onChangeText={setScheduleName} />
       </View>
 
       <View style={styles.inputGroup}>
@@ -473,6 +473,10 @@ export default function OnboardingWizard({ onImportSchedule }) {
             const selected = color.toLowerCase() === String(scheduleColor).toLowerCase();
             return (
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`${t('settings.schedule_editor.color', lang)} ${color}`}
+                accessibilityState={{ selected }}
+                hitSlop={4}
                 key={color}
                 style={[
                   styles.colorSwatch,
@@ -503,14 +507,14 @@ export default function OnboardingWizard({ onImportSchedule }) {
         <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.weeks_count_desc', lang)}</Text>
         <TabSwitcher tabs={[{ id: '1', label: '1' }, { id: '2', label: '2' }, { id: '3', label: '3' }, { id: '4', label: '4' }]} activeTab={String(weeksCount)} onTabPress={setWeeksCount} themeColors={themeColors} activeTabBackgroundColor={isCustomRepeat ? 'transparent' : themeColors.accentColor} containerBackgroundColor={themeColors.backgroundColor2} containerBorderColor={themeColors.borderColor} />
         <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor2, borderColor: (isCustomRepeat && weeksCount !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
-          <TextInput style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomRepeat ? String(weeksCount) : ""} onChangeText={(text) => setWeeksCount(text.replace(/[^0-9]/g, ''))} placeholder={t('settings.week_manager.repeat_label', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={2} />
+          <TextInput accessibilityLabel={t('settings.menu.weeks.title', lang)} style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomRepeat ? String(weeksCount) : ""} onChangeText={(text) => setWeeksCount(text.replace(/[^0-9]/g, ''))} placeholder={t('settings.week_manager.repeat_label', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={2} />
         </View>
       </View>
 
       <View style={[styles.inputGroup, { opacity: isSingleWeek ? 0.5 : 1, marginTop: 10 }]}>
         <Text style={[styles.label, { color: themeColors.textColor }]}>{t('onboarding.starting_week', lang)}</Text>
         <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.starting_week_desc', lang)}</Text>
-        <TouchableOpacity style={[styles.dateCard, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]} onPress={() => { triggerHaptic("open"); setCalendarVisible(true); }} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('onboarding.starting_week', lang)} style={[styles.dateCard, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]} onPress={() => { triggerHaptic("open"); setCalendarVisible(true); }} activeOpacity={0.7}>
           <View style={[styles.dateCardIcon, { backgroundColor: themeColors.accentColor + '15' }]}>
             <CalendarBlank size={26} color={themeColors.accentColor} weight="fill" />
           </View>
@@ -562,7 +566,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
             <View style={styles.expandedContent}>
               <TabSwitcher tabs={[{ id: '45', label: '45' }, { id: '60', label: '60' }, { id: '80', label: '80' }, { id: '90', label: '90' }]} activeTab={String(lessonDuration)} onTabPress={setLessonDuration} themeColors={themeColors} activeTabBackgroundColor={isCustomDuration ? 'transparent' : themeColors.accentColor} containerBackgroundColor={themeColors.backgroundColor} containerBorderColor={themeColors.borderColor} />
               <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor, borderColor: (isCustomDuration && lessonDuration !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
-                <TextInput style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomDuration ? String(lessonDuration) : ""} onChangeText={(t) => setLessonDuration(t.replace(/[^0-9]/g, ''))} placeholder={t('schedule.main_screen.duration', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={3} />
+                <TextInput accessibilityLabel={t('schedule.main_screen.duration', lang)} style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomDuration ? String(lessonDuration) : ""} onChangeText={(t) => setLessonDuration(t.replace(/[^0-9]/g, ''))} placeholder={t('schedule.main_screen.duration', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={3} />
               </View>
             </View>
           )}
@@ -582,10 +586,10 @@ export default function OnboardingWizard({ onImportSchedule }) {
                   <Text style={[styles.breakRowLabel, { color: themeColors.textColor }]}>{t('schedule.day_schedule.break', lang)} {idx + 1}</Text>
                   <View style={styles.breakActions}>
                     <View style={[styles.breakInputWrapper, { backgroundColor: themeColors.accentColor + '15' }]}>
-                      <TextInput style={[styles.breakRowInput, { color: themeColors.accentColor }]} value={String(brk)} onChangeText={(t) => handleBreakChange(t, idx)} keyboardType="number-pad" maxLength={3} selectTextOnFocus />
+                      <TextInput accessibilityLabel={`${t('schedule.day_schedule.break', lang)} ${idx + 1}`} style={[styles.breakRowInput, { color: themeColors.accentColor }]} value={String(brk)} onChangeText={(t) => handleBreakChange(t, idx)} keyboardType="number-pad" maxLength={3} selectTextOnFocus />
                       <Text style={[styles.breakRowMin, { color: themeColors.accentColor }]}>{t('schedule.main_screen.minutes', lang)}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => handleRemoveBreak(idx)} style={styles.trashBtn} activeOpacity={0.7}>
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${t('common.delete', lang)}: ${t('schedule.day_schedule.break', lang)} ${idx + 1}`} hitSlop={4} onPress={() => handleRemoveBreak(idx)} style={styles.trashBtn} activeOpacity={0.7}>
                       <Trash size={18} color="#FF3B30" weight="bold" />
                     </TouchableOpacity>
                   </View>
@@ -830,6 +834,9 @@ export default function OnboardingWizard({ onImportSchedule }) {
             <AppBlur style={StyleSheet.absoluteFill} />
           </View>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back', lang)}
+            accessibilityState={{ disabled: step === 0 }}
             style={[styles.navBtn, { backgroundColor: themeColors.backgroundColor2, opacity: step === 0 ? 0.4 : 1 }]}
             disabled={step === 0}
             onPress={() => navigateToStep(step - 1)}
@@ -839,6 +846,8 @@ export default function OnboardingWizard({ onImportSchedule }) {
           </TouchableOpacity>
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={step === TOTAL_STEPS - 1 ? t('settings.menu.done', lang) : t('onboarding.next', lang)}
             style={[styles.navBtnMain, { backgroundColor: themeColors.accentColor }]}
             onPress={() => navigateToStep(step + 1)}
             activeOpacity={0.8}

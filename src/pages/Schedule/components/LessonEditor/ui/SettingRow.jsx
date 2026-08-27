@@ -13,7 +13,9 @@ export default function SettingRow({
   onLongPress, 
   themeColors, 
   icon: Icon,
-  rightContent 
+  rightContent,
+  accessibilityLabel,
+  accessibilityHint,
 }) {
   const handlePress = () => {
     if (!onPress) return;
@@ -33,6 +35,9 @@ export default function SettingRow({
       onLongPress={onLongPress ? handleLongPress : undefined}
       delayLongPress={250}
       activeOpacity={0.7}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={accessibilityLabel || [label, typeof value === "string" ? value : null].filter(Boolean).join(", ")}
+      accessibilityHint={accessibilityHint}
     >
       <View style={styles.left}>
         {Icon && (

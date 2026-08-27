@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
 
 const DEFAULT_COLORS = ["rgba(136,136,146,0.56)", "rgba(96,96,108,0.7)"];
 const SCAN_LINE_HEIGHT = 58;
@@ -91,6 +92,7 @@ export function AttachmentImageLoadingOverlay({
   const [delayedActive, setDelayedActive] = useState(initialActive);
   const [overlayVisible, setOverlayVisible] = useState(initialActive);
   const [layout, setLayout] = useState({ width: 0, height: 160 });
+  const reduceMotion = useReducedMotionPreference();
   const preview = useMemo(() => getAttachmentPreview(attachment), [attachment]);
   const colors = preview.colors.length >= 2 ? preview.colors : DEFAULT_COLORS;
   const hasRichPreview = !!preview.uri || preview.colors.length >= 2;
@@ -151,7 +153,10 @@ export function AttachmentImageLoadingOverlay({
   }, [delayedActive, overlayOpacity]);
 
   useEffect(() => {
-    if (!overlayVisible || !scanning) return undefined;
+    if (!overlayVisible || !scanning || reduceMotion) {
+      if (reduceMotion) scanProgress.setValue(0.5);
+      return undefined;
+    }
 
     if (!scanStartedRef.current) {
       scanProgress.setValue(0);
@@ -168,7 +173,7 @@ export function AttachmentImageLoadingOverlay({
 
     animation.start();
     return () => animation.stop();
-  }, [overlayVisible, scanProgress, scanning]);
+  }, [overlayVisible, reduceMotion, scanProgress, scanning]);
 
   if (!overlayVisible) return null;
 

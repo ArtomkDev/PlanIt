@@ -16,6 +16,8 @@ export default function SettingsActionRow({ icon: Icon, label, onPress, danger =
 
   return (
     <TouchableOpacity 
+      accessibilityRole="button"
+      accessibilityLabel={label}
       style={[
         styles.container, 
         { 

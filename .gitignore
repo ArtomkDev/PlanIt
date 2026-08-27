@@ -91,7 +91,9 @@ ios/.xcode.env.local
 # ----------------------
 # Codex / local agent artifacts
 # ----------------------
-.agents/
+.agents/*
+!.agents/skills/
+!.agents/skills/**
 .codex/
 .codex-*/
 

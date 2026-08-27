@@ -56,11 +56,14 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
             <User size={20} color={themeColors.textColor2} weight="bold" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: themeColors.textColor }]}
+              accessibilityLabel={t('schedule.lesson_editor.teacher_name_label', lang)}
               placeholder={t('schedule.lesson_editor.teacher_name_placeholder', lang)}
               placeholderTextColor={themeColors.textColor2 + '80'}
               value={name}
               onChangeText={setName}
               autoFocus
+              textContentType="name"
+              autoComplete="name"
             />
           </View>
         </View>
@@ -73,11 +76,14 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
             <Phone size={20} color={themeColors.textColor2} weight="bold" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: themeColors.textColor }]}
+              accessibilityLabel={t('schedule.lesson_editor.teacher_phone_label', lang)}
               placeholder="+380..."
               placeholderTextColor={themeColors.textColor2 + '80'}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
+              textContentType="telephoneNumber"
+              autoComplete="tel"
             />
           </View>
         </View>
@@ -88,6 +94,8 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
           <TouchableOpacity 
               style={[styles.button, styles.cancelButton, { backgroundColor: themeColors.backgroundColor2 }]} 
               onPress={onBack}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel', lang)}
           >
             <Text style={[styles.buttonText, { color: themeColors.textColor }]}>
               {t('common.cancel', lang)}
@@ -97,6 +105,8 @@ export default function TeacherEditor({ teacherId, localTeacherData, onSaveLocal
           <TouchableOpacity 
               style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]} 
               onPress={handleSave}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.save_changes', lang)}
           >
             <Text style={styles.saveButtonText}>
               {t('common.save_changes', lang)}

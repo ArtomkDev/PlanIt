@@ -150,6 +150,7 @@ export default function PasswordResetScreen({ fallbackRoute = 'Auth' }) {
           <View style={styles.passwordFieldGroup}>
             <TextInput
               style={[styles.input, styles.passwordInput]}
+              accessibilityLabel={t('auth.password_reset.new_password_label', lang)}
               placeholder={t('auth.password_reset.new_password_placeholder', lang)}
               placeholderTextColor={themeColors.textColor2}
               secureTextEntry
@@ -160,6 +161,8 @@ export default function PasswordResetScreen({ fallbackRoute = 'Auth' }) {
               }}
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete="new-password"
+              textContentType="newPassword"
             />
             <PasswordStrengthBar
               password={newPassword}
@@ -172,6 +175,7 @@ export default function PasswordResetScreen({ fallbackRoute = 'Auth' }) {
           </Text>
           <TextInput
             style={styles.input}
+            accessibilityLabel={t('auth.password_reset.confirm_password_label', lang)}
             placeholder={t('auth.password_reset.confirm_password_placeholder', lang)}
             placeholderTextColor={themeColors.textColor2}
             secureTextEntry
@@ -182,11 +186,21 @@ export default function PasswordResetScreen({ fallbackRoute = 'Auth' }) {
             }}
             autoCapitalize="none"
             autoCorrect={false}
+            autoComplete="new-password"
+            textContentType="newPassword"
           />
         </>
       ) : null}
 
-      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+      {errorMsg ? (
+        <Text
+          style={styles.errorText}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+        >
+          {errorMsg}
+        </Text>
+      ) : null}
 
       {status === 'ready' || status === 'saving' || status === 'verifying' ? (
         <TouchableOpacity
@@ -197,19 +211,25 @@ export default function PasswordResetScreen({ fallbackRoute = 'Auth' }) {
           ]}
           onPress={handleSavePassword}
           disabled={isBusy}
+          accessibilityRole="button"
+          accessibilityLabel={t(actionTranslationKey('save_btn'), lang)}
+          accessibilityState={{ disabled: isBusy, busy: isBusy }}
         >
-          {isBusy ? (
-            <MorphingLoader size={26} />
-          ) : (
-            <Text style={styles.actionButtonText}>
-              {t(actionTranslationKey('save_btn'), lang)}
-            </Text>
-          )}
+          {isBusy ? <MorphingLoader size={22} /> : null}
+          <Text style={styles.actionButtonText}>
+            {t(actionTranslationKey('save_btn'), lang)}
+          </Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: themeColors.accentColor }]}
           onPress={closeResetFlow}
+          accessibilityRole="button"
+          accessibilityLabel={
+            status === 'complete'
+              ? t('common.done', lang)
+              : t('auth.password_reset.back_btn', lang)
+          }
         >
           <Text style={styles.actionButtonText}>
             {status === 'complete'
@@ -272,6 +292,8 @@ const getStyles = (themeColors) => StyleSheet.create({
   actionButton: {
     borderRadius: 12,
     paddingVertical: 16,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,

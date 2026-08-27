@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   appInfoText: {
     fontSize: 13,
     fontWeight: '500',
-    letterSpacing: -0.2,
+    letterSpacing: 0,
     opacity: 0.7,
   }
 });

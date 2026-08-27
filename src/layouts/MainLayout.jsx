@@ -150,14 +150,14 @@ export default function MainLayout({ guest, onExitGuest }) {
       setShowOverlay(true);
       Animated.timing(overlayOpacity, {
         toValue: 1,
-        duration: 300,
+        duration: 160,
         useNativeDriver: true,
       }).start();
     } else {
       setIsFatalTimeout(false);
       Animated.timing(overlayOpacity, {
         toValue: 0,
-        duration: 600,
+        duration: 180,
         useNativeDriver: true,
       }).start(() => setShowOverlay(false));
     }
@@ -243,7 +243,11 @@ export default function MainLayout({ guest, onExitGuest }) {
       />
 
       {showOverlay && (
-        <Animated.View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: themeColors.backgroundColor, opacity: overlayOpacity }]}>
+        <Animated.View
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={isErrorState ? (error ? `${t('common.error', lang)}: ${error}` : t('common.error', lang)) : t('schedule.loading', lang)}
+          style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: themeColors.backgroundColor, opacity: overlayOpacity }]}>
           {isErrorState ? (
             <>
               <AppBlur style={StyleSheet.absoluteFill} intensity={25} tint={isLightMode ? 'light' : 'dark'} />

@@ -20,7 +20,14 @@ export default function ExpandableCard({
         borderColor: isExpanded ? themeColors.accentColor : themeColors.borderColor 
       }
     ]}>
-      <TouchableOpacity style={styles.header} onPress={onToggle} activeOpacity={0.7}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={value ? `${title}, ${value}` : title}
+        accessibilityState={{ expanded: isExpanded }}
+        style={styles.header}
+        onPress={onToggle}
+        activeOpacity={0.7}
+      >
         <View style={styles.rowLeft}>
           {Icon && (
             <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '15' }]}>
@@ -78,8 +85,8 @@ const styles = StyleSheet.create({
     alignItems: 'center' 
   },
   iconContainer: { 
-    width: 36, 
-    height: 36, 
+    width: 44,
+    height: 44,
     borderRadius: 10, 
     alignItems: 'center', 
     justifyContent: 'center', 

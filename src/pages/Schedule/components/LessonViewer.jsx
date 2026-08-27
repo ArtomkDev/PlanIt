@@ -222,7 +222,12 @@ export default function LessonViewer({
               ) : (
                 <View />
               )}
-              <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close', lang)}
+                style={styles.closeBtn}
+                onPress={handleClose}
+              >
                 <X size={24} color="#fff" weight="bold" />
               </TouchableOpacity>
             </View>
@@ -297,11 +302,14 @@ export default function LessonViewer({
                     </View>
                     {!!teacher.phone && (
                         <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel={teacher.phone}
                           onPress={() => {
                             triggerHaptic("open");
                             Linking.openURL(`tel:${teacher.phone}`);
                           }}
                           hitSlop={10}
+                          style={styles.rowActionButton}
                         >
                             <Phone size={22} color={themeColors.accentColor} style={{marginRight: 8}} weight="regular" />
                         </TouchableOpacity>
@@ -319,6 +327,8 @@ export default function LessonViewer({
                 {displayLinks.map((link, index) => (
                   <TouchableOpacity 
                     key={index} 
+                    accessibilityRole="link"
+                    accessibilityLabel={`${link.name || t('schedule.lesson_viewer.default_link', lang)} ${link.url}`}
                     style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
                     onPress={() => handleLinkPress(link.url)}
                   >
@@ -347,6 +357,8 @@ export default function LessonViewer({
                 {displayAttachments.map((attachment) => (
                   <TouchableOpacity
                     key={attachment.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${attachment.name || t('attachments.file', lang)} ${formatFileSize(attachment.size)}`}
                     style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
                     onPress={() => handleAttachmentPress(attachment)}
                     activeOpacity={0.76}
@@ -368,6 +380,7 @@ export default function LessonViewer({
                         handleAttachmentPress(attachment, true);
                       }}
                       style={styles.rowActionButton}
+                      accessibilityRole="button"
                       accessibilityLabel={t('attachments.download', lang)}
                     >
                       <DownloadSimple size={20} color={themeColors.textColor2} weight="bold" />
@@ -379,6 +392,7 @@ export default function LessonViewer({
                           handleAttachmentShare(attachment);
                         }}
                         style={styles.rowActionButton}
+                        accessibilityRole="button"
                         accessibilityLabel={getAttachmentShareLabel(lang)}
                       >
                         <ShareNetwork size={20} color={themeColors.textColor2} weight="bold" />
@@ -440,6 +454,8 @@ export default function LessonViewer({
           >
             {!!onAddTask && (
               <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t('schedule.lesson_viewer.add_task', lang)}
                   style={[styles.actionButton, styles.primaryButton, styles.addTaskButton, { backgroundColor: themeColors.accentColor }]}
                   onPress={() => {
                     triggerHaptic("success");
@@ -567,6 +583,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   closeBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.2)',
     padding: 8,
     borderRadius: 20,
@@ -672,8 +692,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   rowActionButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
@@ -707,7 +727,7 @@ const styles = StyleSheet.create({
   },
   secondaryActionButton: {
     flex: 0,
-    width: 50,
+    width: 52,
     paddingHorizontal: 0,
   },
   primaryButton: {

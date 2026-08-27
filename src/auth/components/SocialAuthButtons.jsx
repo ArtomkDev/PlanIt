@@ -34,6 +34,9 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
   const { colors, isDark } = useSystemThemeColors('blue');
   const { lang } = useAppLanguage();
   const [loadingProvider, setLoadingProvider] = useState(null);
+  const providerPrefix = isLinking ? t('auth.settings.link_with', lang) : t('auth.common.continue_with', lang);
+  const googleAccessibilityLabel = `${providerPrefix} Google`;
+  const appleAccessibilityLabel = `${providerPrefix} Apple`;
 
   const handleGoogleAuth = async () => {
     if (isExpoGo && Platform.OS !== 'web') {
@@ -175,10 +178,16 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
           ]}
           onPress={handleGoogleAuth}
           disabled={!!loadingProvider}
+          accessibilityRole="button"
+          accessibilityLabel={googleAccessibilityLabel}
+          accessibilityState={{ disabled: !!loadingProvider, busy: loadingProvider === 'google' }}
           activeOpacity={isNativeDisabled ? 1 : 0.7}
         >
           {loadingProvider === 'google' ? (
-            <MorphingLoader size={24} />
+            <>
+              <MorphingLoader size={24} />
+              <Text style={[styles.socialButtonText, { color: colors.textColor }]}>Google</Text>
+            </>
           ) : (
             <>
               <GoogleLogo size={20} color={isDark ? '#fff' : '#DB4437'} weight="bold" />
@@ -196,11 +205,16 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
             ]}
           >
             {loadingProvider === 'apple' ? (
-              <View style={[
+              <View
+                accessibilityRole="button"
+                accessibilityLabel={appleAccessibilityLabel}
+                accessibilityState={{ disabled: true, busy: true }}
+                style={[
                 styles.nativeAppleLoading,
                 { backgroundColor: isDark ? '#fff' : '#000' },
               ]}>
                 <MorphingLoader size={24} />
+                <Text style={[styles.socialButtonText, { color: isDark ? '#000' : '#fff' }]}>Apple</Text>
               </View>
             ) : (
               <AppleAuthentication.AppleAuthenticationButton
@@ -227,10 +241,16 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
             ]}
             onPress={handleAppleAuth}
             disabled={!!loadingProvider}
+            accessibilityRole="button"
+            accessibilityLabel={appleAccessibilityLabel}
+            accessibilityState={{ disabled: !!loadingProvider, busy: loadingProvider === 'apple' }}
             activeOpacity={isNativeDisabled ? 1 : 0.7}
           >
             {loadingProvider === 'apple' ? (
-              <MorphingLoader size={24} />
+              <>
+                <MorphingLoader size={24} />
+                <Text style={[styles.socialButtonText, { color: isDark ? '#000' : '#fff' }]}>Apple</Text>
+              </>
             ) : (
               <>
                 <AppleLogo size={24} color={isDark ? '#000' : '#fff'} weight="fill" />
@@ -254,7 +274,7 @@ const styles = StyleSheet.create({
     flex: 1, height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
     borderRadius: 12, borderWidth: 1, gap: 10,
     ...Platform.select({
-      web: { cursor: 'pointer', transition: 'all 0.2s ease' },
+      web: { cursor: 'pointer', transition: 'opacity 160ms ease, transform 160ms ease' },
     })
   },
   socialButtonText: { fontSize: 16, fontWeight: '600' },

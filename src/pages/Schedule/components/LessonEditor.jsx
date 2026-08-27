@@ -29,6 +29,7 @@ import AdvancedColorPicker from "../../../components/ui/AdvancedColorPicker";
 
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import {
   deleteLocalAttachmentCaches,
   MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
@@ -59,6 +60,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const reduceMotion = useReducedMotionPreference();
 
   const dataSource = schedule;
 
@@ -179,6 +181,11 @@ export default function LessonEditor({ lesson, onClose }) {
 
   useEffect(() => {
     if (isMinimized) {
+      if (reduceMotion) {
+        minimizeAnim.setValue(1);
+        return;
+      }
+
       Animated.spring(minimizeAnim, {
         toValue: 1,
         stiffness: 300,
@@ -188,10 +195,16 @@ export default function LessonEditor({ lesson, onClose }) {
     } else {
       minimizeAnim.setValue(0);
     }
-  }, [isMinimized]);
+  }, [isMinimized, minimizeAnim, reduceMotion]);
 
   const handleExpand = (withHaptic = true) => {
     if (withHaptic) triggerHaptic("expand");
+    if (reduceMotion) {
+      minimizeAnim.setValue(0);
+      setIsMinimized(false);
+      return;
+    }
+
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
@@ -205,6 +218,12 @@ export default function LessonEditor({ lesson, onClose }) {
   
   const handleCloseMinimized = () => {
     triggerHaptic("sheetClose");
+    if (reduceMotion) {
+      minimizeAnim.setValue(0);
+      closeEditor();
+      return;
+    }
+
     Animated.timing(minimizeAnim, {
       toValue: 0,
       duration: 120,
@@ -227,7 +246,9 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const goToScreen = (screenName, data = null) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (!reduceMotion) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
     if (data !== null) setEditingItemData(data);
     setCurrentScreen(screenName);
   };
@@ -819,11 +840,13 @@ export default function LessonEditor({ lesson, onClose }) {
             sheetRef.current?.close();
           }}
           hitSlop={15}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel', lang)}
         >
           <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t('common.cancel', lang)}</Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={15}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={15} accessibilityRole="button" accessibilityLabel={t('common.back', lang)}>
           <CaretLeft size={24} color={themeColors.accentColor} weight="bold" />
           <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t('common.back', lang)}</Text>
         </TouchableOpacity>
@@ -831,7 +854,7 @@ export default function LessonEditor({ lesson, onClose }) {
       <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>{getHeaderTitle()}</Text>
       <View style={{ minWidth: 60, alignItems: "flex-end" }}>
         {currentScreen === "main" && (
-          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15}>
+          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15} accessibilityRole="button" accessibilityLabel={attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.done', lang)} accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}>
             <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
               {attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.done', lang)}
             </Text>
@@ -876,6 +899,8 @@ export default function LessonEditor({ lesson, onClose }) {
               style={styles.minimizedContent} 
               onPress={() => handleExpand()}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={(Number.isInteger(lesson?.index) ? t('schedule.lesson_editor.editing', lang) : t('schedule.lesson_editor.new_lesson_ellipsis', lang)) + ': ' + (currentSubject.name || t('schedule.lesson_editor.subject_not_selected', lang))}
             >
               <View style={[styles.minimizedIcon, { backgroundColor: themeColors.accentColor + '20' }]}>
                 <PencilSimple size={18} color={themeColors.accentColor} weight="bold" />
@@ -892,11 +917,11 @@ export default function LessonEditor({ lesson, onClose }) {
 
             <View style={styles.minimizedActions}>
               {canSave && (
-                <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn}>
+                <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn} accessibilityRole="button" accessibilityLabel={t('common.save', lang)}>
                   <CheckCircle size={30} color={themeColors.accentColor} weight="fill" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]}>
+              <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]} accessibilityRole="button" accessibilityLabel={t('common.close', lang)}>
                 <XCircle size={30} color={themeColors.accentColor || "#ff4444"} weight="fill" />
               </TouchableOpacity>
             </View>
@@ -1156,6 +1181,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   minimizedActionBtn: {
-    padding: 2,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

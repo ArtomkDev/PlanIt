@@ -742,7 +742,9 @@ export default function FileLibraryScreen() {
       activeOpacity={0.7}
       disabled={disabled}
       onPress={onPress}
+      accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
       style={[
         styles.iconButton,
         {
@@ -793,6 +795,8 @@ export default function FileLibraryScreen() {
               returnKeyType="done"
               selectTextOnFocus
               maxLength={140}
+              accessibilityLabel={t("attachments.rename_placeholder", lang)}
+              autoCorrect={false}
               style={[
                 styles.renameInput,
                 {
@@ -810,6 +814,9 @@ export default function FileLibraryScreen() {
           </View>
         ) : (
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${file.name || t("attachments.file", lang)}${details ? `. ${details}` : ""}`}
+            accessibilityState={{ disabled: isBusy, busy: isBusy }}
             activeOpacity={0.72}
             style={styles.fileBody}
             disabled={isBusy}
@@ -915,6 +922,9 @@ export default function FileLibraryScreen() {
         ]}
       >
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`${file.name || t("attachments.file", lang)} ${t("attachments.open", lang)}`}
+          accessibilityState={{ disabled: isBusy, busy: isBusy }}
           activeOpacity={0.74}
           disabled={isBusy}
           onPress={() => handleOpen(file)}
@@ -961,6 +971,9 @@ export default function FileLibraryScreen() {
             </View>
           ) : (
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`${file.name || t("attachments.file", lang)}${details ? `. ${details}` : ""}`}
+              accessibilityState={{ disabled: isBusy, busy: isBusy }}
               activeOpacity={0.72}
               disabled={isBusy}
               onPress={() => handleOpen(file)}
@@ -1056,7 +1069,7 @@ export default function FileLibraryScreen() {
         : t("settings.files.empty_other_desc", lang);
 
     return (
-      <View style={styles.emptyState}>
+      <View accessibilityRole="text" style={styles.emptyState}>
         <Text style={[styles.emptyTitle, { color: themeColors.textColor }]}>
           {emptyTitle}
         </Text>
@@ -1203,7 +1216,7 @@ export default function FileLibraryScreen() {
       </View>
 
       {!!error && (
-        <View style={[styles.errorBox, { borderColor: "#FF3B3030", backgroundColor: "#FF3B3012" }]}>
+        <View accessibilityRole="alert" style={[styles.errorBox, { borderColor: "#FF3B3030", backgroundColor: "#FF3B3012" }]}>
           <WarningCircle size={18} color="#FF3B30" weight="bold" />
           <Text style={styles.errorText}>{error}</Text>
         </View>
@@ -1429,7 +1442,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   renameInput: {
-    minHeight: 38,
+    minHeight: 44,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -1447,8 +1460,8 @@ const styles = StyleSheet.create({
     gap: Platform.OS === "web" ? 6 : 4,
   },
   iconButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",

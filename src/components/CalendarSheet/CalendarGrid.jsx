@@ -3,13 +3,14 @@ import { StyleSheet, Text, TouchableOpacity, View, Animated, Easing } from "reac
 
 import themes from "../../config/themes";
 import { useScheduleData } from "../../context/ScheduleProvider";
+import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
 
 const sameDay = (left, right) =>
   left.getFullYear() === right.getFullYear() &&
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
-const DayCell = React.memo(({ day, today, currentSelectedDate, themeColors, onSelectDate }) => {
+const DayCell = React.memo(({ day, today, currentSelectedDate, themeColors, onSelectDate, reduceMotion, locale }) => {
   const isToday = sameDay(day.date, today);
   const isSelected = sameDay(day.date, currentSelectedDate);
 
@@ -19,18 +20,20 @@ const DayCell = React.memo(({ day, today, currentSelectedDate, themeColors, onSe
     selectionOpacity.stopAnimation();
     Animated.timing(selectionOpacity, {
       toValue: isSelected ? 1 : 0,
-      duration: 150,
+      duration: reduceMotion ? 0 : 150,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
-  }, [isSelected]);
+  }, [isSelected, reduceMotion, selectionOpacity]);
 
   const baseTextColor = day.isCurrentMonth ? themeColors.textColor : themeColors.textColor3;
+  const dateLabel = day.date.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <View style={styles.daySlot}>
       <TouchableOpacity
         accessibilityRole="button"
+        accessibilityLabel={dateLabel}
         accessibilityState={{ selected: isSelected }}
         onPress={() => onSelectDate(day.date)}
         activeOpacity={0.68}
@@ -96,10 +99,12 @@ export default function CalendarGrid({
   weekDayNames,
   weekLabel,
 }) {
-  const { global } = useScheduleData();
+  const { global, lang } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   const today = useMemo(() => new Date(), []);
+  const reduceMotion = useReducedMotionPreference();
+  const locale = lang === "uk" ? "uk-UA" : "en-US";
   const showWeekNumbers = getWeekNumber(today) !== null;
 
   const weeks = useMemo(() => {
@@ -153,6 +158,8 @@ export default function CalendarGrid({
                 currentSelectedDate={currentSelectedDate}
                 themeColors={themeColors}
                 onSelectDate={onSelectDate}
+                reduceMotion={reduceMotion}
+                locale={locale}
               />
             ))}
           </View>

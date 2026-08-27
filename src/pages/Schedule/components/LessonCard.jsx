@@ -5,6 +5,7 @@ import { useScheduleData } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useNowTick } from "../../../hooks/useNowTick";
 import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
@@ -176,11 +177,12 @@ function useLessonData(lesson, schedule, isDark) {
 
 const ActiveHighlight = React.memo(({ isActive, isDark }) => {
   const opacityAnim = useRef(new Animated.Value(0.4)).current;
+  const reduceMotion = useReducedMotionPreference();
 
   useEffect(() => {
     let highlightLoop = null;
 
-    if (isActive) {
+    if (isActive && !reduceMotion) {
       highlightLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(opacityAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
@@ -189,13 +191,13 @@ const ActiveHighlight = React.memo(({ isActive, isDark }) => {
       );
       highlightLoop.start();
     } else {
-      opacityAnim.setValue(0);
+      opacityAnim.setValue(isActive ? 0.75 : 0);
     }
 
     return () => {
       highlightLoop?.stop();
     };
-  }, [isActive, opacityAnim]);
+  }, [isActive, opacityAnim, reduceMotion]);
 
   if (!isActive) return null;
 

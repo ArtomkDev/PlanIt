@@ -17,6 +17,7 @@ export default {
     cancel: "Скасувати",
     back: "Назад",
     close: "Закрити",
+    clear: "Очистити",
     enabled: "Увімкнено",
     disabled: "Вимкнено",
     error: "Помилка",

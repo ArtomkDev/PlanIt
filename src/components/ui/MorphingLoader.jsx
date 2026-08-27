@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { AppState, StyleSheet, View } from 'react-native';
+import useReducedMotionPreference from '../../hooks/useReducedMotionPreference';
 import Svg, {
   ClipPath,
   Defs,
@@ -15,6 +16,7 @@ const CENTER = VIEWBOX / 2;
 const POINTS = 48;
 const BASE_RADIUS = 34;
 const CYCLE_MS = 1040;
+const TARGET_FRAME_MS = 1000 / 30;
 const SHIMMER_MS = 760;
 const BREATH_MS = 1350;
 const CONTINUOUS_ROTATION_MS = 5200;
@@ -241,6 +243,7 @@ const createRenderState = (elapsedMs = 0, frameQueue) => {
 
 const MorphingLoader = ({ size = 60, style }) => {
   const resolvedSize = Math.max(18, Number(size) || 60);
+  const reduceMotion = useReducedMotionPreference();
   const isTiny = resolvedSize < 38;
   const ids = useRef({
     gradient: `morphGradient${Math.random().toString(36).slice(2)}`,
@@ -253,17 +256,53 @@ const MorphingLoader = ({ size = 60, style }) => {
   const [renderState, setRenderState] = useState(() => createRenderState(0, frameQueue));
 
   useEffect(() => {
-    const animate = () => {
-      setRenderState(createRenderState(Date.now() - startedAt.current, frameQueue));
+    if (reduceMotion) {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      setRenderState(createRenderState(0, frameQueue));
+      return undefined;
+    }
+
+    let isActive = AppState.currentState === 'active';
+    let lastRenderedAt = 0;
+
+    const animate = (timestamp) => {
+      if (!isActive) {
+        frameRef.current = null;
+        return;
+      }
+
+      if (timestamp - lastRenderedAt >= TARGET_FRAME_MS) {
+        lastRenderedAt = timestamp;
+        setRenderState(createRenderState(Date.now() - startedAt.current, frameQueue));
+      }
       frameRef.current = requestAnimationFrame(animate);
     };
 
-    frameRef.current = requestAnimationFrame(animate);
+    const start = () => {
+      if (frameRef.current == null) {
+        frameRef.current = requestAnimationFrame(animate);
+      }
+    };
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      isActive = nextState === 'active';
+      if (isActive) {
+        startedAt.current = Date.now();
+        start();
+      } else if (frameRef.current != null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    });
+
+    start();
 
     return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      appStateSubscription.remove();
+      if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
     };
-  }, [frameQueue]);
+  }, [frameQueue, reduceMotion]);
 
   return (
     <View

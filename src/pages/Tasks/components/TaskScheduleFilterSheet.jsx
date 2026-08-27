@@ -125,6 +125,8 @@ export default function TaskScheduleFilterSheet({
       <View style={styles.actionsRow}>
         <TouchableOpacity
           activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={t("tasks.filter.all", lang)}
           onPress={selectAll}
           style={[
             styles.actionButton,
@@ -138,6 +140,8 @@ export default function TaskScheduleFilterSheet({
 
         <TouchableOpacity
           activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={t("tasks.filter.clear", lang)}
           onPress={clearAll}
           style={[
             styles.actionButton,
@@ -164,6 +168,7 @@ export default function TaskScheduleFilterSheet({
             <TouchableOpacity
               key={item.id}
               accessibilityRole="checkbox"
+              accessibilityLabel={name}
               accessibilityState={{ checked: isSelected }}
               onPress={() => toggleSchedule(item.id)}
               activeOpacity={0.75}

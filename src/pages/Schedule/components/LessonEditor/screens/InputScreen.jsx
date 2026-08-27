@@ -46,9 +46,10 @@ export default function LessonEditorInputScreen({
           autoFocus
           returnKeyType="done"
           onSubmitEditing={handleSave}
+          accessibilityLabel={title}
         />
         {value.length > 0 && (
-          <TouchableOpacity onPress={handleClear} style={styles.clearButton} hitSlop={15}>
+          <TouchableOpacity onPress={handleClear} style={styles.clearButton} hitSlop={15} accessibilityRole="button" accessibilityLabel={t('common.clear', lang)}>
             <XCircle size={22} color={themeColors.textColor2} weight="fill" />
           </TouchableOpacity>
         )}
@@ -60,6 +61,8 @@ export default function LessonEditorInputScreen({
             style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} 
             onPress={handleSave}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.save', lang)}
           >
             <Text style={[styles.saveBtnText, { color: "#fff" }]}>
               {t('common.save', lang)}
@@ -99,7 +102,10 @@ const styles = StyleSheet.create({
     fontWeight: '500'
   },
   clearButton: {
-    paddingLeft: 10,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   footerContainer: { 
     gap: 12 

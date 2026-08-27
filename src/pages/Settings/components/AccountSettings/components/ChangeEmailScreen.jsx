@@ -109,6 +109,7 @@ export default function ChangeEmailScreen() {
           <Text style={styles.inputLabel}>{t('settings.account_settings.change_email_screen.current_password_label', lang)}</Text>
           <TextInput
             style={styles.input}
+            accessibilityLabel={t('settings.account_settings.change_email_screen.current_password_label', lang)}
             placeholder={t('settings.account_settings.change_email_screen.current_password_placeholder', lang)}
             placeholderTextColor={themeColors.textColor2}
             secureTextEntry
@@ -119,11 +120,14 @@ export default function ChangeEmailScreen() {
             }}
             autoCapitalize="none"
             autoCorrect={false}
+            textContentType="password"
+            autoComplete="current-password"
           />
 
           <Text style={styles.inputLabel}>{t('settings.account_settings.change_email_screen.new_email_label', lang)}</Text>
           <TextInput
             style={styles.input}
+            accessibilityLabel={t('settings.account_settings.change_email_screen.new_email_label', lang)}
             placeholder={t('settings.account_settings.change_email_screen.new_email_placeholder', lang)}
             placeholderTextColor={themeColors.textColor2}
             keyboardType="email-address"
@@ -134,17 +138,25 @@ export default function ChangeEmailScreen() {
             }}
             autoCapitalize="none"
             autoCorrect={false}
+            textContentType="emailAddress"
+            autoComplete="email"
           />
 
-          {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+          {errorMsg ? <Text accessibilityRole="alert" style={styles.errorText}>{errorMsg}</Text> : null}
 
           <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: themeColors.accent }, loading && styles.actionButtonDisabled]} 
+            style={[styles.actionButton, { backgroundColor: themeColors.accentColor }, loading && styles.actionButtonDisabled]}
             onPress={handleChangeEmail}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={t('settings.account_settings.change_email_screen.send_btn', lang)}
+            accessibilityState={{ disabled: loading, busy: loading }}
           >
             {loading ? (
-              <MorphingLoader size={26} />
+              <View style={styles.loadingButtonContent}>
+                <MorphingLoader size={22} />
+                <Text style={styles.actionButtonText}>{t('settings.account_settings.change_email_screen.send_btn', lang)}</Text>
+              </View>
             ) : (
               <Text style={styles.actionButtonText}>{t('settings.account_settings.change_email_screen.send_btn', lang)}</Text>
             )}
@@ -165,5 +177,6 @@ const getStyles = (themeColors) => StyleSheet.create({
   errorText: { color: '#FF3B30', fontSize: 14, marginBottom: 16, marginLeft: 4 },
   actionButton: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   actionButtonDisabled: { opacity: 0.6 },
+  loadingButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   actionButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });

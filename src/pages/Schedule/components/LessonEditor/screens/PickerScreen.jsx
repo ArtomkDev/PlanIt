@@ -94,6 +94,7 @@ export default function LessonEditorPickerScreen({
       <SettingsSelectionRow
         key={item.key}
         label={item.label}
+        editAccessibilityLabel={`${t('common.edit', lang)}: ${item.label}`}
         hint={isAlreadySelected ? t('schedule.picker_screen.already_added', lang) : null}
         isSelected={isSelected}
         isAlreadySelected={isAlreadySelected}

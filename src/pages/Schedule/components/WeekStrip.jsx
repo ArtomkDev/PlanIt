@@ -19,6 +19,7 @@ import {
 import themes from "../../../config/themes";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { triggerHaptic } from "../../../utils/haptics";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import { t } from "../../../utils/i18n";
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -31,6 +32,7 @@ const DayButton = React.memo(({
   locale,
   themeColors,
   onPress,
+  reduceMotion,
 }) => {
   const selectedProgress = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
@@ -39,20 +41,20 @@ const DayButton = React.memo(({
     selectedProgress.stopAnimation();
     const animation = Animated.timing(selectedProgress, {
       toValue: isSelected ? 1 : 0,
-      duration: 120,
+      duration: reduceMotion ? 0 : 120,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     });
     animation.start();
 
     return () => animation.stop();
-  }, [isSelected, selectedProgress]);
+  }, [isSelected, reduceMotion, selectedProgress]);
 
   const animatePress = (toValue) => {
     pressScale.stopAnimation();
     Animated.timing(pressScale, {
       toValue,
-      duration: toValue < 1 ? 55 : 90,
+      duration: reduceMotion ? 0 : (toValue < 1 ? 55 : 90),
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
@@ -151,6 +153,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
   const { global, lang } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
+  const reduceMotion = useReducedMotionPreference();
   const locale = t("locale", lang);
 
   const DAYS = useMemo(() => {
@@ -238,6 +241,14 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
     const currentDisplayWeekTime = displayWeekStartRef.current.getTime();
 
     weekOpacity.stopAnimation();
+    if (reduceMotion) {
+      const nextWeekStart = getWeekStart(currentDate);
+      setDisplayWeekStart(nextWeekStart);
+      displayWeekStartRef.current = nextWeekStart;
+      weekOpacity.setValue(1);
+      weekTranslateX.setValue(0);
+      return undefined;
+    }
     weekTranslateX.stopAnimation();
 
     if (currentDisplayWeekTime === targetWeekTime) {
@@ -273,7 +284,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
       weekOpacity.stopAnimation();
       weekTranslateX.stopAnimation();
     };
-  }, [currentDate.getTime(), getWeekStart, weekOpacity, weekTranslateX]);
+  }, [currentDate.getTime(), getWeekStart, reduceMotion, weekOpacity, weekTranslateX]);
 
   const handleDayPress = useCallback((date) => {
     if (date.toDateString() === currentRef.current.toDateString()) return;
@@ -325,6 +336,7 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
                 locale={locale}
                 themeColors={themeColors}
                 onPress={() => handleDayPress(date)}
+                reduceMotion={reduceMotion}
               />
             );
           })}

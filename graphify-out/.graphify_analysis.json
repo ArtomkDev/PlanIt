@@ -1,79 +1,90 @@
 {
   "communities": {
     "0": [
-      "src_auth_authservices",
-      "src_auth_authservices_createapplesigninnonce",
-      "src_auth_authservices_createauthflowerror",
-      "src_auth_authservices_getaccountdeletionproviders",
-      "src_auth_authservices_getlinkedproviders",
-      "src_auth_authservices_isaccountdeletionverificationvalid",
-      "src_auth_authservices_linkappleaccount",
-      "src_auth_authservices_linkgoogleaccount",
-      "src_auth_authservices_reauthenticateforaccountdeletion",
-      "src_auth_authservices_reauthenticatewithapple",
-      "src_auth_authservices_reauthenticatewithgoogle",
-      "src_auth_authservices_reauthenticatewithpassword",
-      "src_auth_authservices_revokeappleauthorizationfordeletion",
-      "src_auth_authservices_unlinkprovider",
-      "src_config_createdefaultdata",
-      "src_config_createdefaultdata_createdefaultdata",
-      "src_config_firestore",
-      "src_config_firestore_beginaccountdeletion",
-      "src_config_firestore_cleanupstatebyuser",
-      "src_config_firestore_commitcloudentity",
-      "src_config_firestore_createmissingglobaldata",
-      "src_config_firestore_deletealluserdata",
-      "src_config_firestore_deleteuserschedule",
-      "src_config_firestore_ensureversioning",
-      "src_config_firestore_fromclouddocument",
-      "src_config_firestore_getcleanupwatermark",
-      "src_config_firestore_getdevicesyncwatermark",
-      "src_config_firestore_getschedule",
-      "src_config_firestore_getschedulefromserver",
-      "src_config_firestore_istombstonesafetodelete",
-      "src_config_firestore_parsetimestamp",
-      "src_config_firestore_removeundefinedvalues",
-      "src_config_firestore_resetuserschedules",
-      "src_config_firestore_rundevicesynctimeandcleanup",
-      "src_config_firestore_saveschedule",
-      "src_config_firestore_schedulesyncconflicterror",
-      "src_config_firestore_schedulesyncconflicterror_constructor",
-      "src_config_firestore_subscribetoschedule",
-      "src_config_firestore_toclouddocument",
-      "src_config_firestore_updatedevicesynctimeandcleanup",
-      "src_pages_settings_components_accountsettings_components_deleteaccountscreen",
-      "src_pages_settings_components_accountsettings_components_deleteaccountscreen_deleteaccountscreen",
-      "src_pages_settings_components_accountsettings_components_deleteaccountscreen_getdeletionerrorkey",
-      "src_pages_settings_components_accountsettings_components_deleteaccountscreen_getstyles",
-      "src_utils_scheduledatafingerprint",
-      "src_utils_scheduledatafingerprint_getscheduledatafingerprint",
-      "src_utils_scheduledatafingerprint_hasscheduledatachanged",
-      "src_utils_scheduledatafingerprint_normalizeforfingerprint",
-      "src_utils_scheduledatafingerprint_normalizescheduledata",
-      "src_utils_schedulesync",
-      "src_utils_schedulesync_contentchanged",
-      "src_utils_schedulesync_getbaseversion",
-      "src_utils_schedulesync_getcleandivergencereason",
-      "src_utils_schedulesync_getcloudsubscriptionuserid",
-      "src_utils_schedulesync_getversion",
-      "src_utils_schedulesync_issyncentitydirty",
-      "src_utils_schedulesync_makeconflict",
-      "src_utils_schedulesync_makeremotemissingtombstone",
-      "src_utils_schedulesync_markentitydirty",
-      "src_utils_schedulesync_markscheduledatadirty",
-      "src_utils_schedulesync_mergeuniqueitems",
-      "src_utils_schedulesync_nextlogicaltimestamp",
-      "src_utils_schedulesync_resolveconflictchoice",
-      "src_utils_schedulesync_resolvesyncconflict",
-      "src_utils_schedulesync_sync_meta_keys",
-      "src_utils_schedulesync_withoutsyncmetadata"
+      "src_config_notificationtypes",
+      "src_config_notificationtypes_notification_type_config",
+      "src_hooks_usenotifications",
+      "src_hooks_usenotifications_usenotifications",
+      "src_pages_settings_components_managers_devicemanagement",
+      "src_pages_settings_components_managers_devicemanagement_devicemanager",
+      "src_pages_settings_components_managers_devicemanagement_styles",
+      "src_pages_settings_components_managers_devicemanagement_timestamptoms",
+      "src_services_notificationservice",
+      "src_services_notificationservice_boundedtext",
+      "src_services_notificationservice_buildaccountlogincontent",
+      "src_services_notificationservice_buildlessonreminderrequests",
+      "src_services_notificationservice_buildnotificationidentifier",
+      "src_services_notificationservice_cancellessonremindersforschedule",
+      "src_services_notificationservice_channels_by_type",
+      "src_services_notificationservice_cleanupexpirednotifications",
+      "src_services_notificationservice_configuredchannels",
+      "src_services_notificationservice_createloginnotification",
+      "src_services_notificationservice_createnotificationpreferenceswithpush",
+      "src_services_notificationservice_default_notification_push_by_type",
+      "src_services_notificationservice_deletenotification",
+      "src_services_notificationservice_devicescollection",
+      "src_services_notificationservice_dispatchlocalpushnotification",
+      "src_services_notificationservice_ensureandroidchannel",
+      "src_services_notificationservice_ensurelessonreminderpermissions",
+      "src_services_notificationservice_ensurenativenotificationpermissions",
+      "src_services_notificationservice_ensurenotificationpushpermissionsfortype",
+      "src_services_notificationservice_formattemplate",
+      "src_services_notificationservice_getcurrentdevicepushregistration",
+      "src_services_notificationservice_getexpoprojectid",
+      "src_services_notificationservice_getlessonroom",
+      "src_services_notificationservice_getnotificationpreferences",
+      "src_services_notificationservice_getpermissiongranted",
+      "src_services_notificationservice_getusernotificationcontext",
+      "src_services_notificationservice_getusernotificationpreferences",
+      "src_services_notificationservice_isactivedevice",
+      "src_services_notificationservice_isexpogo",
+      "src_services_notificationservice_isexpopushtoken",
+      "src_services_notificationservice_isnotificationpushenabled",
+      "src_services_notificationservice_markallnotificationsasread",
+      "src_services_notificationservice_marknotificationasread",
+      "src_services_notificationservice_notification_types",
+      "src_services_notificationservice_notificationscollection",
+      "src_services_notificationservice_nowtimestamp",
+      "src_services_notificationservice_readlocalnotificationstate",
+      "src_services_notificationservice_reconcilelessonremindersforschedule",
+      "src_services_notificationservice_safeidentifierpart",
+      "src_services_notificationservice_saveschedulerecords",
+      "src_services_notificationservice_sendaccountloginpushtootherdevices",
+      "src_services_notificationservice_sendexpopushmessages",
+      "src_services_notificationservice_subscribetonotifications",
+      "src_services_notificationservice_syncdevicepushregistration",
+      "src_services_notificationservice_timestamptoms",
+      "src_services_notificationservice_withandroidchannel",
+      "src_services_notificationservice_withtimeout",
+      "src_services_notificationservice_writelocalnotificationstate",
+      "src_utils_deviceservice",
+      "src_utils_deviceservice_boundedtext",
+      "src_utils_deviceservice_createdevicerevocationpatch",
+      "src_utils_deviceservice_createinstallationid",
+      "src_utils_deviceservice_device_status",
+      "src_utils_deviceservice_expireinactivedevices",
+      "src_utils_deviceservice_getdeviceid",
+      "src_utils_deviceservice_getdeviceinfo",
+      "src_utils_deviceservice_getdevices",
+      "src_utils_deviceservice_getpublicipaddress",
+      "src_utils_deviceservice_listenfordeviceremoval",
+      "src_utils_deviceservice_loadorcreateinstallationid",
+      "src_utils_deviceservice_refreshcurrentdevicepushregistration",
+      "src_utils_deviceservice_registerdevice",
+      "src_utils_deviceservice_removeallotherdevices",
+      "src_utils_deviceservice_removedevice",
+      "src_utils_deviceservice_revokedevicerefsinchunks",
+      "src_utils_deviceservice_setignoredeviceremoval",
+      "src_utils_deviceservice_timestamptoms"
     ],
     "1": [
       "app",
       "app_app",
       "index",
+      "src_components_modals_globalsharehandler_globalsharehandler",
       "src_root",
       "src_root_appdarktheme",
+      "src_root_linking",
       "src_root_rootapp",
       "src_root_stack",
       "src_services_localaccountdataservice",
@@ -140,15 +151,18 @@
       "src_services_attachmentservice_createnativecompressedimagecandidate",
       "src_services_attachmentservice_createwebattachmentimagepreview",
       "src_services_attachmentservice_createwebcompressedimagecandidate",
+      "src_services_attachmentservice_deletecloudattachmentobject",
       "src_services_attachmentservice_deletenativecompressioncandidate",
       "src_services_attachmentservice_extension_by_mime",
       "src_services_attachmentservice_firebase_storage_error_codes",
+      "src_services_attachmentservice_formatattachmenterror",
+      "src_services_attachmentservice_formatfilesize",
+      "src_services_attachmentservice_getattachmenterrorcode",
       "src_services_attachmentservice_getattachmentmimetype",
       "src_services_attachmentservice_getaveragecolorfromimagedata",
       "src_services_attachmentservice_getcanvasblob",
       "src_services_attachmentservice_getcanvaspreviewcolors",
       "src_services_attachmentservice_getextension",
-      "src_services_attachmentservice_getfreshattachmentdownloadurl",
       "src_services_attachmentservice_getimagecompressionplans",
       "src_services_attachmentservice_getimagecompressiontargetbytes",
       "src_services_attachmentservice_getimageuploadqualitysteps",
@@ -157,7 +171,6 @@
       "src_services_attachmentservice_getprivateimageattachmentname",
       "src_services_attachmentservice_getscaledimagedimensions",
       "src_services_attachmentservice_getshortprivatetoken",
-      "src_services_attachmentservice_getwebattachmentobjecturlkey",
       "src_services_attachmentservice_getwebobjecturl",
       "src_services_attachmentservice_image_upload_compression_dimension_steps",
       "src_services_attachmentservice_image_upload_jpeg_fallback_quality_steps",
@@ -168,6 +181,7 @@
       "src_services_attachmentservice_iscompressibleimageattachment",
       "src_services_attachmentservice_loadwebimageelement",
       "src_services_attachmentservice_logattachmentcompressionresult",
+      "src_services_attachmentservice_logattachmentuploaderror",
       "src_services_attachmentservice_mime_by_extension",
       "src_services_attachmentservice_never_reencode_image_mime_types",
       "src_services_attachmentservice_paintimageforoutputformat",
@@ -232,183 +246,6 @@
       "src_utils_tasklessonlinking_uniqueids"
     ],
     "4": [
-      "src_auth_authscreen",
-      "src_auth_authscreen_animatedgradientbackground",
-      "src_auth_authscreen_animatediconslot",
-      "src_auth_authscreen_auth_layout_animation",
-      "src_auth_authscreen_authmorphingloader",
-      "src_auth_authscreen_authscreen",
-      "src_auth_authscreen_configureauthlayoutanimation",
-      "src_auth_authscreen_geticonconfig",
-      "src_auth_authscreen_inputfield",
-      "src_auth_authscreen_styles",
-      "src_auth_authscreen_termscheckbox",
-      "src_auth_authscreen_welcomecontent",
-      "src_auth_components_passwordstrengthbar",
-      "src_auth_components_passwordstrengthbar_passwordstrengthbar",
-      "src_auth_components_passwordstrengthbar_styles",
-      "src_auth_passwordpolicy",
-      "src_auth_passwordpolicy_getpasswordpolicymessage",
-      "src_auth_passwordpolicy_getpasswordpolicystatus",
-      "src_auth_passwordpolicy_getpasswordstrength",
-      "src_auth_passwordpolicy_ispasswordallowed",
-      "src_auth_passwordresetscreen",
-      "src_auth_passwordresetscreen_getstyles",
-      "src_auth_passwordresetscreen_passwordresetscreen",
-      "src_auth_passwordresetservice",
-      "src_auth_passwordresetservice_completepasswordreset",
-      "src_auth_passwordresetservice_createpasswordactionerror",
-      "src_auth_passwordresetservice_createpasswordresetnavigationurl",
-      "src_auth_passwordresetservice_findpasswordresetrequest",
-      "src_auth_passwordresetservice_getaddpasswordemailendpoint",
-      "src_auth_passwordresetservice_getconfiguredactionurl",
-      "src_auth_passwordresetservice_getpasswordresetactioncodesettings",
-      "src_auth_passwordresetservice_haspasswordprovider",
-      "src_auth_passwordresetservice_nested_link_params",
-      "src_auth_passwordresetservice_normalizehost",
-      "src_auth_passwordresetservice_normalizepasswordaction",
-      "src_auth_passwordresetservice_normalizepasswordactionlanguage",
-      "src_auth_passwordresetservice_parsepasswordresetlink",
-      "src_auth_passwordresetservice_parseurl",
-      "src_auth_passwordresetservice_readpasswordactioncontext",
-      "src_auth_passwordresetservice_requestaddpasswordemail",
-      "src_auth_passwordresetservice_requestpasswordresetemail",
-      "src_auth_passwordresetservice_requestpasswordresetemailforemail",
-      "src_auth_passwordresetservice_verifypasswordresetrequest",
-      "src_auth_passwordresetservice_withpasswordactioncontext",
-      "src_pages_settings_components_accountsettings_components_changepasswordscreen",
-      "src_pages_settings_components_accountsettings_components_changepasswordscreen_changepasswordscreen",
-      "src_pages_settings_components_accountsettings_components_changepasswordscreen_getstyles"
-    ],
-    "5": [
-      "tests_devicenotificationdata_test",
-      "tests_devicenotificationdata_test_assert",
-      "tests_devicenotificationdata_test_babel",
-      "tests_devicenotificationdata_test_compilewithmocks",
-      "tests_devicenotificationdata_test_faketimestamp",
-      "tests_devicenotificationdata_test_faketimestamp_constructor",
-      "tests_devicenotificationdata_test_faketimestamp_frommillis",
-      "tests_devicenotificationdata_test_faketimestamp_now",
-      "tests_devicenotificationdata_test_faketimestamp_tomillis",
-      "tests_devicenotificationdata_test_fs",
-      "tests_devicenotificationdata_test_loadnotificationservice",
-      "tests_devicenotificationdata_test_module",
-      "tests_devicenotificationdata_test_path",
-      "tests_devicenotificationdata_test_snapshotwith",
-      "tests_devicenotificationdata_test_test",
-      "tests_firestoresync_test",
-      "tests_firestoresync_test_assert",
-      "tests_firestoresync_test_babel",
-      "tests_firestoresync_test_firestorepath",
-      "tests_firestoresync_test_flushasyncwork",
-      "tests_firestoresync_test_fs",
-      "tests_firestoresync_test_loadfirestore",
-      "tests_firestoresync_test_makefakes",
-      "tests_firestoresync_test_module",
-      "tests_firestoresync_test_path",
-      "tests_firestoresync_test_test",
-      "tests_schedulesync_test",
-      "tests_schedulesync_test_assert",
-      "tests_schedulesync_test_babel",
-      "tests_schedulesync_test_compilemodule",
-      "tests_schedulesync_test_createdefaultdatapath",
-      "tests_schedulesync_test_data",
-      "tests_schedulesync_test_fingerprint",
-      "tests_schedulesync_test_fingerprintpath",
-      "tests_schedulesync_test_fs",
-      "tests_schedulesync_test_module",
-      "tests_schedulesync_test_path",
-      "tests_schedulesync_test_schedule",
-      "tests_schedulesync_test_shareservice",
-      "tests_schedulesync_test_shareservicepath",
-      "tests_schedulesync_test_sync",
-      "tests_schedulesync_test_syncpath",
-      "tests_schedulesync_test_test"
-    ],
-    "6": [
-      "src_components_ui_advancedcolorpicker_advancedcolorpicker",
-      "src_components_ui_gradientbackground",
-      "src_components_ui_gradientbackground_gradientbackground",
-      "src_components_ui_settingskit_settingsactionrow",
-      "src_components_ui_settingskit_settingsactionrow_settingsactionrow",
-      "src_components_ui_settingskit_settingsactionrow_styles",
-      "src_components_ui_settingskit_settingsselectionrow",
-      "src_components_ui_settingskit_settingsselectionrow_settingsselectionrow",
-      "src_components_ui_settingskit_settingsselectionrow_styles",
-      "src_components_ui_tabswitcher",
-      "src_components_ui_tabswitcher_styles",
-      "src_components_ui_tabswitcher_tabswitcher",
-      "src_pages_schedule_components_lessoneditor_screens_colorscreen",
-      "src_pages_schedule_components_lessoneditor_screens_colorscreen_lessoneditorsubjectcolorscreen",
-      "src_pages_schedule_components_lessoneditor_screens_colorscreen_styles",
-      "src_pages_schedule_components_lessoneditor_screens_inputscreen",
-      "src_pages_schedule_components_lessoneditor_screens_inputscreen_lessoneditorinputscreen",
-      "src_pages_schedule_components_lessoneditor_screens_inputscreen_styles",
-      "src_pages_schedule_components_lessoneditor_ui_colorgrid",
-      "src_pages_schedule_components_lessoneditor_ui_colorgrid_colorpicker",
-      "src_pages_schedule_components_lessoneditor_ui_colorgrid_styles",
-      "src_pages_schedule_components_lessoneditor_ui_gradientgrid",
-      "src_pages_schedule_components_lessoneditor_ui_gradientgrid_gradientgrid",
-      "src_pages_schedule_components_lessoneditor_ui_gradientgrid_styles",
-      "src_pages_schedule_components_lessoneditor_ui_settingrow",
-      "src_pages_schedule_components_lessoneditor_ui_settingrow_settingrow",
-      "src_pages_schedule_components_lessoneditor_ui_settingrow_styles",
-      "src_pages_settings_components_preferences_themesettings",
-      "src_pages_settings_components_preferences_themesettings_styles",
-      "src_pages_settings_components_preferences_themesettings_themesettings",
-      "src_utils_haptics",
-      "src_utils_haptics_gethapticsenabled",
-      "src_utils_haptics_haptic_events",
-      "src_utils_haptics_impactstyle",
-      "src_utils_haptics_lastfeedbackat",
-      "src_utils_haptics_notificationtype",
-      "src_utils_haptics_sethapticsenabled",
-      "src_utils_haptics_triggerhaptic",
-      "src_utils_haptics_triggerlighthaptic",
-      "src_utils_storage_savedeviceprefs"
-    ],
-    "7": [
-      "src_components_attachments_androidpagerview",
-      "src_components_attachments_attachmentimagepreview",
-      "src_components_attachments_attachmentimagepreview_attachmentimagepreview",
-      "src_components_attachments_attachmentimagepreview_clampindex",
-      "src_components_attachments_attachmentimagepreview_dedupeimageattachments",
-      "src_components_attachments_attachmentimagepreview_gallery_spring",
-      "src_components_attachments_attachmentimagepreview_getattachmentidentity",
-      "src_components_attachments_attachmentimagepreview_getattachmentloadkey",
-      "src_components_attachments_attachmentimagepreview_getattachmentpreviewuri",
-      "src_components_attachments_attachmentimagepreview_getattachmentrenderrevision",
-      "src_components_attachments_attachmentimagepreview_getcontainedimagesize",
-      "src_components_attachments_attachmentimagepreview_getknownattachmentimagesize",
-      "src_components_attachments_attachmentimagepreview_loadedzoomimagekeys",
-      "src_components_attachments_attachmentimagepreview_styles",
-      "src_components_attachments_attachmentimagepreview_zoom_spring",
-      "src_components_attachments_attachmentimagepreview_zoomableimagepage",
-      "src_components_attachments_attachmentmanager",
-      "src_components_attachments_attachmentmanager_attachmentmanager",
-      "src_components_attachments_attachmentmanager_getattachmentkindicon",
-      "src_components_attachments_attachmentmanager_interpolate",
-      "src_components_attachments_attachmentmanager_styles",
-      "src_pages_schedule_components_lessonviewer",
-      "src_pages_schedule_components_lessonviewer_lessonviewer",
-      "src_pages_schedule_components_lessonviewer_styles",
-      "src_root_linking",
-      "src_services_attachmentservice_createattachmentreference",
-      "src_services_attachmentservice_formatattachmenterror",
-      "src_services_attachmentservice_formatfilesize",
-      "src_services_attachmentservice_getattachmentfileid",
-      "src_services_attachmentservice_getattachmentlibrarymap",
-      "src_services_attachmentservice_getattachmentlibraryusage",
-      "src_services_attachmentservice_getattachmentsharelabel",
-      "src_services_attachmentservice_isimageattachment",
-      "src_services_attachmentservice_normalizeattachmentlibrary",
-      "src_services_attachmentservice_openattachment",
-      "src_services_attachmentservice_resolveattachmentlist",
-      "src_services_attachmentservice_shareattachment",
-      "src_services_attachmentservice_sharenativeattachment",
-      "src_services_attachmentservice_upsertattachmentlibraryfiles"
-    ],
-    "8": [
       "package_scripts",
       "package_scripts_android",
       "package_scripts_build_aab",
@@ -448,7 +285,7 @@
       "package_scripts_test_widgets",
       "package_scripts_web"
     ],
-    "9": [
+    "5": [
       "src_pages_tasks_tasks",
       "src_pages_tasks_tasks_animatedtouchableopacity",
       "src_pages_tasks_tasks_aresameids",
@@ -487,43 +324,40 @@
       "src_pages_tasks_tasks_tasktodaymarker",
       "src_pages_tasks_tasks_withalpha"
     ],
-    "10": [
-      "src_config_subjecticons",
-      "src_config_subjecticons_geticoncomponent",
-      "src_config_subjecticons_icon_categories",
-      "src_config_subjecticons_subject_icons",
-      "src_context_dayscheduleprovider",
-      "src_context_dayscheduleprovider_dayschedulecontext",
-      "src_context_dayscheduleprovider_dayscheduleprovider",
-      "src_context_dayscheduleprovider_usedayschedule",
-      "src_context_dayscheduleprovider_useoptionaldayschedule",
-      "src_hooks_usenowtick",
-      "src_hooks_usenowtick_createnowtickstore",
-      "src_hooks_usenowtick_istimerrelevantdate",
-      "src_hooks_usenowtick_nowtickcontext",
-      "src_hooks_usenowtick_nowtickprovider",
-      "src_hooks_usenowtick_startofday",
-      "src_hooks_usenowtick_usenowtick",
-      "src_hooks_usesystemthemecolors_usesystemthemecolors",
-      "src_pages_schedule_components_breakcard",
-      "src_pages_schedule_components_breakcard_animatedbreakcard",
-      "src_pages_schedule_components_breakcard_breakcard",
-      "src_pages_schedule_components_breakcard_checkbreakstate",
-      "src_pages_schedule_components_breakcard_getdiffminutes",
-      "src_pages_schedule_components_breakcard_styles",
-      "src_pages_schedule_components_lessoncard",
-      "src_pages_schedule_components_lessoncard_activehighlight",
-      "src_pages_schedule_components_lessoncard_backgroundpattern",
-      "src_pages_schedule_components_lessoncard_cachedpatternpositions",
-      "src_pages_schedule_components_lessoncard_getpatternpositions",
-      "src_pages_schedule_components_lessoncard_gettimerstate",
-      "src_pages_schedule_components_lessoncard_islightcolor",
-      "src_pages_schedule_components_lessoncard_lessoncard",
-      "src_pages_schedule_components_lessoncard_lessoncardpure",
-      "src_pages_schedule_components_lessoncard_styles",
-      "src_pages_schedule_components_lessoncard_uselessondata"
+    "6": [
+      "src_components_attachments_androidpagerview",
+      "src_components_attachments_attachmentimagepreview",
+      "src_components_attachments_attachmentimagepreview_attachmentimagepreview",
+      "src_components_attachments_attachmentimagepreview_clampindex",
+      "src_components_attachments_attachmentimagepreview_dedupeimageattachments",
+      "src_components_attachments_attachmentimagepreview_gallery_spring",
+      "src_components_attachments_attachmentimagepreview_getattachmentidentity",
+      "src_components_attachments_attachmentimagepreview_getattachmentloadkey",
+      "src_components_attachments_attachmentimagepreview_getattachmentpreviewuri",
+      "src_components_attachments_attachmentimagepreview_getattachmentrenderrevision",
+      "src_components_attachments_attachmentimagepreview_getcontainedimagesize",
+      "src_components_attachments_attachmentimagepreview_getknownattachmentimagesize",
+      "src_components_attachments_attachmentimagepreview_loadedzoomimagekeys",
+      "src_components_attachments_attachmentimagepreview_styles",
+      "src_components_attachments_attachmentimagepreview_zoom_spring",
+      "src_components_attachments_attachmentimagepreview_zoomableimagepage",
+      "src_components_attachments_stagedattachmentimage",
+      "src_components_attachments_stagedattachmentimage_attachmentimageloadingoverlay",
+      "src_components_attachments_stagedattachmentimage_default_colors",
+      "src_components_attachments_stagedattachmentimage_getattachmentaspectratio",
+      "src_components_attachments_stagedattachmentimage_getattachmentpreview",
+      "src_components_attachments_stagedattachmentimage_getcontainedframestyle",
+      "src_components_attachments_stagedattachmentimage_getstableimagekey",
+      "src_components_attachments_stagedattachmentimage_getstableimageloadkey",
+      "src_components_attachments_stagedattachmentimage_getstableimagerevision",
+      "src_components_attachments_stagedattachmentimage_loadedattachmentimagekeys",
+      "src_components_attachments_stagedattachmentimage_normalizepreviewcolors",
+      "src_components_attachments_stagedattachmentimage_stagedattachmentimage",
+      "src_components_attachments_stagedattachmentimage_styles",
+      "src_services_attachmentservice_getattachmentsharelabel",
+      "src_services_attachmentservice_isimageattachment"
     ],
-    "11": [
+    "7": [
       "scripts_generate_legal_documents",
       "scripts_generate_legal_documents_assertwebsitedocumentscurrent",
       "scripts_generate_legal_documents_browserurlsfor",
@@ -555,39 +389,39 @@
       "scripts_generate_legal_documents_syncwebsitedocuments",
       "scripts_generate_legal_documents_textfromhtml"
     ],
-    "12": [
-      "src_components_modals_migrationmodal",
-      "src_components_modals_migrationmodal_migrationmodal",
-      "src_components_modals_migrationmodal_styles",
-      "src_pages_settings_components_scheduleswitcher",
-      "src_pages_settings_components_scheduleswitcher_scheduleswitcher",
-      "src_pages_settings_components_scheduleswitcher_storageoperationqueue",
-      "src_pages_settings_components_scheduleswitcher_styles",
-      "src_utils_scheduleownership",
-      "src_utils_scheduleownership_clearcloudmigrationflag",
-      "src_utils_scheduleownership_consumecloudmigrationoffers",
-      "src_utils_scheduleownership_finalizecloudmigration",
-      "src_utils_scheduleownership_getpendingcloudmigrationschedules",
-      "src_utils_scheduleownership_hasown",
-      "src_utils_scheduleownership_isschedulependingcloudmigration",
-      "src_utils_scheduleownership_markcloudmigrationofferhandled",
-      "src_utils_scheduleownership_markscheduleasaccountowned",
-      "src_utils_scheduleownership_markscheduleasdevicelocal",
-      "src_utils_storage",
-      "src_utils_storage_decodeschedulecandidate",
-      "src_utils_storage_getlocalschedule",
-      "src_utils_storage_getschedulerecoverysnapshots",
-      "src_utils_storage_getschedulestoragekeys",
-      "src_utils_storage_getstoragekey",
-      "src_utils_storage_getstoragescope",
-      "src_utils_storage_parsejson",
-      "src_utils_storage_savelocalschedule",
-      "src_utils_storage_saveschedulerecoverysnapshot",
-      "src_utils_storage_serializejson",
-      "src_utils_storage_withlocalscope",
-      "src_utils_storage_withoutlocalscope"
+    "8": [
+      "src_services_attachmentservice_cacheattachmentfromlocaluri",
+      "src_services_attachmentservice_canusenativeattachmentcache",
+      "src_services_attachmentservice_canusewebattachmentcache",
+      "src_services_attachmentservice_clearalllocalattachmentcaches",
+      "src_services_attachmentservice_createattachmentreference",
+      "src_services_attachmentservice_deletelocalattachmentcache",
+      "src_services_attachmentservice_deletewebattachmentcacherecord",
+      "src_services_attachmentservice_ensuredirectory",
+      "src_services_attachmentservice_ensurelocalattachment",
+      "src_services_attachmentservice_getattachmentcachedirectory",
+      "src_services_attachmentservice_getattachmentcachefileuri",
+      "src_services_attachmentservice_getattachmentcachekey",
+      "src_services_attachmentservice_getattachmentcachestate",
+      "src_services_attachmentservice_getattachmentfileid",
+      "src_services_attachmentservice_getattachmentrevision",
+      "src_services_attachmentservice_getmanifestcacheentry",
+      "src_services_attachmentservice_getwebattachmentcachedobjecturl",
+      "src_services_attachmentservice_getwebattachmentcacherecord",
+      "src_services_attachmentservice_getwebattachmentobjecturlkey",
+      "src_services_attachmentservice_getwebattachmentsourceblob",
+      "src_services_attachmentservice_iscacheentryfresh",
+      "src_services_attachmentservice_openwebattachmentcachedb",
+      "src_services_attachmentservice_readattachmentcachemanifest",
+      "src_services_attachmentservice_revokewebattachmentobjecturl",
+      "src_services_attachmentservice_revokewebattachmentobjecturlsforcachekey",
+      "src_services_attachmentservice_runwebattachmentcachetransaction",
+      "src_services_attachmentservice_sanitizepathsegment",
+      "src_services_attachmentservice_saveattachmentcachemanifest",
+      "src_services_attachmentservice_writeattachmentcacheentry",
+      "src_services_attachmentservice_writewebattachmentcacherecord"
     ],
-    "13": [
+    "9": [
       "functions_src_index",
       "functions_src_index_apple_client_id",
       "functions_src_index_apple_jwks",
@@ -617,125 +451,7 @@
       "functions_src_index_sendaddpasswordmessage",
       "functions_src_index_smtp_app_password"
     ],
-    "14": [
-      "package_dependencies_react",
-      "react",
-      "src_components_ui_settingskit_settingsgroup",
-      "src_components_ui_settingskit_settingsgroup_settingsgroup",
-      "src_components_ui_settingskit_settingsgroup_styles",
-      "src_components_ui_settingskit_settingsrow",
-      "src_components_ui_settingskit_settingsrow_settingsrow",
-      "src_components_ui_settingskit_settingsrow_styles",
-      "src_pages_schedule_components_lessoneditor_screens_mainscreen",
-      "src_pages_schedule_components_lessoneditor_screens_mainscreen_lessoneditormainscreen",
-      "src_pages_schedule_components_lessoneditor_screens_mainscreen_styles",
-      "src_pages_settings_components_scheduleeditorscreen",
-      "src_pages_settings_components_scheduleeditorscreen_scheduleeditorscreen",
-      "src_pages_settings_components_scheduleeditorscreen_styles",
-      "src_utils_remindersettings",
-      "src_utils_remindersettings_clampreminderminutes",
-      "src_utils_remindersettings_default_schedule_reminder",
-      "src_utils_remindersettings_getreminderselectionid",
-      "src_utils_remindersettings_getschedulereminderselectionid",
-      "src_utils_remindersettings_isreminderobject",
-      "src_utils_remindersettings_normalizereminder",
-      "src_utils_remindersettings_normalizeschedulereminder",
-      "src_utils_remindersettings_normalizesubjectreminder",
-      "src_utils_remindersettings_reminder_preset_minutes",
-      "src_utils_remindersettings_resolveeffectivereminder",
-      "src_utils_schedulecolors",
-      "src_utils_schedulecolors_resolveschedulecolor",
-      "src_utils_schedulecolors_schedulecolorwithalpha"
-    ],
-    "15": [
-      "src_services_notificationservice",
-      "src_services_notificationservice_buildaccountlogincontent",
-      "src_services_notificationservice_buildlessonreminderrequests",
-      "src_services_notificationservice_buildnotificationidentifier",
-      "src_services_notificationservice_cancellessonremindersforschedule",
-      "src_services_notificationservice_channels_by_type",
-      "src_services_notificationservice_configuredchannels",
-      "src_services_notificationservice_createnotificationpreferenceswithpush",
-      "src_services_notificationservice_default_notification_push_by_type",
-      "src_services_notificationservice_deletenotification",
-      "src_services_notificationservice_dispatchlocalpushnotification",
-      "src_services_notificationservice_ensureandroidchannel",
-      "src_services_notificationservice_ensurelessonreminderpermissions",
-      "src_services_notificationservice_ensurenativenotificationpermissions",
-      "src_services_notificationservice_ensurenotificationpushpermissionsfortype",
-      "src_services_notificationservice_formattemplate",
-      "src_services_notificationservice_getlessonroom",
-      "src_services_notificationservice_getnotificationpreferences",
-      "src_services_notificationservice_getpermissiongranted",
-      "src_services_notificationservice_getusernotificationpreferences",
-      "src_services_notificationservice_isexpogo",
-      "src_services_notificationservice_isnotificationpushenabled",
-      "src_services_notificationservice_readlocalnotificationstate",
-      "src_services_notificationservice_reconcilelessonremindersforschedule",
-      "src_services_notificationservice_safeidentifierpart",
-      "src_services_notificationservice_saveschedulerecords",
-      "src_services_notificationservice_withandroidchannel",
-      "src_services_notificationservice_writelocalnotificationstate"
-    ],
-    "16": [
-      "src_components_ui_morphingloader",
-      "src_components_ui_morphingloader_angle_options",
-      "src_components_ui_morphingloader_buildpath",
-      "src_components_ui_morphingloader_clamp01",
-      "src_components_ui_morphingloader_clockwiselerpangle",
-      "src_components_ui_morphingloader_createframequeue",
-      "src_components_ui_morphingloader_createrandomframe",
-      "src_components_ui_morphingloader_createrenderstate",
-      "src_components_ui_morphingloader_ensureframequeue",
-      "src_components_ui_morphingloader_gradientvector",
-      "src_components_ui_morphingloader_hextorgb",
-      "src_components_ui_morphingloader_lerp",
-      "src_components_ui_morphingloader_makeradii",
-      "src_components_ui_morphingloader_mixhex",
-      "src_components_ui_morphingloader_mixpalette",
-      "src_components_ui_morphingloader_palettes",
-      "src_components_ui_morphingloader_pickrandomindex",
-      "src_components_ui_morphingloader_rgbtohex",
-      "src_components_ui_morphingloader_shapes",
-      "src_components_ui_morphingloader_smootherstep",
-      "src_components_ui_morphingloader_styles",
-      "src_components_ui_morphingloader_wave",
-      "src_context_appcontext",
-      "src_context_appcontext_appcontext",
-      "src_context_appcontext_appprovider",
-      "src_context_appcontext_styles",
-      "src_context_appcontext_useappcontext"
-    ],
-    "17": [
-      "src_services_attachmentservice_cacheattachmentfromlocaluri",
-      "src_services_attachmentservice_canusenativeattachmentcache",
-      "src_services_attachmentservice_canusewebattachmentcache",
-      "src_services_attachmentservice_clearalllocalattachmentcaches",
-      "src_services_attachmentservice_deletelocalattachmentcache",
-      "src_services_attachmentservice_deletewebattachmentcacherecord",
-      "src_services_attachmentservice_ensuredirectory",
-      "src_services_attachmentservice_ensurelocalattachment",
-      "src_services_attachmentservice_getattachmentcachedirectory",
-      "src_services_attachmentservice_getattachmentcachefileuri",
-      "src_services_attachmentservice_getattachmentcachekey",
-      "src_services_attachmentservice_getattachmentcachestate",
-      "src_services_attachmentservice_getattachmentrevision",
-      "src_services_attachmentservice_getmanifestcacheentry",
-      "src_services_attachmentservice_getwebattachmentcachedobjecturl",
-      "src_services_attachmentservice_getwebattachmentcacherecord",
-      "src_services_attachmentservice_getwebattachmentsourceblob",
-      "src_services_attachmentservice_iscacheentryfresh",
-      "src_services_attachmentservice_openwebattachmentcachedb",
-      "src_services_attachmentservice_readattachmentcachemanifest",
-      "src_services_attachmentservice_revokewebattachmentobjecturl",
-      "src_services_attachmentservice_revokewebattachmentobjecturlsforcachekey",
-      "src_services_attachmentservice_runwebattachmentcachetransaction",
-      "src_services_attachmentservice_sanitizepathsegment",
-      "src_services_attachmentservice_saveattachmentcachemanifest",
-      "src_services_attachmentservice_writeattachmentcacheentry",
-      "src_services_attachmentservice_writewebattachmentcacherecord"
-    ],
-    "18": [
+    "10": [
       "src_utils_schedulevalidation",
       "src_utils_schedulevalidation_assertimportshape",
       "src_utils_schedulevalidation_clampnumber",
@@ -764,10 +480,59 @@
       "src_utils_schedulevalidation_sanitizesubject",
       "src_utils_schedulevalidation_sanitizeteacher"
     ],
-    "19": [
-      "src_pages_schedule_components_lessoneditor_screens_pickerscreen",
-      "src_pages_schedule_components_lessoneditor_screens_pickerscreen_lessoneditorpickerscreen",
-      "src_pages_schedule_components_lessoneditor_screens_pickerscreen_styles",
+    "11": [
+      "src_config_createdefaultdata",
+      "src_config_createdefaultdata_createdefaultdata",
+      "src_config_firestore",
+      "src_config_firestore_beginaccountdeletion",
+      "src_config_firestore_cleanupstatebyuser",
+      "src_config_firestore_commitcloudentity",
+      "src_config_firestore_createmissingglobaldata",
+      "src_config_firestore_deletealluserdata",
+      "src_config_firestore_deleteuserschedule",
+      "src_config_firestore_ensureversioning",
+      "src_config_firestore_fromclouddocument",
+      "src_config_firestore_getcleanupwatermark",
+      "src_config_firestore_getdevicesyncwatermark",
+      "src_config_firestore_getschedule",
+      "src_config_firestore_getschedulefromserver",
+      "src_config_firestore_istombstonesafetodelete",
+      "src_config_firestore_parsetimestamp",
+      "src_config_firestore_removeundefinedvalues",
+      "src_config_firestore_resetuserschedules",
+      "src_config_firestore_rundevicesynctimeandcleanup",
+      "src_config_firestore_saveschedule",
+      "src_config_firestore_subscribetoschedule",
+      "src_config_firestore_toclouddocument",
+      "src_config_firestore_updatedevicesynctimeandcleanup"
+    ],
+    "12": [
+      "src_services_attachmentservice_buildattachmentpickresultfromwebfiles",
+      "src_services_attachmentservice_buildpickresult",
+      "src_services_attachmentservice_captureattachmentphoto",
+      "src_services_attachmentservice_getandroiddownloaddirectoryuri",
+      "src_services_attachmentservice_getblobfromuri",
+      "src_services_attachmentservice_getcachebustedurl",
+      "src_services_attachmentservice_getcachedandroiddownloaddirectoryuri",
+      "src_services_attachmentservice_getfreshattachmentdownloadurl",
+      "src_services_attachmentservice_isremoteuri",
+      "src_services_attachmentservice_issafuri",
+      "src_services_attachmentservice_makeattachmenterror",
+      "src_services_attachmentservice_openattachment",
+      "src_services_attachmentservice_pickattachmentfiles",
+      "src_services_attachmentservice_pickattachmentphotos",
+      "src_services_attachmentservice_prepareandroiddownloadattachment",
+      "src_services_attachmentservice_readandroiddownloadsource",
+      "src_services_attachmentservice_saveandroidattachmenttodownloads",
+      "src_services_attachmentservice_shareattachment",
+      "src_services_attachmentservice_sharenativeattachment",
+      "src_services_attachmentservice_triggerwebattachmentdownload",
+      "src_services_attachmentservice_updatewebattachmentdownloadmetadata",
+      "src_services_attachmentservice_uploadbodywithprogress",
+      "src_services_attachmentservice_uploadnativeattachment",
+      "src_services_attachmentservice_uploadwebattachment"
+    ],
+    "13": [
       "src_pages_tasks_components_taskeditor",
       "src_pages_tasks_components_taskeditor_builddateonlylessonref",
       "src_pages_tasks_components_taskeditor_buildtaskeditorsessionkey",
@@ -792,85 +557,7 @@
       "src_pages_tasks_components_taskeditor_styles",
       "src_pages_tasks_components_taskeditor_taskeditor"
     ],
-    "20": [
-      "src_components_calendarsheet_calendarsheet",
-      "src_components_calendarsheet_calendarsheet_calendarsheet",
-      "src_components_calendarsheet_calendarsheet_styles",
-      "src_components_calendarsheet_usecalendarlogic",
-      "src_components_calendarsheet_usecalendarlogic_usecalendarlogic",
-      "src_locales_en",
-      "src_locales_uk",
-      "src_pages_schedule_components_lessoneditor_forms_linkform",
-      "src_pages_schedule_components_lessoneditor_forms_linkform_linkeditor",
-      "src_pages_schedule_components_lessoneditor_forms_linkform_styles",
-      "src_pages_schedule_components_lessoneditor_forms_teacherform",
-      "src_pages_schedule_components_lessoneditor_forms_teacherform_styles",
-      "src_pages_schedule_components_lessoneditor_forms_teacherform_teachereditor",
-      "src_pages_schedule_components_lessoneditor_ui_group",
-      "src_pages_schedule_components_lessoneditor_ui_group_group",
-      "src_pages_schedule_components_lessoneditor_ui_group_styles",
-      "src_pages_schedule_components_weekstrip",
-      "src_pages_schedule_components_weekstrip_animatedtouchable",
-      "src_pages_schedule_components_weekstrip_daybutton",
-      "src_pages_schedule_components_weekstrip_styles",
-      "src_pages_schedule_components_weekstrip_weekstrip",
-      "src_utils_i18n",
-      "src_utils_i18n_t",
-      "src_utils_i18n_translations"
-    ],
-    "21": [
-      "src_components_ui_appblur",
-      "src_components_ui_appblur_appblur",
-      "src_components_ui_morphingloader_morphingloader",
-      "src_components_ui_settingsheader",
-      "src_components_ui_settingsheader_settingsheader",
-      "src_components_ui_settingsheader_styles",
-      "src_config_firebase",
-      "src_config_firebase_app",
-      "src_config_firebase_db",
-      "src_config_firebase_firebaseconfig",
-      "src_config_firebase_normalizestoragebucket",
-      "src_config_firebase_storagebucketname",
-      "src_config_themes",
-      "src_config_themes_themes",
-      "src_hooks_usesystemthemecolors",
-      "src_layouts_settingsscreenlayout",
-      "src_layouts_settingsscreenlayout_settingsscreenlayout",
-      "src_layouts_settingsscreenlayout_styles",
-      "src_pages_settings_components_accountsettings_components_changeemailscreen",
-      "src_pages_settings_components_accountsettings_components_changeemailscreen_changeemailscreen",
-      "src_pages_settings_components_accountsettings_components_changeemailscreen_getstyles",
-      "src_pages_settings_components_accountsettings_components_changenamescreen",
-      "src_pages_settings_components_accountsettings_components_changenamescreen_changenamescreen",
-      "src_pages_settings_components_accountsettings_components_changenamescreen_getstyles"
-    ],
-    "22": [
-      "src_pages_settings_components_managers_devicemanagement",
-      "src_pages_settings_components_managers_devicemanagement_devicemanager",
-      "src_pages_settings_components_managers_devicemanagement_styles",
-      "src_pages_settings_components_managers_devicemanagement_timestamptoms",
-      "src_services_notificationservice_createloginnotification",
-      "src_services_notificationservice_getusernotificationcontext",
-      "src_utils_deviceservice",
-      "src_utils_deviceservice_boundedtext",
-      "src_utils_deviceservice_createdevicerevocationpatch",
-      "src_utils_deviceservice_createinstallationid",
-      "src_utils_deviceservice_device_status",
-      "src_utils_deviceservice_expireinactivedevices",
-      "src_utils_deviceservice_getdeviceid",
-      "src_utils_deviceservice_getdeviceinfo",
-      "src_utils_deviceservice_getdevices",
-      "src_utils_deviceservice_getpublicipaddress",
-      "src_utils_deviceservice_listenfordeviceremoval",
-      "src_utils_deviceservice_loadorcreateinstallationid",
-      "src_utils_deviceservice_registerdevice",
-      "src_utils_deviceservice_removeallotherdevices",
-      "src_utils_deviceservice_removedevice",
-      "src_utils_deviceservice_revokedevicerefsinchunks",
-      "src_utils_deviceservice_setignoredeviceremoval",
-      "src_utils_deviceservice_timestamptoms"
-    ],
-    "23": [
+    "14": [
       "firebase_admin",
       "firebase_functions",
       "functions_package",
@@ -894,31 +581,122 @@
       "jose",
       "nodemailer"
     ],
-    "24": [
-      "src_pages_settings_components_filelibraryscreen",
-      "src_pages_settings_components_filelibraryscreen_filelibraryscreen",
-      "src_pages_settings_components_filelibraryscreen_getattachmentfilerefid",
-      "src_pages_settings_components_filelibraryscreen_getattachmentpreviewuri",
-      "src_pages_settings_components_filelibraryscreen_getfileicon",
-      "src_pages_settings_components_filelibraryscreen_interpolate",
-      "src_pages_settings_components_filelibraryscreen_makefilelibraryattachmenterror",
-      "src_pages_settings_components_filelibraryscreen_removefilereferencesfromschedule",
-      "src_pages_settings_components_filelibraryscreen_styles",
-      "src_pages_settings_components_filelibraryscreen_withattachmentlist",
-      "src_pages_settings_components_filelibraryscreen_withoutfilereferences",
-      "src_services_attachmentservice_buildattachmentpickresultfromwebfiles",
-      "src_services_attachmentservice_buildpickresult",
-      "src_services_attachmentservice_captureattachmentphoto",
-      "src_services_attachmentservice_deletecloudattachmentobject",
+    "15": [
+      "src_components_ui_appblur",
+      "src_components_ui_appblur_appblur",
+      "src_config_themes",
+      "src_config_themes_themes",
+      "src_context_scheduleprovider_usescheduledata",
+      "src_context_scheduleprovider_useschedulelayout",
+      "src_hooks_usesystemthemecolors",
+      "src_hooks_usesystemthemecolors_usesystemthemecolors",
+      "src_layouts_settingsscreenlayout",
+      "src_layouts_settingsscreenlayout_settingsscreenlayout",
+      "src_layouts_settingsscreenlayout_styles",
+      "src_pages_schedule_components_dayschedule",
+      "src_pages_schedule_components_dayschedule_dayschedule",
+      "src_pages_schedule_components_dayschedule_styles",
+      "src_pages_settings_components_sharedschedulesmanager",
+      "src_pages_settings_components_sharedschedulesmanager_sharedschedulesmanager",
+      "src_pages_settings_components_sharedschedulesmanager_styles",
+      "src_services_shareservice_deletesharedschedule",
+      "src_services_shareservice_getusersharedschedules",
+      "src_utils_schedulecolors",
+      "src_utils_schedulecolors_resolveschedulecolor",
+      "src_utils_schedulecolors_schedulecolorwithalpha"
+    ],
+    "16": [
+      "src_services_attachmentservice_deletelocalattachmentcaches",
       "src_services_attachmentservice_deletestoredattachment",
       "src_services_attachmentservice_deletestoredattachments",
+      "src_services_attachmentservice_getattachmentcontentdisposition",
+      "src_services_attachmentservice_getattachmentlibrarymap",
+      "src_services_attachmentservice_getattachmentlibraryusage",
+      "src_services_attachmentservice_getattachmentuploaduserid",
+      "src_services_attachmentservice_getstoragepath",
+      "src_services_attachmentservice_normalizeattachmentcompression",
       "src_services_attachmentservice_normalizeattachmentdisplayname",
       "src_services_attachmentservice_normalizeattachmentdisplaynameformimetype",
-      "src_services_attachmentservice_pickattachmentfiles",
-      "src_services_attachmentservice_pickattachmentphotos",
-      "src_services_attachmentservice_renameattachmentdisplayname"
+      "src_services_attachmentservice_normalizeattachmentdraftlist",
+      "src_services_attachmentservice_normalizeattachmentimagepreview",
+      "src_services_attachmentservice_normalizeattachmentlibrary",
+      "src_services_attachmentservice_normalizeattachmentlist",
+      "src_services_attachmentservice_normalizepreviewcolors",
+      "src_services_attachmentservice_renameattachmentdisplayname",
+      "src_services_attachmentservice_resolveattachmentlist",
+      "src_services_attachmentservice_sanitizefilename",
+      "src_services_attachmentservice_uploadattachmentdraft",
+      "src_services_attachmentservice_uploadattachmentdrafts",
+      "src_services_attachmentservice_upsertattachmentlibraryfiles"
     ],
-    "25": [
+    "17": [
+      "src_auth_passwordresetservice",
+      "src_auth_passwordresetservice_completepasswordreset",
+      "src_auth_passwordresetservice_createpasswordactionerror",
+      "src_auth_passwordresetservice_createpasswordresetnavigationurl",
+      "src_auth_passwordresetservice_findpasswordresetrequest",
+      "src_auth_passwordresetservice_getaddpasswordemailendpoint",
+      "src_auth_passwordresetservice_getconfiguredactionurl",
+      "src_auth_passwordresetservice_getpasswordresetactioncodesettings",
+      "src_auth_passwordresetservice_haspasswordprovider",
+      "src_auth_passwordresetservice_nested_link_params",
+      "src_auth_passwordresetservice_normalizehost",
+      "src_auth_passwordresetservice_normalizepasswordaction",
+      "src_auth_passwordresetservice_normalizepasswordactionlanguage",
+      "src_auth_passwordresetservice_parsepasswordresetlink",
+      "src_auth_passwordresetservice_parseurl",
+      "src_auth_passwordresetservice_readpasswordactioncontext",
+      "src_auth_passwordresetservice_requestaddpasswordemail",
+      "src_auth_passwordresetservice_requestpasswordresetemail",
+      "src_auth_passwordresetservice_requestpasswordresetemailforemail",
+      "src_auth_passwordresetservice_verifypasswordresetrequest",
+      "src_auth_passwordresetservice_withpasswordactioncontext"
+    ],
+    "18": [
+      "src_components_ui_morphingloader",
+      "src_components_ui_morphingloader_angle_options",
+      "src_components_ui_morphingloader_buildpath",
+      "src_components_ui_morphingloader_clamp01",
+      "src_components_ui_morphingloader_clockwiselerpangle",
+      "src_components_ui_morphingloader_createrandomframe",
+      "src_components_ui_morphingloader_createrenderstate",
+      "src_components_ui_morphingloader_ensureframequeue",
+      "src_components_ui_morphingloader_gradientvector",
+      "src_components_ui_morphingloader_hextorgb",
+      "src_components_ui_morphingloader_lerp",
+      "src_components_ui_morphingloader_makeradii",
+      "src_components_ui_morphingloader_mixhex",
+      "src_components_ui_morphingloader_mixpalette",
+      "src_components_ui_morphingloader_palettes",
+      "src_components_ui_morphingloader_pickrandomindex",
+      "src_components_ui_morphingloader_rgbtohex",
+      "src_components_ui_morphingloader_shapes",
+      "src_components_ui_morphingloader_smootherstep",
+      "src_components_ui_morphingloader_styles",
+      "src_components_ui_morphingloader_wave"
+    ],
+    "19": [
+      "src_components_calendarsheet_usecalendarlogic",
+      "src_components_calendarsheet_usecalendarlogic_usecalendarlogic",
+      "src_context_scheduleprovider_usescheduleactions",
+      "src_context_scheduleprovider_useschedulesync",
+      "src_hooks_useapplanguage",
+      "src_hooks_useapplanguage_useapplanguage",
+      "src_locales_en",
+      "src_locales_uk",
+      "src_pages_settings_components_preferences_languagesettings",
+      "src_pages_settings_components_preferences_languagesettings_languagesettings",
+      "src_pages_settings_components_preferences_languagesettings_styles",
+      "src_services_autosavemanager",
+      "src_services_autosavemanager_autosavemanager",
+      "src_services_autosavemanager_styles",
+      "src_utils_i18n",
+      "src_utils_i18n_supported_languages",
+      "src_utils_i18n_t",
+      "src_utils_i18n_translations",
+      "src_utils_storage_getdeviceprefs"
+    ],
+    "20": [
       "src_context_scheduleprovider",
       "src_context_scheduleprovider_applycommittedsync",
       "src_context_scheduleprovider_calculatenextlesson",
@@ -935,97 +713,10 @@
       "src_context_scheduleprovider_schedulesynccontext",
       "src_context_scheduleprovider_shallowequalobjects",
       "src_context_scheduleprovider_summarizesyncdata",
-      "src_context_scheduleprovider_useschedule",
-      "src_hooks_useapplanguage",
-      "src_hooks_useapplanguage_useapplanguage",
-      "src_utils_i18n_supported_languages",
-      "src_utils_storage_getdeviceprefs"
-    ],
-    "26": [
-      "src_components_calendarsheet_calendargrid",
-      "src_components_calendarsheet_calendargrid_calendargrid",
-      "src_components_calendarsheet_calendargrid_daycell",
-      "src_components_calendarsheet_calendargrid_sameday",
-      "src_components_calendarsheet_calendargrid_styles",
       "src_context_scheduleprovider_userequiredschedulecontext",
-      "src_context_scheduleprovider_usescheduleactions",
-      "src_context_scheduleprovider_usescheduledata",
-      "src_context_scheduleprovider_useschedulelayout",
-      "src_context_scheduleprovider_useschedulesync",
-      "src_layouts_mainlayout_mainlayout",
-      "src_pages_schedule_components_dayschedule",
-      "src_pages_schedule_components_dayschedule_dayschedule",
-      "src_pages_schedule_components_dayschedule_styles",
-      "src_pages_settings_components_preferences_languagesettings",
-      "src_pages_settings_components_preferences_languagesettings_languagesettings",
-      "src_pages_settings_components_preferences_languagesettings_styles",
-      "src_services_autosavemanager",
-      "src_services_autosavemanager_autosavemanager",
-      "src_services_autosavemanager_styles"
+      "src_context_scheduleprovider_useschedule"
     ],
-    "27": [
-      "src_components_ui_appswitch",
-      "src_components_ui_appswitch_appswitch",
-      "src_components_ui_appswitch_getsize",
-      "src_components_ui_appswitch_sizes",
-      "src_components_ui_appswitch_styles",
-      "src_navigation_navigationmetrics",
-      "src_navigation_navigationmetrics_navigation_metrics",
-      "src_navigation_navigationmetrics_navigation_style_keys",
-      "src_pages_settings_components_notificationsscreen",
-      "src_pages_settings_components_notificationsscreen_gettypeicon",
-      "src_pages_settings_components_notificationsscreen_notificationsscreen",
-      "src_pages_settings_components_notificationsscreen_styles",
-      "src_pages_settings_components_preferences_navigationsettings",
-      "src_pages_settings_components_preferences_navigationsettings_hextorgba",
-      "src_pages_settings_components_preferences_navigationsettings_navigationpreview",
-      "src_pages_settings_components_preferences_navigationsettings_navigationsettings",
-      "src_pages_settings_components_preferences_navigationsettings_preview_variants",
-      "src_pages_settings_components_preferences_navigationsettings_styles",
-      "src_utils_deviceservice_refreshcurrentdevicepushregistration"
-    ],
-    "28": [
-      "src_context_notificationdrawercontext",
-      "src_context_notificationdrawercontext_notificationdrawercontext",
-      "src_context_notificationdrawercontext_notificationdrawerprovider",
-      "src_context_notificationdrawercontext_usenotificationdrawer",
-      "src_hooks_usenotifications",
-      "src_hooks_usenotifications_usenotifications",
-      "src_pages_schedule_components_notificationinboxpanel",
-      "src_pages_schedule_components_notificationinboxpanel_card_expand_animation",
-      "src_pages_schedule_components_notificationinboxpanel_configurecardlayoutanimation",
-      "src_pages_schedule_components_notificationinboxpanel_interpolate",
-      "src_pages_schedule_components_notificationinboxpanel_notificationinboxpanel",
-      "src_pages_schedule_components_notificationinboxpanel_styles",
-      "src_pages_schedule_components_notificationinboxpanel_timestamptoms",
-      "src_services_notificationservice_cleanupexpirednotifications",
-      "src_services_notificationservice_markallnotificationsasread",
-      "src_services_notificationservice_marknotificationasread",
-      "src_services_notificationservice_notificationscollection",
-      "src_services_notificationservice_nowtimestamp",
-      "src_services_notificationservice_subscribetonotifications"
-    ],
-    "29": [
-      "src_config_notificationtypes",
-      "src_config_notificationtypes_notification_type_config",
-      "src_layouts_mainlayout",
-      "src_layouts_mainlayout_mainstack",
-      "src_layouts_mainlayout_styles",
-      "src_pages_onboarding_onboardingwizard",
-      "src_pages_onboarding_onboardingwizard_animatedtouchableopacity",
-      "src_pages_onboarding_onboardingwizard_expandfirstoutputrange",
-      "src_pages_onboarding_onboardingwizard_icons",
-      "src_pages_onboarding_onboardingwizard_initial_step_heights",
-      "src_pages_onboarding_onboardingwizard_onboardingwizard",
-      "src_pages_onboarding_onboardingwizard_schedule_color_keys",
-      "src_pages_onboarding_onboardingwizard_step_indices",
-      "src_pages_onboarding_onboardingwizard_styles",
-      "src_pages_syncconflict_syncconflictscreen",
-      "src_pages_syncconflict_syncconflictscreen_styles",
-      "src_pages_syncconflict_syncconflictscreen_syncconflictscreen",
-      "src_services_notificationservice_notification_types"
-    ],
-    "30": [
+    "21": [
       "src_components_adbanner_adbannerimpl",
       "src_components_adbanner_adbannerimpl_adbannerimpl",
       "src_components_adbanner_adbannerimpl_styles",
@@ -1044,7 +735,26 @@
       "src_utils_adinit_adinit_native_showadprivacyoptions",
       "src_utils_adinit_adinit_native_startmobileads"
     ],
-    "31": [
+    "22": [
+      "src_components_modals_migrationmodal",
+      "src_components_modals_migrationmodal_migrationmodal",
+      "src_components_modals_migrationmodal_styles",
+      "src_pages_settings_components_scheduleswitcher",
+      "src_pages_settings_components_scheduleswitcher_scheduleswitcher",
+      "src_pages_settings_components_scheduleswitcher_storageoperationqueue",
+      "src_pages_settings_components_scheduleswitcher_styles",
+      "src_utils_scheduleownership",
+      "src_utils_scheduleownership_clearcloudmigrationflag",
+      "src_utils_scheduleownership_consumecloudmigrationoffers",
+      "src_utils_scheduleownership_finalizecloudmigration",
+      "src_utils_scheduleownership_getpendingcloudmigrationschedules",
+      "src_utils_scheduleownership_hasown",
+      "src_utils_scheduleownership_isschedulependingcloudmigration",
+      "src_utils_scheduleownership_markcloudmigrationofferhandled",
+      "src_utils_scheduleownership_markscheduleasaccountowned",
+      "src_utils_scheduleownership_markscheduleasdevicelocal"
+    ],
+    "23": [
       "src_navigation_tabnavigator",
       "src_navigation_tabnavigator_drawer_motion_easing",
       "src_navigation_tabnavigator_drawer_visual_easing",
@@ -1063,59 +773,150 @@
       "src_pages_settings_components_resetdb_resetdb",
       "src_pages_settings_components_resetdb_styles"
     ],
+    "24": [
+      "src_utils_schedulesync",
+      "src_utils_schedulesync_contentchanged",
+      "src_utils_schedulesync_getbaseversion",
+      "src_utils_schedulesync_getcleandivergencereason",
+      "src_utils_schedulesync_getcloudsubscriptionuserid",
+      "src_utils_schedulesync_getversion",
+      "src_utils_schedulesync_issyncentitydirty",
+      "src_utils_schedulesync_makeconflict",
+      "src_utils_schedulesync_makeremotemissingtombstone",
+      "src_utils_schedulesync_markentitydirty",
+      "src_utils_schedulesync_markscheduledatadirty",
+      "src_utils_schedulesync_mergeuniqueitems",
+      "src_utils_schedulesync_nextlogicaltimestamp",
+      "src_utils_schedulesync_resolveconflictchoice",
+      "src_utils_schedulesync_resolvesyncconflict",
+      "src_utils_schedulesync_sync_meta_keys",
+      "src_utils_schedulesync_withoutsyncmetadata"
+    ],
+    "25": [
+      "src_components_ui_advancedcolorpicker",
+      "src_components_ui_advancedcolorpicker_advancedcolorpicker",
+      "src_components_ui_advancedcolorpicker_hue_colors",
+      "src_components_ui_advancedcolorpicker_styles",
+      "src_components_ui_settingsheader",
+      "src_components_ui_settingsheader_settingsheader",
+      "src_components_ui_settingsheader_styles",
+      "src_pages_settings_components_preferences_themesettings",
+      "src_pages_settings_components_preferences_themesettings_styles",
+      "src_pages_settings_components_preferences_themesettings_themesettings",
+      "src_pages_settings_components_scheduleeditorscreen",
+      "src_pages_settings_components_scheduleeditorscreen_scheduleeditorscreen",
+      "src_pages_settings_components_scheduleeditorscreen_styles",
+      "src_pages_settings_settings",
+      "src_pages_settings_settings_settings",
+      "src_pages_settings_settings_styles"
+    ],
+    "26": [
+      "src_components_ui_appswitch",
+      "src_components_ui_appswitch_appswitch",
+      "src_components_ui_appswitch_getsize",
+      "src_components_ui_appswitch_sizes",
+      "src_components_ui_appswitch_styles",
+      "src_components_ui_tabswitcher",
+      "src_components_ui_tabswitcher_styles",
+      "src_components_ui_tabswitcher_tabswitcher",
+      "src_hooks_usereducedmotionpreference",
+      "src_hooks_usereducedmotionpreference_getwebpreference",
+      "src_hooks_usereducedmotionpreference_usereducedmotionpreference",
+      "src_pages_schedule_components_weekstrip",
+      "src_pages_schedule_components_weekstrip_animatedtouchable",
+      "src_pages_schedule_components_weekstrip_daybutton",
+      "src_pages_schedule_components_weekstrip_styles",
+      "src_pages_schedule_components_weekstrip_weekstrip"
+    ],
+    "27": [
+      "src_components_ui_settingskit_settingsgroup",
+      "src_components_ui_settingskit_settingsgroup_settingsgroup",
+      "src_components_ui_settingskit_settingsgroup_styles",
+      "src_pages_settings_components_notificationsscreen",
+      "src_pages_settings_components_notificationsscreen_gettypeicon",
+      "src_pages_settings_components_notificationsscreen_notificationsscreen",
+      "src_pages_settings_components_notificationsscreen_styles",
+      "src_utils_haptics",
+      "src_utils_haptics_gethapticsenabled",
+      "src_utils_haptics_haptic_events",
+      "src_utils_haptics_impactstyle",
+      "src_utils_haptics_lastfeedbackat",
+      "src_utils_haptics_notificationtype",
+      "src_utils_haptics_sethapticsenabled",
+      "src_utils_haptics_triggerhaptic",
+      "src_utils_haptics_triggerlighthaptic"
+    ],
+    "28": [
+      "src_components_ui_settingskit_settingsrow",
+      "src_components_ui_settingskit_settingsrow_settingsrow",
+      "src_components_ui_settingskit_settingsrow_styles",
+      "src_layouts_mainlayout",
+      "src_layouts_mainlayout_mainlayout",
+      "src_layouts_mainlayout_mainstack",
+      "src_layouts_mainlayout_styles",
+      "src_pages_onboarding_onboardingwizard",
+      "src_pages_onboarding_onboardingwizard_animatedtouchableopacity",
+      "src_pages_onboarding_onboardingwizard_expandfirstoutputrange",
+      "src_pages_onboarding_onboardingwizard_icons",
+      "src_pages_onboarding_onboardingwizard_initial_step_heights",
+      "src_pages_onboarding_onboardingwizard_onboardingwizard",
+      "src_pages_onboarding_onboardingwizard_schedule_color_keys",
+      "src_pages_onboarding_onboardingwizard_step_indices",
+      "src_pages_onboarding_onboardingwizard_styles"
+    ],
+    "29": [
+      "tests_schedulesync_test",
+      "tests_schedulesync_test_assert",
+      "tests_schedulesync_test_babel",
+      "tests_schedulesync_test_compilemodule",
+      "tests_schedulesync_test_createdefaultdatapath",
+      "tests_schedulesync_test_fingerprint",
+      "tests_schedulesync_test_fingerprintpath",
+      "tests_schedulesync_test_fs",
+      "tests_schedulesync_test_module",
+      "tests_schedulesync_test_path",
+      "tests_schedulesync_test_schedule",
+      "tests_schedulesync_test_shareservice",
+      "tests_schedulesync_test_shareservicepath",
+      "tests_schedulesync_test_sync",
+      "tests_schedulesync_test_syncpath",
+      "tests_schedulesync_test_test"
+    ],
+    "30": [
+      "src_pages_schedule_components_lessoneditor",
+      "src_pages_schedule_components_lessoneditor_deepclone",
+      "src_pages_schedule_components_lessoneditor_forms_linkform",
+      "src_pages_schedule_components_lessoneditor_forms_linkform_linkeditor",
+      "src_pages_schedule_components_lessoneditor_forms_linkform_styles",
+      "src_pages_schedule_components_lessoneditor_forms_teacherform",
+      "src_pages_schedule_components_lessoneditor_forms_teacherform_styles",
+      "src_pages_schedule_components_lessoneditor_forms_teacherform_teachereditor",
+      "src_pages_schedule_components_lessoneditor_generatelocalid",
+      "src_pages_schedule_components_lessoneditor_lessoneditor",
+      "src_pages_schedule_components_lessoneditor_screens_inputscreen",
+      "src_pages_schedule_components_lessoneditor_screens_inputscreen_lessoneditorinputscreen",
+      "src_pages_schedule_components_lessoneditor_screens_inputscreen_styles",
+      "src_pages_schedule_components_lessoneditor_styles",
+      "src_pages_schedule_components_lessoneditor_timetomins"
+    ],
+    "31": [
+      "tests_devicenotificationdata_test",
+      "tests_devicenotificationdata_test_assert",
+      "tests_devicenotificationdata_test_babel",
+      "tests_devicenotificationdata_test_compilewithmocks",
+      "tests_devicenotificationdata_test_faketimestamp",
+      "tests_devicenotificationdata_test_faketimestamp_constructor",
+      "tests_devicenotificationdata_test_faketimestamp_frommillis",
+      "tests_devicenotificationdata_test_faketimestamp_now",
+      "tests_devicenotificationdata_test_faketimestamp_tomillis",
+      "tests_devicenotificationdata_test_fs",
+      "tests_devicenotificationdata_test_loadnotificationservice",
+      "tests_devicenotificationdata_test_module",
+      "tests_devicenotificationdata_test_path",
+      "tests_devicenotificationdata_test_snapshotwith",
+      "tests_devicenotificationdata_test_test"
+    ],
     "32": [
-      "src_pages_schedule_components_header",
-      "src_pages_schedule_components_header_animatedtouchable",
-      "src_pages_schedule_components_header_header",
-      "src_pages_schedule_components_header_issameday",
-      "src_pages_schedule_components_header_scaletouchable",
-      "src_pages_schedule_components_header_styles",
-      "src_pages_schedule_components_schedulepickersheet",
-      "src_pages_schedule_components_schedulepickersheet_schedulepickersheet",
-      "src_pages_schedule_components_schedulepickersheet_styles",
-      "src_pages_tasks_components_taskschedulefiltersheet",
-      "src_pages_tasks_components_taskschedulefiltersheet_styles",
-      "src_pages_tasks_components_taskschedulefiltersheet_taskschedulefiltersheet",
-      "src_pages_tasks_components_taskschedulefiltersheet_uniqueids",
-      "src_utils_scheduledisplay",
-      "src_utils_scheduledisplay_getscheduledisplayname",
-      "src_utils_scheduledisplay_legacy_default_schedule_names"
-    ],
-    "33": [
-      "src_components_modals_globalsharehandler",
-      "src_components_modals_globalsharehandler_globalsharehandler",
-      "src_components_modals_importschedulemodal",
-      "src_components_modals_importschedulemodal_importschedulemodal",
-      "src_components_modals_importschedulemodal_styles",
-      "src_pages_settings_components_sharedschedulesmanager",
-      "src_pages_settings_components_sharedschedulesmanager_sharedschedulesmanager",
-      "src_pages_settings_components_sharedschedulesmanager_styles",
-      "src_services_shareservice",
-      "src_services_shareservice_deletesharedschedule",
-      "src_services_shareservice_fetchsharedschedule",
-      "src_services_shareservice_generatesharecode",
-      "src_services_shareservice_getusersharedschedules",
-      "src_services_shareservice_normalizecodelength",
-      "src_services_shareservice_normalizesharecodeinput"
-    ],
-    "34": [
-      "src_services_attachmentservice_getattachmentcontentdisposition",
-      "src_services_attachmentservice_getattachmenterrorcode",
-      "src_services_attachmentservice_getattachmentuploaduserid",
-      "src_services_attachmentservice_getcachebustedurl",
-      "src_services_attachmentservice_getstoragepath",
-      "src_services_attachmentservice_logattachmentuploaderror",
-      "src_services_attachmentservice_normalizeattachmentcompression",
-      "src_services_attachmentservice_normalizeattachmentimagepreview",
-      "src_services_attachmentservice_normalizeattachmentlist",
-      "src_services_attachmentservice_normalizepreviewcolors",
-      "src_services_attachmentservice_sanitizefilename",
-      "src_services_attachmentservice_triggerwebattachmentdownload",
-      "src_services_attachmentservice_updatewebattachmentdownloadmetadata",
-      "src_services_attachmentservice_uploadattachmentdraft",
-      "src_services_attachmentservice_uploadattachmentdrafts"
-    ],
-    "35": [
       "plugins_withandroidplaycompliance",
       "plugins_withandroidplaycompliance_androidconfig_withandroidmanifest_withappbuildgradle_withfinalizedmod_withgradleproperties",
       "plugins_withandroidplaycompliance_fs",
@@ -1131,7 +932,7 @@
       "tests_androidplaycompliance_test_path",
       "tests_androidplaycompliance_test_test"
     ],
-    "36": [
+    "33": [
       "scripts_generate_legal_loading_documents",
       "scripts_generate_legal_loading_documents_cleanloadingtag",
       "scripts_generate_legal_loading_documents_documents",
@@ -1147,52 +948,54 @@
       "scripts_generate_legal_loading_documents_project_root",
       "scripts_generate_legal_loading_documents_void_tags"
     ],
-    "37": [
-      "expo_apple_authentication",
+    "34": [
+      "src_auth_authservices",
+      "src_auth_authservices_createapplesigninnonce",
+      "src_auth_authservices_createauthflowerror",
+      "src_auth_authservices_getaccountdeletionproviders",
+      "src_auth_authservices_getlinkedproviders",
+      "src_auth_authservices_isaccountdeletionverificationvalid",
+      "src_auth_authservices_linkappleaccount",
+      "src_auth_authservices_linkgoogleaccount",
+      "src_auth_authservices_reauthenticateforaccountdeletion",
+      "src_auth_authservices_reauthenticatewithapple",
+      "src_auth_authservices_reauthenticatewithgoogle",
+      "src_auth_authservices_reauthenticatewithpassword",
+      "src_auth_authservices_revokeappleauthorizationfordeletion",
+      "src_auth_authservices_unlinkprovider"
+    ],
+    "35": [
+      "src_utils_storage",
+      "src_utils_storage_decodeschedulecandidate",
+      "src_utils_storage_getlocalschedule",
+      "src_utils_storage_getschedulerecoverysnapshots",
+      "src_utils_storage_getschedulestoragekeys",
+      "src_utils_storage_getstoragekey",
+      "src_utils_storage_getstoragescope",
+      "src_utils_storage_parsejson",
+      "src_utils_storage_savedeviceprefs",
+      "src_utils_storage_savelocalschedule",
+      "src_utils_storage_saveschedulerecoverysnapshot",
+      "src_utils_storage_serializejson",
+      "src_utils_storage_withlocalscope",
+      "src_utils_storage_withoutlocalscope"
+    ],
+    "36": [
       "expo_blur",
       "expo_constants",
+      "expo_device",
       "expo_image_manipulator",
       "expo_notifications",
       "firebase",
       "package_dependencies",
-      "package_dependencies_expo_apple_authentication",
       "package_dependencies_expo_blur",
       "package_dependencies_expo_constants",
+      "package_dependencies_expo_device",
       "package_dependencies_expo_image_manipulator",
       "package_dependencies_expo_notifications",
       "package_dependencies_firebase"
     ],
-    "38": [
-      "src_components_attachments_stagedattachmentimage",
-      "src_components_attachments_stagedattachmentimage_attachmentimageloadingoverlay",
-      "src_components_attachments_stagedattachmentimage_default_colors",
-      "src_components_attachments_stagedattachmentimage_getattachmentaspectratio",
-      "src_components_attachments_stagedattachmentimage_getattachmentpreview",
-      "src_components_attachments_stagedattachmentimage_getcontainedframestyle",
-      "src_components_attachments_stagedattachmentimage_getstableimagekey",
-      "src_components_attachments_stagedattachmentimage_getstableimageloadkey",
-      "src_components_attachments_stagedattachmentimage_getstableimagerevision",
-      "src_components_attachments_stagedattachmentimage_loadedattachmentimagekeys",
-      "src_components_attachments_stagedattachmentimage_normalizepreviewcolors",
-      "src_components_attachments_stagedattachmentimage_stagedattachmentimage",
-      "src_components_attachments_stagedattachmentimage_styles"
-    ],
-    "39": [
-      "src_components_modals_shareschedulemodal",
-      "src_components_modals_shareschedulemodal_shareschedulemodal",
-      "src_components_modals_shareschedulemodal_styles",
-      "src_components_ui_advancedcolorpicker",
-      "src_components_ui_advancedcolorpicker_hue_colors",
-      "src_components_ui_advancedcolorpicker_styles",
-      "src_components_ui_bottomsheet",
-      "src_components_ui_bottomsheet_bottomsheet",
-      "src_components_ui_bottomsheet_default_snap_points",
-      "src_components_ui_bottomsheet_sheetflatlist",
-      "src_components_ui_bottomsheet_sheetscrollview",
-      "src_components_ui_bottomsheet_styles",
-      "src_services_shareservice_createsharedschedule"
-    ],
-    "40": [
+    "37": [
       "src_services_accountdeletionservice",
       "src_services_accountdeletionservice_accountdatadeletionerror",
       "src_services_accountdeletionservice_accountdatadeletionerror_constructor",
@@ -1207,22 +1010,7 @@
       "src_services_accountdeletionservice_ensuredeletiontombstone",
       "src_services_accountdeletionservice_geterrorcode"
     ],
-    "41": [
-      "src_services_attachmentservice_createandroiddownloadfile",
-      "src_services_attachmentservice_createdraftattachment",
-      "src_services_attachmentservice_exact_mime_types",
-      "src_services_attachmentservice_getandroiddownloadfilename",
-      "src_services_attachmentservice_getassetfile",
-      "src_services_attachmentservice_getassetname",
-      "src_services_attachmentservice_getassetsize",
-      "src_services_attachmentservice_inferattachmentmimetype",
-      "src_services_attachmentservice_isattachmentmimetypeallowed",
-      "src_services_attachmentservice_isoversizedimagecompressioncandidate",
-      "src_services_attachmentservice_makeuniquedownloadfilename",
-      "src_services_attachmentservice_validateasset",
-      "src_services_attachmentservice_writeandroiddownloadfile"
-    ],
-    "42": [
+    "38": [
       "src_services_cookieconsentservice_web",
       "src_services_cookieconsentservice_web_clearconsentexpirytimer",
       "src_services_cookieconsentservice_web_createbrowserevent",
@@ -1237,7 +1025,7 @@
       "src_services_cookieconsentservice_web_subscribetocookieconsent",
       "src_services_cookieconsentservice_web_subscribetocookiepreferencerequests"
     ],
-    "43": [
+    "39": [
       "plugins_withwidgetupdatescheduler",
       "plugins_withwidgetupdatescheduler_addunique",
       "plugins_withwidgetupdatescheduler_coreprovidersource",
@@ -1251,21 +1039,35 @@
       "plugins_withwidgetupdatescheduler_withandroidmanifest_withfinalizedmod_withmainapplication",
       "plugins_withwidgetupdatescheduler_withwidgetupdatescheduler"
     ],
-    "44": [
-      "src_services_attachmentservice_getandroiddownloaddirectoryuri",
-      "src_services_attachmentservice_getblobfromuri",
-      "src_services_attachmentservice_getcachedandroiddownloaddirectoryuri",
-      "src_services_attachmentservice_isremoteuri",
-      "src_services_attachmentservice_issafuri",
-      "src_services_attachmentservice_makeattachmenterror",
-      "src_services_attachmentservice_prepareandroiddownloadattachment",
-      "src_services_attachmentservice_readandroiddownloadsource",
-      "src_services_attachmentservice_saveandroidattachmenttodownloads",
-      "src_services_attachmentservice_uploadbodywithprogress",
-      "src_services_attachmentservice_uploadnativeattachment",
-      "src_services_attachmentservice_uploadwebattachment"
+    "40": [
+      "src_auth_authscreen",
+      "src_auth_authscreen_animatedgradientbackground",
+      "src_auth_authscreen_animatediconslot",
+      "src_auth_authscreen_auth_layout_animation",
+      "src_auth_authscreen_authmorphingloader",
+      "src_auth_authscreen_authscreen",
+      "src_auth_authscreen_configureauthlayoutanimation",
+      "src_auth_authscreen_geticonconfig",
+      "src_auth_authscreen_inputfield",
+      "src_auth_authscreen_styles",
+      "src_auth_authscreen_termscheckbox",
+      "src_auth_authscreen_welcomecontent"
     ],
-    "45": [
+    "41": [
+      "tests_firestoresync_test",
+      "tests_firestoresync_test_assert",
+      "tests_firestoresync_test_babel",
+      "tests_firestoresync_test_firestorepath",
+      "tests_firestoresync_test_flushasyncwork",
+      "tests_firestoresync_test_fs",
+      "tests_firestoresync_test_loadfirestore",
+      "tests_firestoresync_test_makefakes",
+      "tests_firestoresync_test_module",
+      "tests_firestoresync_test_path",
+      "tests_firestoresync_test_test",
+      "tests_schedulesync_test_data"
+    ],
+    "42": [
       "src_config_createdefaults",
       "src_config_createdefaults_createdefaultgradient",
       "src_config_createdefaults_createdefaultlink",
@@ -1278,20 +1080,33 @@
       "src_utils_idgenerator",
       "src_utils_idgenerator_generateid"
     ],
-    "46": [
-      "src_services_notificationservice_boundedtext",
-      "src_services_notificationservice_devicescollection",
-      "src_services_notificationservice_getcurrentdevicepushregistration",
-      "src_services_notificationservice_getexpoprojectid",
-      "src_services_notificationservice_isactivedevice",
-      "src_services_notificationservice_isexpopushtoken",
-      "src_services_notificationservice_sendaccountloginpushtootherdevices",
-      "src_services_notificationservice_sendexpopushmessages",
-      "src_services_notificationservice_syncdevicepushregistration",
-      "src_services_notificationservice_timestamptoms",
-      "src_services_notificationservice_withtimeout"
+    "43": [
+      "src_pages_schedule_components_lessoncard",
+      "src_pages_schedule_components_lessoncard_activehighlight",
+      "src_pages_schedule_components_lessoncard_backgroundpattern",
+      "src_pages_schedule_components_lessoncard_cachedpatternpositions",
+      "src_pages_schedule_components_lessoncard_getpatternpositions",
+      "src_pages_schedule_components_lessoncard_gettimerstate",
+      "src_pages_schedule_components_lessoncard_islightcolor",
+      "src_pages_schedule_components_lessoncard_lessoncard",
+      "src_pages_schedule_components_lessoncard_lessoncardpure",
+      "src_pages_schedule_components_lessoncard_styles",
+      "src_pages_schedule_components_lessoncard_uselessondata"
     ],
-    "47": [
+    "44": [
+      "src_pages_settings_components_filelibraryscreen",
+      "src_pages_settings_components_filelibraryscreen_filelibraryscreen",
+      "src_pages_settings_components_filelibraryscreen_getattachmentfilerefid",
+      "src_pages_settings_components_filelibraryscreen_getattachmentpreviewuri",
+      "src_pages_settings_components_filelibraryscreen_getfileicon",
+      "src_pages_settings_components_filelibraryscreen_interpolate",
+      "src_pages_settings_components_filelibraryscreen_makefilelibraryattachmenterror",
+      "src_pages_settings_components_filelibraryscreen_removefilereferencesfromschedule",
+      "src_pages_settings_components_filelibraryscreen_styles",
+      "src_pages_settings_components_filelibraryscreen_withattachmentlist",
+      "src_pages_settings_components_filelibraryscreen_withoutfilereferences"
+    ],
+    "45": [
       "src_utils_analytics_crashlytics_native",
       "src_utils_analytics_crashlytics_native_consoleerrorreports",
       "src_utils_analytics_crashlytics_native_crashapptotest",
@@ -1304,7 +1119,20 @@
       "src_utils_analytics_crashlytics_native_shouldreportconsoleerror",
       "src_utils_analytics_crashlytics_native_summarizevalue"
     ],
-    "48": [
+    "46": [
+      "src_utils_remindersettings",
+      "src_utils_remindersettings_clampreminderminutes",
+      "src_utils_remindersettings_default_schedule_reminder",
+      "src_utils_remindersettings_getreminderselectionid",
+      "src_utils_remindersettings_getschedulereminderselectionid",
+      "src_utils_remindersettings_isreminderobject",
+      "src_utils_remindersettings_normalizereminder",
+      "src_utils_remindersettings_normalizeschedulereminder",
+      "src_utils_remindersettings_normalizesubjectreminder",
+      "src_utils_remindersettings_reminder_preset_minutes",
+      "src_utils_remindersettings_resolveeffectivereminder"
+    ],
+    "47": [
       "tests_admobcompliance_test",
       "tests_admobcompliance_test_adconfigpath",
       "tests_admobcompliance_test_assert",
@@ -1317,7 +1145,7 @@
       "tests_admobcompliance_test_servicepath",
       "tests_admobcompliance_test_test"
     ],
-    "49": [
+    "48": [
       "tests_localstoragedurability_test",
       "tests_localstoragedurability_test_assert",
       "tests_localstoragedurability_test_babel",
@@ -1330,7 +1158,7 @@
       "tests_localstoragedurability_test_path",
       "tests_localstoragedurability_test_test"
     ],
-    "50": [
+    "49": [
       "tests_widgetcore_test",
       "tests_widgetcore_test_assert",
       "tests_widgetcore_test_babel",
@@ -1342,6 +1170,18 @@
       "tests_widgetcore_test_schedulecore",
       "tests_widgetcore_test_schedulecorepath",
       "tests_widgetcore_test_test"
+    ],
+    "50": [
+      "src_components_modals_globalsharehandler",
+      "src_components_modals_importschedulemodal",
+      "src_components_modals_importschedulemodal_importschedulemodal",
+      "src_components_modals_importschedulemodal_styles",
+      "src_services_shareservice",
+      "src_services_shareservice_createsharedschedule",
+      "src_services_shareservice_fetchsharedschedule",
+      "src_services_shareservice_generatesharecode",
+      "src_services_shareservice_normalizecodelength",
+      "src_services_shareservice_normalizesharecodeinput"
     ],
     "51": [
       "src_utils_schedulerecordmerge",
@@ -1403,6 +1243,28 @@
       "app_config_versionparts"
     ],
     "56": [
+      "src_components_ui_settingskit_settingsactionrow",
+      "src_components_ui_settingskit_settingsactionrow_settingsactionrow",
+      "src_components_ui_settingskit_settingsactionrow_styles",
+      "src_components_ui_settingskit_settingsselectionrow",
+      "src_components_ui_settingskit_settingsselectionrow_settingsselectionrow",
+      "src_components_ui_settingskit_settingsselectionrow_styles",
+      "src_pages_schedule_components_lessoneditor_screens_pickerscreen",
+      "src_pages_schedule_components_lessoneditor_screens_pickerscreen_lessoneditorpickerscreen",
+      "src_pages_schedule_components_lessoneditor_screens_pickerscreen_styles"
+    ],
+    "57": [
+      "src_navigation_navigationmetrics",
+      "src_navigation_navigationmetrics_navigation_metrics",
+      "src_navigation_navigationmetrics_navigation_style_keys",
+      "src_pages_settings_components_preferences_navigationsettings",
+      "src_pages_settings_components_preferences_navigationsettings_hextorgba",
+      "src_pages_settings_components_preferences_navigationsettings_navigationpreview",
+      "src_pages_settings_components_preferences_navigationsettings_navigationsettings",
+      "src_pages_settings_components_preferences_navigationsettings_preview_variants",
+      "src_pages_settings_components_preferences_navigationsettings_styles"
+    ],
+    "58": [
       "src_navigation_planittabbar",
       "src_navigation_planittabbar_active_spring",
       "src_navigation_planittabbar_bounce_spring",
@@ -1413,7 +1275,40 @@
       "src_navigation_planittabbar_tab_bar_variants",
       "src_navigation_planittabbar_tabitem"
     ],
-    "57": [
+    "59": [
+      "src_pages_schedule_components_header",
+      "src_pages_schedule_components_header_animatedtouchable",
+      "src_pages_schedule_components_header_header",
+      "src_pages_schedule_components_header_issameday",
+      "src_pages_schedule_components_header_scaletouchable",
+      "src_pages_schedule_components_header_styles",
+      "src_pages_schedule_components_schedulepickersheet",
+      "src_pages_schedule_components_schedulepickersheet_schedulepickersheet",
+      "src_pages_schedule_components_schedulepickersheet_styles"
+    ],
+    "60": [
+      "src_pages_schedule_components_lessoneditor_screens_colorscreen",
+      "src_pages_schedule_components_lessoneditor_screens_colorscreen_lessoneditorsubjectcolorscreen",
+      "src_pages_schedule_components_lessoneditor_screens_colorscreen_styles",
+      "src_pages_schedule_components_lessoneditor_ui_colorgrid",
+      "src_pages_schedule_components_lessoneditor_ui_colorgrid_colorpicker",
+      "src_pages_schedule_components_lessoneditor_ui_colorgrid_styles",
+      "src_pages_schedule_components_lessoneditor_ui_gradientgrid",
+      "src_pages_schedule_components_lessoneditor_ui_gradientgrid_gradientgrid",
+      "src_pages_schedule_components_lessoneditor_ui_gradientgrid_styles"
+    ],
+    "61": [
+      "src_services_attachmentservice_createdraftattachment",
+      "src_services_attachmentservice_exact_mime_types",
+      "src_services_attachmentservice_getassetfile",
+      "src_services_attachmentservice_getassetname",
+      "src_services_attachmentservice_getassetsize",
+      "src_services_attachmentservice_inferattachmentmimetype",
+      "src_services_attachmentservice_isattachmentmimetypeallowed",
+      "src_services_attachmentservice_isoversizedimagecompressioncandidate",
+      "src_services_attachmentservice_validateasset"
+    ],
+    "62": [
       "tests_nativemoduleguards_test",
       "tests_nativemoduleguards_test_assert",
       "tests_nativemoduleguards_test_babel",
@@ -1424,7 +1319,7 @@
       "tests_nativemoduleguards_test_path",
       "tests_nativemoduleguards_test_test"
     ],
-    "58": [
+    "63": [
       "tests_passwordpolicy_test",
       "tests_passwordpolicy_test_assert",
       "tests_passwordpolicy_test_babel",
@@ -1435,7 +1330,7 @@
       "tests_passwordpolicy_test_path",
       "tests_passwordpolicy_test_test"
     ],
-    "59": [
+    "64": [
       "tests_passwordresetservice_test",
       "tests_passwordresetservice_test_assert",
       "tests_passwordresetservice_test_babel",
@@ -1446,7 +1341,7 @@
       "tests_passwordresetservice_test_servicepath",
       "tests_passwordresetservice_test_test"
     ],
-    "60": [
+    "65": [
       "tests_scheduleownership_test",
       "tests_scheduleownership_test_assert",
       "tests_scheduleownership_test_babel",
@@ -1457,17 +1352,47 @@
       "tests_scheduleownership_test_path",
       "tests_scheduleownership_test_test"
     ],
-    "61": [
-      "src_pages_schedule_components_lessoneditor",
-      "src_pages_schedule_components_lessoneditor_deepclone",
-      "src_pages_schedule_components_lessoneditor_generatelocalid",
-      "src_pages_schedule_components_lessoneditor_lessoneditor",
-      "src_pages_schedule_components_lessoneditor_styles",
-      "src_pages_schedule_components_lessoneditor_timetomins",
-      "src_services_attachmentservice_deletelocalattachmentcaches",
-      "src_services_attachmentservice_normalizeattachmentdraftlist"
+    "66": [
+      "src_auth_components_passwordstrengthbar",
+      "src_auth_components_passwordstrengthbar_passwordstrengthbar",
+      "src_auth_components_passwordstrengthbar_styles",
+      "src_auth_passwordpolicy",
+      "src_auth_passwordpolicy_getpasswordpolicymessage",
+      "src_auth_passwordpolicy_getpasswordpolicystatus",
+      "src_auth_passwordpolicy_getpasswordstrength",
+      "src_auth_passwordpolicy_ispasswordallowed"
     ],
-    "62": [
+    "67": [
+      "src_auth_components_socialauthbuttons",
+      "src_auth_components_socialauthbuttons_socialauthbuttons",
+      "src_auth_components_socialauthbuttons_styles",
+      "src_auth_passwordresetscreen",
+      "src_auth_passwordresetscreen_getstyles",
+      "src_auth_passwordresetscreen_passwordresetscreen",
+      "src_components_ui_morphingloader_createframequeue",
+      "src_components_ui_morphingloader_morphingloader"
+    ],
+    "68": [
+      "src_components_attachments_attachmentmanager",
+      "src_components_attachments_attachmentmanager_attachmentmanager",
+      "src_components_attachments_attachmentmanager_getattachmentkindicon",
+      "src_components_attachments_attachmentmanager_interpolate",
+      "src_components_attachments_attachmentmanager_styles",
+      "src_pages_schedule_components_lessoneditor_screens_mainscreen",
+      "src_pages_schedule_components_lessoneditor_screens_mainscreen_lessoneditormainscreen",
+      "src_pages_schedule_components_lessoneditor_screens_mainscreen_styles"
+    ],
+    "69": [
+      "src_components_calendarsheet_calendargrid",
+      "src_components_calendarsheet_calendargrid_calendargrid",
+      "src_components_calendarsheet_calendargrid_daycell",
+      "src_components_calendarsheet_calendargrid_sameday",
+      "src_components_calendarsheet_calendargrid_styles",
+      "src_components_calendarsheet_calendarsheet",
+      "src_components_calendarsheet_calendarsheet_calendarsheet",
+      "src_components_calendarsheet_calendarsheet_styles"
+    ],
+    "70": [
       "src_utils_analytics_analytics_web",
       "src_utils_analytics_analytics_web_deleteanalyticscookies",
       "src_utils_analytics_analytics_web_denied_consent",
@@ -1477,7 +1402,7 @@
       "src_utils_analytics_analytics_web_trackevent",
       "src_utils_analytics_analytics_web_trackscreenview"
     ],
-    "63": [
+    "71": [
       "graphify",
       "graphify_build_the_project_graph",
       "graphify_codex_integration",
@@ -1486,7 +1411,7 @@
       "graphify_query_the_graph",
       "graphify_team_notes"
     ],
-    "64": [
+    "72": [
       "package",
       "package_main",
       "package_name",
@@ -1495,7 +1420,25 @@
       "package_private",
       "package_version"
     ],
-    "65": [
+    "73": [
+      "src_hooks_usenowtick",
+      "src_hooks_usenowtick_createnowtickstore",
+      "src_hooks_usenowtick_istimerrelevantdate",
+      "src_hooks_usenowtick_nowtickcontext",
+      "src_hooks_usenowtick_nowtickprovider",
+      "src_hooks_usenowtick_startofday",
+      "src_hooks_usenowtick_usenowtick"
+    ],
+    "74": [
+      "src_pages_schedule_components_notificationinboxpanel",
+      "src_pages_schedule_components_notificationinboxpanel_card_expand_animation",
+      "src_pages_schedule_components_notificationinboxpanel_configurecardlayoutanimation",
+      "src_pages_schedule_components_notificationinboxpanel_interpolate",
+      "src_pages_schedule_components_notificationinboxpanel_notificationinboxpanel",
+      "src_pages_schedule_components_notificationinboxpanel_styles",
+      "src_pages_schedule_components_notificationinboxpanel_timestamptoms"
+    ],
+    "75": [
       "functions_src_passwordactionemailtemplates",
       "functions_src_passwordactionemailtemplates_copy",
       "functions_src_passwordactionemailtemplates_createaddpasswordemailcontent",
@@ -1503,7 +1446,7 @@
       "functions_src_passwordactionemailtemplates_normalizepasswordemaillocale",
       "functions_test_passwordactionemailtemplates_test"
     ],
-    "66": [
+    "76": [
       "functions_test_passwordactionemailsecurity_test",
       "functions_test_passwordactionemailsecurity_test_handler",
       "functions_test_passwordactionemailsecurity_test_handlerend",
@@ -1511,7 +1454,31 @@
       "functions_test_passwordactionemailsecurity_test_source",
       "functions_test_passwordactionemailsecurity_test_testdirectory"
     ],
-    "67": [
+    "77": [
+      "src_components_ui_bottomsheet",
+      "src_components_ui_bottomsheet_bottomsheet",
+      "src_components_ui_bottomsheet_default_snap_points",
+      "src_components_ui_bottomsheet_sheetflatlist",
+      "src_components_ui_bottomsheet_sheetscrollview",
+      "src_components_ui_bottomsheet_styles"
+    ],
+    "78": [
+      "src_config_firebase",
+      "src_config_firebase_app",
+      "src_config_firebase_db",
+      "src_config_firebase_firebaseconfig",
+      "src_config_firebase_normalizestoragebucket",
+      "src_config_firebase_storagebucketname"
+    ],
+    "79": [
+      "src_pages_schedule_components_breakcard",
+      "src_pages_schedule_components_breakcard_animatedbreakcard",
+      "src_pages_schedule_components_breakcard_breakcard",
+      "src_pages_schedule_components_breakcard_checkbreakstate",
+      "src_pages_schedule_components_breakcard_getdiffminutes",
+      "src_pages_schedule_components_breakcard_styles"
+    ],
+    "80": [
       "src_pages_schedule_components_lessoneditor_screens_gradientscreen",
       "src_pages_schedule_components_lessoneditor_screens_gradientscreen_angleslider",
       "src_pages_schedule_components_lessoneditor_screens_gradientscreen_hue_colors",
@@ -1519,7 +1486,7 @@
       "src_pages_schedule_components_lessoneditor_screens_gradientscreen_lessoneditorgradienteditscreen",
       "src_pages_schedule_components_lessoneditor_screens_gradientscreen_styles"
     ],
-    "68": [
+    "81": [
       "src_pages_schedule_schedule",
       "src_pages_schedule_schedule_daypage",
       "src_pages_schedule_schedule_days_indices",
@@ -1527,7 +1494,7 @@
       "src_pages_schedule_schedule_schedule",
       "src_pages_schedule_schedule_styles"
     ],
-    "69": [
+    "82": [
       "src_services_cookieconsentservice_native",
       "src_services_cookieconsentservice_native_readcookieconsent",
       "src_services_cookieconsentservice_native_requestcookiepreferences",
@@ -1535,7 +1502,7 @@
       "src_services_cookieconsentservice_native_subscribetocookieconsent",
       "src_services_cookieconsentservice_native_subscribetocookiepreferencerequests"
     ],
-    "70": [
+    "83": [
       "src_utils_analytics_crashlytics_web",
       "src_utils_analytics_crashlytics_web_crashapptotest",
       "src_utils_analytics_crashlytics_web_initglobalerrorhandling",
@@ -1543,447 +1510,545 @@
       "src_utils_analytics_crashlytics_web_logcrashlyticsmessage",
       "src_utils_analytics_crashlytics_web_setcrashlyticsuser"
     ],
-    "71": [
+    "84": [
       "babel_core",
       "cross_env",
       "package_devdependencies",
       "package_devdependencies_babel_core",
       "package_devdependencies_cross_env"
     ],
-    "72": [
+    "85": [
       "docs_account_deletion",
       "docs_account_deletion_account_deletion_deployment",
       "docs_account_deletion_apple_secret_values",
       "docs_account_deletion_required_deployment_order",
       "docs_account_deletion_verification_checklist"
     ],
-    "73": [
+    "86": [
       "src_context_adscontext_native",
       "src_context_adscontext_native_adscontext",
       "src_context_adscontext_native_adsprovider",
       "src_context_adscontext_native_default_ads_state",
       "src_context_adscontext_native_useads"
     ],
-    "74": [
+    "87": [
       "src_context_adscontext_web",
       "src_context_adscontext_web_adscontext",
       "src_context_adscontext_web_adsprovider",
       "src_context_adscontext_web_useads",
       "src_context_adscontext_web_web_ads_state"
     ],
-    "75": [
+    "88": [
+      "src_context_appcontext",
+      "src_context_appcontext_appcontext",
+      "src_context_appcontext_appprovider",
+      "src_context_appcontext_styles",
+      "src_context_appcontext_useappcontext"
+    ],
+    "89": [
+      "src_context_dayscheduleprovider",
+      "src_context_dayscheduleprovider_dayschedulecontext",
+      "src_context_dayscheduleprovider_dayscheduleprovider",
+      "src_context_dayscheduleprovider_usedayschedule",
+      "src_context_dayscheduleprovider_useoptionaldayschedule"
+    ],
+    "90": [
+      "src_utils_scheduledatafingerprint",
+      "src_utils_scheduledatafingerprint_getscheduledatafingerprint",
+      "src_utils_scheduledatafingerprint_hasscheduledatachanged",
+      "src_utils_scheduledatafingerprint_normalizeforfingerprint",
+      "src_utils_scheduledatafingerprint_normalizescheduledata"
+    ],
+    "91": [
       "scripts_fix_build",
       "scripts_fix_build_distpath",
       "scripts_fix_build_fs",
       "scripts_fix_build_path"
     ],
-    "76": [
+    "92": [
       "src_components_adbanner_adbanner_native",
       "src_components_adbanner_adbanner_native_adbanner",
       "src_components_adbanner_adbanner_native_isexpogo",
       "src_components_adbanner_adbanner_native_styles"
     ],
-    "77": [
+    "93": [
       "src_config_legaldocuments_generated",
       "src_config_legaldocuments_generated_getlegaldocument",
       "src_config_legaldocuments_generated_legal_document_types",
       "src_config_legaldocuments_generated_legal_documents"
     ],
-    "78": [
+    "94": [
+      "src_config_subjecticons",
+      "src_config_subjecticons_geticoncomponent",
+      "src_config_subjecticons_icon_categories",
+      "src_config_subjecticons_subject_icons"
+    ],
+    "95": [
       "src_context_editorprovider",
       "src_context_editorprovider_editorcontext",
       "src_context_editorprovider_editorprovider",
       "src_context_editorprovider_useeditor"
     ],
-    "79": [
+    "96": [
+      "src_context_notificationdrawercontext",
+      "src_context_notificationdrawercontext_notificationdrawercontext",
+      "src_context_notificationdrawercontext_notificationdrawerprovider",
+      "src_context_notificationdrawercontext_usenotificationdrawer"
+    ],
+    "97": [
+      "src_pages_settings_components_accountsettings_components_deleteaccountscreen",
+      "src_pages_settings_components_accountsettings_components_deleteaccountscreen_deleteaccountscreen",
+      "src_pages_settings_components_accountsettings_components_deleteaccountscreen_getdeletionerrorkey",
+      "src_pages_settings_components_accountsettings_components_deleteaccountscreen_getstyles"
+    ],
+    "98": [
+      "src_pages_tasks_components_taskschedulefiltersheet",
+      "src_pages_tasks_components_taskschedulefiltersheet_styles",
+      "src_pages_tasks_components_taskschedulefiltersheet_taskschedulefiltersheet",
+      "src_pages_tasks_components_taskschedulefiltersheet_uniqueids"
+    ],
+    "99": [
+      "src_services_attachmentservice_createandroiddownloadfile",
+      "src_services_attachmentservice_getandroiddownloadfilename",
+      "src_services_attachmentservice_makeuniquedownloadfilename",
+      "src_services_attachmentservice_writeandroiddownloadfile"
+    ],
+    "100": [
       "src_utils_adinit_adinit_web",
       "src_utils_adinit_adinit_web_initads",
       "src_utils_adinit_adinit_web_showadprivacyoptions",
       "src_utils_adinit_adinit_web_web_ad_state"
     ],
-    "80": [
+    "101": [
       "agents",
       "agents_graphify",
       "agents_project_instructions"
     ],
-    "81": [
-      "src_auth_components_socialauthbuttons",
-      "src_auth_components_socialauthbuttons_socialauthbuttons",
-      "src_auth_components_socialauthbuttons_styles"
+    "102": [
+      "src_components_modals_shareschedulemodal",
+      "src_components_modals_shareschedulemodal_shareschedulemodal",
+      "src_components_modals_shareschedulemodal_styles"
     ],
-    "82": [
+    "103": [
       "src_components_privacy_cookieconsentbanner_web",
       "src_components_privacy_cookieconsentbanner_web_cookieconsentbanner",
       "src_components_privacy_cookieconsentbanner_web_styles"
     ],
-    "83": [
+    "104": [
       "src_components_ui_expandablecard",
       "src_components_ui_expandablecard_expandablecard",
       "src_components_ui_expandablecard_styles"
     ],
-    "84": [
+    "105": [
       "src_config_layoutmetrics",
       "src_config_layoutmetrics_getappheaderheight",
       "src_config_layoutmetrics_getappheadertopinset"
     ],
-    "85": [
+    "106": [
+      "src_pages_schedule_components_lessoneditor_ui_group",
+      "src_pages_schedule_components_lessoneditor_ui_group_group",
+      "src_pages_schedule_components_lessoneditor_ui_group_styles"
+    ],
+    "107": [
+      "src_pages_schedule_components_lessoneditor_ui_settingrow",
+      "src_pages_schedule_components_lessoneditor_ui_settingrow_settingrow",
+      "src_pages_schedule_components_lessoneditor_ui_settingrow_styles"
+    ],
+    "108": [
+      "src_pages_schedule_components_lessonviewer",
+      "src_pages_schedule_components_lessonviewer_lessonviewer",
+      "src_pages_schedule_components_lessonviewer_styles"
+    ],
+    "109": [
       "src_pages_settings_components_aboutapp",
       "src_pages_settings_components_aboutapp_aboutapp",
       "src_pages_settings_components_aboutapp_styles"
     ],
-    "86": [
+    "110": [
+      "src_pages_settings_components_accountsettings_components_changeemailscreen",
+      "src_pages_settings_components_accountsettings_components_changeemailscreen_changeemailscreen",
+      "src_pages_settings_components_accountsettings_components_changeemailscreen_getstyles"
+    ],
+    "111": [
+      "src_pages_settings_components_accountsettings_components_changenamescreen",
+      "src_pages_settings_components_accountsettings_components_changenamescreen_changenamescreen",
+      "src_pages_settings_components_accountsettings_components_changenamescreen_getstyles"
+    ],
+    "112": [
+      "src_pages_settings_components_accountsettings_components_changepasswordscreen",
+      "src_pages_settings_components_accountsettings_components_changepasswordscreen_changepasswordscreen",
+      "src_pages_settings_components_accountsettings_components_changepasswordscreen_getstyles"
+    ],
+    "113": [
       "src_pages_settings_components_legaldocumentscreen",
       "src_pages_settings_components_legaldocumentscreen_legaldocumentscreen",
       "src_pages_settings_components_legaldocumentscreen_styles"
     ],
-    "87": [
-      "src_pages_settings_settings",
-      "src_pages_settings_settings_settings",
-      "src_pages_settings_settings_styles"
+    "114": [
+      "src_pages_syncconflict_syncconflictscreen",
+      "src_pages_syncconflict_syncconflictscreen_styles",
+      "src_pages_syncconflict_syncconflictscreen_syncconflictscreen"
     ],
-    "88": [
+    "115": [
       "src_utils_analytics_analytics_native",
       "src_utils_analytics_analytics_native_trackevent",
       "src_utils_analytics_analytics_native_trackscreenview"
     ],
-    "89": [
+    "116": [
       "src_utils_authflags",
       "src_utils_authflags_consumemanuallogin",
       "src_utils_authflags_setmanuallogin"
     ],
-    "90": [
+    "117": [
       "src_utils_legaldocumentlinks",
       "src_utils_legaldocumentlinks_getlegaldocumentbrowserurl",
       "src_utils_legaldocumentlinks_getlegaldocumentlocale"
     ],
-    "91": [
+    "118": [
+      "src_utils_scheduledisplay",
+      "src_utils_scheduledisplay_getscheduledisplayname",
+      "src_utils_scheduledisplay_legacy_default_schedule_names"
+    ],
+    "119": [
       "expo",
       "package_dependencies_expo"
     ],
-    "92": [
+    "120": [
+      "expo_apple_authentication",
+      "package_dependencies_expo_apple_authentication"
+    ],
+    "121": [
       "expo_build_properties",
       "package_dependencies_expo_build_properties"
     ],
-    "93": [
+    "122": [
       "expo_clipboard",
       "package_dependencies_expo_clipboard"
     ],
-    "94": [
+    "123": [
       "expo_crypto",
       "package_dependencies_expo_crypto"
     ],
-    "95": [
+    "124": [
       "expo_dev_client",
       "package_dependencies_expo_dev_client"
     ],
-    "96": [
-      "expo_device",
-      "package_dependencies_expo_device"
-    ],
-    "97": [
+    "125": [
       "expo_document_picker",
       "package_dependencies_expo_document_picker"
     ],
-    "98": [
+    "126": [
       "expo_file_system",
       "package_dependencies_expo_file_system"
     ],
-    "99": [
+    "127": [
       "expo_haptics",
       "package_dependencies_expo_haptics"
     ],
-    "100": [
+    "128": [
       "expo_image_picker",
       "package_dependencies_expo_image_picker"
     ],
-    "101": [
+    "129": [
       "expo_linear_gradient",
       "package_dependencies_expo_linear_gradient"
     ],
-    "102": [
+    "130": [
       "expo_linking",
       "package_dependencies_expo_linking"
     ],
-    "103": [
+    "131": [
       "expo_localization",
       "package_dependencies_expo_localization"
     ],
-    "104": [
+    "132": [
       "expo_metro_runtime",
       "package_dependencies_expo_metro_runtime"
     ],
-    "105": [
+    "133": [
       "expo_sharing",
       "package_dependencies_expo_sharing"
     ],
-    "106": [
+    "134": [
       "expo_splash_screen",
       "package_dependencies_expo_splash_screen"
     ],
-    "107": [
+    "135": [
       "expo_status_bar",
       "package_dependencies_expo_status_bar"
     ],
-    "108": [
+    "136": [
       "expo_updates",
       "package_dependencies_expo_updates"
     ],
-    "109": [
+    "137": [
       "gorhom_bottom_sheet",
       "package_dependencies_gorhom_bottom_sheet"
     ],
-    "110": [
+    "138": [
       "package_dependencies_phosphor_react_native",
       "phosphor_react_native"
     ],
-    "111": [
+    "139": [
+      "package_dependencies_react",
+      "react"
+    ],
+    "140": [
       "package_dependencies_react_dom",
       "react_dom"
     ],
-    "112": [
+    "141": [
       "package_dependencies_react_native",
       "react_native"
     ],
-    "113": [
+    "142": [
       "package_dependencies_react_native_android_widget",
       "react_native_android_widget"
     ],
-    "114": [
+    "143": [
       "package_dependencies_react_native_async_storage_async_storage",
       "react_native_async_storage_async_storage"
     ],
-    "115": [
+    "144": [
       "package_dependencies_react_native_community_datetimepicker",
       "react_native_community_datetimepicker"
     ],
-    "116": [
+    "145": [
       "package_dependencies_react_native_community_netinfo",
       "react_native_community_netinfo"
     ],
-    "117": [
+    "146": [
       "package_dependencies_react_native_firebase_analytics",
       "react_native_firebase_analytics"
     ],
-    "118": [
+    "147": [
       "package_dependencies_react_native_firebase_app",
       "react_native_firebase_app"
     ],
-    "119": [
+    "148": [
       "package_dependencies_react_native_firebase_crashlytics",
       "react_native_firebase_crashlytics"
     ],
-    "120": [
+    "149": [
       "package_dependencies_react_native_gesture_handler",
       "react_native_gesture_handler"
     ],
-    "121": [
+    "150": [
       "package_dependencies_react_native_google_mobile_ads",
       "react_native_google_mobile_ads"
     ],
-    "122": [
+    "151": [
       "package_dependencies_react_native_google_signin_google_signin",
       "react_native_google_signin_google_signin"
     ],
-    "123": [
+    "152": [
       "package_dependencies_react_native_pager_view",
       "react_native_pager_view"
     ],
-    "124": [
+    "153": [
       "package_dependencies_react_native_reanimated",
       "react_native_reanimated"
     ],
-    "125": [
+    "154": [
       "package_dependencies_react_native_safe_area_context",
       "react_native_safe_area_context"
     ],
-    "126": [
+    "155": [
       "package_dependencies_react_native_screens",
       "react_native_screens"
     ],
-    "127": [
+    "156": [
       "package_dependencies_react_native_svg",
       "react_native_svg"
     ],
-    "128": [
+    "157": [
       "package_dependencies_react_native_web",
       "react_native_web"
     ],
-    "129": [
+    "158": [
       "package_dependencies_react_native_worklets",
       "react_native_worklets"
     ],
-    "130": [
+    "159": [
       "package_dependencies_react_navigation_bottom_tabs",
       "react_navigation_bottom_tabs"
     ],
-    "131": [
+    "160": [
       "package_dependencies_react_navigation_native",
       "react_navigation_native"
     ],
-    "132": [
+    "161": [
       "package_dependencies_react_navigation_native_stack",
       "react_navigation_native_stack"
     ],
-    "133": [
+    "162": [
       "package_dependencies_tinycolor2",
       "tinycolor2"
     ],
-    "134": [
+    "163": [
       "scripts_build_aab",
       "scripts_build_aab_get_sha256"
     ],
-    "135": [
+    "164": [
       "src_components_adbanner_adbanner_web",
       "src_components_adbanner_adbanner_web_adbanner"
     ],
-    "136": [
+    "165": [
       "src_components_privacy_cookieconsentbanner_native",
       "src_components_privacy_cookieconsentbanner_native_cookieconsentbanner"
     ],
-    "137": [
+    "166": [
+      "src_components_ui_gradientbackground",
+      "src_components_ui_gradientbackground_gradientbackground"
+    ],
+    "167": [
       "src_config_defaultschedule",
       "src_config_defaultschedule_defaultschedule"
     ],
-    "138": [
+    "168": [
+      "src_config_firestore_schedulesyncconflicterror",
+      "src_config_firestore_schedulesyncconflicterror_constructor"
+    ],
+    "169": [
       "babel_config"
     ],
-    "139": [
+    "170": [
       "scripts_build_android"
     ],
-    "140": [
+    "171": [
       "scripts_build_dev"
     ],
-    "141": [
+    "172": [
       "scripts_graphify"
     ],
-    "142": [
+    "173": [
       "scripts_publish_legal_docs"
     ],
-    "143": [
+    "174": [
       "src_components_attachments_androidpagerview_android"
     ],
-    "144": [
+    "175": [
       "src_widgets_widgetservice_getwidgetselectedscheduleid"
     ]
   },
   "cohesion": {
-    "0": 0.06666666666666667,
-    "1": 0.07259528130671507,
-    "2": 0.0783673469387755,
+    "0": 0.05945945945945946,
+    "1": 0.06949152542372881,
+    "2": 0.07474600870827286,
     "3": 0.10884353741496598,
-    "4": 0.08325624421831637,
-    "5": 0.048726467331118496,
-    "6": 0.08205128205128205,
-    "7": 0.12955465587044535,
-    "8": 0.05263157894736842,
-    "9": 0.1036036036036036,
-    "10": 0.0855614973262032,
-    "11": 0.13333333333333333,
-    "12": 0.18620689655172415,
-    "13": 0.1111111111111111,
-    "14": 0.1746031746031746,
-    "15": 0.1349206349206349,
-    "16": 0.1225071225071225,
-    "17": 0.20512820512820512,
-    "18": 0.25925925925925924,
-    "19": 0.16307692307692306,
-    "20": 0.13405797101449277,
-    "21": 0.15217391304347827,
-    "22": 0.17028985507246377,
-    "23": 0.09090909090909091,
-    "24": 0.1774891774891775,
-    "25": 0.14761904761904762,
-    "26": 0.18421052631578946,
-    "27": 0.15789473684210525,
-    "28": 0.1871345029239766,
-    "29": 0.13725490196078433,
-    "30": 0.17647058823529413,
-    "31": 0.13970588235294118,
-    "32": 0.21666666666666667,
-    "33": 0.21904761904761905,
-    "34": 0.20952380952380953,
-    "35": 0.18681318681318682,
-    "36": 0.24175824175824176,
-    "37": 0.15384615384615385,
-    "38": 0.2564102564102564,
-    "39": 0.21794871794871795,
-    "40": 0.28205128205128205,
-    "41": 0.2692307692307692,
-    "42": 0.44871794871794873,
-    "43": 0.25757575757575757,
-    "44": 0.25757575757575757,
-    "45": 0.4,
-    "46": 0.21818181818181817,
-    "47": 0.34545454545454546,
-    "48": 0.18181818181818182,
-    "49": 0.2,
-    "50": 0.18181818181818182,
+    "4": 0.05263157894736842,
+    "5": 0.1036036036036036,
+    "6": 0.11612903225806452,
+    "7": 0.13333333333333333,
+    "8": 0.1724137931034483,
+    "9": 0.1111111111111111,
+    "10": 0.25925925925925924,
+    "11": 0.18478260869565216,
+    "12": 0.12681159420289856,
+    "13": 0.19367588932806323,
+    "14": 0.09090909090909091,
+    "15": 0.16883116883116883,
+    "16": 0.1471861471861472,
+    "17": 0.18095238095238095,
+    "18": 0.17142857142857143,
+    "19": 0.19883040935672514,
+    "20": 0.16993464052287582,
+    "21": 0.17647058823529413,
+    "22": 0.2647058823529412,
+    "23": 0.13970588235294118,
+    "24": 0.25735294117647056,
+    "25": 0.15833333333333333,
+    "26": 0.18333333333333332,
+    "27": 0.16666666666666666,
+    "28": 0.15833333333333333,
+    "29": 0.125,
+    "30": 0.19047619047619047,
+    "31": 0.1523809523809524,
+    "32": 0.18681318681318682,
+    "33": 0.24175824175824176,
+    "34": 0.24175824175824176,
+    "35": 0.4065934065934066,
+    "36": 0.15384615384615385,
+    "37": 0.28205128205128205,
+    "38": 0.44871794871794873,
+    "39": 0.25757575757575757,
+    "40": 0.19696969696969696,
+    "41": 0.16666666666666666,
+    "42": 0.4,
+    "43": 0.2,
+    "44": 0.32727272727272727,
+    "45": 0.34545454545454546,
+    "46": 0.36363636363636365,
+    "47": 0.18181818181818182,
+    "48": 0.2,
+    "49": 0.18181818181818182,
+    "50": 0.3333333333333333,
     "51": 0.4444444444444444,
     "52": 0.2,
     "53": 0.2,
     "54": 0.2222222222222222,
     "55": 0.2222222222222222,
-    "56": 0.2222222222222222,
-    "57": 0.2222222222222222,
+    "56": 0.2777777777777778,
+    "57": 0.3333333333333333,
     "58": 0.2222222222222222,
-    "59": 0.25,
-    "60": 0.2222222222222222,
-    "61": 0.4642857142857143,
-    "62": 0.2857142857142857,
-    "63": 0.2857142857142857,
-    "64": 0.2857142857142857,
-    "65": 0.6,
-    "66": 0.3333333333333333,
-    "67": 0.3333333333333333,
-    "68": 0.4,
-    "69": 0.3333333333333333,
-    "70": 0.3333333333333333,
-    "71": 0.4,
-    "72": 0.4,
-    "73": 0.4,
-    "74": 0.4,
-    "75": 0.5,
-    "76": 0.5,
-    "77": 0.5,
-    "78": 0.5,
-    "79": 0.5,
-    "80": 0.6666666666666666,
-    "81": 0.6666666666666666,
-    "82": 0.6666666666666666,
-    "83": 0.6666666666666666,
-    "84": 1.0,
-    "85": 0.6666666666666666,
-    "86": 0.6666666666666666,
-    "87": 0.6666666666666666,
-    "88": 0.6666666666666666,
-    "89": 0.6666666666666666,
-    "90": 1.0,
-    "91": 1.0,
-    "92": 1.0,
-    "93": 1.0,
-    "94": 1.0,
-    "95": 1.0,
-    "96": 1.0,
-    "97": 1.0,
-    "98": 1.0,
-    "99": 1.0,
-    "100": 1.0,
-    "101": 1.0,
-    "102": 1.0,
-    "103": 1.0,
-    "104": 1.0,
+    "59": 0.2777777777777778,
+    "60": 0.2777777777777778,
+    "61": 0.4722222222222222,
+    "62": 0.2222222222222222,
+    "63": 0.2222222222222222,
+    "64": 0.25,
+    "65": 0.2222222222222222,
+    "66": 0.39285714285714285,
+    "67": 0.2857142857142857,
+    "68": 0.39285714285714285,
+    "69": 0.2857142857142857,
+    "70": 0.2857142857142857,
+    "71": 0.2857142857142857,
+    "72": 0.2857142857142857,
+    "73": 0.47619047619047616,
+    "74": 0.42857142857142855,
+    "75": 0.6,
+    "76": 0.3333333333333333,
+    "77": 0.3333333333333333,
+    "78": 0.3333333333333333,
+    "79": 0.4666666666666667,
+    "80": 0.3333333333333333,
+    "81": 0.4,
+    "82": 0.3333333333333333,
+    "83": 0.3333333333333333,
+    "84": 0.4,
+    "85": 0.4,
+    "86": 0.4,
+    "87": 0.4,
+    "88": 0.4,
+    "89": 0.4,
+    "90": 0.7,
+    "91": 0.5,
+    "92": 0.5,
+    "93": 0.5,
+    "94": 0.5,
+    "95": 0.5,
+    "96": 0.5,
+    "97": 0.8333333333333334,
+    "98": 0.6666666666666666,
+    "99": 0.5,
+    "100": 0.5,
+    "101": 0.6666666666666666,
+    "102": 0.6666666666666666,
+    "103": 0.6666666666666666,
+    "104": 0.6666666666666666,
     "105": 1.0,
-    "106": 1.0,
-    "107": 1.0,
-    "108": 1.0,
-    "109": 1.0,
+    "106": 0.6666666666666666,
+    "107": 0.6666666666666666,
+    "108": 0.6666666666666666,
+    "109": 0.6666666666666666,
     "110": 1.0,
     "111": 1.0,
     "112": 1.0,
-    "113": 1.0,
-    "114": 1.0,
-    "115": 1.0,
-    "116": 1.0,
+    "113": 0.6666666666666666,
+    "114": 0.6666666666666666,
+    "115": 0.6666666666666666,
+    "116": 0.6666666666666666,
     "117": 1.0,
     "118": 1.0,
     "119": 1.0,
@@ -2011,48 +2076,49 @@
     "141": 1.0,
     "142": 1.0,
     "143": 1.0,
-    "144": 1.0
+    "144": 1.0,
+    "145": 1.0,
+    "146": 1.0,
+    "147": 1.0,
+    "148": 1.0,
+    "149": 1.0,
+    "150": 1.0,
+    "151": 1.0,
+    "152": 1.0,
+    "153": 1.0,
+    "154": 1.0,
+    "155": 1.0,
+    "156": 1.0,
+    "157": 1.0,
+    "158": 1.0,
+    "159": 1.0,
+    "160": 1.0,
+    "161": 1.0,
+    "162": 1.0,
+    "163": 1.0,
+    "164": 1.0,
+    "165": 1.0,
+    "166": 1.0,
+    "167": 1.0,
+    "168": 1.0,
+    "169": 1.0,
+    "170": 1.0,
+    "171": 1.0,
+    "172": 1.0,
+    "173": 1.0,
+    "174": 1.0,
+    "175": 1.0
   },
   "gods": [
-    {
-      "id": "src_context_scheduleprovider_usescheduledata",
-      "label": "useScheduleData()",
-      "degree": 87
-    },
-    {
-      "id": "src_utils_i18n_t",
-      "label": "t()",
-      "degree": 48
-    },
-    {
-      "id": "src_utils_haptics_triggerhaptic",
-      "label": "triggerHaptic()",
-      "degree": 46
-    },
     {
       "id": "package_scripts",
       "label": "scripts",
       "degree": 38
     },
     {
-      "id": "src_pages_settings_components_filelibraryscreen_filelibraryscreen",
-      "label": "FileLibraryScreen()",
-      "degree": 34
-    },
-    {
-      "id": "src_context_scheduleprovider_usescheduleactions",
-      "label": "useScheduleActions()",
-      "degree": 34
-    },
-    {
-      "id": "src_components_attachments_attachmentmanager_attachmentmanager",
-      "label": "AttachmentManager()",
-      "degree": 25
-    },
-    {
-      "id": "src_config_themes_themes",
-      "label": "themes",
-      "degree": 23
+      "id": "src_context_scheduleprovider_usescheduledata",
+      "label": "useScheduleData()",
+      "degree": 32
     },
     {
       "id": "src_services_attachmentservice_makeattachmenterror",
@@ -2062,7 +2128,37 @@
     {
       "id": "src_services_attachmentservice_ensurelocalattachment",
       "label": "ensureLocalAttachment()",
-      "degree": 23
+      "degree": 21
+    },
+    {
+      "id": "src_utils_i18n_t",
+      "label": "t()",
+      "degree": 20
+    },
+    {
+      "id": "src_services_attachmentservice_uploadattachmentdraft",
+      "label": "uploadAttachmentDraft()",
+      "degree": 19
+    },
+    {
+      "id": "src_utils_schedulevalidation_sanitizeschedulecore",
+      "label": "sanitizeScheduleCore()",
+      "degree": 18
+    },
+    {
+      "id": "src_context_scheduleprovider_scheduleprovider",
+      "label": "ScheduleProvider()",
+      "degree": 17
+    },
+    {
+      "id": "src_context_scheduleprovider_usescheduleactions",
+      "label": "useScheduleActions()",
+      "degree": 16
+    },
+    {
+      "id": "src_services_attachmentservice_inferattachmentmimetype",
+      "label": "inferAttachmentMimeType()",
+      "degree": 15
     }
   ],
   "surprises": [
@@ -2100,10 +2196,10 @@
       "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
     },
     {
-      "source": "LessonEditor()",
-      "target": "data()",
+      "source": "markScheduleDataDirty()",
+      "target": "schedule()",
       "source_files": [
-        "src/pages/Schedule/components/LessonEditor.jsx",
+        "src/utils/scheduleSync.js",
         "tests/scheduleSync.test.cjs"
       ],
       "confidence": "INFERRED",
@@ -2111,15 +2207,15 @@
       "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
     },
     {
-      "source": "FileLibraryScreen()",
-      "target": "schedule()",
+      "source": "AttachmentImagePreview()",
+      "target": "triggerHaptic()",
       "source_files": [
-        "src/pages/Settings/components/FileLibraryScreen.jsx",
-        "tests/scheduleSync.test.cjs"
+        "src/components/attachments/AttachmentImagePreview.jsx",
+        "src/utils/haptics.js"
       ],
       "confidence": "INFERRED",
       "relation": "indirect_call",
-      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
     }
   ],
   "tokens": {

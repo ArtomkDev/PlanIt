@@ -299,9 +299,15 @@ export default function DeleteAccountScreen() {
           'settings.account_settings.delete_screen.verify_with',
           lang,
         )} ${label}`}
+        accessibilityState={{ disabled: busy || isAppleUnavailable, busy: loading }}
       >
         {loading ? (
-          <MorphingLoader size={24} />
+          <View style={styles.loadingButtonContent}>
+            <MorphingLoader size={22} />
+            <Text style={styles.providerButtonText}>
+              {t('settings.account_settings.delete_screen.verify_with', lang)} {label}
+            </Text>
+          </View>
         ) : (
           <Text style={styles.providerButtonText}>
             {t(
@@ -361,6 +367,7 @@ export default function DeleteAccountScreen() {
           </Text>
           <TextInput
             style={styles.input}
+            accessibilityLabel={t('settings.account_settings.delete_screen.confirm_password', lang)}
             placeholder={t('auth.fields.password', lang)}
             placeholderTextColor={themeColors.textColor2}
             secureTextEntry
@@ -373,6 +380,9 @@ export default function DeleteAccountScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             editable={!busy}
+            textContentType="password"
+            autoComplete="current-password"
+            accessibilityState={{ disabled: busy }}
           />
         </>
       ) : null}
@@ -392,7 +402,7 @@ export default function DeleteAccountScreen() {
 
       {verification ? (
         <View style={styles.verifiedBox}>
-          <Text style={styles.verifiedText}>
+          <Text accessibilityRole="alert" style={styles.verifiedText}>
             {t(
               'settings.account_settings.delete_screen.identity_verified',
               lang,
@@ -401,7 +411,7 @@ export default function DeleteAccountScreen() {
         </View>
       ) : null}
 
-      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+      {errorMsg ? <Text accessibilityRole="alert" style={styles.errorText}>{errorMsg}</Text> : null}
 
       <TouchableOpacity
         style={[
@@ -411,9 +421,14 @@ export default function DeleteAccountScreen() {
         onPress={handleDelete}
         disabled={!verification || busy}
         accessibilityRole="button"
+        accessibilityLabel={t('settings.account_settings.delete_account', lang)}
+        accessibilityState={{ disabled: !verification || busy, busy: deleting }}
       >
         {deleting ? (
-          <MorphingLoader size={26} />
+          <View style={styles.loadingButtonContent}>
+            <MorphingLoader size={22} />
+            <Text style={styles.deleteButtonText}>{t('settings.account_settings.delete_account', lang)}</Text>
+          </View>
         ) : (
           <Text style={styles.deleteButtonText}>
             {t('settings.account_settings.delete_account', lang)}
@@ -498,6 +513,7 @@ const getStyles = (themeColors) => StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
+  loadingButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   providerButtonText: {
     color: themeColors.textColor,
     fontSize: 15,

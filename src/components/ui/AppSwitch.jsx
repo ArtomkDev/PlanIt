@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet } from "react-native";
+import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
 
 const SIZES = {
   regular: {
@@ -34,6 +35,7 @@ export default function AppSwitch({
   ...pressableProps
 }) {
   const isOn = value === true;
+  const reduceMotion = useReducedMotionPreference();
   const metrics = getSize(size);
   const progress = useRef(new Animated.Value(isOn ? 1 : 0)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
@@ -55,11 +57,11 @@ export default function AppSwitch({
   useEffect(() => {
     Animated.timing(progress, {
       toValue: isOn ? 1 : 0,
-      duration: 190,
+      duration: reduceMotion ? 0 : 190,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [isOn, progress]);
+  }, [isOn, progress, reduceMotion]);
 
   const translateX = progress.interpolate({
     inputRange: [0, 1],
@@ -76,6 +78,10 @@ export default function AppSwitch({
   };
 
   const animatePress = (toValue) => {
+    if (reduceMotion) {
+      pressScale.setValue(1);
+      return;
+    }
     Animated.spring(pressScale, {
       toValue,
       speed: 26,

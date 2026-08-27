@@ -22,6 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../config/firebase'; 
 import SocialAuthButtons from './components/SocialAuthButtons';
 import useSystemThemeColors from '../hooks/useSystemThemeColors';
+import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 import MorphingLoader from '../components/ui/MorphingLoader';
@@ -91,6 +92,7 @@ const getIconConfig = (vw, vh) => {
 };
 
 const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
+  const reduceMotion = useReducedMotionPreference();
   const breathAnim = useRef(new Animated.Value(0)).current;
   const welcomeOpacity = useRef(new Animated.Value(currentView === 'welcome' ? 1 : 0)).current;
   const signinOpacity = useRef(new Animated.Value(currentView === 'signin' ? 1 : 0)).current;
@@ -98,6 +100,11 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
   const verifyOpacity = useRef(new Animated.Value(currentView === 'verify' ? 1 : 0)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      breathAnim.stopAnimation();
+      breathAnim.setValue(0);
+      return undefined;
+    }
     const breathLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(breathAnim, { toValue: 1, duration: 4000, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
@@ -107,16 +114,16 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
     breathLoop.start();
 
     return () => breathLoop.stop();
-  }, [breathAnim]);
+  }, [breathAnim, reduceMotion]);
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(welcomeOpacity, { toValue: currentView === 'welcome' ? 1 : 0, duration: 600, useNativeDriver: true }),
-      Animated.timing(signinOpacity, { toValue: currentView === 'signin' ? 1 : 0, duration: 600, useNativeDriver: true }),
-      Animated.timing(signupOpacity, { toValue: currentView === 'signup' ? 1 : 0, duration: 600, useNativeDriver: true }),
-      Animated.timing(verifyOpacity, { toValue: currentView === 'verify' ? 1 : 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(welcomeOpacity, { toValue: currentView === 'welcome' ? 1 : 0, duration: reduceMotion ? 0 : 240, useNativeDriver: true }),
+      Animated.timing(signinOpacity, { toValue: currentView === 'signin' ? 1 : 0, duration: reduceMotion ? 0 : 240, useNativeDriver: true }),
+      Animated.timing(signupOpacity, { toValue: currentView === 'signup' ? 1 : 0, duration: reduceMotion ? 0 : 240, useNativeDriver: true }),
+      Animated.timing(verifyOpacity, { toValue: currentView === 'verify' ? 1 : 0, duration: reduceMotion ? 0 : 240, useNativeDriver: true }),
     ]).start();
-  }, [currentView]);
+  }, [currentView, reduceMotion, signinOpacity, signupOpacity, verifyOpacity, welcomeOpacity]);
 
   const baseColor = colors.backgroundColor;
   
@@ -148,6 +155,7 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
 };
 
 const AnimatedIconSlot = ({ targetConfig, isDark }) => {
+  const reduceMotion = useReducedMotionPreference();
   const animX = useRef(new Animated.Value(targetConfig.x)).current;
   const animY = useRef(new Animated.Value(targetConfig.y)).current;
   const animScale = useRef(new Animated.Value(targetConfig.scale)).current;
@@ -158,6 +166,16 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
   const [ActiveIcon, setActiveIcon] = useState(() => targetConfig.IconComponent);
 
   useEffect(() => {
+    if (reduceMotion) {
+      setActiveIcon(() => targetConfig.IconComponent);
+      animX.setValue(targetConfig.x);
+      animY.setValue(targetConfig.y);
+      animScale.setValue(targetConfig.scale);
+      animRotate.setValue(targetConfig.rotate);
+      animOpacity.setValue(targetConfig.opacity);
+      fadeAnim.setValue(1);
+      return;
+    }
     if (ActiveIcon !== targetConfig.IconComponent) {
       Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
         setActiveIcon(() => targetConfig.IconComponent);
@@ -169,10 +187,10 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
       Animated.spring(animX, { toValue: targetConfig.x, friction: 8, tension: 25, useNativeDriver: true }),
       Animated.spring(animY, { toValue: targetConfig.y, friction: 8, tension: 25, useNativeDriver: true }),
       Animated.spring(animScale, { toValue: targetConfig.scale, friction: 8, tension: 35, useNativeDriver: true }),
-      Animated.timing(animRotate, { toValue: targetConfig.rotate, duration: 700, easing: Easing.out(Easing.exp), useNativeDriver: true }),
-      Animated.timing(animOpacity, { toValue: targetConfig.opacity, duration: 500, useNativeDriver: true }),
+      Animated.timing(animRotate, { toValue: targetConfig.rotate, duration: 280, easing: Easing.out(Easing.exp), useNativeDriver: true }),
+      Animated.timing(animOpacity, { toValue: targetConfig.opacity, duration: 220, useNativeDriver: true }),
     ]).start();
-  }, [targetConfig]);
+  }, [ActiveIcon, animOpacity, animRotate, animScale, animX, animY, fadeAnim, reduceMotion, targetConfig]);
 
   const spin = animRotate.interpolate({ inputRange: [-360, 360], outputRange: ['-360deg', '360deg'] });
 
@@ -188,6 +206,7 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
 const InputField = ({
   InputIcon,
   placeholder,
+  accessibilityLabel,
   secureTextEntry,
   value,
   onChangeText,
@@ -215,10 +234,13 @@ const InputField = ({
     ]}>
       {InputIcon && <InputIcon size={20} color={isFocused ? colors.accentColor : colors.textColor2} style={styles.inputIcon} weight={isFocused ? "fill" : "regular"} />}
       <TextInput 
+        accessibilityLabel={accessibilityLabel || placeholder}
         style={[styles.input, { color: colors.textColor }]} 
         placeholder={placeholder} 
         placeholderTextColor={colors.textColor2} 
         secureTextEntry={secureTextEntry} 
+        autoCorrect={!secureTextEntry && keyboardType !== 'email-address'}
+        spellCheck={!secureTextEntry && keyboardType !== 'email-address'}
         value={value} 
         onChangeText={onChangeText} 
         autoCapitalize={autoCapitalize} 
@@ -346,7 +368,10 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
       <View style={[styles.glassCard, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.4)', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
         
         {formError ? (
-          <View style={[styles.errorBox, { marginBottom: 16 }]}>
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+            style={[styles.errorBox, { marginBottom: 16 }]}>
             <WarningCircle size={20} color="#ef4444" weight="fill" />
             <Text style={styles.errorText}>{formError}</Text>
           </View>
@@ -697,7 +722,13 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     } else {
       elements.push(
         <View key="header" style={styles.formHeader}>
-          <TouchableOpacity onPress={() => handleNavigate('welcome')} style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back', lang)}
+            hitSlop={8}
+            onPress={() => handleNavigate('welcome')}
+            style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+          >
             <ArrowLeft size={22} color={colors.textColor} weight="regular" />
           </TouchableOpacity>
           <Text style={[styles.formTitle, { color: colors.textColor }]}>
@@ -713,14 +744,20 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
         <View key="inputs" style={styles.formGroup}>
           
           {formError ? (
-            <View style={styles.errorBox}>
+            <View
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+              style={styles.errorBox}>
               <WarningCircle size={20} color="#ef4444" weight="fill" />
               <Text style={styles.errorText}>{formError}</Text>
             </View>
           ) : null}
 
           {successMessage ? (
-            <View style={styles.successBox}>
+            <View
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              style={styles.successBox}>
               <CheckCircle size={20} color="#10b981" weight="fill" />
               <Text style={styles.successText}>{successMessage}</Text>
             </View>
@@ -772,18 +809,19 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
 
       elements.push(
         <View key="loader" style={styles.buttonLoaderContainer}>
-          {isLoading ? (
-            <AuthMorphingLoader compact />
-          ) : (
-            <TouchableOpacity 
-              style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: !acceptedTerms || (currentView === 'signup' && !isPasswordAllowed(password)) ? 0.6 : 1 }]}
-              onPress={currentView === 'signin' ? handleSignIn : handleSignUp}
-            >
-              <Text style={styles.primaryButtonText}>
-                {currentView === 'signin' ? t('auth.signin.submit', lang) : t('auth.signup.submit', lang)}
-              </Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: isLoading || !acceptedTerms || (currentView === 'signup' && !isPasswordAllowed(password)) ? 0.6 : 1 }]}
+            onPress={currentView === 'signin' ? handleSignIn : handleSignUp}
+            disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityLabel={currentView === 'signin' ? t('auth.signin.submit', lang) : t('auth.signup.submit', lang)}
+            accessibilityState={{ disabled: isLoading, busy: isLoading }}
+          >
+            {isLoading ? <MorphingLoader size={24} /> : null}
+            <Text style={styles.primaryButtonText}>
+              {currentView === 'signin' ? t('auth.signin.submit', lang) : t('auth.signup.submit', lang)}
+            </Text>
+          </TouchableOpacity>
         </View>
       );
 
@@ -903,9 +941,9 @@ const styles = StyleSheet.create({
   verifyFormBlock: { width: '100%', justifyContent: 'center', paddingVertical: 40 },
   welcomeHeader: { alignItems: 'center', marginTop: '15%', marginBottom: '10%' },
   logoContainer: { width: 84, height: 84, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 20, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
-  welcomeTitle: { fontSize: 38, fontWeight: '800', marginBottom: 8, textAlign: 'center', letterSpacing: -0.5 },
+  welcomeTitle: { fontSize: 38, fontWeight: '800', marginBottom: 8, textAlign: 'center', letterSpacing: 0 },
   welcomeSubtitle: { fontSize: 16, textAlign: 'center', lineHeight: 24, maxWidth: '85%', marginHorizontal: 'auto' },
-  primaryButton: { width: '100%', height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  primaryButton: { width: '100%', height: 56, borderRadius: 16, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
   secondaryButton: { width: '100%', height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, marginTop: 12 },
   secondaryButtonText: { fontSize: 17, fontWeight: '600' },
@@ -913,7 +951,7 @@ const styles = StyleSheet.create({
   guestButtonText: { fontSize: 15, fontWeight: '500' },
   formHeader: { marginTop: 10, marginBottom: 24 },
   backBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  formTitle: { fontSize: 28, fontWeight: '800', marginBottom: 6, letterSpacing: -0.5 },
+  formTitle: { fontSize: 28, fontWeight: '800', marginBottom: 6, letterSpacing: 0 },
   formSubtitle: { fontSize: 15, lineHeight: 22 },
   formGroup: { gap: 14 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 54 },
@@ -931,7 +969,7 @@ const styles = StyleSheet.create({
   authLoaderMotion: { width: 70, height: 70, alignItems: 'center', justifyContent: 'center' },
   verifyLoaderContainer: { minHeight: 86, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', marginBottom: 24 },
   verifyTextContainer: { alignItems: 'center', width: '100%' },
-  buttonLoaderContainer: { height: 54, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', marginTop: 14 },
+  buttonLoaderContainer: { minHeight: 56, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', marginTop: 14 },
   socialGroup: { marginTop: 14 },
   errorBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', gap: 10 },
   errorText: { color: '#ef4444', fontSize: 14, fontWeight: '500', flex: 1 },

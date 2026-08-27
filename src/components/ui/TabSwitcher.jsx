@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
 import { triggerHaptic } from "../../utils/haptics";
+import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
 
 export default function TabSwitcher({
   tabs,
@@ -15,6 +16,7 @@ export default function TabSwitcher({
 }) {
   const [tabLayouts, setTabLayouts] = useState({});
   const containerPadding = 4;
+  const reduceMotion = useReducedMotionPreference();
   
   const indicatorPosition = useRef(new Animated.Value(0)).current;
   const indicatorWidth = useRef(new Animated.Value(0)).current;
@@ -30,19 +32,19 @@ export default function TabSwitcher({
       Animated.parallel([
         Animated.timing(indicatorPosition, {
           toValue: currentLayout.x,
-          duration: 250,
+          duration: reduceMotion ? 0 : 200,
           easing: Easing.out(Easing.exp),
           useNativeDriver: false,
         }),
         Animated.timing(indicatorWidth, {
           toValue: currentLayout.width,
-          duration: 250,
+          duration: reduceMotion ? 0 : 200,
           easing: Easing.out(Easing.exp),
           useNativeDriver: false,
         }),
       ]).start();
     }
-  }, [activeTab, tabLayouts]);
+  }, [activeTab, indicatorPosition, indicatorWidth, reduceMotion, tabLayouts]);
 
   const handlePress = (id) => {
     if (activeTab !== id) {
@@ -56,7 +58,7 @@ export default function TabSwitcher({
   const finalActiveTextColor = activeTextColor || (activeTabBackgroundColor ? themeColors.textColor : "#fff");
 
   return (
-    <View style={[
+    <View accessibilityRole="tablist" style={[
       styles.container, 
       { 
         backgroundColor: bgColorContainer, 
@@ -84,6 +86,9 @@ export default function TabSwitcher({
         const isActive = activeTab === tab.id;
         return (
           <TouchableOpacity
+            accessibilityRole="tab"
+            accessibilityLabel={tab.label}
+            accessibilityState={{ selected: isActive }}
             key={tab.id}
             onLayout={(event) => handleTabLayout(tab.id, event)}
             style={styles.tab}
@@ -125,6 +130,7 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     paddingVertical: 10,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1,

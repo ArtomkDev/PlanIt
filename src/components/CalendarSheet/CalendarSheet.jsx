@@ -23,6 +23,7 @@ import themes from "../../config/themes";
 import { useScheduleData } from "../../context/ScheduleProvider";
 import { triggerHaptic } from "../../utils/haptics";
 import { t } from "../../utils/i18n";
+import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
 import CalendarGrid from "./CalendarGrid";
 import { useCalendarLogic } from "./useCalendarLogic";
 
@@ -42,6 +43,7 @@ export default function CalendarSheet({
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const reduceMotion = useReducedMotionPreference();
   const effectiveSchedule = customSchedule || activeSchedule;
 
   const {
@@ -65,6 +67,13 @@ export default function CalendarSheet({
 
   useEffect(() => {
     if (isAnimating.current) {
+      if (reduceMotion) {
+        slideOpacity.setValue(1);
+        slideTranslateX.setValue(0);
+        isAnimating.current = false;
+        return;
+      }
+
       requestAnimationFrame(() => {
         Animated.parallel([
           Animated.timing(slideOpacity, {
@@ -83,7 +92,7 @@ export default function CalendarSheet({
         });
       });
     }
-  }, [viewDate]);
+  }, [reduceMotion, slideOpacity, slideTranslateX, viewDate]);
 
   const isTodaySelected = useMemo(() => {
     const today = new Date();
@@ -138,8 +147,15 @@ export default function CalendarSheet({
 
   const handleAnimatedMonthChange = (direction) => {
     if (isAnimating.current) return;
-    isAnimating.current = true;
     triggerHaptic("swipe");
+
+    if (reduceMotion) {
+      if (direction === 1) nextMonth();
+      else prevMonth();
+      return;
+    }
+
+    isAnimating.current = true;
 
     Animated.parallel([
       Animated.timing(slideOpacity, {
@@ -177,7 +193,7 @@ export default function CalendarSheet({
           }
         },
       }),
-    [nextMonth, prevMonth]
+    [handleAnimatedMonthChange]
   );
 
   const snapPoints = [Math.min(height * 0.58, 450), Math.min(height * 0.82, 640)];
@@ -241,6 +257,7 @@ export default function CalendarSheet({
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t("schedule.header.today", lang)}
+            accessibilityState={{ disabled: isTodaySelected }}
             disabled={isTodaySelected}
             onPress={selectToday}
             activeOpacity={0.7}
@@ -283,6 +300,7 @@ export default function CalendarSheet({
 
         <TouchableOpacity
           accessibilityRole="button"
+          accessibilityLabel={monthNames[viewDate.getMonth()] + " " + viewDate.getFullYear()}
           accessibilityState={{ expanded: isMonthPickerOpen }}
           onPress={() => {
             triggerHaptic(isMonthPickerOpen ? "sheetClose" : "open");
@@ -492,7 +510,7 @@ const styles = StyleSheet.create({
   monthTitle: {
     fontSize: 18,
     fontWeight: "800",
-    letterSpacing: -0.25,
+    letterSpacing: 0,
   },
   content: {
     flex: 1,

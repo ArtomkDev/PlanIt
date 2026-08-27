@@ -7,11 +7,14 @@ import AppBlur from './AppBlur';
 import themes from '../../config/themes';
 import { useScheduleData } from '../../context/ScheduleProvider';
 import { triggerHaptic } from '../../utils/haptics';
+import { t } from '../../utils/i18n';
+import useReducedMotionPreference from '../../hooks/useReducedMotionPreference';
 
 export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY, showBackButton = true, rightButton }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { global } = useScheduleData();
+  const { global, lang } = useScheduleData();
+  const reduceMotion = useReducedMotionPreference();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
@@ -45,6 +48,16 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
 
   useEffect(() => {
     if (subTitle && subTitle !== displayedSubTitle) {
+      if (reduceMotion) {
+        textFade.stopAnimation();
+        textTranslate.stopAnimation();
+        textFade.setValue(1);
+        textTranslate.setValue(0);
+        setDisplayedSubTitle(subTitle || "");
+        prevIndexRef.current = subTitleIndex;
+        return;
+      }
+
       const isScrollingDown = subTitleIndex > prevIndexRef.current;
       const exitTo = isScrollingDown ? -15 : 15;
       const enterFrom = isScrollingDown ? 15 : -15;
@@ -66,7 +79,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
 
       prevIndexRef.current = subTitleIndex;
     }
-  }, [subTitle, subTitleIndex]); 
+  }, [displayedSubTitle, reduceMotion, subTitle, subTitleIndex, textFade, textTranslate]);
 
   const combinedOpacity = Animated.multiply(subTitleScrollOpacity, textFade);
   const combinedTranslateY = Animated.add(subTitleScrollTranslateY, textTranslate);
@@ -91,7 +104,12 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
         
         <View style={styles.leftContainer}>
           {shouldShowBack && (
-            <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("common.back", lang)}
+              onPress={handleGoBack}
+              style={styles.backButton}
+            >
               <CaretLeft size={28} color={themeColors.accentColor} weight="bold" />
             </TouchableOpacity>
           )}
@@ -173,7 +191,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  backButton: { padding: 8 },
+  backButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
   border: {
     position: 'absolute',
     bottom: 0,

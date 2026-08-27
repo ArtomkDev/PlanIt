@@ -17,6 +17,7 @@ export default {
     cancel: "Cancel",
     back: "Back",
     close: "Close",
+    clear: "Clear",
     enabled: "Enabled",
     disabled: "Disabled",
     error: "Error",

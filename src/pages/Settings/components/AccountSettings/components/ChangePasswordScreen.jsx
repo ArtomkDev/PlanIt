@@ -158,11 +158,11 @@ export default function ChangePasswordScreen() {
           </View>
 
           {verificationSent ? (
-            <Text style={styles.successText}>
+            <Text accessibilityRole="alert" style={styles.successText}>
               {t('settings.account_settings.change_password.check_email', lang)}
             </Text>
           ) : null}
-          {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+          {errorMsg ? <Text accessibilityRole="alert" style={styles.errorText}>{errorMsg}</Text> : null}
 
           <TouchableOpacity
             style={[
@@ -172,9 +172,15 @@ export default function ChangePasswordScreen() {
             ]}
             onPress={handleEmailVerification}
             disabled={loading || resetCooldown > 0}
+            accessibilityRole="button"
+            accessibilityLabel={verificationSent ? t('settings.account_settings.change_password.resend_email_btn', lang) : t('settings.account_settings.change_password.send_email_btn', lang)}
+            accessibilityState={{ disabled: loading || resetCooldown > 0, busy: loading }}
           >
             {loading ? (
-              <MorphingLoader size={26} />
+              <View style={styles.loadingButtonContent}>
+                <MorphingLoader size={22} />
+                <Text style={styles.actionButtonText}>{t('settings.account_settings.change_password.send_email_btn', lang)}</Text>
+              </View>
             ) : (
               <Text style={styles.actionButtonText}>
                 {resetCooldown > 0
@@ -202,6 +208,7 @@ export default function ChangePasswordScreen() {
           </Text>
           <TextInput
             style={styles.input}
+            accessibilityLabel={t('settings.account_settings.change_password.current_password_label', lang) || "Current password"}
             placeholder={t('settings.account_settings.change_password.current_password_placeholder', lang) || "Введіть поточний пароль"}
             placeholderTextColor={themeColors.textColor2}
             secureTextEntry
@@ -212,12 +219,17 @@ export default function ChangePasswordScreen() {
             }}
             autoCapitalize="none"
             autoCorrect={false}
+            textContentType="password"
+            autoComplete="current-password"
           />
 
           <TouchableOpacity
             style={styles.forgotPasswordButton}
             onPress={handleEmailVerification}
             disabled={loading || resetCooldown > 0}
+            accessibilityRole="button"
+            accessibilityLabel={t('settings.account_settings.change_password.forgot_password', lang)}
+            accessibilityState={{ disabled: loading || resetCooldown > 0, busy: loading }}
           >
             <Text style={[styles.forgotPasswordText, { color: themeColors.accentColor }]}>
               {resetCooldown > 0
@@ -227,7 +239,7 @@ export default function ChangePasswordScreen() {
           </TouchableOpacity>
 
           {verificationSent ? (
-            <Text style={styles.successText}>
+            <Text accessibilityRole="alert" style={styles.successText}>
               {t('settings.account_settings.change_password.check_email', lang)}
             </Text>
           ) : null}
@@ -238,6 +250,7 @@ export default function ChangePasswordScreen() {
           <View style={styles.passwordFieldGroup}>
             <TextInput
               style={[styles.input, styles.passwordInput]}
+              accessibilityLabel={t('settings.account_settings.change_password.new_password_label', lang) || "New password"}
               placeholder={t('settings.account_settings.change_password.new_password_placeholder', lang) || "Введіть новий пароль"}
               placeholderTextColor={themeColors.textColor2}
               secureTextEntry
@@ -248,6 +261,8 @@ export default function ChangePasswordScreen() {
               }}
               autoCapitalize="none"
               autoCorrect={false}
+              textContentType="newPassword"
+              autoComplete="new-password"
             />
             <PasswordStrengthBar
               password={newPassword}
@@ -260,6 +275,7 @@ export default function ChangePasswordScreen() {
           </Text>
           <TextInput
             style={styles.input}
+            accessibilityLabel={t('auth.password_reset.confirm_password_label', lang)}
             placeholder={t('auth.password_reset.confirm_password_placeholder', lang)}
             placeholderTextColor={themeColors.textColor2}
             secureTextEntry
@@ -270,17 +286,25 @@ export default function ChangePasswordScreen() {
             }}
             autoCapitalize="none"
             autoCorrect={false}
+            textContentType="newPassword"
+            autoComplete="new-password"
           />
 
-          {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+          {errorMsg ? <Text accessibilityRole="alert" style={styles.errorText}>{errorMsg}</Text> : null}
 
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: themeColors.accentColor }, loading && styles.actionButtonDisabled]} 
             onPress={handleChangePassword}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.save', lang) || "Save"}
+            accessibilityState={{ disabled: loading, busy: loading }}
           >
             {loading ? (
-              <MorphingLoader size={26} />
+              <View style={styles.loadingButtonContent}>
+                <MorphingLoader size={22} />
+                <Text style={styles.actionButtonText}>{t('common.save', lang) || "Зберегти"}</Text>
+              </View>
             ) : (
               <Text style={styles.actionButtonText}>
                 {t('common.save', lang) || "Зберегти"}
@@ -308,5 +332,6 @@ const getStyles = (themeColors) => StyleSheet.create({
   forgotPasswordText: { fontSize: 14, fontWeight: '600' },
   actionButton: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   actionButtonDisabled: { opacity: 0.6 },
+  loadingButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   actionButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });
