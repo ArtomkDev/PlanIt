@@ -6,7 +6,11 @@ import AppSwitch from '../../../../components/ui/AppSwitch';
 import { useScheduleActions, useScheduleData } from '../../../../context/ScheduleProvider';
 import themes from '../../../../config/themes';
 import { t } from '../../../../utils/i18n';
-import { NAVIGATION_METRICS, NAVIGATION_STYLE_KEYS } from '../../../../navigation/navigationMetrics';
+import {
+  NAVIGATION_METRICS,
+  getAvailableNavigationStyleKeys,
+  resolveNavigationStyle,
+} from '../../../../navigation/navigationMetrics';
 import { triggerHaptic } from '../../../../utils/haptics';
 
 const hexToRgba = (color, opacity) => {
@@ -80,6 +84,27 @@ const PREVIEW_VARIANTS = {
     activeIconColor: ({ themeColors }) => themeColors.accentColor,
     activeLabelColor: ({ themeColors }) => themeColors.accentColor,
   },
+  liquidGlass: {
+    barSide: 16,
+    barBottom: 8,
+    barRadius: 24,
+    getIndicatorStyle: ({ metrics, showLabels, themeColors, scale }) => {
+      const height = Math.round(
+        (showLabels ? metrics.indicator.heightWithLabels : metrics.indicator.heightIconsOnly) * scale
+      );
+
+      return {
+        width: metrics.indicator.width,
+        height,
+        borderRadius: Math.round(metrics.indicator.radius * scale),
+        backgroundColor: hexToRgba(themeColors.accentColor, 0.18),
+        top: '50%',
+        transform: [{ translateY: -height / 2 }],
+      };
+    },
+    activeIconColor: ({ themeColors }) => themeColors.accentColor,
+    activeLabelColor: ({ themeColors }) => themeColors.accentColor,
+  },
 };
 
 function NavigationPreview({ variant, selected, showLabels, themeColors, lang }) {
@@ -106,7 +131,7 @@ function NavigationPreview({ variant, selected, showLabels, themeColors, lang })
       <View
         style={[
           styles.previewBarShadow,
-          variant === 'floating' && styles.previewFloatingShadow,
+          (variant === 'floating' || variant === 'liquidGlass') && styles.previewFloatingShadow,
           {
             height: previewBarHeight,
             left: preview.barSide,
@@ -125,7 +150,7 @@ function NavigationPreview({ variant, selected, showLabels, themeColors, lang })
               backgroundColor: surfaceColor,
               borderColor: themeColors.borderColor,
             },
-            variant === 'floating' ? styles.previewFloatingBar : styles.previewAttachedBar,
+            (variant === 'floating' || variant === 'liquidGlass') ? styles.previewFloatingBar : styles.previewAttachedBar,
           ]}
         >
           <View style={styles.previewItem}>
@@ -175,9 +200,8 @@ export default function NavigationSettings() {
   const { setGlobalDraft } = useScheduleActions();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
-  const selectedStyle = NAVIGATION_STYLE_KEYS.includes(global?.navigationStyle)
-    ? global.navigationStyle
-    : 'classic';
+  const availableNavigationStyles = getAvailableNavigationStyleKeys();
+  const selectedStyle = resolveNavigationStyle(global?.navigationStyle);
   const showLabels = global?.navigationLabels ?? true;
   const animationsEnabled = global?.navigationAnimations ?? true;
 
@@ -203,7 +227,7 @@ export default function NavigationSettings() {
         </Text>
 
         <View style={styles.cards}>
-          {NAVIGATION_STYLE_KEYS.map((variant) => {
+          {availableNavigationStyles.map((variant) => {
             const selected = selectedStyle === variant;
             return (
               <TouchableOpacity

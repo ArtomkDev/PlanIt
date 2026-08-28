@@ -1,10 +1,12 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import {
   Animated,
   Easing,
   PanResponder,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
@@ -17,6 +19,7 @@ import { useScheduleData, useScheduleLayout } from '../context/ScheduleProvider'
 import { NotificationDrawerProvider } from '../context/NotificationDrawerContext';
 import MorphingLoader from '../components/ui/MorphingLoader';
 import PlanItTabBar from './PlanItTabBar';
+import { LIQUID_GLASS_NAVIGATION_STYLE, resolveNavigationStyle } from './navigationMetrics';
 import { t } from '../utils/i18n';
 import Schedule from '../pages/Schedule/Schedule';
 import Tasks from '../pages/Tasks/Tasks';
@@ -42,6 +45,7 @@ import NotificationInboxPanel from '../pages/Schedule/components/NotificationInb
 import { triggerHaptic } from '../utils/haptics';
 
 const Tab = createBottomTabNavigator();
+const NativeTab = Platform.OS === 'ios' ? createNativeBottomTabNavigator() : null;
 const Stack = createNativeStackNavigator();
 const DRAWER_OPEN_DURATION = 285;
 const DRAWER_CLOSE_DURATION = 240;
@@ -49,12 +53,15 @@ const DRAWER_VISUAL_OPEN_DURATION = 330;
 const DRAWER_VISUAL_CLOSE_DURATION = 270;
 const DRAWER_MOTION_EASING = Easing.bezier(0.2, 0, 0, 1);
 const DRAWER_VISUAL_EASING = Easing.inOut(Easing.quad);
+const getNativeTabIcon = (name, selectedName = name) => ({ focused }) => ({
+  type: 'sfSymbol',
+  name: focused ? selectedName : name,
+});
 
 function SettingsStack({ screenProps }) {
   const { global } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       <Stack.Navigator
@@ -98,6 +105,12 @@ export default function TabNavigator({ screenProps }) {
   const insets = useSafeAreaInsets();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const navigationStyle = resolveNavigationStyle(global?.navigationStyle);
+  const useLiquidGlassTabs = navigationStyle === LIQUID_GLASS_NAVIGATION_STYLE && Boolean(NativeTab);
+  const showLabels = global?.navigationLabels ?? true;
+  const scheduleTabLabel = t('common.schedule', lang);
+  const tasksTabLabel = t('common.tasks', lang);
+  const settingsTabLabel = t('common.settings', lang);
   const drawerProgress = useRef(new Animated.Value(0)).current;
   const drawerMotionProgress = useRef(new Animated.Value(0)).current;
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -233,6 +246,12 @@ export default function TabNavigator({ screenProps }) {
     if (height > 0) setTabBarHeight(height);
   }, [setTabBarHeight]);
 
+  useEffect(() => {
+    if (useLiquidGlassTabs) {
+      setTabBarHeight(58 + Math.max(insets?.bottom || 0, 0));
+    }
+  }, [insets?.bottom, setTabBarHeight, useLiquidGlassTabs]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor, justifyContent: 'center', alignItems: 'center' }}>
@@ -299,55 +318,98 @@ export default function TabNavigator({ screenProps }) {
               },
             ]}
           >
-            <Tab.Navigator
-              detachInactiveScreens={true}
-              tabBar={(props) => (
-                <PlanItTabBar {...props} insets={insets} onLayout={handleLayout} />
-              )}
-              screenOptions={{
-                sceneContainerStyle: {
-                  backgroundColor: themeColors.backgroundColor,
-                  paddingBottom: tabBarHeight || (110 + insets.bottom)
-                },
-                tabBarActiveTintColor: themeColors.accentColor,
-                tabBarInactiveTintColor: themeColors.textColor2,
-                tabBarHideOnKeyboard: true,
-                lazy: true,
-                animation: 'none',
-                headerShown: false,
-              }}
-            >
-              <Tab.Screen
-                name="ScheduleTab"
-                component={Schedule}
-                options={{
-                  tabBarLabel: t('common.schedule', lang),
-                  tabBarIcon: ({ color, size, focused }) => (
-                    <CalendarDots size={size} color={color} weight={focused ? 'fill' : 'regular'} />
-                  ),
+            {useLiquidGlassTabs ? (
+              <NativeTab.Navigator
+                screenOptions={{
+                  lazy: true,
+                  headerShown: false,
+                  tabBarActiveTintColor: themeColors.accentColor,
+                  tabBarInactiveTintColor: themeColors.textColor2,
+                  tabBarBlurEffect: 'systemDefault',
+                  tabBarControllerMode: 'tabBar',
+                  tabBarMinimizeBehavior: 'auto',
+                  overrideScrollViewContentInsetAdjustmentBehavior: true,
                 }}
-              />
-              <Tab.Screen
-                name="TasksTab"
-                component={Tasks}
-                options={{
-                  tabBarLabel: t('common.tasks', lang),
-                  tabBarIcon: ({ color, size, focused }) => (
-                    <CheckSquare size={size} color={color} weight={focused ? 'fill' : 'regular'} />
-                  ),
+              >
+                <NativeTab.Screen
+                  name="ScheduleTab"
+                  component={Schedule}
+                  options={{
+                    title: scheduleTabLabel,
+                    tabBarLabel: showLabels ? scheduleTabLabel : '',
+                    tabBarIcon: getNativeTabIcon('calendar'),
+                  }}
+                />
+                <NativeTab.Screen
+                  name="TasksTab"
+                  component={Tasks}
+                  options={{
+                    title: tasksTabLabel,
+                    tabBarLabel: showLabels ? tasksTabLabel : '',
+                    tabBarIcon: getNativeTabIcon('checkmark.square', 'checkmark.square.fill'),
+                  }}
+                />
+                <NativeTab.Screen
+                  name="SettingsTab"
+                  component={SettingsStackWrapper}
+                  options={{
+                    title: settingsTabLabel,
+                    tabBarLabel: showLabels ? settingsTabLabel : '',
+                    tabBarIcon: getNativeTabIcon('gearshape', 'gearshape.fill'),
+                  }}
+                />
+              </NativeTab.Navigator>
+            ) : (
+              <Tab.Navigator
+                detachInactiveScreens={true}
+                tabBar={(props) => (
+                  <PlanItTabBar {...props} insets={insets} onLayout={handleLayout} />
+                )}
+                screenOptions={{
+                  sceneContainerStyle: {
+                    backgroundColor: themeColors.backgroundColor,
+                    paddingBottom: tabBarHeight || (110 + insets.bottom)
+                  },
+                  tabBarActiveTintColor: themeColors.accentColor,
+                  tabBarInactiveTintColor: themeColors.textColor2,
+                  tabBarHideOnKeyboard: true,
+                  lazy: true,
+                  animation: 'none',
+                  headerShown: false,
                 }}
-              />
-              <Tab.Screen
-                name="SettingsTab"
-                component={SettingsStackWrapper}
-                options={{
-                  tabBarLabel: t('common.settings', lang),
-                  tabBarIcon: ({ color, size, focused }) => (
-                    <GearSix size={size} color={color} weight={focused ? 'fill' : 'regular'} />
-                  ),
-                }}
-              />
-            </Tab.Navigator>
+              >
+                <Tab.Screen
+                  name="ScheduleTab"
+                  component={Schedule}
+                  options={{
+                    tabBarLabel: scheduleTabLabel,
+                    tabBarIcon: ({ color, size, focused }) => (
+                      <CalendarDots size={size} color={color} weight={focused ? 'fill' : 'regular'} />
+                    ),
+                  }}
+                />
+                <Tab.Screen
+                  name="TasksTab"
+                  component={Tasks}
+                  options={{
+                    tabBarLabel: tasksTabLabel,
+                    tabBarIcon: ({ color, size, focused }) => (
+                      <CheckSquare size={size} color={color} weight={focused ? 'fill' : 'regular'} />
+                    ),
+                  }}
+                />
+                <Tab.Screen
+                  name="SettingsTab"
+                  component={SettingsStackWrapper}
+                  options={{
+                    tabBarLabel: settingsTabLabel,
+                    tabBarIcon: ({ color, size, focused }) => (
+                      <GearSix size={size} color={color} weight={focused ? 'fill' : 'regular'} />
+                    ),
+                  }}
+                />
+              </Tab.Navigator>
+            )}
 
             {notificationsMounted && (
               <Animated.View

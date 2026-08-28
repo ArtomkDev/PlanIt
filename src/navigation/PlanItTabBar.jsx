@@ -3,7 +3,7 @@ import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-nat
 import { useScheduleData } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import AppBlur from '../components/ui/AppBlur';
-import { NAVIGATION_METRICS } from './navigationMetrics';
+import { NAVIGATION_METRICS, resolveNavigationStyle } from './navigationMetrics';
 import { triggerHaptic } from '../utils/haptics';
 import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 
@@ -290,7 +290,7 @@ export default function PlanItTabBar({ state, descriptors, navigation, insets, o
   const reduceMotion = useReducedMotionPreference();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
-  const styleVariant = NAVIGATION_METRICS[global?.navigationStyle] ? global.navigationStyle : 'classic';
+  const styleVariant = resolveNavigationStyle(global?.navigationStyle, 'classic');
   const showLabels = global?.navigationLabels ?? true;
   const animationsEnabled = (global?.navigationAnimations ?? true) && !reduceMotion;
   const metrics = NAVIGATION_METRICS[styleVariant];

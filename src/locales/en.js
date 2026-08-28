@@ -513,6 +513,7 @@ export default {
         classic: { title: "Classic", desc: "A clean edge-to-edge bar with a fine active line" },
         floating: { title: "Floating", desc: "A rounded pill bar with a calm filled active tab" },
         dot: { title: "Dot", desc: "A minimal bar with a small animated active dot" },
+        liquidGlass: { title: "Liquid Glass", desc: "Apple's native iOS 26+ tab bar with the system glass layer" },
       },
     },
 

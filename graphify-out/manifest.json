@@ -30,7 +30,7 @@
     "semantic_hash": "a63bb4964d10b8555311272985e14e3d"
   },
   "package.json": {
-    "mtime": 1787497654.91866,
+    "mtime": 1787851870.6503136,
     "ast_hash": "ebefa62328b6d3461c3e85e847f61da6",
     "semantic_hash": "ebefa62328b6d3461c3e85e847f61da6"
   },
@@ -225,9 +225,9 @@
     "semantic_hash": "e036dfbdbe006e3977354b8cb6f54749"
   },
   "src/config/createDefaultData.js": {
-    "mtime": 1786882544.9582856,
-    "ast_hash": "6b639bc8c6934cd18b7ccac99f61d689",
-    "semantic_hash": "6b639bc8c6934cd18b7ccac99f61d689"
+    "mtime": 1787851007.9053614,
+    "ast_hash": "a76469f73c19b50b25cae718b63fa86f",
+    "semantic_hash": "a76469f73c19b50b25cae718b63fa86f"
   },
   "src/config/createDefaults.js": {
     "mtime": 1764281975.2780473,
@@ -290,9 +290,9 @@
     "semantic_hash": "bb3dd714ae13e20274774a96f5bbc189"
   },
   "src/context/ScheduleProvider.jsx": {
-    "mtime": 1787497599.774589,
-    "ast_hash": "eb5153bf73780a8304e097258f37e201",
-    "semantic_hash": "eb5153bf73780a8304e097258f37e201"
+    "mtime": 1787851007.9091482,
+    "ast_hash": "086aa74f5de2e73582cecf5675ce8f36",
+    "semantic_hash": "086aa74f5de2e73582cecf5675ce8f36"
   },
   "src/hooks/useAppLanguage.js": {
     "mtime": 1775067014.3748887,
@@ -335,29 +335,29 @@
     "semantic_hash": "3d7ad7537bb5894ec1576baf0fd344b3"
   },
   "src/locales/en.js": {
-    "mtime": 1787847558.5525846,
-    "ast_hash": "01a70eac8ccdd8bdc58e87baffebdc8b",
-    "semantic_hash": "01a70eac8ccdd8bdc58e87baffebdc8b"
+    "mtime": 1787851007.9127388,
+    "ast_hash": "e42b8653282815a2b6d60aea39879d3e",
+    "semantic_hash": "e42b8653282815a2b6d60aea39879d3e"
   },
   "src/locales/uk.js": {
-    "mtime": 1787847558.56252,
-    "ast_hash": "355557836be91a7e006bc530c809379d",
-    "semantic_hash": "355557836be91a7e006bc530c809379d"
+    "mtime": 1787851007.9162486,
+    "ast_hash": "ab15a576cdc92f4c5c0b56a74b28beb3",
+    "semantic_hash": "ab15a576cdc92f4c5c0b56a74b28beb3"
   },
   "src/navigation/PlanItTabBar.jsx": {
-    "mtime": 1787848605.562385,
-    "ast_hash": "20684545abdee471558eccc0b83d1550",
-    "semantic_hash": "20684545abdee471558eccc0b83d1550"
+    "mtime": 1787851007.919751,
+    "ast_hash": "484aa412584463b477ec7cb041a5f23e",
+    "semantic_hash": "484aa412584463b477ec7cb041a5f23e"
   },
   "src/navigation/TabNavigator.jsx": {
-    "mtime": 1785049869.891316,
-    "ast_hash": "8ebc3c0155eb1f7f4ede0eeb2d5f39d2",
-    "semantic_hash": "8ebc3c0155eb1f7f4ede0eeb2d5f39d2"
+    "mtime": 1787851060.1212506,
+    "ast_hash": "82bf76dfdd8bffcddcf41446d043bddf",
+    "semantic_hash": "82bf76dfdd8bffcddcf41446d043bddf"
   },
   "src/navigation/navigationMetrics.js": {
-    "mtime": 1783783667.7411726,
-    "ast_hash": "34a58258ae9b8fce47ec6480309e1f52",
-    "semantic_hash": "34a58258ae9b8fce47ec6480309e1f52"
+    "mtime": 1787851953.602032,
+    "ast_hash": "8f3f374f3e32bfe0ff3adb133ae41f97",
+    "semantic_hash": "8f3f374f3e32bfe0ff3adb133ae41f97"
   },
   "src/pages/Onboarding/OnboardingWizard.jsx": {
     "mtime": 1787772659.3805542,
@@ -545,9 +545,9 @@
     "semantic_hash": "ff6f866d94a3eaf5307bfe7e71e2b0e6"
   },
   "src/pages/Settings/components/preferences/NavigationSettings.jsx": {
-    "mtime": 1784400894.6014407,
-    "ast_hash": "b0ba4318dbac4597ce1c729e84842b94",
-    "semantic_hash": "b0ba4318dbac4597ce1c729e84842b94"
+    "mtime": 1787851007.9327872,
+    "ast_hash": "f9ffbfc70638b5e5c26d7772cca0955e",
+    "semantic_hash": "f9ffbfc70638b5e5c26d7772cca0955e"
   },
   "src/pages/Settings/components/preferences/ThemeSettings.jsx": {
     "mtime": 1787848966.8737206,
@@ -890,9 +890,9 @@
     "semantic_hash": "9f5a24f4056acf2a7a2b26e4d5ab17f1"
   },
   "tests/nativeModuleGuards.test.cjs": {
-    "mtime": 1786875597.103366,
-    "ast_hash": "3c4a4d295b624d42d8593f68d10785ae",
-    "semantic_hash": "3c4a4d295b624d42d8593f68d10785ae"
+    "mtime": 1787851953.6112554,
+    "ast_hash": "8b690ec547b53e9051e86755e5051732",
+    "semantic_hash": "8b690ec547b53e9051e86755e5051732"
   },
   "plugins/withAndroidPlayCompliance.js": {
     "mtime": 1786909073.8634644,

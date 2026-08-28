@@ -9,6 +9,10 @@ const notificationServicePath = path.resolve(
   __dirname,
   '../src/services/notificationService.js',
 );
+const navigationMetricsPath = path.resolve(
+  __dirname,
+  '../src/navigation/navigationMetrics.js',
+);
 
 const loadNotificationService = ({ isExpoGo = true } = {}) => {
   let notificationsModuleLoads = 0;
@@ -78,6 +82,35 @@ const loadNotificationService = ({ isExpoGo = true } = {}) => {
   };
 };
 
+const loadNavigationMetrics = ({ isExpoGo = true, osVersion = '26.0' } = {}) => {
+  const source = fs.readFileSync(navigationMetricsPath, 'utf8');
+  const transformed = babel.transformSync(source, {
+    filename: navigationMetricsPath,
+    plugins: ['@babel/plugin-transform-modules-commonjs'],
+  }).code;
+  const testModule = new Module(navigationMetricsPath, module);
+  testModule.filename = navigationMetricsPath;
+  testModule.paths = Module._nodeModulePaths(path.dirname(navigationMetricsPath));
+
+  const mocks = new Map([
+    ['react-native', { Platform: { OS: 'ios', Version: osVersion } }],
+    ['expo-constants', {
+      __esModule: true,
+      default: { executionEnvironment: isExpoGo ? 'storeClient' : 'standalone' },
+      ExecutionEnvironment: { StoreClient: 'storeClient' },
+    }],
+  ]);
+
+  const originalRequire = testModule.require.bind(testModule);
+  testModule.require = function mockedRequire(request) {
+    if (mocks.has(request)) return mocks.get(request);
+    return originalRequire(request);
+  };
+
+  testModule._compile(transformed, navigationMetricsPath);
+  return testModule.exports;
+};
+
 test('does not evaluate expo-notifications while running in Expo Go', async () => {
   const {
     getNotificationsModuleLoads,
@@ -107,4 +140,21 @@ test('keeps native notifications enabled in development and standalone builds', 
 
   assert.equal(getNotificationsModuleLoads(), 1);
   assert.equal(notificationHandlers.length, 1);
+});
+test('falls back from Liquid Glass navigation in Expo Go', () => {
+  const metrics = loadNavigationMetrics({ isExpoGo: true, osVersion: '26.0' });
+
+  assert.equal(metrics.isLiquidGlassNavigationSupported(), false);
+  assert.equal(metrics.getDefaultNavigationStyle(), 'classic');
+  assert.equal(metrics.resolveNavigationStyle('liquidGlass'), 'classic');
+  assert.deepEqual(metrics.getAvailableNavigationStyleKeys(), ['classic', 'floating', 'dot']);
+});
+
+test('keeps Liquid Glass navigation available in standalone iOS 26 builds', () => {
+  const metrics = loadNavigationMetrics({ isExpoGo: false, osVersion: '26.0' });
+
+  assert.equal(metrics.isLiquidGlassNavigationSupported(), true);
+  assert.equal(metrics.getDefaultNavigationStyle(), 'liquidGlass');
+  assert.equal(metrics.resolveNavigationStyle('liquidGlass'), 'liquidGlass');
+  assert.deepEqual(metrics.getAvailableNavigationStyleKeys(), ['classic', 'floating', 'dot', 'liquidGlass']);
 });

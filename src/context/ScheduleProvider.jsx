@@ -33,6 +33,7 @@ import {
   reconcileLessonRemindersForSchedule,
 } from "../services/notificationService";
 import { setHapticsEnabled } from "../utils/haptics";
+import { getDefaultNavigationStyle, resolveNavigationStyle } from '../navigation/navigationMetrics';
 import { generateId } from "../utils/idGenerator";
 import {
   getCloudSubscriptionUserId,
@@ -400,7 +401,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
 
     if (!newPrefs.navigationStyle) {
-      newPrefs.navigationStyle = data.global?.navigationStyle || 'classic';
+      newPrefs.navigationStyle = resolveNavigationStyle(data.global?.navigationStyle);
       prefsNeedSave = true;
     }
 
@@ -633,7 +634,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       ...baseGlobal,
       theme: devicePrefs.theme || baseGlobal.theme || [fallbackMode, "blue"],
       blur: devicePrefs.blur !== undefined ? devicePrefs.blur : (baseGlobal.blur ?? true),
-      navigationStyle: devicePrefs.navigationStyle || baseGlobal.navigationStyle || 'classic',
+      navigationStyle: resolveNavigationStyle(devicePrefs.navigationStyle || baseGlobal.navigationStyle || getDefaultNavigationStyle()),
       navigationLabels: devicePrefs.navigationLabels !== undefined
         ? devicePrefs.navigationLabels
         : (baseGlobal.navigationLabels ?? true),
@@ -792,7 +793,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       ...currentPrev.global,
       theme: devicePrefsRef.current.theme || currentPrev.global?.theme,
       blur: devicePrefsRef.current.blur !== undefined ? devicePrefsRef.current.blur : (currentPrev.global?.blur ?? true),
-      navigationStyle: devicePrefsRef.current.navigationStyle || currentPrev.global?.navigationStyle || 'classic',
+      navigationStyle: resolveNavigationStyle(devicePrefsRef.current.navigationStyle || currentPrev.global?.navigationStyle || getDefaultNavigationStyle()),
       navigationLabels: devicePrefsRef.current.navigationLabels !== undefined
         ? devicePrefsRef.current.navigationLabels
         : (currentPrev.global?.navigationLabels ?? true),

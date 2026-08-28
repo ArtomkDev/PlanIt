@@ -1,10 +1,12 @@
+import { getDefaultNavigationStyle } from '../navigation/navigationMetrics';
+
 export default function createDefaultData() {
   const now = Date.now();
 
   const global = {
     currentScheduleId: null,
     theme: ['dark', 'cyan'],
-    navigationStyle: 'classic',
+    navigationStyle: getDefaultNavigationStyle(),
     navigationLabels: true,
     navigationAnimations: true,
     hapticsEnabled: true,
