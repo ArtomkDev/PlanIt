@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
 import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManager, TouchableOpacity, TextInput, Alert } from "react-native";
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { 
-  BookOpen, 
-  Tag, 
-  Buildings, 
-  MapPin, 
-  User, 
-  Link as LinkIcon, 
-  Palette, 
-  Image as ImageIcon, 
+import {
+  BookOpen,
+  Tag,
+  Buildings,
+  MapPin,
+  User,
+  Link as LinkIcon,
+  Palette,
+  Image as ImageIcon,
   Clock,
   Bell,
   Plus,
@@ -22,7 +22,7 @@ import AttachmentManager from "../../../../../components/attachments/AttachmentM
 
 import GradientBackground from "../../../../../components/ui/GradientBackground";
 import themes from "../../../../../config/themes";
-import { getIconComponent } from "../../../../../config/subjectIcons"; 
+import { getIconComponent } from "../../../../../config/subjectIcons";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
@@ -73,6 +73,7 @@ export default function LessonEditorMainScreen({
   attachmentOwnerAvailable,
   attachmentUserId,
   fileLibrary,
+  getItemVisual,
   onFileLibraryChange,
   attachmentStorageLimitBytes
 }) {
@@ -89,7 +90,7 @@ export default function LessonEditorMainScreen({
 
   const currentStart = isCustomStart ? instanceData.startTime : defaultTime?.start;
   const currentEnd = isCustomEnd ? instanceData.endTime : defaultTime?.end;
-  
+
   const isTimeModified = currentStart !== defaultTime?.start || currentEnd !== defaultTime?.end;
 
   const duration = getDurationMinutes(currentStart, currentEnd);
@@ -312,10 +313,10 @@ export default function LessonEditorMainScreen({
           <TouchableOpacity
             style={[
               styles.headerActionButton,
-              { 
-                backgroundColor: scope === "local" ? themeColors.accentColor : themeColors.backgroundColor2, 
-                paddingHorizontal: 10, 
-                width: 'auto' 
+              {
+                backgroundColor: scope === "local" ? themeColors.accentColor : themeColors.backgroundColor2,
+                paddingHorizontal: 10,
+                width: 'auto'
               }
             ]}
             onPress={() => {
@@ -380,8 +381,8 @@ export default function LessonEditorMainScreen({
         overScrollMode="never"
         showsVerticalScrollIndicator={false}
       >
-        <SettingsGroup 
-          themeColors={themeColors} 
+        <SettingsGroup
+          themeColors={themeColors}
           title={t('schedule.main_screen.subject', lang)}
         >
           <SettingsRow
@@ -411,10 +412,10 @@ export default function LessonEditorMainScreen({
       showsVerticalScrollIndicator={false}
       automaticallyAdjustKeyboardInsets
     >
-      
+
       <SettingsGroup
         themeColors={themeColors}
-        title={t('schedule.main_screen.subject', lang)} 
+        title={t('schedule.main_screen.subject', lang)}
         headerRight={renderHeaderRight(false, null, null, null, onClearSubject)}
       >
         <SettingsRow
@@ -497,8 +498,8 @@ export default function LessonEditorMainScreen({
         )}
       </SettingsGroup>
 
-      <SettingsGroup 
-        themeColors={themeColors} 
+      <SettingsGroup
+        themeColors={themeColors}
         title={t('schedule.main_screen.lesson_type_group', lang)}
         headerRight={renderHeaderRight(true, scopes.type, (s) => onScopeChange('type', s), null, null)}
       >
@@ -511,8 +512,8 @@ export default function LessonEditorMainScreen({
         />
       </SettingsGroup>
 
-      <SettingsGroup 
-        themeColors={themeColors} 
+      <SettingsGroup
+        themeColors={themeColors}
         title={t('schedule.main_screen.location', lang)}
         headerRight={renderHeaderRight(true, scopes.location, (s) => onScopeChange('location', s), null, null)}
       >
@@ -532,10 +533,10 @@ export default function LessonEditorMainScreen({
         />
       </SettingsGroup>
 
-      <SettingsGroup 
-        themeColors={themeColors} 
+      <SettingsGroup
+        themeColors={themeColors}
         title={t('schedule.main_screen.people', lang)}
-        headerRight={renderHeaderRight(true, scopes.people, (s) => onScopeChange('people', s), () => setActivePicker('teacher', teachersArr.length), null)}
+        headerRight={renderHeaderRight(true, scopes.people, (s) => onScopeChange('people', s), () => setActivePicker('teacher', teachersArr.length, true), null)}
       >
         {teachersArr.length === 0 ? (
            <View style={styles.emptyContainer}>
@@ -544,24 +545,30 @@ export default function LessonEditorMainScreen({
                </Text>
            </View>
         ) : (
-            teachersArr.map((id, index) => (
-                <SettingsRow
-                    key={`teacher-${id}`}
-                    label={`${t('schedule.main_screen.teacher', lang)} ${index + 1}`}
-                    value={safeGetLabel("teacher", id)}
-                    onPress={() => setActivePicker("teacher", index)}
-                    onLongPress={() => onDirectEdit("teacher", id, index)} 
-                    themeColors={themeColors}
-                    icon={User}
-                />
-            ))
+            teachersArr.map((id, index) => {
+                const visual = getItemVisual?.("teacher", id);
+                return (
+                  <SettingsRow
+                      key={`teacher-${id}`}
+                      label={`${t('schedule.main_screen.teacher', lang)} ${index + 1}`}
+                      value={safeGetLabel("teacher", id)}
+                      onPress={() => setActivePicker("teacher", index)}
+                      onLongPress={() => onDirectEdit("teacher", id, index)}
+                      themeColors={themeColors}
+                      icon={visual?.icon || User}
+                      iconColor={visual?.color || themeColors.accentColor}
+                      iconBgColor={visual?.color ? visual.color + "15" : undefined}
+                      iconWeight="bold"
+                  />
+                );
+            })
         )}
       </SettingsGroup>
 
-      <SettingsGroup 
-        themeColors={themeColors} 
+      <SettingsGroup
+        themeColors={themeColors}
         title={t('schedule.main_screen.materials', lang)}
-        headerRight={renderHeaderRight(true, scopes.materials, (s) => onScopeChange('materials', s), () => setActivePicker('link', linksArr.length), null)}
+        headerRight={renderHeaderRight(true, scopes.materials, (s) => onScopeChange('materials', s), () => setActivePicker('link', linksArr.length, true), null)}
       >
         {linksArr.length === 0 ? (
            <View style={styles.emptyContainer}>
@@ -570,17 +577,23 @@ export default function LessonEditorMainScreen({
                </Text>
            </View>
         ) : (
-            linksArr.map((id, index) => (
-                <SettingsRow
-                    key={`link-${id}`}
-                    label={`${t('schedule.main_screen.link', lang)} ${index + 1}`}
-                    value={safeGetLabel("link", id)}
-                    onPress={() => setActivePicker("link", index)}
-                    onLongPress={() => onDirectEdit("link", id, index)} 
-                    themeColors={themeColors}
-                    icon={LinkIcon}
-                />
-            ))
+            linksArr.map((id, index) => {
+                const visual = getItemVisual?.("link", id);
+                return (
+                  <SettingsRow
+                      key={`link-${id}`}
+                      label={`${t('schedule.main_screen.link', lang)} ${index + 1}`}
+                      value={safeGetLabel("link", id)}
+                      onPress={() => setActivePicker("link", index)}
+                      onLongPress={() => onDirectEdit("link", id, index)}
+                      themeColors={themeColors}
+                      icon={visual?.icon || LinkIcon}
+                      iconColor={visual?.color || themeColors.accentColor}
+                      iconBgColor={visual?.color ? visual.color + "15" : undefined}
+                      iconWeight="bold"
+                  />
+                );
+            })
         )}
       </SettingsGroup>
 
@@ -607,14 +620,14 @@ export default function LessonEditorMainScreen({
         />
       </SettingsGroup>
 
-      <SettingsGroup 
-        themeColors={themeColors} 
+      <SettingsGroup
+        themeColors={themeColors}
         title={t('schedule.main_screen.appearance', lang)}
       >
         <SettingsRow
           label={t('schedule.main_screen.card_color', lang)}
           rightContent={renderColorPreview()}
-          onPress={onEditSubjectColor} 
+          onPress={onEditSubjectColor}
           themeColors={themeColors}
           icon={Palette}
         />
@@ -627,9 +640,9 @@ export default function LessonEditorMainScreen({
         />
       </SettingsGroup>
 
-      <SettingsGroup 
-        themeColors={themeColors} 
-        title={t('schedule.main_screen.time', lang) || "Час заняття"} 
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('schedule.main_screen.time', lang) || "Час заняття"}
         headerRight={renderHeaderRight(false, null, null, null, isTimeModified ? () => {
             onTimeChange("startTime", null);
             onTimeChange("endTime", null);

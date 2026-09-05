@@ -12,7 +12,14 @@ import { CaretLeft, PencilSimple, CheckCircle, XCircle } from "phosphor-react-na
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
-import { SUBJECT_ICONS } from "../../../config/subjectIcons"; 
+import { SUBJECT_ICONS } from "../../../config/subjectIcons";
+import {
+  getContactIconComponent,
+  getLinkIconComponent,
+  getLinkTypeMeta,
+  getTeacherContactTypeMeta,
+} from "../../../config/contactTypes";
+import { getTeacherAppearance, normalizeTeacherContacts } from "../../../utils/contactData";
 
 import BottomSheet from "../../../components/ui/BottomSheet";
 import AppBlur from "../../../components/ui/AppBlur";
@@ -20,7 +27,7 @@ import AppBlur from "../../../components/ui/AppBlur";
 import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
 import LessonEditorSubjectColorScreen from "./LessonEditor/screens/ColorScreen";
 import LessonEditorGradientEditScreen from "./LessonEditor/screens/GradientScreen";
-import LessonEditorPickerScreen from "./LessonEditor/screens/PickerScreen"; 
+import LessonEditorPickerScreen from "./LessonEditor/screens/PickerScreen";
 import LessonEditorInputScreen from "./LessonEditor/screens/InputScreen";
 
 import TeacherEditor from "./LessonEditor/forms/TeacherForm";
@@ -53,7 +60,7 @@ const timeToMins = (timeStr) => {
     return minutes === null ? 999999 : minutes;
 };
 
-export default function LessonEditor({ lesson, onClose }) {
+export default function LessonEditor({ lesson, initialEditTarget = null, onClose }) {
   const { global, schedule, lang, user } = useScheduleData();
   const { setGlobalDraft, setScheduleDraft } = useScheduleActions();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
@@ -73,7 +80,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
   const getCleanInstanceData = (data) => {
     if (!data || typeof data !== 'object') return {};
-    const { subjectId, ...rest } = data; 
+    const { subjectId, ...rest } = data;
     return rest;
   };
 
@@ -85,7 +92,7 @@ export default function LessonEditor({ lesson, onClose }) {
   const dayIndex = getDayIndex(currentDate);
   const weekKey = `week${calculateCurrentWeek(currentDate)}`;
   const currentDaySchedule = dataSource?.schedule?.[dayIndex]?.[weekKey] || [];
-  
+
   const start_time_global = dataSource?.start_time || "08:30";
   const duration_global = Number(dataSource?.duration) || 45;
   const breaks_global = dataSource?.breaks || [];
@@ -102,16 +109,16 @@ export default function LessonEditor({ lesson, onClose }) {
     }
 
     if (targetIdx > 0 && computedLessonTimes[targetIdx - 1]) {
-        const prevTime = computedLessonTimes[targetIdx - 1]; 
+        const prevTime = computedLessonTimes[targetIdx - 1];
         const currentBreak = getBreakDuration(breaks_global, targetIdx - 1);
         const newStart = addMinutes(prevTime.end, currentBreak);
         const newEnd = addMinutes(newStart, duration_global);
         return { start: newStart, end: newEnd };
     }
-    
+
     return { start: start_time_global, end: addMinutes(start_time_global, duration_global) };
   }, [lesson, computedLessonTimes, currentDaySchedule, start_time_global, duration_global, breaks_global]);
-  
+
   const storedDefaultTime = useMemo(() => {
       if (instanceData.defaultStartTime && instanceData.defaultEndTime) {
           return { start: instanceData.defaultStartTime, end: instanceData.defaultEndTime };
@@ -126,13 +133,14 @@ export default function LessonEditor({ lesson, onClose }) {
     materials: 'global',
     attachments: 'global'
   });
-  
-  const [currentScreen, setCurrentScreen] = useState("main"); 
-  const [pickerType, setPickerType] = useState(null); 
-  const [inputType, setInputType] = useState(null);   
-  const [editingItemData, setEditingItemData] = useState(null); 
+
+  const [currentScreen, setCurrentScreen] = useState("main");
+  const [pickerType, setPickerType] = useState(null);
+  const [inputType, setInputType] = useState(null);
+  const [editingItemData, setEditingItemData] = useState(null);
   const [editingSlotIndex, setEditingSlotIndex] = useState(null);
-  
+  const [attachAfterEdit, setAttachAfterEdit] = useState(false);
+
   const [editingGradient, setEditingGradient] = useState(null);
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
   const [advancedPickerTarget, setAdvancedPickerTarget] = useState(null);
@@ -142,11 +150,11 @@ export default function LessonEditor({ lesson, onClose }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const minimizeAnim = useRef(new Animated.Value(0)).current;
 
-  const sheetRef = useRef(null); 
+  const sheetRef = useRef(null);
 
   useEffect(() => {
     setSelectedSubjectId(lesson?.subjectId || null);
-    
+
     const initialInstanceData = lesson?.data ? getCleanInstanceData(lesson.data) : {};
     setInstanceData(initialInstanceData);
 
@@ -166,18 +174,24 @@ export default function LessonEditor({ lesson, onClose }) {
     });
     setRemovedStoredAttachments([]);
     setAttachmentUploadState({ uploading: false });
-    
-    if (currentScreen !== "main") {
-      setCurrentScreen("main");
-      setPickerType(null);
-      setInputType(null);
-      setEditingSlotIndex(null);
-    }
+
+    const requestedTeacherId = initialEditTarget?.type === "teacher"
+      ? initialEditTarget.teacherId
+      : null;
+    const canOpenRequestedTeacher = requestedTeacherId
+      && (dataSource?.teachers || []).some((teacher) => teacher.id === requestedTeacherId);
+
+    setCurrentScreen(canOpenRequestedTeacher ? "teacherEditor" : "main");
+    setEditingItemData(canOpenRequestedTeacher ? requestedTeacherId : null);
+    setPickerType(null);
+    setInputType(null);
+    setEditingSlotIndex(null);
+    setAttachAfterEdit(false);
 
     if (isMinimized) {
       handleExpand(false);
     }
-  }, [lesson]);
+  }, [initialEditTarget, lesson]);
 
   useEffect(() => {
     if (isMinimized) {
@@ -215,7 +229,7 @@ export default function LessonEditor({ lesson, onClose }) {
   const closeEditor = () => {
     onClose?.();
   };
-  
+
   const handleCloseMinimized = () => {
     triggerHaptic("sheetClose");
     if (reduceMotion) {
@@ -256,11 +270,11 @@ export default function LessonEditor({ lesson, onClose }) {
   const handleBack = () => {
     triggerHaptic("navigateBack");
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
-    if (currentScreen === "teacherEditor") return goToScreen(pickerType ? "picker" : "main"); 
-    if (currentScreen === "linkEditor") return goToScreen(pickerType ? "picker" : "main");    
-    
+    if (currentScreen === "teacherEditor") return goToScreen(pickerType ? "picker" : "main");
+    if (currentScreen === "linkEditor") return goToScreen(pickerType ? "picker" : "main");
+
     if (currentScreen === "input" && inputType === "subject_rename") return goToScreen("picker");
-    
+
     if (["picker", "input", "subjectColor"].includes(currentScreen)) {
         return goToScreen("main");
     }
@@ -272,7 +286,7 @@ export default function LessonEditor({ lesson, onClose }) {
         case "main": return Number.isInteger(lesson?.index) ? t('schedule.lesson_editor.edit', lang) : t('schedule.lesson_editor.new_lesson', lang);
         case "subjectColor": return t('schedule.lesson_editor.card_color', lang);
         case "gradientEdit": return t('schedule.lesson_editor.gradient_settings', lang);
-        case "picker": 
+        case "picker":
             if (pickerType === 'teacher') return t('schedule.lesson_editor.teachers', lang);
             if (pickerType === 'link') return t('schedule.lesson_editor.links', lang);
             if (pickerType === 'subject') return t('schedule.lesson_editor.subjects', lang);
@@ -314,7 +328,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
     setScheduleDraft((prev) => {
       const next = { ...prev };
-      
+
       next.subjects = localData.subjects;
       next.teachers = localData.teachers;
       next.links = localData.links;
@@ -322,12 +336,12 @@ export default function LessonEditor({ lesson, onClose }) {
 
       const dayIndex = getDayIndex(currentDate);
       const weekKey = `week${calculateCurrentWeek(currentDate)}`;
-      
+
       next.schedule = next.schedule ? [...next.schedule] : Array(7).fill(null).map(() => ({}));
       next.schedule[dayIndex] = next.schedule[dayIndex] ? { ...next.schedule[dayIndex] } : {};
-      
+
       const weekArr = next.schedule[dayIndex][weekKey] ? [...next.schedule[dayIndex][weekKey]] : [];
-      
+
       if (!selectedSubjectId) {
           if (Number.isInteger(lesson?.index)) {
               weekArr.splice(lesson.index, 1);
@@ -338,7 +352,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
       const lessonObject = {
         ...instanceData,
-        subjectId: selectedSubjectId, 
+        subjectId: selectedSubjectId,
       };
       if (scopes.attachments === 'local' && persistedAttachments.length > 0) {
         lessonObject.attachments = persistedAttachments;
@@ -363,7 +377,7 @@ export default function LessonEditor({ lesson, onClose }) {
 
       const defStart = instanceData.defaultStartTime || autoTimeForThisSlot.start;
       const defEnd = instanceData.defaultEndTime || autoTimeForThisSlot.end;
-      
+
       lessonObject.defaultStartTime = defStart;
       lessonObject.defaultEndTime = defEnd;
 
@@ -382,15 +396,15 @@ export default function LessonEditor({ lesson, onClose }) {
           const itemDefEnd = item.defaultEndTime || computedLessonTimes[i]?.end || addMinutes(itemDefStart, duration_global);
 
           tempArr.push({
-              lesson: { 
-                  ...item, 
-                  startTime: effectiveStart, 
+              lesson: {
+                  ...item,
+                  startTime: effectiveStart,
                   endTime: effectiveEnd,
                   defaultStartTime: itemDefStart,
                   defaultEndTime: itemDefEnd
               },
               effectiveStart: effectiveStart,
-              originalIndex: i 
+              originalIndex: i
           });
       }
 
@@ -403,7 +417,7 @@ export default function LessonEditor({ lesson, onClose }) {
       tempArr.push({
           lesson: lessonObject,
           effectiveStart: newLessonStart,
-          originalIndex: Number.isInteger(lesson?.index) ? lesson.index : 9999 
+          originalIndex: Number.isInteger(lesson?.index) ? lesson.index : 9999
       });
 
       tempArr.sort((a, b) => {
@@ -425,7 +439,7 @@ export default function LessonEditor({ lesson, onClose }) {
     }
     setRemovedStoredAttachments([]);
     setAttachmentUploadState({ uploading: false });
-    
+
     if (isMinimized) {
       triggerHaptic("success");
       Animated.timing(minimizeAnim, {
@@ -541,9 +555,9 @@ export default function LessonEditor({ lesson, onClose }) {
     if (field === "startTime") {
         const currentStart = instanceData.startTime !== undefined ? instanceData.startTime : storedDefaultTime.start;
         const currentEnd = instanceData.endTime !== undefined ? instanceData.endTime : storedDefaultTime.end;
-        
+
         const duration = getDurationMinutes(currentStart, currentEnd);
-        
+
         setInstanceData(prev => {
             const updates = { startTime: value };
             if (duration !== null) {
@@ -560,7 +574,7 @@ export default function LessonEditor({ lesson, onClose }) {
   };
 
   const handleRenameSubject = (newName) => {
-    if (editingItemData) { 
+    if (editingItemData) {
        setLocalData((prev) => {
         const nextSubjects = [...prev.subjects];
         const idx = nextSubjects.findIndex((s) => s.id === editingItemData);
@@ -571,13 +585,13 @@ export default function LessonEditor({ lesson, onClose }) {
         }
         return { ...prev, subjects: nextSubjects };
       });
-      
+
       const isNew = !localData.subjects.some((s) => s.id === editingItemData);
       if (isNew) {
           setSelectedSubjectId(editingItemData);
           goToScreen("main");
       } else {
-          goToScreen("picker"); 
+          goToScreen("picker");
       }
     }
   };
@@ -591,20 +605,26 @@ export default function LessonEditor({ lesson, onClose }) {
       else grads.push(newGradient);
       return { ...prev, gradients: grads };
     });
-    
+
     handleUpdateSubject({ colorGradient: newGradient.id, typeColor: "gradient" });
     goToScreen("main");
   };
 
-  const handleOpenPicker = (type, index = null) => {
+  const handleOpenPicker = (type, index = null, createNew = false) => {
     if (["building", "room", "type"].includes(type)) {
         setInputType(type);
         setPickerType(null);
+        setAttachAfterEdit(false);
         goToScreen("input");
     } else {
         setPickerType(type);
         setInputType(null);
         setEditingSlotIndex(index);
+        setAttachAfterEdit(createNew && ["teacher", "link"].includes(type));
+        if (createNew && ["teacher", "link"].includes(type)) {
+          goToScreen(type === "teacher" ? "teacherEditor" : "linkEditor", generateLocalId());
+          return;
+        }
         goToScreen("picker");
     }
   };
@@ -612,9 +632,10 @@ export default function LessonEditor({ lesson, onClose }) {
   const handleDirectEdit = (type, id, index) => {
     if (!id) return;
     triggerHaptic("open");
-    setEditingSlotIndex(index); 
-    setPickerType(null); 
-    
+    setEditingSlotIndex(index);
+    setPickerType(null);
+    setAttachAfterEdit(false);
+
     if (type === "teacher") goToScreen("teacherEditor", id);
     if (type === "link") goToScreen("linkEditor", id);
   };
@@ -636,13 +657,56 @@ export default function LessonEditor({ lesson, onClose }) {
       return { array: sanitizeArray(val), isInherited: false };
   };
 
+  const bindItemToCurrentSlot = (type, id) => {
+      const field = type === "teacher" ? "teachers" : "links";
+      const groupName = type === "teacher" ? "people" : "materials";
+      const { array } = getArrayData(field, groupName);
+      let nextArray = [...array];
+
+      if (editingSlotIndex !== null && editingSlotIndex < nextArray.length) {
+          nextArray[editingSlotIndex] = id;
+      } else {
+          nextArray.push(id);
+      }
+
+      handleGenericSave(field, [...new Set(nextArray)], groupName);
+  };
+
+  const getItemVisual = (type, id) => {
+      if (type === "teacher") {
+          const teacher = localData.teachers.find((item) => item.id === id);
+          const appearance = getTeacherAppearance(teacher);
+          return {
+            icon: getContactIconComponent(appearance.icon, "user"),
+            color: appearance.color,
+          };
+      }
+      if (type === "link") {
+          const link = localData.links.find((item) => item.id === id);
+          const meta = getLinkTypeMeta(link?.type, link?.url);
+          return { icon: getLinkIconComponent(link), color: link?.color || meta.color };
+      }
+      return null;
+  };
+
   const getPickerData = () => {
     if (pickerType === "teacher") {
         const { array: cleanSelected } = getArrayData("teachers", "people");
         const currentSelectedId = editingSlotIndex !== null && editingSlotIndex < cleanSelected.length ? cleanSelected[editingSlotIndex] : null;
         const alreadySelected = cleanSelected.filter((_, i) => i !== editingSlotIndex);
 
-        const options = localData.teachers.map((t) => ({ key: t.id, label: t.name }));
+        const options = localData.teachers.map((teacher) => {
+            const primaryContact = normalizeTeacherContacts(teacher, () => "")[0];
+            const meta = getTeacherContactTypeMeta(primaryContact?.type || "phone");
+            const appearance = getTeacherAppearance(teacher);
+            return {
+                key: teacher.id,
+                label: teacher.name,
+                hint: primaryContact ? `${t(meta.labelKey, lang)} · ${primaryContact.label || primaryContact.value}` : null,
+                iconComponent: getContactIconComponent(appearance.icon, "user"),
+                iconColor: appearance.color,
+            };
+        });
         options.unshift({ key: 'none', label: t('schedule.lesson_editor.delete_slot', lang) });
 
         return {
@@ -652,9 +716,10 @@ export default function LessonEditor({ lesson, onClose }) {
             multi: false,
             onAdd: () => {
                 const newId = generateLocalId();
+                setAttachAfterEdit(true);
                 goToScreen("teacherEditor", newId);
             },
-            onEdit: (id) => { if (id !== 'none') goToScreen("teacherEditor", id); },
+            onEdit: (id) => { if (id !== 'none') { setAttachAfterEdit(false); goToScreen("teacherEditor", id); } },
             onSave: (key) => {
                 let newArr = [...cleanSelected];
                 if (key === 'none') {
@@ -675,7 +740,16 @@ export default function LessonEditor({ lesson, onClose }) {
         const currentSelectedId = editingSlotIndex !== null && editingSlotIndex < cleanSelected.length ? cleanSelected[editingSlotIndex] : null;
         const alreadySelected = cleanSelected.filter((_, i) => i !== editingSlotIndex);
 
-        const options = localData.links.map((l) => ({ key: l.id, label: l.name }));
+        const options = localData.links.map((link) => {
+            const meta = getLinkTypeMeta(link.type, link.url);
+            return {
+                key: link.id,
+                label: link.name,
+                hint: t(meta.labelKey, lang),
+                iconComponent: getLinkIconComponent(link),
+                iconColor: link.color || meta.color,
+            };
+        });
         options.unshift({ key: 'none', label: t('schedule.lesson_editor.delete_slot', lang) });
 
         return {
@@ -685,9 +759,10 @@ export default function LessonEditor({ lesson, onClose }) {
             multi: false,
             onAdd: () => {
                 const newId = generateLocalId();
+                setAttachAfterEdit(true);
                 goToScreen("linkEditor", newId);
             },
-            onEdit: (id) => { if (id !== 'none') goToScreen("linkEditor", id); },
+            onEdit: (id) => { if (id !== 'none') { setAttachAfterEdit(false); goToScreen("linkEditor", id); } },
             onSave: (key) => {
                 let newArr = [...cleanSelected];
                 if (key === 'none') {
@@ -722,7 +797,7 @@ export default function LessonEditor({ lesson, onClose }) {
     if (pickerType === "icon") {
         const iconOptions = Object.keys(SUBJECT_ICONS).map((key) => ({
             key: key,
-            iconComponent: SUBJECT_ICONS[key] 
+            iconComponent: SUBJECT_ICONS[key]
         }));
         iconOptions.unshift({ key: 'none', iconComponent: null });
 
@@ -730,10 +805,10 @@ export default function LessonEditor({ lesson, onClose }) {
             options: iconOptions,
             selected: currentSubject.icon ? [currentSubject.icon] : ['none'],
             multi: false,
-            onSave: (key) => { 
+            onSave: (key) => {
                 const valueToSave = key === 'none' ? null : key;
-                handleUpdateSubject({ icon: valueToSave }); 
-                goToScreen("main"); 
+                handleUpdateSubject({ icon: valueToSave });
+                goToScreen("main");
             }
         };
     }
@@ -747,9 +822,9 @@ export default function LessonEditor({ lesson, onClose }) {
           const scope = scopes.location;
           const hasLocal = instanceData.building !== undefined;
           const currentBuilding = scope === 'local' ? (hasLocal ? instanceData.building : "") : currentSubject.building;
-          
-          return { 
-            val: currentBuilding || "", 
+
+          return {
+            val: currentBuilding || "",
             ph: t('schedule.lesson_editor.placeholder_building', lang),
             onSave: (val) => handleGenericSave("building", val, 'location'),
             onReset: scope === 'local' && hasLocal ? () => handleResetLocal("building") : null
@@ -760,7 +835,7 @@ export default function LessonEditor({ lesson, onClose }) {
           const hasLocal = instanceData.room !== undefined;
           const currentRoom = scope === 'local' ? (hasLocal ? instanceData.room : "") : currentSubject.room;
 
-          return { 
+          return {
             val: currentRoom || "",
             ph: t('schedule.lesson_editor.placeholder_room', lang),
             onSave: (val) => handleGenericSave("room", val, 'location'),
@@ -772,7 +847,7 @@ export default function LessonEditor({ lesson, onClose }) {
           const hasLocal = instanceData.type !== undefined;
           const currentType = scope === 'local' ? (hasLocal ? instanceData.type : "") : currentSubject.type;
 
-          return { 
+          return {
             val: currentType || "",
             ph: t('schedule.lesson_editor.lesson_type', lang),
             onSave: (val) => handleGenericSave("type", val, 'type'),
@@ -782,7 +857,7 @@ export default function LessonEditor({ lesson, onClose }) {
       if (inputType === "subject_rename") {
           const subj = localData.subjects.find(s => s.id === editingItemData);
           return {
-              val: subj?.name || "", 
+              val: subj?.name || "",
               ph: t('schedule.lesson_editor.placeholder_subject', lang),
               onSave: handleRenameSubject
           };
@@ -802,7 +877,7 @@ export default function LessonEditor({ lesson, onClose }) {
         if (names.length === 0) return t('schedule.lesson_editor.not_selected', lang);
         return names.join(", ");
     }
-    
+
     if (type === "type") {
         switch (value) {
             case "Лекція": return t('schedule.lesson_types.lecture', lang);
@@ -812,7 +887,7 @@ export default function LessonEditor({ lesson, onClose }) {
             default: return value;
         }
     }
-    
+
     return value;
   };
 
@@ -868,9 +943,9 @@ export default function LessonEditor({ lesson, onClose }) {
     <>
       {isMinimized && (
         <View style={styles.minimizedOverlay} pointerEvents="box-none">
-          <Animated.View 
+          <Animated.View
             style={[
-              styles.minimizedBar, 
+              styles.minimizedBar,
               { borderColor: themeColors.borderColor, backgroundColor: "transparent" },
               {
                 opacity: minimizeAnim,
@@ -895,8 +970,8 @@ export default function LessonEditor({ lesson, onClose }) {
               <AppBlur style={StyleSheet.absoluteFill} intensity={80} />
             </View>
 
-            <TouchableOpacity 
-              style={styles.minimizedContent} 
+            <TouchableOpacity
+              style={styles.minimizedContent}
               onPress={() => handleExpand()}
               activeOpacity={0.7}
               accessibilityRole="button"
@@ -961,7 +1036,7 @@ export default function LessonEditor({ lesson, onClose }) {
                 getLabel={getLabel}
                 scopes={scopes}
                 onScopeChange={(group, newScope) => setScopes(prev => ({ ...prev, [group]: newScope }))}
-                getValueLabel={getValueLabel} 
+                getValueLabel={getValueLabel}
                 getArrayData={getArrayData}
                 instanceData={instanceData}
                 defaultTime={storedDefaultTime}
@@ -978,15 +1053,16 @@ export default function LessonEditor({ lesson, onClose }) {
                 attachmentOwnerAvailable={!!user?.uid}
                 attachmentUserId={user?.uid}
                 fileLibrary={fileLibrary}
+                getItemVisual={getItemVisual}
                 onFileLibraryChange={handleFileLibraryChange}
                 attachmentStorageLimitBytes={MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES}
               />
             )}
 
             {currentScreen === "subjectColor" && (
-              <LessonEditorSubjectColorScreen 
-                  themeColors={themeColors} 
-                  currentSubject={currentSubject} 
+              <LessonEditorSubjectColorScreen
+                  themeColors={themeColors}
+                  currentSubject={currentSubject}
                   gradients={localData.gradients}
                   onSelect={(updates) => {
                       handleUpdateSubject(updates);
@@ -1001,7 +1077,7 @@ export default function LessonEditor({ lesson, onClose }) {
                       setLocalData(prev => ({ ...prev, gradients: [...prev.gradients, newG] }));
                       setEditingGradient(newG);
                       goToScreen("gradientEdit");
-                  }} 
+                  }}
               />
             )}
 
@@ -1016,12 +1092,12 @@ export default function LessonEditor({ lesson, onClose }) {
                 selectedValues={pickerData.selected}
                 alreadySelected={pickerData.alreadySelected}
                 multiSelect={pickerData.multi}
-                onSave={pickerData.onSave} 
+                onSave={pickerData.onSave}
                 onReset={pickerData.onReset}
                 onEdit={pickerData.onEdit}
                 onAdd={pickerData.onAdd}
                 themeColors={themeColors}
-                layout={pickerType === 'icon' ? 'grid' : 'list'} 
+                layout={pickerType === 'icon' ? 'grid' : 'list'}
               />
             )}
 
@@ -1030,68 +1106,90 @@ export default function LessonEditor({ lesson, onClose }) {
                   title={getHeaderTitle()}
                   initialValue={inputData.val}
                   placeholder={inputData.ph}
-                  onSave={inputData.onSave} 
+                  onSave={inputData.onSave}
                   onReset={inputData.onReset}
                   themeColors={themeColors}
               />
             )}
 
             {currentScreen === "teacherEditor" && (
-                <TeacherEditor 
-                  teacherId={editingItemData} 
+                <TeacherEditor
+                  teacherId={editingItemData}
                   localTeacherData={localData.teachers.find(t => t.id === editingItemData) || {}}
+                  initialContactId={
+                    initialEditTarget?.type === "teacher" && initialEditTarget.teacherId === editingItemData
+                      ? initialEditTarget.contactId
+                      : null
+                  }
+                  initialContact={
+                    initialEditTarget?.type === "teacher" && initialEditTarget.teacherId === editingItemData
+                      ? initialEditTarget.contact
+                      : null
+                  }
                   onSaveLocal={(updated) => {
                       triggerHaptic("success");
                       setLocalData(prev => {
                           const exists = prev.teachers.some(t => t.id === updated.id);
                           return {
-                              ...prev, 
-                              teachers: exists 
-                                  ? prev.teachers.map(t => t.id === updated.id ? updated : t) 
-                                  : [...prev.teachers, updated] 
+                              ...prev,
+                              teachers: exists
+                                  ? prev.teachers.map(t => t.id === updated.id ? updated : t)
+                                  : [...prev.teachers, updated]
                           };
                       });
-                      goToScreen(pickerType ? "picker" : "main"); 
+                      if (pickerType === "teacher" && attachAfterEdit) {
+                        bindItemToCurrentSlot("teacher", updated.id);
+                        setAttachAfterEdit(false);
+                      } else {
+                        goToScreen(pickerType ? "picker" : "main");
+                      }
                   }}
                   onBack={() => {
                     triggerHaptic("navigateBack");
                     goToScreen(pickerType ? "picker" : "main");
                   }}
+                  onOpenColorPicker={openAdvancedColorPicker}
                   themeColors={themeColors}
                 />
             )}
 
             {currentScreen === "linkEditor" && (
-                <LinkEditor 
-                  linkId={editingItemData} 
+                <LinkEditor
+                  linkId={editingItemData}
                   localLinkData={localData.links.find(l => l.id === editingItemData) || {}}
                   onSaveLocal={(updated) => {
                       triggerHaptic("success");
                       setLocalData(prev => {
                           const exists = prev.links.some(l => l.id === updated.id);
                           return {
-                              ...prev, 
-                              links: exists 
-                                  ? prev.links.map(l => l.id === updated.id ? updated : l) 
-                                  : [...prev.links, updated] 
+                              ...prev,
+                              links: exists
+                                  ? prev.links.map(l => l.id === updated.id ? updated : l)
+                                  : [...prev.links, updated]
                           };
                       });
-                      goToScreen(pickerType ? "picker" : "main");
+                      if (pickerType === "link" && attachAfterEdit) {
+                        bindItemToCurrentSlot("link", updated.id);
+                        setAttachAfterEdit(false);
+                      } else {
+                        goToScreen(pickerType ? "picker" : "main");
+                      }
                   }}
                   onBack={() => {
                     triggerHaptic("navigateBack");
                     goToScreen(pickerType ? "picker" : "main");
                   }}
+                  onOpenColorPicker={openAdvancedColorPicker}
                   themeColors={themeColors}
                 />
             )}
           </View>
       </BottomSheet>
-      
+
       {advancedPickerTarget && (
-        <AdvancedColorPicker 
-          visible={showAdvancedPicker} 
-          initialColor={advancedPickerTarget.colorValue} 
+        <AdvancedColorPicker
+          visible={showAdvancedPicker}
+          initialColor={advancedPickerTarget.colorValue}
           onSave={(color) => {
             advancedPickerTarget.setter(color);
             setShowAdvancedPicker(false);
@@ -1106,30 +1204,30 @@ export default function LessonEditor({ lesson, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  header: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: 'center', 
-    paddingHorizontal: 16, 
-    paddingBottom: 15, 
-    borderBottomWidth: StyleSheet.hairlineWidth 
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 15,
+    borderBottomWidth: StyleSheet.hairlineWidth
   },
-  headerTitle: { 
-    fontSize: 17, 
-    fontWeight: "600", 
-    flex: 1, 
-    textAlign: "center" 
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    flex: 1,
+    textAlign: "center"
   },
-  backButton: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginLeft: -8 
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: -8
   },
   minimizedOverlay: {
     position: 'absolute',
     bottom: 16,
     left: 16,
-    right: 88, 
+    right: 88,
     zIndex: 999,
   },
   minimizedBar: {

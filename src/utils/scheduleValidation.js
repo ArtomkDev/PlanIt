@@ -3,6 +3,15 @@ import {
   normalizeScheduleReminder,
   normalizeSubjectReminder,
 } from "./reminderSettings";
+import {
+  getContactTypeColor,
+  getLinkOpenUrl,
+  getTeacherContactOpenUrl,
+  inferLinkIconId,
+  normalizeContactIcon,
+  normalizeLinkType,
+  normalizeTeacherContactType,
+} from "./contactData";
 
 const LIMITS = {
   name: 80,
@@ -13,6 +22,9 @@ const LIMITS = {
   building: 80,
   phone: 40,
   email: 120,
+  contactLabel: 80,
+  contactValue: 2048,
+  teacherContacts: 16,
   color: 32,
   icon: 48,
   subjects: 250,
@@ -149,19 +161,79 @@ const pushIfDefined = (target, key, value) => {
   if (value !== undefined) target[key] = value;
 };
 
+const sanitizeTeacherContact = (contact) => {
+  if (!isPlainObject(contact)) return null;
+  const type = normalizeTeacherContactType(contact.type);
+  const value = cleanOptionalString(contact.value || contact.url, LIMITS.contactValue);
+  if (!value) return null;
+  const url = getTeacherContactOpenUrl({ type, value });
+  if (!url) return null;
+
+  const result = {
+    id: cleanId(contact.id) || generateId(),
+    type,
+    value,
+    url,
+    icon: normalizeContactIcon(contact.icon, type),
+    color: cleanColor(contact.color) || getContactTypeColor(type),
+  };
+
+  pushIfDefined(result, "label", cleanOptionalString(contact.label, LIMITS.contactLabel));
+
+  return result;
+};
 const sanitizeTeacher = (teacher) => {
   if (!isPlainObject(teacher)) return null;
   const id = cleanId(teacher.id);
   if (!id) return null;
+  const teacherColor = cleanColor(teacher.color);
 
   const result = {
     id,
     name: cleanString(teacher.name, LIMITS.name, "Teacher"),
+    icon: normalizeContactIcon(teacher.icon, "user"),
+    color: /^#[0-9a-f]{6}$/i.test(teacherColor || "") ? teacherColor : "#6366F1",
   };
 
   pushIfDefined(result, "shortName", cleanOptionalString(teacher.shortName, LIMITS.shortName));
   pushIfDefined(result, "email", cleanOptionalString(teacher.email, LIMITS.email));
   pushIfDefined(result, "phone", cleanOptionalString(teacher.phone, LIMITS.phone));
+
+  const contacts = Array.isArray(teacher.contacts)
+    ? teacher.contacts.slice(0, LIMITS.teacherContacts).map(sanitizeTeacherContact).filter(Boolean)
+    : [];
+
+  const legacyPhone = cleanOptionalString(teacher.phone, LIMITS.phone);
+  if (legacyPhone && !contacts.some((contact) => contact.type === "phone" && contact.value === legacyPhone)) {
+    contacts.unshift({
+      id: generateId(),
+      type: "phone",
+      value: legacyPhone,
+      url: getTeacherContactOpenUrl({ type: "phone", value: legacyPhone }),
+      icon: normalizeContactIcon(null, "phone"),
+      color: getContactTypeColor("phone"),
+    });
+  }
+
+  const legacyEmail = cleanOptionalString(teacher.email, LIMITS.email);
+  if (legacyEmail && !contacts.some((contact) => contact.type === "email" && contact.value === legacyEmail)) {
+    contacts.push({
+      id: generateId(),
+      type: "email",
+      value: legacyEmail,
+      url: getTeacherContactOpenUrl({ type: "email", value: legacyEmail }),
+      icon: normalizeContactIcon(null, "email"),
+      color: getContactTypeColor("email"),
+    });
+  }
+
+  if (contacts.length > 0) {
+    result.contacts = contacts.slice(0, LIMITS.teacherContacts);
+    const primaryPhone = result.contacts.find((contact) => contact.type === "phone")?.value;
+    const primaryEmail = result.contacts.find((contact) => contact.type === "email")?.value;
+    pushIfDefined(result, "phone", cleanOptionalString(primaryPhone, LIMITS.phone));
+    pushIfDefined(result, "email", cleanOptionalString(primaryEmail, LIMITS.email));
+  }
 
   return result;
 };
@@ -171,12 +243,17 @@ const sanitizeLink = (link) => {
   const id = cleanId(link.id);
   if (!id) return null;
 
+  const type = normalizeLinkType(link.type, link.url);
+  const url = getLinkOpenUrl({ type, url: link.url });
   const result = {
     id,
     name: cleanString(link.name, LIMITS.name, "Link"),
+    type,
+    icon: normalizeContactIcon(link.icon || inferLinkIconId(url, type), type),
+    color: cleanColor(link.color) || getContactTypeColor(type),
   };
 
-  pushIfDefined(result, "url", cleanUrl(link.url));
+  pushIfDefined(result, "url", cleanUrl(url));
 
   return result;
 };

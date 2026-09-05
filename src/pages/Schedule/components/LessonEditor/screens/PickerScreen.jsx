@@ -21,8 +21,8 @@ export default function LessonEditorPickerScreen({
   alreadySelected = [],
   multiSelect = false,
   onSave,
-  onEdit,   
-  onAdd,    
+  onEdit,
+  onAdd,
   themeColors,
   layout = 'list',
 }) {
@@ -42,12 +42,12 @@ export default function LessonEditorPickerScreen({
 
   const handlePressItem = (key) => {
     if (multiSelect) {
-      setTempSelected((prev) => 
+      setTempSelected((prev) =>
         prev.includes(key) ? prev.filter((id) => id !== key) : [...prev, key]
       );
     } else {
       setTempSelected([key]);
-      if (onSave) onSave(key); 
+      if (onSave) onSave(key);
     }
   };
 
@@ -64,10 +64,10 @@ export default function LessonEditorPickerScreen({
         style={[
           styles.gridItem,
           { width: itemSize, height: itemSize },
-          { 
-            backgroundColor: isSelected ? themeColors.accentColor + '25' : themeColors.backgroundColor2, 
-            borderColor: isSelected ? themeColors.accentColor : 'transparent', 
-            borderWidth: 2 
+          {
+            backgroundColor: isSelected ? themeColors.accentColor + '25' : themeColors.backgroundColor2,
+            borderColor: isSelected ? themeColors.accentColor : 'transparent',
+            borderWidth: 2
           }
         ]}
         onPress={() => {
@@ -89,16 +89,22 @@ export default function LessonEditorPickerScreen({
     const isSelected = tempSelected.includes(item.key);
     const isAlreadySelected = alreadySelected.includes(item.key) && item.key !== 'none';
     const canBeEdited = onEdit && item.key !== 'none';
+    const Icon = item.iconComponent;
 
     return (
       <SettingsSelectionRow
         key={item.key}
         label={item.label}
         editAccessibilityLabel={`${t('common.edit', lang)}: ${item.label}`}
-        hint={isAlreadySelected ? t('schedule.picker_screen.already_added', lang) : null}
+        hint={isAlreadySelected ? t('schedule.picker_screen.already_added', lang) : item.hint}
         isSelected={isSelected}
         isAlreadySelected={isAlreadySelected}
         themeColors={themeColors}
+        rightContent={Icon ? (
+          <View style={[styles.optionIcon, { backgroundColor: (item.iconColor || themeColors.accentColor) + '15' }]}>
+            <Icon size={18} color={item.iconColor || themeColors.accentColor} weight="bold" />
+          </View>
+        ) : null}
         onPress={() => handlePressItem(item.key)}
         onLongPress={() => canBeEdited && onEdit(item.key)}
         onEdit={canBeEdited ? () => onEdit(item.key) : undefined}
@@ -108,7 +114,7 @@ export default function LessonEditorPickerScreen({
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[styles.scrollContent, multiSelect && { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
@@ -138,11 +144,9 @@ export default function LessonEditorPickerScreen({
           </>
         ) : (
           <View style={styles.listWrapper}>
-            {options.filter(o => o.key !== 'none').map(renderListItem)}
-            
             {onAdd && (
-              <View style={{ marginTop: 4 }}>
-                <SettingsActionRow 
+              <View style={{ marginBottom: 2 }}>
+                <SettingsActionRow
                   icon={PlusCircle}
                   label={t('schedule.picker_screen.add_new', lang)}
                   onPress={onAdd}
@@ -151,9 +155,11 @@ export default function LessonEditorPickerScreen({
               </View>
             )}
 
+            {options.filter(o => o.key !== 'none').map(renderListItem)}
+
             {options.some(o => o.key === 'none') && (
               <View style={{ marginTop: 8 }}>
-                <SettingsActionRow 
+                <SettingsActionRow
                   icon={Trash}
                   label={t('schedule.picker_screen.delete_slot', lang)}
                   onPress={() => handlePressItem('none')}
@@ -168,8 +174,8 @@ export default function LessonEditorPickerScreen({
 
       {multiSelect && (
         <View style={[styles.footer, { backgroundColor: themeColors.backgroundColor, borderTopColor: themeColors.borderColor }]}>
-          <TouchableOpacity 
-              style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} 
+          <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]}
               onPress={() => {
                 triggerHaptic("success");
                 onSave?.(tempSelected);
@@ -187,39 +193,40 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 40 },
   categorySection: { marginBottom: 24 },
-  categoryTitle: { 
-    fontSize: 12, 
-    fontWeight: '700', 
-    letterSpacing: 1.2, 
-    marginBottom: 12, 
-    marginLeft: 4 
+  categoryTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+    marginLeft: 4
   },
-  gridContainer: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: GRID_SPACING 
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_SPACING
   },
-  gridItem: { 
-    borderRadius: 12, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  gridItem: {
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   listWrapper: { gap: 10 },
-  footer: { 
-    padding: 16, 
-    borderTopWidth: StyleSheet.hairlineWidth, 
-    position: 'absolute', 
-    bottom: 0, 
-    left: 0, 
-    right: 0 
+  optionIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  footer: {
+    padding: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0
   },
-  saveBtn: { 
-    width: '100%', 
-    paddingVertical: 14, 
-    borderRadius: 14, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    elevation: 3 
+  saveBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3
   },
   saveBtnText: { fontWeight: '700', fontSize: 16 },
 });

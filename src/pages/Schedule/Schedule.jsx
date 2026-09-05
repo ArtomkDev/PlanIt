@@ -115,6 +115,7 @@ export default function Schedule({ route, navigation }) {
   const [calendarVisible, setCalendarVisible] = useState(false);
   const headerHeight = getAppHeaderHeight(insets.top);
   const [editingLesson, setEditingLesson] = useState(null);
+  const [editorInitialTarget, setEditorInitialTarget] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);
 
   const [mode, accent] = global?.theme || ["light", "blue"];
@@ -166,13 +167,18 @@ export default function Schedule({ route, navigation }) {
   };
 
   const openViewer = useCallback((lesson) => { setViewingLesson(lesson); setViewerVisible(true); }, []);
-  const openEditor = useCallback((lesson) => { 
+  const openEditor = useCallback((lesson, initialTarget = null) => {
     setViewerVisible(false);
-    setTimeout(() => { setEditingLesson(lesson); setEditorVisible(true); }, 100);
+    setTimeout(() => {
+      setEditingLesson(lesson);
+      setEditorInitialTarget(initialTarget);
+      setEditorVisible(true);
+    }, 100);
   }, []);
 
   const openNewLessonEditor = useCallback(() => {
     setEditingLesson({ index: null, subjectId: null });
+    setEditorInitialTarget(null);
     setEditorVisible(true);
   }, []);
 
@@ -523,7 +529,14 @@ export default function Schedule({ route, navigation }) {
           pointerEvents="box-none"
         >
           <DayScheduleProvider date={currentDate}>
-            <LessonEditor lesson={editingLesson} onClose={() => setEditorVisible(false)} />
+            <LessonEditor
+              lesson={editingLesson}
+              initialEditTarget={editorInitialTarget}
+              onClose={() => {
+                setEditorVisible(false);
+                setEditorInitialTarget(null);
+              }}
+            />
           </DayScheduleProvider>
         </View>
       )}

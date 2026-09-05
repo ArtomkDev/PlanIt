@@ -5,16 +5,17 @@ import { triggerHaptic } from "../../../utils/haptics";
 
 const isAndroid = Platform.OS === "android";
 
-export default function SettingsRow({ 
-  label, 
+export default function SettingsRow({
+  label,
   desc,
-  value, 
+  value,
   icon: Icon,
-  onPress, 
-  themeColors, 
+  onPress,
+  onLongPress,
+  themeColors,
   rightContent,
-  danger = false, 
-  showCaret = true, 
+  danger = false,
+  showCaret = true,
   disabled = false,
   iconColor,
   iconBgColor,
@@ -24,7 +25,7 @@ export default function SettingsRow({
   accessibilityHint,
 }) {
   const Component = onPress ? TouchableOpacity : View;
-  
+
   const mainColor = danger ? '#FF3B30' : themeColors.textColor;
   const calculatedIconColor = iconColor || (danger ? '#FF3B30' : themeColors.accentColor);
   const calculatedIconBgColor = iconBgColor || (danger ? '#FF3B3015' : themeColors.accentColor + '15');
@@ -35,25 +36,33 @@ export default function SettingsRow({
     if (!skipHaptic) triggerHaptic(danger ? "warning" : "selection");
     onPress();
   };
-  
+
+  const handleLongPress = () => {
+    if (!onLongPress || disabled) return;
+    triggerHaptic("longPress");
+    onLongPress();
+  };
+
   return (
-    <Component 
+    <Component
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={onPress ? resolvedAccessibilityLabel : undefined}
       accessibilityHint={onPress ? accessibilityHint : undefined}
       accessibilityState={onPress ? { disabled } : undefined}
       style={[
-        styles.row, 
+        styles.row,
         disabled && styles.disabled,
-        isAndroid ? { 
+        isAndroid ? {
           backgroundColor: themeColors.backgroundColor2,
-          borderRadius: 12, 
+          borderRadius: 12,
           marginBottom: 6,
         } : {
-          backgroundColor: 'transparent', 
+          backgroundColor: 'transparent',
         }
-      ]} 
+      ]}
       onPress={onPress ? handlePress : undefined}
+      onLongPress={onLongPress ? handleLongPress : undefined}
+      delayLongPress={350}
       activeOpacity={0.7}
       disabled={disabled}
     >

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,20 +9,19 @@ import {
   Alert
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { 
-  X, 
-  Clock, 
-  MapPin, 
-  User, 
-  Phone, 
-  Link as LinkIcon, 
-  ArrowUpRight, 
+import {
+  X,
+  Clock,
+  MapPin,
+  User,
+  Link as LinkIcon,
+  ArrowUpRight,
   DownloadSimple,
   CheckSquare,
   Plus,
   Paperclip,
   ShareNetwork,
-  Trash, 
+  Trash,
   PencilSimple,
   CalendarDots
 } from "phosphor-react-native";
@@ -31,7 +30,19 @@ import { useOptionalDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
+import {
+  getContactIconComponent,
+  getLinkIconComponent,
+  getLinkTypeMeta,
+  getTeacherContactTypeMeta,
+} from "../../../config/contactTypes";
 import { t } from "../../../utils/i18n";
+import {
+  getLinkOpenUrl,
+  getTeacherAppearance,
+  getTeacherContactOpenUrl,
+  normalizeTeacherContacts,
+} from "../../../utils/contactData";
 import { calculateScheduleWeek, getScheduleDayIndex } from "../../../utils/scheduleTime";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 import AttachmentImagePreview from "../../../components/attachments/AttachmentImagePreview";
@@ -64,7 +75,8 @@ export default function LessonViewer({
   const daySchedule = useOptionalDaySchedule();
   const insets = useSafeAreaInsets();
   const [previewAttachment, setPreviewAttachment] = useState(null);
-  
+  const suppressedContactPressRef = useRef(null);
+
   if (!lesson) return null;
 
   const [mode, accent] = global?.theme || ["light", "blue"];
@@ -91,18 +103,18 @@ export default function LessonViewer({
   const displayBuilding = instanceData.building || fullSubject.building;
 
   const hasLocalTeachers = instanceData.teachers !== undefined;
-  const rawTeacherIds = hasLocalTeachers 
-      ? instanceData.teachers 
+  const rawTeacherIds = hasLocalTeachers
+      ? instanceData.teachers
       : (fullSubject.teachers || (fullSubject.teacher ? [fullSubject.teacher] : []));
-  
-  const validTeacherIds = Array.isArray(rawTeacherIds) 
-      ? rawTeacherIds.filter(id => id && id !== 0 && id !== "0") 
+
+  const validTeacherIds = Array.isArray(rawTeacherIds)
+      ? rawTeacherIds.filter(id => id && id !== 0 && id !== "0")
       : [];
   const displayTeachers = teachers.filter(t => validTeacherIds.includes(t.id));
 
   const hasLocalLinks = instanceData.links !== undefined;
   const rawLinkIds = hasLocalLinks ? instanceData.links : (fullSubject.links || []);
-  
+
   const validLinkIds = Array.isArray(rawLinkIds) ? rawLinkIds : [];
   const displayLinks = links.filter(l => validLinkIds.includes(l.id));
   const hasLocalAttachments = instanceData.attachments !== undefined;
@@ -130,6 +142,45 @@ export default function LessonViewer({
       triggerHaptic("error");
       alert(`${t('schedule.lesson_viewer.link_error', lang)}${url}`);
     }
+  };
+
+  const getContactInteractionKey = (teacher, contact) => (
+    `${teacher?.id || ""}:${contact?.id || `${contact?.type || ""}:${contact?.value || ""}`}`
+  );
+
+  const handleContactPress = async (teacher, contact) => {
+    const interactionKey = getContactInteractionKey(teacher, contact);
+    if (suppressedContactPressRef.current === interactionKey) {
+      suppressedContactPressRef.current = null;
+      return;
+    }
+    const url = getTeacherContactOpenUrl(contact);
+    if (!url) return;
+    await handleLinkPress(url);
+  };
+
+  const handleTeacherEdit = (teacher, contact = null, suppressNextOpen = false) => {
+    if (readOnly || !onEdit) return;
+    if (contact && suppressNextOpen) {
+      const interactionKey = getContactInteractionKey(teacher, contact);
+      suppressedContactPressRef.current = interactionKey;
+      setTimeout(() => {
+        if (suppressedContactPressRef.current === interactionKey) {
+          suppressedContactPressRef.current = null;
+        }
+      }, 800);
+    }
+    triggerHaptic("open");
+    onClose?.();
+    onEdit(
+      { ...lesson, subject: fullSubject, data: instanceData },
+      {
+        type: "teacher",
+        teacherId: teacher.id,
+        contactId: contact?.id || null,
+        contact: contact ? { type: contact.type, value: contact.value } : null,
+      },
+    );
   };
 
   const handleAttachmentPress = async (attachment, download = false) => {
@@ -163,8 +214,8 @@ export default function LessonViewer({
       (t('common.delete', lang)) + "?",
       [
         { text: t('common.cancel', lang), style: 'cancel' },
-        { 
-          text: t('common.delete', lang), 
+        {
+          text: t('common.delete', lang),
           style: 'destructive',
           onPress: () => {
             triggerHaptic("success");
@@ -213,7 +264,7 @@ export default function LessonViewer({
     >
           <View style={styles.headerContainer}>
             {getHeaderBackground()}
-            
+
             <View style={styles.headerContent}>
               {MainIcon ? (
                 <View style={styles.iconCircle}>
@@ -239,7 +290,7 @@ export default function LessonViewer({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            
+
             <View style={styles.titleSection}>
               {!!displayType && (
                 <View style={[styles.typeBadge, { borderColor: themeColors.accentColor }]}>
@@ -291,31 +342,73 @@ export default function LessonViewer({
                 <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
                   {t('schedule.lesson_viewer.teachers', lang)}
                 </Text>
-                {displayTeachers.map((teacher, index) => (
-                  <View key={index} style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}>
-                    <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
-                      <User size={18} color={themeColors.textColor} weight="fill" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowTitle, { color: themeColors.textColor }]}>{teacher.name}</Text>
-                      {teacher.phone ? <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]}>{teacher.phone}</Text> : null}
-                    </View>
-                    {!!teacher.phone && (
+                {displayTeachers.map((teacher, index) => {
+                  const contacts = normalizeTeacherContacts(teacher, () => "");
+                  const appearance = getTeacherAppearance(teacher);
+                  const TeacherIcon = getContactIconComponent(appearance.icon, "user") || User;
+
+                  return (
+                    <View key={teacher.id || index} style={[styles.rowCard, styles.teacherCard, { backgroundColor: themeColors.backgroundColor2 }]}>
+                      <View style={[styles.rowIcon, { backgroundColor: appearance.color + "18", borderColor: themeColors.borderColor, borderWidth: StyleSheet.hairlineWidth }]}>
+                        <TeacherIcon size={18} color={appearance.color} weight="bold" />
+                      </View>
+                      <View style={styles.rowContent}>
+                        <Text style={[styles.rowTitle, { color: themeColors.textColor }]}>{teacher.name}</Text>
+                        {contacts.length > 0 && (
+                          <View style={styles.contactChipWrap}>
+                            {contacts.map((contact) => {
+                              const meta = getTeacherContactTypeMeta(contact.type);
+                              const Icon = getContactIconComponent(contact.icon, contact.type);
+                              const label = contact.label || contact.value;
+                              const contactKey = contact.id || `${contact.type}-${contact.value}`;
+                              return (
+                                <View
+                                  key={contactKey}
+                                  style={[styles.contactChip, { backgroundColor: (contact.color || meta.color) + "14", borderColor: (contact.color || meta.color) + "55" }]}
+                                >
+                                  <TouchableOpacity
+                                    accessibilityRole="link"
+                                    accessibilityLabel={label}
+                                    accessibilityHint={!readOnly && onEdit ? t("schedule.lesson_viewer.contact_long_press_hint", lang) : undefined}
+                                    onPress={() => handleContactPress(teacher, contact)}
+                                    onLongPress={!readOnly && onEdit ? () => handleTeacherEdit(teacher, contact, true) : undefined}
+                                    delayLongPress={350}
+                                    style={styles.contactOpenButton}
+                                  >
+                                    <Icon size={14} color={contact.color || meta.color} weight="bold" />
+                                    <Text style={[styles.contactChipText, { color: themeColors.textColor }]} numberOfLines={1}>
+                                      {label}
+                                    </Text>
+                                  </TouchableOpacity>
+                                  {!readOnly && onEdit ? (
+                                    <TouchableOpacity
+                                      style={[styles.contactEditButton, { borderLeftColor: (contact.color || meta.color) + "55" }]}
+                                      onPress={() => handleTeacherEdit(teacher, contact)}
+                                      accessibilityRole="button"
+                                      accessibilityLabel={`${t("common.edit", lang)}: ${label}`}
+                                    >
+                                      <PencilSimple size={15} color={contact.color || meta.color} weight="bold" />
+                                    </TouchableOpacity>
+                                  ) : null}
+                                </View>
+                              );
+                            })}
+                          </View>
+                        )}
+                      </View>
+                      {!readOnly && onEdit ? (
                         <TouchableOpacity
-                          accessibilityRole="button"
-                          accessibilityLabel={teacher.phone}
-                          onPress={() => {
-                            triggerHaptic("open");
-                            Linking.openURL(`tel:${teacher.phone}`);
-                          }}
-                          hitSlop={10}
                           style={styles.rowActionButton}
+                          onPress={() => handleTeacherEdit(teacher)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${t("common.edit", lang)}: ${teacher.name}`}
                         >
-                            <Phone size={22} color={themeColors.accentColor} style={{marginRight: 8}} weight="regular" />
+                          <PencilSimple size={19} color={themeColors.accentColor} weight="bold" />
                         </TouchableOpacity>
-                    )}
-                  </View>
-                ))}
+                      ) : null}
+                    </View>
+                  );
+                })}
               </View>
             )}
 
@@ -324,28 +417,34 @@ export default function LessonViewer({
                 <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
                   {t('schedule.lesson_viewer.materials', lang)}
                 </Text>
-                {displayLinks.map((link, index) => (
-                  <TouchableOpacity 
-                    key={index} 
-                    accessibilityRole="link"
-                    accessibilityLabel={`${link.name || t('schedule.lesson_viewer.default_link', lang)} ${link.url}`}
-                    style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
-                    onPress={() => handleLinkPress(link.url)}
-                  >
-                    <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
-                      <LinkIcon size={18} color={themeColors.accentColor} weight="bold" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowTitle, { color: themeColors.accentColor, textDecorationLine: 'underline' }]}>
-                        {link.name || t('schedule.lesson_viewer.default_link', lang)}
-                      </Text>
-                      <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
-                        {link.url}
-                      </Text>
-                    </View>
-                    <ArrowUpRight size={20} color={themeColors.textColor2} weight="regular" />
-                  </TouchableOpacity>
-                ))}
+                {displayLinks.map((link, index) => {
+                  const meta = getLinkTypeMeta(link.type, link.url);
+                  const Icon = getLinkIconComponent(link) || LinkIcon;
+                  const color = link.color || meta.color;
+                  const openUrl = getLinkOpenUrl(link);
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      accessibilityRole="link"
+                      accessibilityLabel={`${link.name || t('schedule.lesson_viewer.default_link', lang)} ${openUrl}`}
+                      style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
+                      onPress={() => handleLinkPress(openUrl)}
+                    >
+                      <View style={[styles.rowIcon, { backgroundColor: color + "18" }]}>
+                        <Icon size={18} color={color} weight="bold" />
+                      </View>
+                      <View style={styles.rowContent}>
+                        <Text style={[styles.rowTitle, { color, textDecorationLine: 'underline' }]}>
+                          {link.name || t('schedule.lesson_viewer.default_link', lang)}
+                        </Text>
+                        <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+                          {t(meta.labelKey, lang)} · {link.url}
+                        </Text>
+                      </View>
+                      <ArrowUpRight size={20} color={themeColors.textColor2} weight="regular" />
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
 
@@ -487,7 +586,7 @@ export default function LessonViewer({
             )}
 
             {!readOnly && (
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={[
                   styles.actionButton,
                   onAddTask ? styles.secondaryActionButton : null,
@@ -505,7 +604,7 @@ export default function LessonViewer({
             )}
 
             {!readOnly && !!onEdit && (
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={[
                   styles.actionButton,
                   onAddTask ? styles.secondaryActionButton : styles.primaryButton,
@@ -683,6 +782,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  rowContent: { flex: 1, minWidth: 0 },
   rowTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -691,6 +791,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  teacherCard: { alignItems: "flex-start" },
+  contactChipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  contactChip: { maxWidth: "100%", minHeight: 44, borderRadius: 10, borderWidth: 1, flexDirection: "row", alignItems: "stretch", overflow: "hidden" },
+  contactOpenButton: { minHeight: 44, minWidth: 0, flexShrink: 1, paddingLeft: 11, paddingRight: 9, flexDirection: "row", alignItems: "center", gap: 7 },
+  contactEditButton: { width: 44, minHeight: 44, borderLeftWidth: StyleSheet.hairlineWidth, alignItems: "center", justifyContent: "center" },
+  contactChipText: { flexShrink: 1, fontSize: 12, fontWeight: "700" },
   rowActionButton: {
     width: 44,
     height: 44,

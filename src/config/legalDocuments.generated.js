@@ -17,11 +17,11 @@ export const LEGAL_DOCUMENTS = {
     "navigationTitle": "Privacy Policy",
     "summary": "Privacy at a glance",
     "effectiveDateLabel": "Effective and last updated:",
-    "effectiveDate": "2026-07-24",
-    "effectiveDateDisplay": "July 24, 2026",
-    "version": "2.2",
+    "effectiveDate": "2026-08-30",
+    "effectiveDateDisplay": "August 30, 2026",
+    "version": "2.3",
     "type": "privacy",
-    "effectiveDateLine": "Effective and last updated: July 24, 2026",
+    "effectiveDateLine": "Effective and last updated: August 30, 2026",
     "browserUrls": {
       "en": "https://planit-hub.web.app/en/wiki/privacy",
       "uk": "https://planit-hub.web.app/uk/wiki/privacy"
@@ -88,7 +88,7 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "definition",
             "term": "Schedules, tasks, and settings",
-            "text": "Schedule names and structure; subjects; dates and times; rooms and buildings; teacher names, email addresses, and phone numbers; links; notes; tasks and due dates; reminders; themes, language, navigation, and other preferences; synchronization versions, timestamps, and deletion markers."
+            "text": "Schedule names and structure; subjects; dates and times; rooms and buildings; teacher names, email addresses, phone numbers, public usernames, profile links, and contact labels; material links and their user-selected type, icon, and color; notes; tasks and due dates; reminders; themes, language, navigation, and other preferences; synchronization versions, timestamps, and deletion markers."
           },
           {
             "type": "definition",
@@ -550,11 +550,11 @@ export const LEGAL_DOCUMENTS = {
     "navigationTitle": "Terms & Conditions",
     "summary": "Important summary",
     "effectiveDateLabel": "Effective and last updated:",
-    "effectiveDate": "2026-08-01",
-    "effectiveDateDisplay": "August 1, 2026",
-    "version": "2.3",
+    "effectiveDate": "2026-08-30",
+    "effectiveDateDisplay": "August 30, 2026",
+    "version": "2.4",
     "type": "terms",
-    "effectiveDateLine": "Effective and last updated: August 1, 2026",
+    "effectiveDateLine": "Effective and last updated: August 30, 2026",
     "browserUrls": {
       "en": "https://planit-hub.web.app/en/wiki/terms",
       "uk": "https://planit-hub.web.app/uk/wiki/terms"
@@ -678,6 +678,10 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "paragraph",
             "text": "PlanIt is proprietary, closed-source software. Its original software, source code, design, branding, and content are owned by or licensed to the Service Provider and protected by applicable intellectual-property law. These Terms do not transfer ownership to you or grant access to PlanIt's source code. You may not copy, sell, sublicense, distribute, modify, or create derivative works from protected parts of the Service except with written permission or to the extent applicable law expressly permits despite this restriction. Third-party components remain subject to their own licenses."
+          },
+          {
+            "type": "paragraph",
+            "text": "Third-party service names and recognizable interface icons may be shown only to help users identify the destination or type of a user-created link. Those names, logos, and marks belong to their respective owners; their appearance in PlanIt does not state or imply sponsorship, endorsement, certification, or affiliation."
           },
           {
             "type": "paragraph",
@@ -1649,11 +1653,11 @@ export const LEGAL_DOCUMENTS = {
     "navigationTitle": "Third-Party Notices",
     "summary": "Third-party software notices at a glance",
     "effectiveDateLabel": "Effective and last updated:",
-    "effectiveDate": "2026-08-01",
-    "effectiveDateDisplay": "August 1, 2026",
-    "version": "1.1",
+    "effectiveDate": "2026-08-30",
+    "effectiveDateDisplay": "August 30, 2026",
+    "version": "1.2",
     "type": "licenses",
-    "effectiveDateLine": "Effective and last updated: August 1, 2026",
+    "effectiveDateLine": "Effective and last updated: August 30, 2026",
     "browserUrls": {
       "en": "https://planit-hub.web.app/en/wiki/licenses",
       "uk": "https://planit-hub.web.app/uk/wiki/licenses"
@@ -1697,6 +1701,10 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "paragraph",
             "text": "PlanIt's proprietary, closed-source software, branding, and content remain separately protected as described in the Terms & Conditions. Third-party components retain all notices and rights granted or reserved by their respective rightsholders."
+          },
+          {
+            "type": "paragraph",
+            "text": "The Phosphor icon library is used under its listed software license. Recognizable third-party service names and brand-shaped glyphs remain subject to the rights of their respective owners and are used only to identify a link destination or communication service, without suggesting affiliation or endorsement."
           },
           {
             "type": "paragraph",
