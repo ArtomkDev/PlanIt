@@ -1,11 +1,11 @@
-import { registerRootComponent } from 'expo';
+import { registerRootComponent, isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 import App from './App';
-import { widgetTask } from './src/widgets/widgetTask';
 
 registerRootComponent(App);
 
-if (Platform.OS === 'android') {
+if (Platform.OS === 'android' && !isRunningInExpoGo()) {
   const { registerWidgetTaskHandler } = require('react-native-android-widget');
+  const { widgetTask } = require('./src/widgets/widgetTask');
   registerWidgetTaskHandler(widgetTask);
 }

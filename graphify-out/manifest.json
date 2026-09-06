@@ -25,14 +25,14 @@
     "semantic_hash": "7932135754df0ad98c014dc9a84d6d45"
   },
   "index.js": {
-    "mtime": 1777718126.4422126,
-    "ast_hash": "a63bb4964d10b8555311272985e14e3d",
-    "semantic_hash": "a63bb4964d10b8555311272985e14e3d"
+    "mtime": 1788642333.9379551,
+    "ast_hash": "5cea5acb504f61ba856a512620293f4c",
+    "semantic_hash": "5cea5acb504f61ba856a512620293f4c"
   },
   "package.json": {
-    "mtime": 1788112318.8574054,
-    "ast_hash": "5d193c4ad8ef25e8395c1bf445edd07b",
-    "semantic_hash": "5d193c4ad8ef25e8395c1bf445edd07b"
+    "mtime": 1788641813.7145734,
+    "ast_hash": "fe463c311f306779ad08390aced1a1d5",
+    "semantic_hash": "fe463c311f306779ad08390aced1a1d5"
   },
   "scripts/build-aab.ps1": {
     "mtime": 1786910142.8987112,
@@ -855,7 +855,7 @@
     "semantic_hash": "e40096310f67e7440d96f9409be7d214"
   },
   "src/config/legalDocuments.generated.js": {
-    "mtime": 1788112499.4227204,
+    "mtime": 1788642348.276109,
     "ast_hash": "d59fccc0912375930fcf9ab4797d5b6f",
     "semantic_hash": "d59fccc0912375930fcf9ab4797d5b6f"
   },
