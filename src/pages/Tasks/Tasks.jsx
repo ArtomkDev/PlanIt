@@ -29,7 +29,7 @@ import tinycolor from "tinycolor2";
 
 import AppBlur from "../../components/ui/AppBlur";
 import AttachmentImagePreview from "../../components/attachments/AttachmentImagePreview";
-import { getGradientBackgroundStyle } from "../../components/ui/GradientBackground";
+import GradientBackground from "../../components/ui/GradientBackground";
 import LessonViewer from "../Schedule/components/LessonViewer";
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
@@ -466,51 +466,15 @@ function TaskTodayMarker({ label, themeColors }) {
   );
 }
 
-const TaskIconPattern = React.memo(({ Icon, color, opacity, collapseProgress }) => {
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const previousIconRef = useRef(null);
-
+const TaskIconPattern = React.memo(({ Icon, color, width, height, collapseProgress }) => {
+  const patternWidth = Math.round(width);
+  const patternHeight = Math.max(TASK_ICON_PATTERN_MIN_HEIGHT, Math.round(height));
   const positions = useMemo(() => {
-    if (dimensions.width === 0 || dimensions.height === 0) return [];
-    return getTaskIconPatternPositions(dimensions.width, dimensions.height);
-  }, [dimensions.height, dimensions.width]);
+    if (patternWidth <= 0 || patternHeight <= 0) return [];
+    return getTaskIconPatternPositions(patternWidth, patternHeight);
+  }, [patternHeight, patternWidth]);
 
-  useEffect(() => {
-    if (!Icon) return;
-
-    if (previousIconRef.current !== Icon) {
-      fadeAnim.setValue(0);
-      previousIconRef.current = Icon;
-    }
-
-    Animated.timing(fadeAnim, {
-      toValue: opacity,
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [Icon, fadeAnim, opacity]);
-
-  const handleLayout = useCallback((event) => {
-    const { width, height } = event.nativeEvent.layout;
-    setDimensions((previous) => {
-      const nextWidth = Math.round(width);
-      const nextHeight = Math.max(
-        previous.height,
-        TASK_ICON_PATTERN_MIN_HEIGHT,
-        Math.round(height),
-      );
-
-      if (Math.abs(previous.width - nextWidth) < 2 && previous.height === nextHeight) {
-        return previous;
-      }
-
-      return { width: nextWidth, height: nextHeight };
-    });
-  }, []);
-
-  if (!Icon) return null;
+  if (!Icon || positions.length === 0) return null;
 
   const motionStyle = collapseProgress
     ? {
@@ -534,11 +498,13 @@ const TaskIconPattern = React.memo(({ Icon, color, opacity, collapseProgress }) 
   return (
     <Animated.View
       pointerEvents="none"
-      onLayout={handleLayout}
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      collapsable={false}
       style={[
-        StyleSheet.absoluteFillObject,
         styles.cardIconPattern,
-        { opacity: fadeAnim },
+        { width: patternWidth, height: patternHeight },
         motionStyle,
       ]}
     >
@@ -577,6 +543,7 @@ function TaskCard({
   const { task, subject, links, attachments, scheduleId, scheduleColor, activeGradient } = entry;
   const completed = task?.completed === true;
   const [previewAttachment, setPreviewAttachment] = useState(null);
+  const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   const collapseProgress = useRef(new Animated.Value(completed ? 1 : 0)).current;
   const normalizedLessonRef = normalizeLessonRef(task?.lessonRef, scheduleId);
   const lessonTimeLabel = getTaskLessonTimeLabel(normalizedLessonRef);
@@ -602,7 +569,7 @@ function TaskCard({
     : (completed ? "rgba(17,24,39,0.26)" : "rgba(17,24,39,0.18)");
   const titleLabel = subject?.name || t("tasks.no_subject", lang);
   const SubjectIcon = getIconComponent(subject?.icon);
-  const iconPatternOpacity = usesLightText ? 0.18 : 0.12;
+  const iconPatternOpacity = usesLightText ? 0.18 : 0.07;
   const textShadowStyle = usesLightText
     ? null
     : Platform.select({ web: { textShadow: "none" }, default: { textShadowColor: "transparent" } });
@@ -731,23 +698,38 @@ function TaskCard({
     onLinkedLessonPress?.();
   };
 
+  const handleCardLayout = useCallback((event) => {
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    const nextHeight = Math.round(event.nativeEvent.layout.height);
+
+    if (nextWidth <= 0 || nextHeight <= 0) return;
+
+    setCardSize((previous) => (
+      previous.width === nextWidth && previous.height === nextHeight
+        ? previous
+        : { width: nextWidth, height: nextHeight }
+    ));
+  }, []);
+
   return (
     <>
-    <AnimatedTouchableOpacity
+    <GradientBackground
+      component={AnimatedTouchableOpacity}
+      gradient={activeGradient}
+      fallbackColor={cardColor}
       activeOpacity={0.86}
       onPress={handleCardPress}
+      onLayout={handleCardLayout}
       style={[
         styles.card,
         animatedCardStyle,
-        activeGradient
-          ? getGradientBackgroundStyle(activeGradient, cardColor)
-          : { backgroundColor: cardColor },
       ]}
     >
       <TaskIconPattern
         Icon={SubjectIcon}
-        color={textOnCard}
-        opacity={iconPatternOpacity}
+        color={withAlpha(textOnCard, iconPatternOpacity)}
+        width={cardSize.width}
+        height={cardSize.height}
         collapseProgress={collapseProgress}
       />
       <Animated.View
@@ -779,9 +761,6 @@ function TaskCard({
 
       <View style={styles.cardBody}>
         <View style={styles.metaRow}>
-          {!!SubjectIcon && (
-            <SubjectIcon size={17} color={textOnCard} weight="bold" />
-          )}
           <Text
             style={[
               styles.subjectName,
@@ -875,7 +854,7 @@ function TaskCard({
           )}
         </Animated.View>
       </View>
-    </AnimatedTouchableOpacity>
+    </GradientBackground>
     <AttachmentImagePreview
       visible={!!previewAttachment}
       attachment={previewAttachment}
@@ -1634,15 +1613,18 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: 18,
     borderWidth: 1.15,
-    zIndex: 1,
+    zIndex: 4,
   },
   cardIconPattern: {
-    zIndex: 0,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 1,
   },
   completedCardOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#000",
-    zIndex: 1,
+    zIndex: 2,
   },
   cardIconPatternItem: {
     position: "absolute",
@@ -1656,7 +1638,7 @@ const styles = StyleSheet.create({
     width: 38,
     alignItems: "flex-start",
     paddingTop: 2,
-    zIndex: 2,
+    zIndex: 3,
   },
   checkboxIconSlot: {
     width: 30,
@@ -1670,7 +1652,7 @@ const styles = StyleSheet.create({
   },
   cardBody: {
     flex: 1,
-    zIndex: 2,
+    zIndex: 3,
     justifyContent: "center",
   },
   metaRow: {

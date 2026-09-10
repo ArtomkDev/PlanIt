@@ -295,12 +295,17 @@ export default function LessonEditorMainScreen({
   };
 
   const renderColorPreview = () => {
-    if (currentSubject?.typeColor === "gradient" && currentSubject?.colorGradient) {
-      const grad = gradients.find((g) => g.id === currentSubject.colorGradient);
-      return grad ? <GradientBackground gradient={grad} style={styles.colorPreview} /> : null;
-    }
+    const gradient = currentSubject?.typeColor === "gradient" && currentSubject?.colorGradient
+      ? gradients.find((item) => item.id === currentSubject.colorGradient) || null
+      : null;
     const color = themes.accentColors[currentSubject?.color] || currentSubject?.color || themes.accentColors.grey;
-    return <View style={[styles.colorPreview, { backgroundColor: color }]} />;
+    return (
+      <GradientBackground
+        gradient={gradient}
+        fallbackColor={color}
+        style={styles.colorPreview}
+      />
+    );
   };
 
   const renderHeaderRight = (showScopeToggle, scope, onScopeChangeHandler, onAdd, onReset) => {

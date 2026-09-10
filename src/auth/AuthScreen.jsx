@@ -17,7 +17,7 @@ import {
   sendEmailVerification,
   signOut
 } from 'firebase/auth';
-import { LinearGradient } from 'expo-linear-gradient';
+import GradientBackground from '../components/ui/GradientBackground';
 
 import { auth } from '../config/firebase'; 
 import SocialAuthButtons from './components/SocialAuthButtons';
@@ -135,12 +135,24 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
   };
 
   const renderLayer = (opacityAnim, palette) => (
-    <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]} pointerEvents="none">
-      <LinearGradient colors={[baseColor, palette.secondary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: breathAnim }]}>
-        <LinearGradient colors={['transparent', palette.accent]} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.22 : 0.12 }]} />
-      </Animated.View>
-    </Animated.View>
+    <GradientBackground
+      component={Animated.View}
+      colors={[baseColor, palette.secondary]}
+      angle={45}
+      fallbackColor={baseColor}
+      style={[StyleSheet.absoluteFill, { opacity: opacityAnim }]}
+      pointerEvents="none"
+    >
+      <GradientBackground
+        component={Animated.View}
+        colors={['transparent', palette.accent]}
+        angle={135}
+        gradientOpacity={isDark ? 0.22 : 0.12}
+        fallbackColor="transparent"
+        style={[StyleSheet.absoluteFill, { opacity: breathAnim }]}
+        pointerEvents="none"
+      />
+    </GradientBackground>
   );
 
   return (

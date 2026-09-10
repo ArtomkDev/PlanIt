@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from "react-native";
-import { getGradientBackgroundStyle } from "../../../../../components/ui/GradientBackground";
+import GradientBackground from "../../../../../components/ui/GradientBackground";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
@@ -19,11 +19,11 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
         const isSelected = selected === item.id;
 
         return (
-          <TouchableOpacity
-            style={[
-              styles.gradientTile,
-              getGradientBackgroundStyle(item, themeColors.backgroundColor3),
-            ]}
+          <GradientBackground
+            component={TouchableOpacity}
+            gradient={item}
+            fallbackColor={themeColors.backgroundColor3}
+            style={styles.gradientTile}
             accessibilityRole="radio"
             accessibilityLabel={item?.name || t("schedule.lesson_editor.selection", lang) + " " + item.id}
             accessibilityState={{ selected: isSelected, checked: isSelected }}
@@ -39,7 +39,7 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
             activeOpacity={0.8}
           >
             {isSelected && <View style={styles.selectedMark} />}
-          </TouchableOpacity>
+          </GradientBackground>
         );
       }}
       ListFooterComponent={

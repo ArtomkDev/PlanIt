@@ -7,7 +7,7 @@ import { useNowTick } from "../../../hooks/useNowTick";
 import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import themes from "../../../config/themes";
-import { getGradientBackgroundStyle } from "../../../components/ui/GradientBackground";
+import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
@@ -21,6 +21,7 @@ import {
 
 const CELL_SIZE = 38;
 const ICON_SIZE = 18;
+const PATTERN_ICON_OPACITY = 0.25;
 const CARD_BORDER_RADIUS = 18;
 
 const cachedPatternPositions = {};
@@ -186,59 +187,39 @@ const ActiveHighlight = React.memo(({ isActive, isDark }) => {
   );
 });
 
-const BackgroundPattern = React.memo(({ MainIcon, color, itemOpacity }) => {
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-
+const BackgroundPattern = React.memo(({ MainIcon, color, width, height }) => {
   const positions = useMemo(() => {
-    if (dimensions.width === 0 || dimensions.height === 0) return [];
-    return getPatternPositions(dimensions.width, dimensions.height);
-  }, [dimensions.width, dimensions.height]);
+    if (width <= 0 || height <= 0) return [];
+    return getPatternPositions(width, height);
+  }, [height, width]);
 
-  useEffect(() => {
-    if (MainIcon && positions.length > 0) {
-      opacityAnim.setValue(0);
-      Animated.timing(opacityAnim, { 
-        toValue: 1, 
-        duration: 350, 
-        useNativeDriver: Platform.OS !== 'web' 
-      }).start();
-    }
-  }, [MainIcon, positions.length]);
+  if (!MainIcon || positions.length === 0) return null;
 
-  const handleLayout = useCallback((event) => {
-    const { width, height } = event.nativeEvent.layout;
-    setDimensions(prev => {
-      if (Math.abs(prev.width - width) < 2 && Math.abs(prev.height - height) < 2) return prev;
-      return { width: Math.round(width), height: Math.round(height) };
-    });
-  }, []);
-
-  if (!MainIcon) return null;
+  const iconColor = colorWithAlpha(color, PATTERN_ICON_OPACITY, color);
 
   return (
-    <Animated.View 
-      style={[StyleSheet.absoluteFillObject, { opacity: opacityAnim, zIndex: 0 }]} 
+    <View
+      style={[styles.patternLayer, { width, height }]}
       pointerEvents="none"
-      onLayout={handleLayout}
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      collapsable={false}
     >
       {positions.map(pos => (
         <View 
           key={pos.key} 
-          style={[
-            styles.patternIconWrapper,
-            { top: pos.top, left: pos.left, opacity: itemOpacity },
-          ]}
+          style={[styles.patternIconWrapper, { top: pos.top, left: pos.left }]}
         >
           <MainIcon 
             size={ICON_SIZE} 
-            color={color}
+            color={iconColor}
             weight="regular"
             style={Platform.OS === 'web' ? { overflow: 'visible' } : {}}
           />
         </View>
       ))}
-    </Animated.View>
+    </View>
   );
 });
 
@@ -249,6 +230,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
   } = useLessonData(lesson, schedule, isDark);
 
   const timerNow = useNowTick(targetDate, !!lesson?.timeInfo?.start && !!lesson?.timeInfo?.end);
+  const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   const { timeLeft, isActive } = useMemo(
     () => getTimerState(lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow),
     [lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow]
@@ -264,6 +246,19 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
     onLongPress?.({ ...lesson, subject, teacher });
   };
 
+  const handleCardLayout = useCallback((event) => {
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    const nextHeight = Math.round(event.nativeEvent.layout.height);
+
+    if (nextWidth <= 0 || nextHeight <= 0) return;
+
+    setCardSize((previous) => (
+      previous.width === nextWidth && previous.height === nextHeight
+        ? previous
+        : { width: nextWidth, height: nextHeight }
+    ));
+  }, []);
+
   const activePillBg = isDark ? '#ffffff' : '#111111';
   const usesLightContent = isLightForeground(contentColor);
   const mutedContentColor = colorWithAlpha(contentColor, 0.86, contentColor);
@@ -275,25 +270,23 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
     : Platform.select({ web: { textShadow: 'none' }, default: { textShadowColor: 'transparent' } });
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.cardContainer,
-        activeGrad
-          ? getGradientBackgroundStyle(activeGrad, subjectColor)
-          : { backgroundColor: subjectColor },
-      ]}
+    <GradientBackground
+      component={TouchableOpacity}
+      gradient={activeGrad}
+      fallbackColor={subjectColor}
+      style={styles.cardContainer}
       activeOpacity={0.85}
       onPress={handlePress}
       onLongPress={handleLongPress}
+      onLayout={handleCardLayout}
       delayLongPress={300}
     >
-      <View style={styles.backgroundWrapper}>
-        <BackgroundPattern
-          MainIcon={MainIcon}
-          color={contentColor}
-          itemOpacity={usesLightContent ? 0.20 : 0.14}
-        />
-      </View>
+      <BackgroundPattern
+        MainIcon={MainIcon}
+        color={contentColor}
+        width={cardSize.width}
+        height={cardSize.height}
+      />
 
       <ActiveHighlight isActive={isActive} isDark={isDark} />
 
@@ -321,7 +314,6 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
         </View>
 
         <View style={styles.mainInfo}>
-          {!!MainIcon && <MainIcon size={18} color={contentColor} weight="bold" />}
           <Text style={[styles.subjectTitle, { color: contentColor }, titleShadowStyle]} numberOfLines={1}>
             {subject?.name || "Предмет"}
           </Text>
@@ -347,7 +339,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </GradientBackground>
   );
 });
 
@@ -370,10 +362,12 @@ const styles = StyleSheet.create({
       default: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 } 
     }) 
   },
-  backgroundWrapper: {
-    ...StyleSheet.absoluteFillObject,
+  patternLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
     borderRadius: CARD_BORDER_RADIUS,
-    overflow: 'hidden', 
+    overflow: 'hidden',
     zIndex: 1,
   },
   patternIconWrapper: {
@@ -435,12 +429,8 @@ const styles = StyleSheet.create({
   },
   mainInfo: { 
     marginVertical: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
   },
   subjectTitle: { 
-    flex: 1,
     fontSize: 17, 
     fontWeight: '800', 
     color: '#fff', 

@@ -120,15 +120,12 @@ export default function LessonViewer({
   const hasLocalAttachments = instanceData.attachments !== undefined;
   const rawAttachments = hasLocalAttachments ? instanceData.attachments : fullSubject.attachments;
   const displayAttachments = resolveAttachmentList(rawAttachments, global?.fileLibrary);
-
-  const getHeaderBackground = () => {
-    if (fullSubject.typeColor === "gradient" && fullSubject.colorGradient) {
-      const grad = gradients.find(g => g.id === fullSubject.colorGradient);
-      if (grad) return <GradientBackground gradient={grad} style={styles.headerBackground} />;
-    }
-    const color = themes.accentColors[fullSubject.color] || themeColors.accentColor;
-    return <View style={[styles.headerBackground, { backgroundColor: color }]} />;
-  };
+  const headerGradient = fullSubject.typeColor === "gradient" && fullSubject.colorGradient
+    ? gradients.find((gradient) => gradient.id === fullSubject.colorGradient) || null
+    : null;
+  const headerColor = themes.accentColors[fullSubject.color]
+    || fullSubject.color
+    || themeColors.accentColor;
 
   const MainIcon = getIconComponent(fullSubject.icon);
 
@@ -262,9 +259,11 @@ export default function LessonViewer({
       closeAccessibilityLabel={t('common.close', lang)}
       testID="lesson-viewer-sheet"
     >
-          <View style={styles.headerContainer}>
-            {getHeaderBackground()}
-
+          <GradientBackground
+            gradient={headerGradient}
+            fallbackColor={headerColor}
+            style={styles.headerContainer}
+          >
             <View style={styles.headerContent}>
               {MainIcon ? (
                 <View style={styles.iconCircle}>
@@ -282,7 +281,7 @@ export default function LessonViewer({
                 <X size={24} color="#fff" weight="bold" />
               </TouchableOpacity>
             </View>
-          </View>
+          </GradientBackground>
 
           <SheetScrollView
             style={styles.contentScroll}
@@ -654,9 +653,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingBottom: 20,
     paddingHorizontal: 20,
-  },
-  headerBackground: {
-    ...StyleSheet.absoluteFillObject,
   },
   headerContent: {
     flexDirection: 'row',

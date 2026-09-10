@@ -127,3 +127,14 @@ export const colorWithAlpha = (color, alpha, fallback = color) => {
   if (!parsed.isValid()) return fallback;
   return parsed.setAlpha(Math.max(0, Math.min(1, alpha))).toRgbString();
 };
+
+export const multiplyColorAlpha = (color, opacity, fallback = color) => {
+  const parsed = tinycolor(color);
+  if (!parsed.isValid()) return fallback;
+
+  const safeOpacity = Number.isFinite(Number(opacity))
+    ? Math.max(0, Math.min(1, Number(opacity)))
+    : 1;
+
+  return parsed.setAlpha(parsed.getAlpha() * safeOpacity).toRgbString();
+};

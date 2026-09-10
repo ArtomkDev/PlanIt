@@ -6,8 +6,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
+import GradientBackground from "../ui/GradientBackground";
 
 const DEFAULT_COLORS = ["rgba(136,136,146,0.56)", "rgba(96,96,108,0.7)"];
 const SCAN_LINE_HEIGHT = 58;
@@ -210,10 +210,9 @@ export function AttachmentImageLoadingOverlay({
             style={styles.previewImage}
           />
         ) : (
-          <LinearGradient
+          <GradientBackground
             colors={colors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            angle={45}
             style={[
               styles.previewImage,
               { opacity: hasRichPreview ? 1 : 0.38 },
@@ -224,25 +223,22 @@ export function AttachmentImageLoadingOverlay({
         <View style={styles.softShade} />
 
         {scanning && (
-          <Animated.View
+          <GradientBackground
+            component={Animated.View}
+            colors={[
+              "rgba(255,255,255,0)",
+              "rgba(255,255,255,0.62)",
+              "rgba(255,255,255,0)",
+            ]}
+            angle={90}
+            fallbackColor="transparent"
             style={[
               styles.scanLine,
               {
                 transform: [{ translateY }],
               },
             ]}
-          >
-            <LinearGradient
-              colors={[
-                "rgba(255,255,255,0)",
-                "rgba(255,255,255,0.62)",
-                "rgba(255,255,255,0)",
-              ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-          </Animated.View>
+          />
         )}
       </View>
     </Animated.View>

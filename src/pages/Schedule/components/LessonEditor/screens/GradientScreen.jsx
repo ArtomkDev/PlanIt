@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Keyboard } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import tinycolor from "tinycolor2";
 import GradientBackground from "../../../../../components/ui/GradientBackground";
 import TabSwitcher from "../../../../../components/ui/TabSwitcher";
@@ -129,13 +128,22 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors, accessibilityL
 
   return (
     <View style={styles.inlinePickerContainer}>
-      <View accessibilityRole="adjustable" accessibilityLabel={accessibilityLabel + " saturation and brightness"} onLayout={(e) => setPickerSize(e.nativeEvent.layout)} {...satValPanResponder.panHandlers} style={[styles.saturationValuePicker, { borderColor: themeColors.borderColor }]}>
-        <LinearGradient colors={['#fff', tinycolor({ h: hsv.h, s: 1, v: 1 }).toHexString()]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} />
-        <LinearGradient colors={['transparent', '#000']} style={StyleSheet.absoluteFill} />
+      <GradientBackground
+        accessibilityRole="adjustable"
+        accessibilityLabel={accessibilityLabel + " saturation and brightness"}
+        onLayout={(e) => setPickerSize(e.nativeEvent.layout)}
+        {...satValPanResponder.panHandlers}
+        style={[styles.saturationValuePicker, { borderColor: themeColors.borderColor }]}
+        fallbackColor="#fff"
+        layers={[
+          { colors: ['transparent', '#000'], angle: 90 },
+          { colors: ['#fff', tinycolor({ h: hsv.h, s: 1, v: 1 }).toHexString()], angle: 0 },
+        ]}
+      >
         {pickerSize.width > 0 && <View style={[styles.pickerIndicator, { top: (1 - hsv.v) * pickerSize.height - 12, left: hsv.s * pickerSize.width - 12 }]} />}
-      </View>
+      </GradientBackground>
       <View accessibilityRole="adjustable" accessibilityLabel={accessibilityLabel + " hue"} onLayout={(e) => setHueSliderWidth(e.nativeEvent.layout.width)} {...huePanResponder.panHandlers} style={styles.hueSliderContainer}>
-        <LinearGradient colors={HUE_COLORS} style={styles.hueSlider} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} />
+        <GradientBackground colors={HUE_COLORS} angle={0} style={styles.hueSlider} />
         {hueSliderWidth > 0 && <View style={[styles.hueIndicator, { left: (hsv.h / 360) * hueSliderWidth - (HUE_INDICATOR_WIDTH / 2), backgroundColor: tinycolor(hsv).toHexString() }]} />}
       </View>
     </View>

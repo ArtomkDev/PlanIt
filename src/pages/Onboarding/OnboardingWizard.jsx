@@ -4,7 +4,7 @@ import {
   Animated, KeyboardAvoidingView, Platform,
   PanResponder, useColorScheme, useWindowDimensions, Alert
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import GradientBackground from '../../components/ui/GradientBackground';
 import {
   CalendarDots, Clock, CalendarBlank, CaretDown, Trash, Plus,
   Hourglass, Coffee, HandWaving, PencilSimple, CaretLeft,
@@ -807,10 +807,13 @@ export default function OnboardingWizard({ onImportSchedule }) {
             })}
           </Animated.View>
 
-          <Animated.View style={[styles.iconCircle, { top: iconTop, left: iconLeft, transform: [{ scale: iconScale }] }]}>
-            <View style={[StyleSheet.absoluteFill, { borderRadius: 40, overflow: 'hidden' }]}>
-              <LinearGradient colors={[themeColors.accentColor + '30', themeColors.accentColor + '05']} style={StyleSheet.absoluteFill} />
-            </View>
+          <GradientBackground
+            component={Animated.View}
+            colors={[themeColors.accentColor + '30', themeColors.accentColor + '05']}
+            angle={90}
+            fallbackColor={themeColors.accentColor + '18'}
+            style={[styles.iconCircle, { top: iconTop, left: iconLeft, transform: [{ scale: iconScale }] }]}
+          >
             {ICONS.map((Icon, idx) => {
               const opacity = position.interpolate({ inputRange: [idx - 1, idx, idx + 1], outputRange: [0, 1, 0], extrapolate: 'clamp' });
               const bounce = position.interpolate({ inputRange: [idx - 1, idx, idx + 1], outputRange: [0.5, 1, 0.5], extrapolate: 'clamp' });
@@ -820,7 +823,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
                 </Animated.View>
               );
             })}
-          </Animated.View>
+          </GradientBackground>
         </Animated.View>
 
         <Animated.View

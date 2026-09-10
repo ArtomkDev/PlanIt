@@ -1429,21 +1429,17 @@ export default function TaskEditor({
       : CalendarDots;
 
     return (
-      <View
+      <GradientBackground
+        gradient={linkedLessonInfo ? linkedLessonPalette.gradient : null}
+        gradientOpacity={0.1}
+        fallbackColor={linkedLessonInfo ? linkedLessonPalette.panelBackground : themeColors.backgroundColor2}
         style={[
           styles.lessonLinkPanel,
           {
-            backgroundColor: linkedLessonInfo ? linkedLessonPalette.panelBackground : themeColors.backgroundColor2,
             borderColor: linkedLessonInfo ? linkedLessonPalette.panelBorder : themeColors.borderColor,
           },
         ]}
       >
-        {!!linkedLessonInfo && !!linkedLessonPalette.gradient && (
-          <View pointerEvents="none" style={styles.lessonLinkGradientLayer}>
-            <GradientBackground gradient={linkedLessonPalette.gradient} style={StyleSheet.absoluteFillObject} />
-          </View>
-        )}
-
         <View style={styles.lessonLinkHeader}>
           <View
             style={[
@@ -1518,7 +1514,7 @@ export default function TaskEditor({
             </>
           )}
         </View>
-      </View>
+      </GradientBackground>
     );
   };
 
@@ -1886,10 +1882,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     padding: 13,
     overflow: "hidden",
-  },
-  lessonLinkGradientLayer: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.1,
   },
   lessonLinkHeader: {
     flexDirection: "row",

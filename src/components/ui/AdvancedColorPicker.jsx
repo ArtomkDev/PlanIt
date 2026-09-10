@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, PanResponder, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import tinycolor from "tinycolor2";
 
 import BottomSheet, { SheetScrollView } from "./BottomSheet";
+import GradientBackground from "./GradientBackground";
 import themes from "../../config/themes";
 import { useScheduleData } from "../../context/ScheduleProvider";
 import { t } from "../../utils/i18n";
@@ -197,25 +197,23 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
           />
         </View>
 
-        <View
+        <GradientBackground
           accessibilityRole="adjustable"
           accessibilityLabel="Saturation and brightness"
           accessibilityHint="Use the HEX field for precise keyboard input."
           onLayout={(event) => setPickerSize(event.nativeEvent.layout)}
           {...satValPanResponder.panHandlers}
           style={[styles.saturationValuePicker, { borderColor: themeColors.borderColor }]}
+          fallbackColor="#fff"
+          layers={[
+            { colors: ["transparent", "#000"], angle: 90 },
+            { colors: ["#fff", tinycolor({ h: hsv.h, s: 1, v: 1 }).toHexString()], angle: 0 },
+          ]}
         >
-          <LinearGradient
-            colors={["#fff", tinycolor({ h: hsv.h, s: 1, v: 1 }).toHexString()]}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-          />
-          <LinearGradient colors={["transparent", "#000"]} style={StyleSheet.absoluteFill} />
           {pickerSize.width > 0 && (
             <View style={[styles.pickerIndicator, pickerIndicatorPosition]} />
           )}
-        </View>
+        </GradientBackground>
 
         <View
           accessibilityRole="adjustable"
@@ -225,11 +223,10 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
           {...huePanResponder.panHandlers}
           style={styles.hueSliderContainer}
         >
-          <LinearGradient
+          <GradientBackground
             colors={HUE_COLORS}
             style={styles.hueSlider}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
+            angle={0}
           />
           {hueSliderWidth > 0 && (
             <View

@@ -13,6 +13,7 @@ import Animated, {
 import { t } from "../../../utils/i18n";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { useNowTick } from "../../../hooks/useNowTick";
+import { colorWithAlpha } from "../../../utils/gradientColors";
 
 function getDiffMinutes(start, end) {
     if (!start || !end) return 0;
@@ -122,14 +123,12 @@ const AnimatedBreakCard = React.memo(({ isVisible, isBreakNow, timeLeft, duratio
     return (
         <Animated.View style={[styles.wrapper, wrapperStyle]}>
             <View style={[styles.cardContainer, { backgroundColor: themeColors.backgroundColor2 }]}>
-                <View style={styles.innerContent}>
-                    {activeGrad ? (
-                        <View style={[StyleSheet.absoluteFillObject, { opacity: bgOpacity }]}>
-                            <GradientBackground gradient={activeGrad} style={StyleSheet.absoluteFillObject} />
-                        </View>
-                    ) : (
-                        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: activeColor, opacity: bgOpacity }]} />
-                    )}
+                <GradientBackground
+                    gradient={activeGrad}
+                    gradientOpacity={bgOpacity}
+                    fallbackColor={colorWithAlpha(activeColor, bgOpacity, "transparent")}
+                    style={styles.innerContent}
+                >
                     <Animated.View style={iconStyle}>
                         {isTimerIcon ? (
                              <Timer size={16} color={themeColors.textColor} style={{ marginRight: 8 }} weight="bold" />
@@ -140,7 +139,7 @@ const AnimatedBreakCard = React.memo(({ isVisible, isBreakNow, timeLeft, duratio
                     <Text style={[styles.text, { color: isBreakNow ? themeColors.textColor : themeColors.textColor2, fontWeight: isBreakNow ? '700' : '600' }]}>
                         {text}
                     </Text>
-                </View>
+                </GradientBackground>
             </View>
         </Animated.View>
     );

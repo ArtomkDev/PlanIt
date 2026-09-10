@@ -17,6 +17,24 @@ const reactNativeBackgroundParserPath = path.resolve(
 );
 const lessonCardPath = path.resolve(__dirname, '../src/pages/Schedule/components/LessonCard.jsx');
 const tasksPath = path.resolve(__dirname, '../src/pages/Tasks/Tasks.jsx');
+const lessonViewerPath = path.resolve(__dirname, '../src/pages/Schedule/components/LessonViewer.jsx');
+const breakCardPath = path.resolve(__dirname, '../src/pages/Schedule/components/BreakCard.jsx');
+const taskEditorPath = path.resolve(__dirname, '../src/pages/Tasks/components/TaskEditor.jsx');
+const mainScreenPath = path.resolve(
+  __dirname,
+  '../src/pages/Schedule/components/LessonEditor/screens/MainScreen.jsx',
+);
+const gradientScreenPath = path.resolve(
+  __dirname,
+  '../src/pages/Schedule/components/LessonEditor/screens/GradientScreen.jsx',
+);
+const advancedColorPickerPath = path.resolve(__dirname, '../src/components/ui/AdvancedColorPicker.jsx');
+const authScreenPath = path.resolve(__dirname, '../src/auth/AuthScreen.jsx');
+const onboardingPath = path.resolve(__dirname, '../src/pages/Onboarding/OnboardingWizard.jsx');
+const stagedAttachmentImagePath = path.resolve(
+  __dirname,
+  '../src/components/attachments/StagedAttachmentImage.jsx',
+);
 
 const loadGradientColors = () => {
   const source = fs.readFileSync(gradientColorsPath, 'utf8');
@@ -168,20 +186,96 @@ test('builds a Fabric-native background image instead of an absolute native grad
   );
 });
 
-test('shared renderer and cards use normalized gradients and visible subject icons', () => {
+test('supports point directions, layered surfaces, and alpha without a second renderer', () => {
+  const ios = loadGradientBackground('ios');
+  const web = loadGradientBackground('web');
+  const layers = [
+    { colors: ['transparent', '#000'], angle: 90, opacity: 0.5 },
+    {
+      colors: ['#fff', '#f00'],
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 1 },
+    },
+  ];
+
+  assert.equal(ios.getGradientAngleFromPoints({ x: 0, y: 0 }, { x: 1, y: 1 }), 45);
+  assert.equal(
+    ios.createGradientDefinition({
+      colors: ['#fff', '#000'],
+      start: { x: 1, y: 0 },
+      end: { x: 0, y: 1 },
+    }).angle,
+    135,
+  );
+
+  const iosStyle = ios.getGradientSurfaceStyle({ layers, fallbackColor: '#fff' });
+  const webStyle = web.getGradientSurfaceStyle({ layers, fallbackColor: '#fff' });
+  assert.equal(iosStyle.backgroundColor, 'rgb(255, 255, 255)');
+  assert.equal(webStyle.backgroundImage, iosStyle.experimental_backgroundImage);
+
+  const parsedByReactNative = loadReactNativeBackgroundParser()(
+    iosStyle.experimental_backgroundImage,
+  );
+  assert.equal(parsedByReactNative.length, 2);
+  assert.deepEqual(
+    parsedByReactNative.map((layer) => layer.direction),
+    [
+      { type: 'angle', value: 180 },
+      { type: 'angle', value: 135 },
+    ],
+  );
+  assert.match(iosStyle.experimental_backgroundImage, /rgba\(0, 0, 0, 0\.5\)/);
+});
+
+test('all UI gradient call sites use the shared surface component', () => {
   const gradientSource = fs.readFileSync(gradientBackgroundPath, 'utf8');
   const gridSource = fs.readFileSync(gradientGridPath, 'utf8');
   const lessonSource = fs.readFileSync(lessonCardPath, 'utf8');
   const taskSource = fs.readFileSync(tasksPath, 'utf8');
+  const lessonViewerSource = fs.readFileSync(lessonViewerPath, 'utf8');
+  const breakCardSource = fs.readFileSync(breakCardPath, 'utf8');
+  const taskEditorSource = fs.readFileSync(taskEditorPath, 'utf8');
+  const mainScreenSource = fs.readFileSync(mainScreenPath, 'utf8');
+  const migratedGradientSources = [
+    gradientScreenPath,
+    advancedColorPickerPath,
+    authScreenPath,
+    onboardingPath,
+    stagedAttachmentImagePath,
+  ].map((filePath) => fs.readFileSync(filePath, 'utf8'));
 
   assert.match(gradientSource, /normalizeGradientStops\(gradient\)/);
   assert.match(gradientSource, /experimental_backgroundImage: backgroundImage/);
-  assert.match(gridSource, /getGradientBackgroundStyle\(item, themeColors\.backgroundColor3\)/);
-  assert.match(lessonSource, /getGradientBackgroundStyle\(activeGrad, subjectColor\)/);
-  assert.match(taskSource, /getGradientBackgroundStyle\(activeGradient, cardColor\)/);
+  assert.match(gradientSource, /component: Component = View/);
+  assert.match(gradientSource, /const composedStyle = typeof style === "function"/);
+  assert.match(gridSource, /<GradientBackground[\s\S]*component=\{TouchableOpacity\}[\s\S]*gradient=\{item\}/);
+  assert.match(lessonSource, /<GradientBackground[\s\S]*component=\{TouchableOpacity\}[\s\S]*gradient=\{activeGrad\}[\s\S]*fallbackColor=\{subjectColor\}/);
+  assert.match(taskSource, /<GradientBackground[\s\S]*component=\{AnimatedTouchableOpacity\}[\s\S]*gradient=\{activeGradient\}[\s\S]*fallbackColor=\{cardColor\}/);
+  assert.match(lessonViewerSource, /<GradientBackground[\s\S]*gradient=\{headerGradient\}[\s\S]*fallbackColor=\{headerColor\}[\s\S]*style=\{styles\.headerContainer\}/);
+  assert.doesNotMatch(lessonViewerSource, /getHeaderBackground|headerBackground/);
+  assert.match(breakCardSource, /<GradientBackground[\s\S]*gradientOpacity=\{bgOpacity\}/);
+  assert.match(taskEditorSource, /<GradientBackground[\s\S]*gradientOpacity=\{0\.1\}/);
+  assert.match(mainScreenSource, /<GradientBackground[\s\S]*gradient=\{gradient\}[\s\S]*fallbackColor=\{color\}/);
+  for (const source of migratedGradientSources) {
+    assert.doesNotMatch(source, /expo-linear-gradient/);
+    assert.match(source, /GradientBackground/);
+  }
   assert.doesNotMatch(lessonSource, /activeGrad\.colors\[0\]/);
-  assert.match(lessonSource, /<MainIcon size=\{18\} color=\{contentColor\}/);
-  assert.match(taskSource, /<SubjectIcon size=\{17\} color=\{textOnCard\}/);
+  assert.match(lessonSource, /const BackgroundPattern = React\.memo/);
+  assert.match(lessonSource, /<BackgroundPattern[\s\S]*MainIcon=\{MainIcon\}[\s\S]*color=\{contentColor\}[\s\S]*width=\{cardSize\.width\}[\s\S]*height=\{cardSize\.height\}/);
+  assert.match(lessonSource, /colorWithAlpha\(color, PATTERN_ICON_OPACITY, color\)/);
+  assert.match(lessonSource, /onLayout=\{handleCardLayout\}/);
+  assert.doesNotMatch(lessonSource, /backgroundWrapper/);
+  assert.match(lessonSource, /patternLayer:[\s\S]*borderRadius: CARD_BORDER_RADIUS[\s\S]*overflow: 'hidden'/);
+  assert.match(taskSource, /const TaskIconPattern = React\.memo/);
+  assert.match(taskSource, /<TaskIconPattern[\s\S]*Icon=\{SubjectIcon\}[\s\S]*color=\{withAlpha\(textOnCard, iconPatternOpacity\)\}[\s\S]*width=\{cardSize\.width\}[\s\S]*height=\{cardSize\.height\}/);
+  assert.match(taskSource, /onLayout=\{handleCardLayout\}/);
+  assert.doesNotMatch(lessonSource, /onLayout=\{handleLayout\}/);
+  assert.doesNotMatch(taskSource, /onLayout=\{handleLayout\}/);
+  assert.match(lessonSource, /importantForAccessibility="no-hide-descendants"/);
+  assert.match(taskSource, /importantForAccessibility="no-hide-descendants"/);
+  assert.doesNotMatch(lessonSource, /<MainIcon size=\{18\}/);
+  assert.doesNotMatch(taskSource, /<SubjectIcon size=\{17\}/);
   assert.match(lessonSource, /isLightForeground\(contentColor\)/);
   assert.match(taskSource, /isLightForeground\(textOnCard\)/);
   assert.doesNotMatch(taskSource, /textOnCard === "#fff"/);
