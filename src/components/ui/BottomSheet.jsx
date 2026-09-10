@@ -55,6 +55,7 @@ const BottomSheet = forwardRef(function BottomSheet(
 ) {
   const modalRef = useRef(null);
   const visibleRef = useRef(visible);
+  const presentedRef = useRef(false);
   const dismissReasonRef = useRef(null);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -83,15 +84,25 @@ const BottomSheet = forwardRef(function BottomSheet(
     visibleRef.current = visible;
     if (visible) {
       dismissReasonRef.current = null;
-      modalRef.current?.present();
-    } else {
-      dismissReasonRef.current = "controlled";
-      modalRef.current?.dismiss();
+      if (!presentedRef.current) {
+        presentedRef.current = true;
+        modalRef.current?.present();
+      }
+      return;
     }
+
+    // bottom-sheet 5.2.14 leaves an unpresented modal in DISMISSING state.
+    if (!presentedRef.current) return;
+
+    presentedRef.current = false;
+    dismissReasonRef.current = "controlled";
+    modalRef.current?.dismiss();
   }, [visible]);
 
   const requestDismiss = useCallback(
     (reason = "close") => {
+      if (!presentedRef.current) return;
+      presentedRef.current = false;
       dismissReasonRef.current = reason;
       Keyboard.dismiss();
       modalRef.current?.dismiss();
@@ -134,6 +145,7 @@ const BottomSheet = forwardRef(function BottomSheet(
   }, [onMinimize, requestDismiss, visible]);
 
   const handleDismiss = useCallback(() => {
+    presentedRef.current = false;
     const reason = dismissReasonRef.current;
     dismissReasonRef.current = null;
     
@@ -194,6 +206,7 @@ const BottomSheet = forwardRef(function BottomSheet(
       detached={isDesktop}
       animationConfigs={animationConfigs}
       backdropComponent={renderBackdrop}
+      containerStyle={styles.modalContainer}
       backgroundStyle={[styles.background, { backgroundColor }]}
       handleStyle={[styles.handleArea, { backgroundColor }]}
       handleIndicatorStyle={[styles.handle, { backgroundColor: handleColor }]}
@@ -251,6 +264,17 @@ export const SheetFlatList = forwardRef(function SheetFlatList(
 });
 
 const styles = StyleSheet.create({
+  modalContainer: {
+    zIndex: 10000,
+    ...Platform.select({
+      web: {
+        overscrollBehavior: "contain",
+      },
+      default: {
+        elevation: 10000,
+      },
+    }),
+  },
   sheet: {
     overflow: "hidden",
     borderTopLeftRadius: 28,
@@ -287,6 +311,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     overflow: "hidden",
+    ...Platform.select({
+      web: {
+        overscrollBehavior: "contain",
+      },
+      default: null,
+    }),
   },
 });
 

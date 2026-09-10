@@ -71,6 +71,10 @@ test('friend schedule import accepts a raw code or a complete share link', () =>
     shareService.normalizeShareCodeInput('https://planit.app/share/Friend42?source=chat'),
     'FRIEND42',
   );
+  assert.equal(
+    shareService.createSharedScheduleLink('Friend42'),
+    'https://planit.app/share/FRIEND42',
+  );
   assert.throws(
     () => shareService.normalizeShareCodeInput('https://planit.app/not-a-share-link'),
     /invalid_code/,
@@ -346,6 +350,21 @@ test('first-schedule onboarding offers the existing safe import flow', () => {
   assert.match(importModalSource, /maxLength=\{256\}/);
 });
 
+test('shared schedule links open as a preview before account import', () => {
+  const importModalSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/components/modals/ImportScheduleModal.jsx'),
+    'utf8',
+  );
+  const shareModalSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/components/modals/ShareScheduleModal.jsx'),
+    'utf8',
+  );
+
+  assert.match(shareModalSource, /createSharedScheduleLink\(generatedCode\)/);
+  assert.match(shareModalSource, /Clipboard\.setStringAsync\(shareUrl\)/);
+  assert.match(importModalSource, /fetchSchedulePreview\(normalizedInitialCode, \{ dismissKeyboard: false \}\)/);
+  assert.match(importModalSource, /t\("share\.add_to_account_btn", lang\)/);
+});
 test('conflict choices are locked while one resolution is being persisted', () => {
   const screenSource = fs.readFileSync(
     path.resolve(__dirname, '../src/pages/SyncConflict/SyncConflictScreen.jsx'),

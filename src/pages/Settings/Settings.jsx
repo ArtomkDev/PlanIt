@@ -144,11 +144,15 @@ export default function Settings({ guest, onExitGuest }) {
           desc: t('settings.menu.haptics.desc', lang),
           showCaret: false,
           skipHaptic: true,
+          accessibilityRole: "switch",
+          accessibilityState: { checked: hapticsEnabled },
+          rightContentPointerEvents: "none",
           rightContent: (
             <AppSwitch
               value={hapticsEnabled}
               onValueChange={handleToggleHaptics}
               themeColors={themeColors}
+              interactive={false}
             />
           ),
         },
@@ -293,8 +297,11 @@ export default function Settings({ guest, onExitGuest }) {
                   desc={item.desc}
                   value={item.meta}
                   rightContent={item.rightContent}
+                  rightContentPointerEvents={item.rightContentPointerEvents}
                   showCaret={item.showCaret}
                   skipHaptic={item.skipHaptic}
+                  accessibilityRole={item.accessibilityRole}
+                  accessibilityState={item.accessibilityState}
                   danger={item.danger}
                   themeColors={themeColors}
                   onPress={() => item.action ? item.action() : navigation.navigate(item.screen, { scheduleId: schedule?.id })}

@@ -23,7 +23,7 @@ import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import ContactAppearancePicker from "./ContactAppearancePicker";
 
-export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack, onOpenColorPicker, themeColors }) {
+export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack, saveLabel, onOpenColorPicker, themeColors }) {
   const { lang } = useScheduleData();
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -234,9 +234,9 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
             style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]}
             onPress={handleSave}
             accessibilityRole="button"
-            accessibilityLabel={t("common.save_changes", lang)}
+            accessibilityLabel={saveLabel || t("common.save_changes", lang)}
           >
-            <Text style={styles.saveButtonText}>{t("common.save_changes", lang)}</Text>
+            <Text style={styles.saveButtonText}>{saveLabel || t("common.save_changes", lang)}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -514,6 +514,9 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                   themeColors={themeColors}
                   showCaret={false}
                   skipHaptic
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: taskAutoLinkNextLesson }}
+                  rightContentPointerEvents="none"
                   onPress={() => handleTaskAutoLinkNextLessonChange(!taskAutoLinkNextLesson)}
                   rightContent={(
                     <AppSwitch
@@ -521,6 +524,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                       value={taskAutoLinkNextLesson}
                       onValueChange={handleTaskAutoLinkNextLessonChange}
                       themeColors={themeColors}
+                      interactive={false}
                     />
                   )}
                 />

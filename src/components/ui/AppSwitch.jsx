@@ -32,6 +32,7 @@ export default function AppSwitch({
   accessibilityLabel,
   testID,
   hitSlop = 8,
+  interactive = true,
   ...pressableProps
 }) {
   const isOn = value === true;
@@ -70,7 +71,7 @@ export default function AppSwitch({
 
   const handlePress = (event) => {
     event?.stopPropagation?.();
-    if (disabled) return;
+    if (disabled || !interactive) return;
 
     const nextValue = !isOn;
     onValueChange?.(nextValue);
@@ -93,16 +94,18 @@ export default function AppSwitch({
   return (
     <Pressable
       {...pressableProps}
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: isOn, disabled }}
-      disabled={disabled}
+      accessibilityElementsHidden={!interactive}
+      accessibilityLabel={interactive ? accessibilityLabel : undefined}
+      accessibilityRole={interactive ? "switch" : undefined}
+      accessibilityState={interactive ? { checked: isOn, disabled } : undefined}
+      disabled={disabled || !interactive}
+      importantForAccessibility={interactive ? "auto" : "no-hide-descendants"}
       hitSlop={hitSlop}
       onPress={handlePress}
       onPressIn={(event) => {
         event?.stopPropagation?.();
         onPressIn?.(event);
-        if (!disabled) animatePress(0.94);
+        if (!disabled && interactive) animatePress(0.94);
       }}
       onPressOut={(event) => {
         event?.stopPropagation?.();
@@ -121,23 +124,11 @@ export default function AppSwitch({
             height: metrics.height,
             padding: metrics.padding,
             borderRadius: metrics.height / 2,
-            backgroundColor: colors.inactiveTrack,
-            borderColor: colors.inactiveBorder,
+            backgroundColor: isOn ? colors.activeTrack : colors.inactiveTrack,
+            borderColor: isOn ? colors.activeBorder : colors.inactiveBorder,
           },
         ]}
       >
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.activeTrack,
-            {
-              borderRadius: metrics.height / 2,
-              backgroundColor: colors.activeTrack,
-              borderColor: colors.activeBorder,
-              opacity: progress,
-            },
-          ]}
-        />
         <Animated.View
           style={[
             styles.thumb,
@@ -145,32 +136,11 @@ export default function AppSwitch({
               width: metrics.thumb,
               height: metrics.thumb,
               borderRadius: metrics.thumb / 2,
+              backgroundColor: colors.thumb,
               transform: [{ translateX }, { scale: pressScale }],
             },
           ]}
-        >
-          <Animated.View
-            style={[
-              styles.thumbSurface,
-              {
-                borderRadius: metrics.thumb / 2,
-                backgroundColor: colors.thumb,
-              },
-            ]}
-          >
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.activeThumb,
-                {
-                  borderRadius: metrics.thumb / 2,
-                  backgroundColor: colors.thumb,
-                  opacity: progress,
-                },
-              ]}
-            />
-          </Animated.View>
-        </Animated.View>
+        />
       </Animated.View>
     </Pressable>
   );
@@ -188,10 +158,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
-  activeTrack: {
-    ...StyleSheet.absoluteFillObject,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+
   thumb: {
     ...Platform.select({
       web: {
@@ -206,13 +173,7 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  thumbSurface: {
-    flex: 1,
-    overflow: "hidden",
-  },
-  activeThumb: {
-    ...StyleSheet.absoluteFillObject,
-  },
+
   disabled: {
     opacity: 0.48,
   },

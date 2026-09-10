@@ -10,6 +10,7 @@ import { t } from "../../../utils/i18n";
 import { buildLessonTimes } from "../../../utils/scheduleTime";
 import { APP_HEADER_CONTENT_GAP, getAppHeaderHeight } from "../../../config/layoutMetrics";
 import { triggerHaptic } from "../../../utils/haptics";
+import { getGradientColor, resolveValidColor } from "../../../utils/gradientColors";
 
 export default function DaySchedule({ 
   targetDate, 
@@ -75,14 +76,15 @@ export default function DaySchedule({
             const uniqueKey = `lesson-${index}-${subjectId}`;
 
             const subject = schedule?.subjects?.find(s => s.id === subjectId) || {};
-            let subjectColor = themes.accentColors[subject?.color] || subject?.color || themeColors.accentColor;
+            let subjectColor = resolveValidColor(
+              themes.accentColors[subject?.color] || subject?.color,
+              themeColors.accentColor,
+            );
             let activeGrad = null;
 
             if (subject?.typeColor === "gradient" && subject?.colorGradient) {
               activeGrad = schedule?.gradients?.find(g => g.id === subject.colorGradient);
-              if (activeGrad && activeGrad.colors && activeGrad.colors.length > 0) {
-                subjectColor = activeGrad.colors[0]; 
-              }
+              subjectColor = getGradientColor(activeGrad, subjectColor);
             }
 
             return (

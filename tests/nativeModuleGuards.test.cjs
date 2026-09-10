@@ -14,6 +14,38 @@ const navigationMetricsPath = path.resolve(
   '../src/navigation/navigationMetrics.js',
 );
 
+const tabNavigatorPath = path.resolve(
+  __dirname,
+  '../src/navigation/TabNavigator.jsx',
+);
+const scheduleScreenPath = path.resolve(
+  __dirname,
+  '../src/pages/Schedule/Schedule.jsx',
+);
+const notificationPanelPath = path.resolve(
+  __dirname,
+  '../src/pages/Schedule/components/NotificationInboxPanel.jsx',
+);
+const notificationHeaderPath = path.resolve(
+  __dirname,
+  '../src/pages/Schedule/components/Header.jsx',
+);
+const notificationWeekStripPath = path.resolve(
+  __dirname,
+  '../src/pages/Schedule/components/WeekStrip.jsx',
+);
+const appBlurPath = path.resolve(
+  __dirname,
+  '../src/components/ui/AppBlur.jsx',
+);
+const tasksScreenPath = path.resolve(
+  __dirname,
+  '../src/pages/Tasks/Tasks.jsx',
+);
+const rootAppPath = path.resolve(
+  __dirname,
+  '../src/Root.jsx',
+);
 const loadNotificationService = ({ isExpoGo = true } = {}) => {
   let notificationsModuleLoads = 0;
   const notificationHandlers = [];
@@ -157,4 +189,95 @@ test('keeps Liquid Glass navigation available in standalone iOS 26 builds', () =
   assert.equal(metrics.getDefaultNavigationStyle(), 'liquidGlass');
   assert.equal(metrics.resolveNavigationStyle('liquidGlass'), 'liquidGlass');
   assert.deepEqual(metrics.getAvailableNavigationStyleKeys(), ['classic', 'floating', 'dot', 'liquidGlass']);
+});
+
+test('provides safe area context above navigation and attachment modals', () => {
+  const source = fs.readFileSync(rootAppPath, 'utf8');
+  const safeAreaProviderIndex = source.indexOf('<SafeAreaProvider>');
+  const navigationContainerIndex = source.indexOf('<NavigationContainer');
+  const safeAreaProviderEndIndex = source.indexOf('</SafeAreaProvider>');
+
+  assert.ok(
+    source.includes('import { SafeAreaProvider } from "react-native-safe-area-context";'),
+    'Root must import SafeAreaProvider',
+  );
+  assert.ok(safeAreaProviderIndex >= 0, 'SafeAreaProvider must be rendered');
+  assert.ok(
+    safeAreaProviderIndex < navigationContainerIndex,
+    'SafeAreaProvider must wrap the navigation tree',
+  );
+  assert.ok(
+    safeAreaProviderEndIndex > navigationContainerIndex,
+    'SafeAreaProvider must remain mounted around modal descendants',
+  );
+});
+
+test('keeps notification movement and corner radius on the Reanimated UI thread', () => {
+  const source = fs.readFileSync(tabNavigatorPath, 'utf8');
+
+  assert.match(source, /from 'react-native-reanimated'/);
+  assert.match(source, /useSharedValue\(0\)/);
+  assert.match(source, /drawerProgress\.value\s*=\s*withTiming\(toValue/);
+  assert.match(source, /drawerProgress\.value\s*=\s*nextProgress/);
+  assert.match(source, /borderRadius:\s*interpolate\(drawerProgress\.value,\s*\[0,\s*1\],\s*\[0,\s*20\]\)/);
+  assert.doesNotMatch(source, /Animated\.timing\(drawerProgress/);
+  assert.doesNotMatch(source, /drawerMotionProgress/);
+  assert.doesNotMatch(source, /DRAWER_VISUAL_/);
+});
+
+test('does not shadow the runtime global in components with Reanimated worklets', () => {
+  const workletSources = [
+    tabNavigatorPath,
+    scheduleScreenPath,
+    notificationHeaderPath,
+    notificationWeekStripPath,
+    appBlurPath,
+  ].map((sourcePath) => fs.readFileSync(sourcePath, 'utf8'));
+
+  workletSources.forEach((source) => {
+    assert.doesNotMatch(source, /\bglobal\s*[,}]/);
+    assert.match(source, /global:\s*globalSettings/);
+  });
+});
+
+test('keeps notifications transparent and underneath the moving app shell', () => {
+  const navigatorSource = fs.readFileSync(tabNavigatorPath, 'utf8');
+  const scheduleSource = fs.readFileSync(scheduleScreenPath, 'utf8');
+  const notificationPanelSource = fs.readFileSync(notificationPanelPath, 'utf8');
+  const appShellIndex = navigatorSource.indexOf('styles.appShellMotion');
+  const notificationLayerIndex = navigatorSource.indexOf('styles.notificationLayer');
+
+  assert.doesNotMatch(navigatorSource, /renderToHardwareTextureAndroid/);
+  assert.doesNotMatch(navigatorSource, /shouldRasterizeIOS/);
+  assert.doesNotMatch(navigatorSource, /opacity:\s*drawerOpacity/);
+  assert.doesNotMatch(navigatorSource, /styles\.notificationUnderlay/);
+  assert.doesNotMatch(navigatorSource, /styles\.notificationDrawerSurface/);
+  assert.doesNotMatch(navigatorSource, /styles\.notificationDrawerClip/);
+  assert.doesNotMatch(navigatorSource, /drawerBackgroundColor|drawerCardBackgroundColor/);
+  assert.doesNotMatch(notificationPanelSource, /cardBackgroundColor|Animated\.createAnimatedComponent/);
+  assert.match(navigatorSource, /drawerContentInset:\s*0/);
+  assert.match(navigatorSource, /styles\.notificationLayer,\s*\{\s*width:\s*drawerWidth\s*\}/);
+  assert.match(navigatorSource, /NotificationInboxPanel backgroundColor="transparent"/);
+  assert.doesNotMatch(navigatorSource, /notificationsMounted\s*&&\s*\(\s*<View[\s\S]*?styles\.notificationLayer/);
+  assert.ok(notificationLayerIndex >= 0, 'the notification layer must be rendered');
+  assert.ok(appShellIndex >= 0, 'the moving app shell must be rendered');
+  assert.ok(notificationLayerIndex < appShellIndex, 'notifications must be rendered before and underneath the native app shell');
+  assert.match(scheduleSource, /interpolateColor\([\s\S]*?\[themeColors\.backgroundColor,\s*themeColors\.backgroundColor2\]/);
+});
+
+test('matches Tasks colors exactly and only swaps colors on the main interface', () => {
+  const tasksSource = fs.readFileSync(tasksScreenPath, 'utf8');
+  const scheduleSource = fs.readFileSync(scheduleScreenPath, 'utf8');
+  const headerSource = fs.readFileSync(notificationHeaderPath, 'utf8');
+  const weekStripSource = fs.readFileSync(notificationWeekStripPath, 'utf8');
+  const blurSource = fs.readFileSync(appBlurPath, 'utf8');
+  const notificationPanelSource = fs.readFileSync(notificationPanelPath, 'utf8');
+
+  assert.match(tasksSource, /styles\.container,\s*\{\s*backgroundColor:\s*themeColors\.backgroundColor\s*\}/);
+  assert.match(tasksSource, /backgroundColor:\s*themeColors\.backgroundColor2/);
+  assert.match(scheduleSource, /\[themeColors\.backgroundColor,\s*themeColors\.backgroundColor2\]/);
+  assert.match(headerSource, /\[themeColors\.backgroundColor2,\s*themeColors\.backgroundColor\]/);
+  assert.match(weekStripSource, /\[themeColors\.backgroundColor2,\s*themeColors\.backgroundColor\]/);
+  assert.match(blurSource, /interpolateColor/);
+  assert.doesNotMatch(notificationPanelSource, /interpolateColor|drawerProgress/);
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Platform, Keyboard
@@ -25,13 +25,48 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [placeholderText, setPlaceholderText] = useState("");
+  const lastAutoFetchedCodeRef = useRef("");
+
+  const fetchSchedulePreview = useCallback(async (rawCode, options = {}) => {
+    if (options.dismissKeyboard !== false) {
+      Keyboard.dismiss();
+    }
+    const nextCode = String(rawCode || "").trim();
+    if (!nextCode) {
+      triggerHaptic("warning");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchSharedSchedule(nextCode);
+      setPreviewData(data);
+      triggerHaptic("success");
+    } catch (err) {
+      triggerHaptic("error");
+      if (err.message === "not_found") setError(t("share.error_not_found", lang));
+      else if (err.message === "invalid_code") setError(t("share.error_not_found", lang));
+      else if (err.message === "inactive") setError(t("share.error_inactive", lang));
+      else if (err.message === "expired") setError(t("share.error_expired", lang));
+      else setError(t("common.error", lang));
+    } finally {
+      setLoading(false);
+    }
+  }, [lang]);
   useEffect(() => {
     if (visible && initialCode) {
-      setCode(initialCode.toUpperCase());
+      const normalizedInitialCode = initialCode.toUpperCase();
+      setCode(normalizedInitialCode);
       setError(null);
       setPreviewData(null);
+      if (lastAutoFetchedCodeRef.current !== normalizedInitialCode) {
+        lastAutoFetchedCodeRef.current = normalizedInitialCode;
+        fetchSchedulePreview(normalizedInitialCode, { dismissKeyboard: false });
+      }
+    } else if (!visible) {
+      lastAutoFetchedCodeRef.current = "";
     }
-  }, [visible, initialCode]);
+  }, [visible, initialCode, fetchSchedulePreview]);
 
   useEffect(() => {
     let interval;
@@ -71,29 +106,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
     return () => clearInterval(interval);
   }, [visible, previewData, initialCode]);
 
-  const handleFetch = async () => {
-    Keyboard.dismiss();
-    if (!code.trim()) {
-      triggerHaptic("warning");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchSharedSchedule(code.trim());
-      setPreviewData(data);
-      triggerHaptic("success");
-    } catch (err) {
-      triggerHaptic("error");
-      if (err.message === "not_found") setError(t("share.error_not_found", lang));
-      else if (err.message === "invalid_code") setError(t("share.error_not_found", lang));
-      else if (err.message === "inactive") setError(t("share.error_inactive", lang));
-      else if (err.message === "expired") setError(t("share.error_expired", lang));
-      else setError(t("common.error", lang));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleFetch = () => fetchSchedulePreview(code);
 
   const handleImport = () => {
     if (!previewData) return;
@@ -132,13 +145,13 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
       keyboardBehavior="extend"
       backgroundColor={themeColors.backgroundColor}
       handleColor={themeColors.textColor3}
-      accessibilityLabel={t("share.import_title", lang)}
+      accessibilityLabel={initialCode ? t("share.open_title", lang) : t("share.import_title", lang)}
       closeAccessibilityLabel={t("common.close", lang)}
       testID="import-schedule-sheet"
     >
             <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
               <Text style={[styles.title, { color: themeColors.textColor }]}>
-                {t("share.import_title", lang)}
+                {initialCode ? t("share.open_title", lang) : t("share.import_title", lang)}
               </Text>
               <TouchableOpacity onPress={resetAndClose} hitSlop={15}>
                 <X size={24} color={themeColors.textColor} weight="bold" />
@@ -201,7 +214,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                     onPress={handleImport}
                   >
                     <DownloadSimple size={22} color="#fff" weight="bold" />
-                    <Text style={styles.primaryBtnText}>{t("share.download_btn", lang)}</Text>
+                    <Text style={styles.primaryBtnText}>{t("share.add_to_account_btn", lang)}</Text>
                   </TouchableOpacity>
                 </View>
               )}

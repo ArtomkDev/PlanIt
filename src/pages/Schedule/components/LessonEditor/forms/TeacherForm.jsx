@@ -49,6 +49,7 @@ export default function TeacherEditor({
   initialContact,
   onSaveLocal,
   onBack,
+  saveLabel,
   onOpenColorPicker,
   themeColors,
 }) {
@@ -417,9 +418,9 @@ export default function TeacherEditor({
             style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]}
             onPress={handleSave}
             accessibilityRole="button"
-            accessibilityLabel={t("common.save_changes", lang)}
+            accessibilityLabel={saveLabel || t("common.save_changes", lang)}
           >
-            <Text style={styles.saveButtonText}>{t("common.save_changes", lang)}</Text>
+            <Text style={styles.saveButtonText}>{saveLabel || t("common.save_changes", lang)}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

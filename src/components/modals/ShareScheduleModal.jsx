@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Share } from "react-native";
 import { ShareNetwork, Copy, CheckCircle, X, BookOpen, GraduationCap, Palette, User, Link, Note } from "phosphor-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useScheduleData } from "../../context/ScheduleProvider";
-import { createSharedSchedule } from "../../services/shareService";
+import { createSharedSchedule, createSharedScheduleLink } from "../../services/shareService";
 import { sanitizeSharedSchedule } from "../../utils/scheduleValidation";
 import TabSwitcher from "../ui/TabSwitcher";
 import AppSwitch from "../ui/AppSwitch";
@@ -23,6 +23,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
   const [generatedCode, setGeneratedCode] = useState(null);
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  const shareUrl = generatedCode ? createSharedScheduleLink(generatedCode) : "";
 
   const [shareTeachers, setShareTeachers] = useState(true);
   const [shareGradients, setShareGradients] = useState(true);
@@ -68,7 +69,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
 
   const handleCopy = async () => {
     if (!generatedCode) return;
-    await Clipboard.setStringAsync(generatedCode);
+    await Clipboard.setStringAsync(shareUrl);
     triggerHaptic("success");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -80,8 +81,8 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
     try {
       triggerHaptic("open");
       await Share.share({
-        message: `${t("share.share_message", lang)}: ${url}`,
-        url: url,
+        message: `${t("share.share_message", lang)}: ${shareUrl}`,
+        url: shareUrl,
       });
     } catch (error) {
       triggerHaptic("error");
@@ -281,16 +282,25 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                     </Text>
                   </View>
 
+                  <View style={[styles.linkBox, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
+                    <Text style={[styles.linkLabel, { color: themeColors.textColor2 }]}>
+                      {t("share.link_label", lang)}
+                    </Text>
+                    <Text style={[styles.linkText, { color: themeColors.textColor }]} numberOfLines={2}>
+                      {shareUrl}
+                    </Text>
+                  </View>
+
                   <View style={styles.actionRow}>
                     <TouchableOpacity
                       accessibilityRole="button"
-                      accessibilityLabel={copied ? t("common.copied", lang) : t("common.copy", lang)}
+                      accessibilityLabel={copied ? t("common.copied", lang) : t("share.copy_link", lang)}
                       style={[styles.actionBtn, { backgroundColor: themeColors.backgroundColor2 }]}
                       onPress={handleCopy}
                     >
                       {copied ? <CheckCircle size={24} color="#34C759" weight="fill" /> : <Copy size={24} color={themeColors.textColor} weight="bold" />}
                       <Text style={[styles.actionBtnText, { color: themeColors.textColor }]}>
-                        {copied ? t("common.copied", lang) : t("common.copy", lang)}
+                        {copied ? t("common.copied", lang) : t("share.copy_link", lang)}
                       </Text>
                     </TouchableOpacity>
 
@@ -333,6 +343,9 @@ const styles = StyleSheet.create({
   successTitle: { fontSize: 18, fontWeight: "600", marginBottom: 20 },
   codeBox: { paddingVertical: 24, paddingHorizontal: 40, borderRadius: 16, borderWidth: 1, marginBottom: 24, width: "100%", alignItems: "center" },
   codeText: { fontSize: 36, fontWeight: "900", letterSpacing: 4 },
+  linkBox: { width: "100%", padding: 14, borderRadius: 16, borderWidth: 1, marginBottom: 24 },
+  linkLabel: { fontSize: 12, textTransform: "uppercase", fontWeight: "700", marginBottom: 6, letterSpacing: 0.5 },
+  linkText: { fontSize: 14, fontWeight: "600", lineHeight: 20 },
   actionRow: { flexDirection: "row", gap: 12, width: "100%" },
   actionBtn: { flex: 1, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 16, gap: 8 },
   actionBtnText: { fontSize: 15, fontWeight: "600" },

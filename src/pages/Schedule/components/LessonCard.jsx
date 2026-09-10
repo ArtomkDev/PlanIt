@@ -7,9 +7,17 @@ import { useNowTick } from "../../../hooks/useNowTick";
 import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import themes from "../../../config/themes";
-import GradientBackground from "../../../components/ui/GradientBackground";
+import { getGradientBackgroundStyle } from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { triggerHaptic } from "../../../utils/haptics";
+import {
+  colorWithAlpha,
+  getGradientColor,
+  getGradientColors,
+  getReadableForeground,
+  isLightForeground,
+  resolveValidColor,
+} from "../../../utils/gradientColors";
 
 const CELL_SIZE = 38;
 const ICON_SIZE = 18;
@@ -46,38 +54,6 @@ const getPatternPositions = (width, height) => {
   
   cachedPatternPositions[key] = positions;
   return positions;
-};
-
-const isLightColor = (color) => {
-  if (!color || typeof color !== 'string') return true;
-  
-  let r = 255, g = 255, b = 255;
-
-  try {
-    if (color.startsWith('rgb')) {
-      const match = color.match(/\d+/g);
-      if (match && match.length >= 3) {
-        r = parseInt(match[0], 10);
-        g = parseInt(match[1], 10);
-        b = parseInt(match[2], 10);
-      }
-    } else {
-      let hex = color.replace('#', '');
-      if (hex.length === 3 || hex.length === 4) {
-        hex = hex.split('').map(c => c + c).join('');
-      }
-      if (hex.length >= 6) {
-        r = parseInt(hex.substring(0, 2), 16);
-        g = parseInt(hex.substring(2, 4), 16);
-        b = parseInt(hex.substring(4, 6), 16);
-      }
-    }
-  } catch (e) {
-     return true; 
-  }
-  
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq > 160;
 };
 
 function getTimerState(startStr, endStr, targetDate, nowValue) {
@@ -129,37 +105,22 @@ function useLessonData(lesson, schedule, isDark) {
     const teacherId = instanceData.teachers?.[0] || instanceData.teacher || subject.teachers?.[0] || subject.teacher;
     const teacher = teachers.find((t) => t.id === teacherId) || {};
     
-    let subjectColor = themes.accentColors[subject?.color] || subject?.color || themes.accentColors.grey;
+    let subjectColor = resolveValidColor(
+      themes.accentColors[subject?.color] || subject?.color,
+      themes.accentColors.grey,
+    );
     let activeGrad = null;
 
     if (subject?.typeColor === "gradient" && subject?.colorGradient) {
       activeGrad = gradients.find((g) => g.id === subject.colorGradient);
-      if (activeGrad && activeGrad.colors && activeGrad.colors.length > 0) {
-        subjectColor = activeGrad.colors[0] || subjectColor; 
-      }
+      subjectColor = getGradientColor(activeGrad, subjectColor);
     }
 
-    let primaryColor = subjectColor;
-    if (activeGrad?.colors && activeGrad.colors.length > 0) {
-        primaryColor = activeGrad.colors[0];
-    }
-
-    let activePillText = isDark ? '#111111' : '#ffffff';
-    if (isDark) {
-      if (!isLightColor(primaryColor)) {
-        activePillText = primaryColor;
-      } else if (activeGrad?.colors) {
-        const darkColor = activeGrad.colors.find(c => !isLightColor(c));
-        if (darkColor) activePillText = darkColor;
-      }
-    } else {
-      if (isLightColor(primaryColor)) {
-        activePillText = primaryColor;
-      } else if (activeGrad?.colors) {
-        const lightColor = activeGrad.colors.find(c => isLightColor(c));
-        if (lightColor) activePillText = lightColor;
-      }
-    }
+    const hasRenderableGradient = getGradientColors(activeGrad).length > 0;
+    const contentColor = getReadableForeground(
+      hasRenderableGradient ? activeGrad : subjectColor,
+      isDark ? '#ffffff' : '#111827',
+    );
 
     return {
       subject,
@@ -170,7 +131,8 @@ function useLessonData(lesson, schedule, isDark) {
       MainIcon: getIconComponent(subject.icon),
       activeGrad,
       subjectColor,
-      activePillText
+      contentColor,
+      activePillText: isDark ? '#111827' : '#ffffff',
     };
   }, [lesson, schedule, isDark]);
 }
@@ -224,7 +186,7 @@ const ActiveHighlight = React.memo(({ isActive, isDark }) => {
   );
 });
 
-const BackgroundPattern = React.memo(({ MainIcon }) => {
+const BackgroundPattern = React.memo(({ MainIcon, color, itemOpacity }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -263,11 +225,14 @@ const BackgroundPattern = React.memo(({ MainIcon }) => {
       {positions.map(pos => (
         <View 
           key={pos.key} 
-          style={[styles.patternIconWrapper, { top: pos.top, left: pos.left }]}
+          style={[
+            styles.patternIconWrapper,
+            { top: pos.top, left: pos.left, opacity: itemOpacity },
+          ]}
         >
           <MainIcon 
             size={ICON_SIZE} 
-            color="white" 
+            color={color}
             weight="regular"
             style={Platform.OS === 'web' ? { overflow: 'visible' } : {}}
           />
@@ -279,7 +244,8 @@ const BackgroundPattern = React.memo(({ MainIcon }) => {
 
 const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPress, onLongPress }) => {
   const { 
-    subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad, subjectColor, activePillText
+    subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad,
+    subjectColor, contentColor, activePillText,
   } = useLessonData(lesson, schedule, isDark);
 
   const timerNow = useNowTick(targetDate, !!lesson?.timeInfo?.start && !!lesson?.timeInfo?.end);
@@ -299,18 +265,34 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
   };
 
   const activePillBg = isDark ? '#ffffff' : '#111111';
+  const usesLightContent = isLightForeground(contentColor);
+  const mutedContentColor = colorWithAlpha(contentColor, 0.86, contentColor);
+  const chipBackground = usesLightContent ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.24)';
+  const subtleChipBackground = usesLightContent ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.18)';
+  const chipBorder = colorWithAlpha(contentColor, usesLightContent ? 0.28 : 0.22, contentColor);
+  const titleShadowStyle = usesLightContent
+    ? null
+    : Platform.select({ web: { textShadow: 'none' }, default: { textShadowColor: 'transparent' } });
 
   return (
     <TouchableOpacity
-      style={[styles.cardContainer, { backgroundColor: subjectColor }]} 
+      style={[
+        styles.cardContainer,
+        activeGrad
+          ? getGradientBackgroundStyle(activeGrad, subjectColor)
+          : { backgroundColor: subjectColor },
+      ]}
       activeOpacity={0.85}
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={300}
     >
       <View style={styles.backgroundWrapper}>
-        {activeGrad && <GradientBackground gradient={activeGrad} style={StyleSheet.absoluteFillObject} />}
-        <BackgroundPattern MainIcon={MainIcon} />
+        <BackgroundPattern
+          MainIcon={MainIcon}
+          color={contentColor}
+          itemOpacity={usesLightContent ? 0.20 : 0.14}
+        />
       </View>
 
       <ActiveHighlight isActive={isActive} isDark={isDark} />
@@ -318,46 +300,47 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
       <View style={styles.cardContent}>
         <View style={styles.headerRow}>
           
-          <View style={[styles.timeContainer, isActive && { backgroundColor: activePillBg }]}>
+          <View style={[styles.timeContainer, { backgroundColor: chipBackground }, isActive && { backgroundColor: activePillBg }]}>
             <View style={styles.iconFixedContainer}>
                 {isActive ? (
                    <Hourglass size={11} color={activePillText} weight="fill" />
                 ) : (
-                   <Clock size={11} color="#fff" weight="regular" />
+                   <Clock size={11} color={contentColor} weight="regular" />
                 )}
             </View>
-            <Text style={[styles.timeText, isActive && { color: activePillText }]}>
+            <Text style={[styles.timeText, { color: contentColor }, isActive && { color: activePillText }]}>
               {isActive ? `Залишилось ${timeLeft}` : `${lesson?.timeInfo?.start || "—"} - ${lesson?.timeInfo?.end || "—"}`}
             </Text>
           </View>
 
           {!!displayType && (
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeText}>{displayType}</Text>
+            <View style={[styles.typeBadge, { backgroundColor: subtleChipBackground, borderColor: chipBorder }]}>
+              <Text style={[styles.typeText, { color: contentColor }]}>{displayType}</Text>
             </View>
           )}
         </View>
 
         <View style={styles.mainInfo}>
-          <Text style={styles.subjectTitle} numberOfLines={1}>
+          {!!MainIcon && <MainIcon size={18} color={contentColor} weight="bold" />}
+          <Text style={[styles.subjectTitle, { color: contentColor }, titleShadowStyle]} numberOfLines={1}>
             {subject?.name || "Предмет"}
           </Text>
         </View>
 
         <View style={styles.footerRow}>
-          <View style={styles.footerItem}>
+          <View style={[styles.footerItem, { backgroundColor: subtleChipBackground }]}>
             <View style={styles.iconFixedContainer}>
-                <User size={11} color="rgba(255,255,255,0.85)" weight="fill" />
+                <User size={11} color={mutedContentColor} weight="fill" />
             </View>
-            <Text style={styles.footerText} numberOfLines={1}>{teacher?.name || "—"}</Text>
+            <Text style={[styles.footerText, { color: mutedContentColor }]} numberOfLines={1}>{teacher?.name || "—"}</Text>
           </View>
 
           {!!(displayRoom || displayBuilding) && (
-            <View style={styles.footerItem}>
+            <View style={[styles.footerItem, { backgroundColor: subtleChipBackground }]}>
               <View style={styles.iconFixedContainer}>
-                  <MapPin size={11} color="rgba(255,255,255,0.85)" weight="fill" />
+                  <MapPin size={11} color={mutedContentColor} weight="fill" />
               </View>
-              <Text style={styles.footerText} numberOfLines={1}>
+              <Text style={[styles.footerText, { color: mutedContentColor }]} numberOfLines={1}>
                   {displayBuilding ? `${displayBuilding} ` : ''}{displayRoom}
               </Text>
             </View>
@@ -397,7 +380,6 @@ const styles = StyleSheet.create({
     position: 'absolute', 
     width: ICON_SIZE,
     height: ICON_SIZE,
-    opacity: 0.25, 
     transform: [{ rotate: '-12deg' }],
     justifyContent: 'center',
     alignItems: 'center'
@@ -452,9 +434,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3 
   },
   mainInfo: { 
-    marginVertical: 2 
+    marginVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
   },
   subjectTitle: { 
+    flex: 1,
     fontSize: 17, 
     fontWeight: '800', 
     color: '#fff', 

@@ -1,21 +1,37 @@
 // src/components/GradientBackground.jsx
 import React from "react";
-import { View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { Platform, View } from "react-native";
+import { normalizeGradientStops } from "../../utils/gradientColors";
 
-export default function GradientBackground({ gradient, style }) {
-  if (!gradient || gradient.type !== "linear") {
-    return <View style={[style, { backgroundColor: gradient?.colors?.[0] || "#ccc" }]} />;
+const formatStopPosition = (position) => `${Math.round(position * 10000) / 100}%`;
+
+export const getGradientBackgroundStyle = (gradient, fallbackColor = "#ccc") => {
+  const stops = normalizeGradientStops(gradient);
+  const resolvedFallback = stops[0]?.color || fallbackColor;
+
+  if (!gradient || stops.length < 2) {
+    return { backgroundColor: resolvedFallback };
   }
 
-  const colors = gradient.colors.map((c) => (typeof c === "string" ? c : c.color));
-  const locations = gradient.colors.map((c) => (typeof c === "string" ? undefined : c.position));
+  const rawAngle = Number(gradient.angle);
+  const angle = Number.isFinite(rawAngle) ? rawAngle : 0;
+  const colorStops = stops
+    .map((stop) => `${stop.color} ${formatStopPosition(stop.position)}`)
+    .join(", ");
+  const backgroundImage = gradient.type === "radial"
+    ? `radial-gradient(circle, ${colorStops})`
+    // The editor angle uses 0° = left-to-right. CSS uses 90° for that direction.
+    : `linear-gradient(${((angle + 90) % 360 + 360) % 360}deg, ${colorStops})`;
 
-  const angle = gradient.angle ?? 0;
-  const rad = (angle * Math.PI) / 180;
+  return Platform.OS === "web"
+    ? { backgroundColor: resolvedFallback, backgroundImage }
+    : { backgroundColor: resolvedFallback, experimental_backgroundImage: backgroundImage };
+};
 
-  const start = { x: 0.5 - Math.cos(rad) / 2, y: 0.5 - Math.sin(rad) / 2 };
-  const end = { x: 0.5 + Math.cos(rad) / 2, y: 0.5 + Math.sin(rad) / 2 };
-
-  return <LinearGradient colors={colors} locations={locations} start={start} end={end} style={style} />;
+export default function GradientBackground({ gradient, style, fallbackColor = "#ccc", children }) {
+  return (
+    <View style={[style, getGradientBackgroundStyle(gradient, fallbackColor)]}>
+      {children}
+    </View>
+  );
 }

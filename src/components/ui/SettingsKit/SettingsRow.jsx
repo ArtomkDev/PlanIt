@@ -23,6 +23,9 @@ export default function SettingsRow({
   skipHaptic = false,
   accessibilityLabel,
   accessibilityHint,
+  accessibilityRole,
+  accessibilityState,
+  rightContentPointerEvents = "auto",
 }) {
   const Component = onPress ? TouchableOpacity : View;
 
@@ -30,6 +33,10 @@ export default function SettingsRow({
   const calculatedIconColor = iconColor || (danger ? '#FF3B30' : themeColors.accentColor);
   const calculatedIconBgColor = iconBgColor || (danger ? '#FF3B3015' : themeColors.accentColor + '15');
   const resolvedAccessibilityLabel = accessibilityLabel || [label, typeof value === "string" ? value : null].filter(Boolean).join(", ");
+  const resolvedAccessibilityRole = accessibilityRole || (onPress ? "button" : undefined);
+  const resolvedAccessibilityState = onPress
+    ? { disabled, ...(accessibilityState || {}) }
+    : accessibilityState;
 
   const handlePress = () => {
     if (!onPress || disabled) return;
@@ -45,10 +52,10 @@ export default function SettingsRow({
 
   return (
     <Component
-      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityRole={resolvedAccessibilityRole}
       accessibilityLabel={onPress ? resolvedAccessibilityLabel : undefined}
       accessibilityHint={onPress ? accessibilityHint : undefined}
-      accessibilityState={onPress ? { disabled } : undefined}
+      accessibilityState={resolvedAccessibilityState}
       style={[
         styles.row,
         disabled && styles.disabled,
@@ -78,7 +85,7 @@ export default function SettingsRow({
         </View>
       </View>
 
-      <View style={styles.right}>
+      <View style={styles.right} pointerEvents={rightContentPointerEvents}>
         {rightContent || (!!value && <Text style={[styles.value, { color: themeColors.textColor2 }]}>{value}</Text>)}
         {showCaret && !!onPress && <CaretRight size={18} color={themeColors.textColor3 || "#aaa"} weight="bold" style={styles.caret} />}
       </View>

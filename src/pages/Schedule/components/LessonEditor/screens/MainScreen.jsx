@@ -41,7 +41,7 @@ import {
 } from "../../../../../services/notificationService";
 import { getDurationMinutes } from "../../../../../utils/scheduleTime";
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental && global._IS_FABRIC !== true) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -539,11 +539,23 @@ export default function LessonEditorMainScreen({
         headerRight={renderHeaderRight(true, scopes.people, (s) => onScopeChange('people', s), () => setActivePicker('teacher', teachersArr.length, true), null)}
       >
         {teachersArr.length === 0 ? (
-           <View style={styles.emptyContainer}>
-               <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
-                   {t('schedule.main_screen.no_teachers', lang)}
+           <TouchableOpacity
+             style={styles.emptyContainer}
+             onPress={() => {
+               triggerHaptic("open");
+               setActivePicker('teacher', teachersArr.length, true);
+             }}
+             activeOpacity={0.72}
+             accessibilityRole="button"
+             accessibilityLabel={t('schedule.lesson_editor.add_teacher', lang)}
+           >
+               <View style={[styles.emptyAddIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
+                   <Plus size={18} color={themeColors.accentColor} weight="bold" />
+               </View>
+               <Text style={[styles.emptyText, { color: themeColors.accentColor }]}>
+                   {t('schedule.lesson_editor.add_teacher', lang)}
                </Text>
-           </View>
+           </TouchableOpacity>
         ) : (
             teachersArr.map((id, index) => {
                 const visual = getItemVisual?.("teacher", id);
@@ -571,11 +583,23 @@ export default function LessonEditorMainScreen({
         headerRight={renderHeaderRight(true, scopes.materials, (s) => onScopeChange('materials', s), () => setActivePicker('link', linksArr.length, true), null)}
       >
         {linksArr.length === 0 ? (
-           <View style={styles.emptyContainer}>
-               <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
-                   {t('schedule.main_screen.no_links', lang)}
+           <TouchableOpacity
+             style={styles.emptyContainer}
+             onPress={() => {
+               triggerHaptic("open");
+               setActivePicker('link', linksArr.length, true);
+             }}
+             activeOpacity={0.72}
+             accessibilityRole="button"
+             accessibilityLabel={t('schedule.lesson_editor.add_link', lang)}
+           >
+               <View style={[styles.emptyAddIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
+                   <Plus size={18} color={themeColors.accentColor} weight="bold" />
+               </View>
+               <Text style={[styles.emptyText, { color: themeColors.accentColor }]}>
+                   {t('schedule.lesson_editor.add_link', lang)}
                </Text>
-           </View>
+           </TouchableOpacity>
         ) : (
             linksArr.map((id, index) => {
                 const visual = getItemVisual?.("link", id);
@@ -759,8 +783,19 @@ const styles = StyleSheet.create({
   emptyContainer: {
     paddingVertical: 14,
     paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  emptyAddIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   emptyText: {
     fontSize: 15,
+    fontWeight: "700",
   }
 });

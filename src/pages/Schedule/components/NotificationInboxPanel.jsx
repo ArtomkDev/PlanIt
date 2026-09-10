@@ -53,7 +53,7 @@ const interpolate = (template, values) => {
   );
 };
 
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental && global._IS_FABRIC !== true) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -74,7 +74,7 @@ const configureCardLayoutAnimation = () => {
   }
 };
 
-export default function NotificationInboxPanel() {
+export default function NotificationInboxPanel({ backgroundColor }) {
   const { user, global, lang } = useScheduleData();
   const { drawerContentInset } = useNotificationDrawer();
   const insets = useSafeAreaInsets();
@@ -89,6 +89,7 @@ export default function NotificationInboxPanel() {
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const resolvedBackgroundColor = backgroundColor || themeColors.backgroundColor;
 
   const formatDate = useCallback((value) => {
     const ms = timestampToMs(value);
@@ -272,7 +273,7 @@ export default function NotificationInboxPanel() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
+    <View style={[styles.container, { backgroundColor: resolvedBackgroundColor }]}>
       <View
         style={[
           styles.topBar,

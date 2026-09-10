@@ -1,8 +1,24 @@
 {
-  "generated_at": "2026-08-23T16:38:11.963231+00:00",
+  "generated_at": "2026-09-10T16:44:39.827351+00:00",
   "nodes": {
+    "functions_src_index_sendaddpasswordemail": {
+      "code_fingerprint": "fbc83b33543625ced85be9638b7caeb70ee64835d8b1ad068721234f2c4bc472",
+      "label": "sendAddPasswordEmail",
+      "last": "2026-08-23T16:42:07.693490+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-23T16:42:07.693490+00:00",
+          "outcome": "useful",
+          "q": "спробував додати пароль а тут помилка"
+        }
+      ],
+      "score": 0.659727115,
+      "source_file": "functions/src/index.js",
+      "status": "tentative",
+      "uses": 1
+    },
     "src_auth_authscreen": {
-      "code_fingerprint": "7ed0af5f238bebf35fb83c49bcaedebba5f770fa3ce0bbff021a29f46d8826e2",
+      "code_fingerprint": "00dceb52fd62bf7a0088cd5e1bbb6595125fb36213ec7d84626f6d4430dbd740",
       "label": "AuthScreen.jsx",
       "last": "2026-08-21T23:55:12.821596+00:00",
       "provenance": [
@@ -12,7 +28,7 @@
           "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
         }
       ],
-      "score": 0.961560412,
+      "score": 0.634327488,
       "source_file": "src/auth/AuthScreen.jsx",
       "status": "tentative",
       "uses": 1
@@ -28,8 +44,40 @@
           "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
         }
       ],
-      "score": 0.961560412,
+      "score": 0.634327488,
       "source_file": "src/auth/components/PasswordStrengthBar.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_auth_passwordresetservice_getaddpasswordemailendpoint": {
+      "code_fingerprint": "3d1a77f179b5cd1430686ad29a9b2aaad6714aa13c6eca2ea52a124f8dab98e0",
+      "label": "getAddPasswordEmailEndpoint()",
+      "last": "2026-08-23T16:42:07.693490+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-23T16:42:07.693490+00:00",
+          "outcome": "useful",
+          "q": "спробував додати пароль а тут помилка"
+        }
+      ],
+      "score": 0.659727115,
+      "source_file": "src/auth/passwordResetService.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_auth_passwordresetservice_requestaddpasswordemail": {
+      "code_fingerprint": "3d1a77f179b5cd1430686ad29a9b2aaad6714aa13c6eca2ea52a124f8dab98e0",
+      "label": "requestAddPasswordEmail()",
+      "last": "2026-08-23T16:42:07.693490+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-23T16:42:07.693490+00:00",
+          "outcome": "useful",
+          "q": "спробував додати пароль а тут помилка"
+        }
+      ],
+      "score": 0.659727115,
+      "source_file": "src/auth/passwordResetService.js",
       "status": "tentative",
       "uses": 1
     },
@@ -44,8 +92,24 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.60491161,
+      "score": 0.399051435,
       "source_file": "src/components/AdBanner/AdBanner.native.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_components_attachments_attachmentimagepreview_attachmentimagepreview": {
+      "code_fingerprint": "1a6c5bdb4f90b6c9e0c16f9a1860e3d2126111f53fc0e7d4dcb57e49cf59ab35",
+      "label": "AttachmentImagePreview()",
+      "last": "2026-09-10T15:33:31.514080+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T15:33:31.514080+00:00",
+          "outcome": "useful",
+          "q": "програма лягає при добавлені пари: No safe area value available"
+        }
+      ],
+      "score": 0.998859228,
+      "source_file": "src/components/attachments/AttachmentImagePreview.jsx",
       "status": "tentative",
       "uses": 1
     },
@@ -60,8 +124,40 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.605069204,
+      "score": 0.399155397,
       "source_file": "src/components/privacy/CookieConsentBanner.web.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_components_ui_bottomsheet_bottomsheet": {
+      "code_fingerprint": "736108d01da087f510e60744a12b57b4d07df3e83dd8ac31c1b8ce2c68fbc266",
+      "label": "BottomSheet",
+      "last": "2026-09-08T17:46:12.592057+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-08T17:46:12.592057+00:00",
+          "outcome": "useful",
+          "q": "Why did hidden bottom sheets and notification drawer break after Expo SDK 57?"
+        }
+      ],
+      "score": 0.955784987,
+      "source_file": "src/components/ui/BottomSheet.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_components_ui_gradientbackground_gradientbackground": {
+      "code_fingerprint": "f6fc10f1eb4667ace918e180ba737d6973ff6777a35000f0687aa1122fe21744",
+      "label": "GradientBackground()",
+      "last": "2026-09-10T16:04:28.028691+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T16:04:28.028691+00:00",
+          "outcome": "useful",
+          "q": "Поломані покази градієнтів та іконок на картках пар і завдань"
+        }
+      ],
+      "score": 0.99935525,
+      "source_file": "src/components/ui/GradientBackground.jsx",
       "status": "tentative",
       "uses": 1
     },
@@ -76,8 +172,72 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.60491161,
+      "score": 0.399051435,
       "source_file": "src/context/AdsContext.native.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_navigation_tabnavigator": {
+      "code_fingerprint": "96d9031ed14e706f3815681a788945d7b053990581a275d22be08f9124e32009",
+      "label": "TabNavigator.jsx",
+      "last": "2026-09-10T14:41:05.224515+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T14:41:05.224515+00:00",
+          "outcome": "useful",
+          "q": "будьласка пофіки проблеми: [Worklets] Cannot copy value of type AnimatedValue"
+        }
+      ],
+      "score": 0.998019167,
+      "source_file": "src/navigation/TabNavigator.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_schedule_components_lessoncard_lessoncard": {
+      "code_fingerprint": "f43214c03360883106dfd83fb2e823f83ab44da53fb8710c69bae1126844964a",
+      "label": "LessonCard()",
+      "last": "2026-09-10T16:04:28.028691+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T16:04:28.028691+00:00",
+          "outcome": "useful",
+          "q": "Поломані покази градієнтів та іконок на картках пар і завдань"
+        }
+      ],
+      "score": 0.99935525,
+      "source_file": "src/pages/Schedule/components/LessonCard.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_schedule_components_lessoneditor_lessoneditor": {
+      "code_fingerprint": "e8e9da2615a3ccc75dda8c0d6c2fbec3308186fd83891eec03657a6161b1c03b",
+      "label": "LessonEditor()",
+      "last": "2026-09-10T15:33:31.514080+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T15:33:31.514080+00:00",
+          "outcome": "useful",
+          "q": "програма лягає при добавлені пари: No safe area value available"
+        }
+      ],
+      "score": 0.998859228,
+      "source_file": "src/pages/Schedule/components/LessonEditor.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_schedule_schedule": {
+      "code_fingerprint": "146577473cb8efa305720af9276b78935efa3375493e54310f5a56ac3c58f880",
+      "label": "Schedule.jsx",
+      "last": "2026-09-10T14:41:05.224515+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T14:41:05.224515+00:00",
+          "outcome": "useful",
+          "q": "будьласка пофіки проблеми: [Worklets] Cannot copy value of type AnimatedValue"
+        }
+      ],
+      "score": 0.998019167,
+      "source_file": "src/pages/Schedule/Schedule.jsx",
       "status": "tentative",
       "uses": 1
     },
@@ -92,13 +252,13 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.605069204,
+      "score": 0.399155397,
       "source_file": "src/pages/Settings/components/AboutApp.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_settings_components_accountsettings_components_changepasswordscreen_changepasswordscreen": {
-      "code_fingerprint": "810993154b1dd13ba75cdacfab92604cd4b2f409ac822837476df80b2c810257",
+      "code_fingerprint": "39d571de7270c57f7fdc7b8fa72ea0860a38caf5c0397e8090db21ece41a5f7a",
       "label": "ChangePasswordScreen()",
       "last": "2026-08-21T23:55:12.821596+00:00",
       "provenance": [
@@ -108,13 +268,13 @@
           "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
         }
       ],
-      "score": 0.961560412,
+      "score": 0.634327488,
       "source_file": "src/pages/Settings/components/AccountSettings/components/ChangePasswordScreen.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_settings_settings_settings": {
-      "code_fingerprint": "b31b80ffc77cfea8ce66d23d295ccf6e1e5b300862eb7294a9829c48a0865c94",
+      "code_fingerprint": "f28b91c1069a7e101a122ec7ea5b81ae681ec0d081ac59b540c50402765c46cd",
       "label": "Settings()",
       "last": "2026-08-01T22:45:37.950536+00:00",
       "provenance": [
@@ -124,8 +284,40 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.605069204,
+      "score": 0.399155397,
       "source_file": "src/pages/Settings/Settings.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_tasks_tasks_taskcard": {
+      "code_fingerprint": "0418dee50602760c655ba2c0483ba6a110a3f1d6679dfc0bb041aaf92d6e2c82",
+      "label": "TaskCard()",
+      "last": "2026-09-10T16:04:28.028691+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T16:04:28.028691+00:00",
+          "outcome": "useful",
+          "q": "Поломані покази градієнтів та іконок на картках пар і завдань"
+        }
+      ],
+      "score": 0.99935525,
+      "source_file": "src/pages/Tasks/Tasks.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_root": {
+      "code_fingerprint": "0bffe4eecbfdba1e43e97236709cc4aa8011f906afb8ca75b102a5f881944fcd",
+      "label": "Root.jsx",
+      "last": "2026-09-10T15:33:31.514080+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T15:33:31.514080+00:00",
+          "outcome": "useful",
+          "q": "програма лягає при добавлені пари: No safe area value available"
+        }
+      ],
+      "score": 0.998859228,
+      "source_file": "src/Root.jsx",
       "status": "tentative",
       "uses": 1
     },
@@ -140,7 +332,7 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.605069204,
+      "score": 0.399155397,
       "source_file": "src/services/cookieConsentService.web.js",
       "status": "tentative",
       "uses": 1
@@ -156,7 +348,7 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.60491161,
+      "score": 0.399051435,
       "source_file": "src/services/notificationService.js",
       "status": "tentative",
       "uses": 1
@@ -172,7 +364,7 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.60491161,
+      "score": 0.399051435,
       "source_file": "src/utils/adInit/adInit.native.js",
       "status": "tentative",
       "uses": 1
@@ -188,7 +380,7 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.605069204,
+      "score": 0.399155397,
       "source_file": "src/utils/analytics/analytics.web.js",
       "status": "tentative",
       "uses": 1
@@ -204,8 +396,24 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.60491161,
+      "score": 0.399051435,
       "source_file": "src/utils/deviceService.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_utils_gradientcolors_normalizegradientstops": {
+      "code_fingerprint": "618e29e6d19dccdd757ada15d3f8f1623ef078d0d2dc4a53697a88d76bb09a0c",
+      "label": "normalizeGradientStops()",
+      "last": "2026-09-10T16:04:28.028691+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-10T16:04:28.028691+00:00",
+          "outcome": "useful",
+          "q": "Поломані покази градієнтів та іконок на картках пар і завдань"
+        }
+      ],
+      "score": 0.99935525,
+      "source_file": "src/utils/gradientColors.js",
       "status": "tentative",
       "uses": 1
     }

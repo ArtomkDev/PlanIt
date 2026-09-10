@@ -7,6 +7,7 @@ const MIN_SHARE_CODE_LENGTH = 5;
 const MAX_SHARE_CODE_LENGTH = 32;
 const SHARE_CODE_ATTEMPTS_PER_LENGTH = 5;
 const SHARE_CODE_RE = /^[A-Z0-9]{5,32}$/;
+const SHARE_URL_BASE = "https://planit.app/share";
 
 const normalizeCodeLength = (length) => {
   const numericLength = Math.floor(Number(length) || MIN_SHARE_CODE_LENGTH);
@@ -38,6 +39,9 @@ export const normalizeShareCodeInput = (shareInput) => {
     throw new Error("invalid_code");
   }
   return normalized;
+};
+export const createSharedScheduleLink = (shareCode) => {
+  return `${SHARE_URL_BASE}/${normalizeShareCodeInput(shareCode)}`;
 };
 
 export const createSharedSchedule = async (user, scheduleData, durationDays) => {
@@ -112,6 +116,6 @@ export const getUserSharedSchedules = async (userId) => {
 };
 
 export const deleteSharedSchedule = async (shareCode) => {
-  const docRef = doc(db, "shared_schedules", normalizeShareCode(shareCode));
+  const docRef = doc(db, "shared_schedules", normalizeShareCodeInput(shareCode));
   await deleteDoc(docRef);
 };

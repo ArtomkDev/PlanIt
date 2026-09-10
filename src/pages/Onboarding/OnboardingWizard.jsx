@@ -684,6 +684,9 @@ export default function OnboardingWizard({ onImportSchedule }) {
             themeColors={themeColors}
             showCaret={false}
             skipHaptic
+            accessibilityRole="switch"
+            accessibilityState={{ checked: taskAutoLinkNextLesson }}
+            rightContentPointerEvents="none"
             onPress={() => handleTaskAutoLinkNextLessonChange(!taskAutoLinkNextLesson)}
             rightContent={(
               <AppSwitch
@@ -692,6 +695,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
                 onValueChange={handleTaskAutoLinkNextLessonChange}
                 themeColors={themeColors}
                 size="small"
+                interactive={false}
               />
             )}
           />

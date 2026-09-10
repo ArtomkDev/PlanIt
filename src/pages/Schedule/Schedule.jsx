@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Reanimated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
 import { Plus } from "phosphor-react-native"; 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -22,6 +23,7 @@ import CalendarSheet from "../../components/CalendarSheet/CalendarSheet";
 import AppBlur from "../../components/ui/AppBlur";
 
 import { DayScheduleProvider } from "../../context/DayScheduleProvider";
+import { useNotificationDrawer } from "../../context/NotificationDrawerContext";
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import { NowTickProvider } from "../../hooks/useNowTick";
 import themes from "../../config/themes";
@@ -80,7 +82,8 @@ const DayPage = memo(({
 });
 
 export default function Schedule({ route, navigation }) {
-  const { global, schedule, schedules } = useScheduleData();
+  const { global: globalSettings, schedule, schedules } = useScheduleData();
+  const { drawerProgress } = useNotificationDrawer();
   const { setGlobalDraft } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -118,8 +121,15 @@ export default function Schedule({ route, navigation }) {
   const [editorInitialTarget, setEditorInitialTarget] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);
 
-  const [mode, accent] = global?.theme || ["light", "blue"];
+  const [mode, accent] = globalSettings?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
+  const screenColorStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      drawerProgress?.value ?? 0,
+      [0, 1],
+      [themeColors.backgroundColor, themeColors.backgroundColor2]
+    ),
+  }), [themeColors.backgroundColor, themeColors.backgroundColor2]);
 
   const handleScroll = useCallback((event) => {
     if (isJumping.current || !isUserInteraction.current) return;
@@ -178,7 +188,7 @@ export default function Schedule({ route, navigation }) {
 
   const openNewLessonEditor = useCallback(() => {
     setEditingLesson({ index: null, subjectId: null });
-    setEditorInitialTarget(null);
+    setEditorInitialTarget({ type: "subject" });
     setEditorVisible(true);
   }, []);
 
@@ -475,9 +485,19 @@ export default function Schedule({ route, navigation }) {
 
   return (
     <NowTickProvider activeDate={currentDate}>
-    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
+    <Reanimated.View style={[styles.container, screenColorStyle]}>
       <View style={[styles.headerContainer, { height: headerHeight }]}>
-        <View style={StyleSheet.absoluteFill}><AppBlur style={StyleSheet.absoluteFill} intensity={50} /></View>
+        <View style={StyleSheet.absoluteFill}>
+          <AppBlur
+            style={StyleSheet.absoluteFill}
+            intensity={50}
+            backgroundColor={themeColors.backgroundColor2}
+            backgroundColorTo={themeColors.backgroundColor}
+            overlayColor={themeColors.backgroundColor}
+            overlayColorTo={themeColors.backgroundColor2}
+            colorProgress={drawerProgress}
+          />
+        </View>
         <Header 
             currentDate={currentDate} 
             onTodayPress={goToToday}
@@ -554,7 +574,7 @@ export default function Schedule({ route, navigation }) {
       
       <CalendarSheet visible={calendarVisible} currentDate={currentDate} onClose={() => setCalendarVisible(false)} onDateSelect={date => goToDate(date, true)} />
 
-    </View>
+    </Reanimated.View>
     </NowTickProvider>
   );
 }

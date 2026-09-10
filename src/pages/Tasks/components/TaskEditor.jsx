@@ -38,6 +38,7 @@ import { generateId } from "../../../utils/idGenerator";
 import { t } from "../../../utils/i18n";
 import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
+import { getGradientColor } from "../../../utils/gradientColors";
 import { addScheduleRecordToMap } from "../../../utils/scheduleRecordMerge";
 import { triggerHaptic } from "../../../utils/haptics";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
@@ -99,21 +100,13 @@ const colorWithAlpha = (color, alpha, fallback) => {
     : fallback;
 };
 
-const getGradientColors = (gradient) => (
-  Array.isArray(gradient?.colors)
-    ? gradient.colors
-      .map((colorStop) => (typeof colorStop === "string" ? colorStop : colorStop?.color))
-      .filter((color) => typeof color === "string" && tinycolor(color).isValid())
-    : []
-);
-
 const getSubjectPalette = (subject, schedule, themeColors) => {
   const fallbackColor = themeColors.accentColor;
   const gradients = Array.isArray(schedule?.gradients) ? schedule.gradients : [];
   const gradient = subject?.typeColor === "gradient" && subject?.colorGradient
     ? gradients.find((item) => item?.id === subject.colorGradient) || null
     : null;
-  const gradientColor = getGradientColors(gradient)[0];
+  const gradientColor = getGradientColor(gradient);
   const rawSubjectColor = themes.accentColors[subject?.color] || subject?.color;
   const subjectColor = tinycolor(rawSubjectColor).isValid()
     ? tinycolor(rawSubjectColor).toHexString()

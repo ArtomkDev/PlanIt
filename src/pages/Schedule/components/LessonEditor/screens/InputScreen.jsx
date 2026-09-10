@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { XCircle } from "phosphor-react-native";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
@@ -11,14 +11,25 @@ export default function LessonEditorInputScreen({
   placeholder,
   onSave,
   themeColors,
+  saveLabel,
+  autoFocusDelayMs = 0,
 }) {
   const { lang } = useScheduleData();
 
+  const inputRef = useRef(null);
   const [value, setValue] = useState(initialValue || "");
 
   useEffect(() => {
     setValue(initialValue || "");
   }, [initialValue]);
+
+  useEffect(() => {
+    if (!autoFocusDelayMs) return undefined;
+    const timer = setTimeout(() => {
+      inputRef.current?.focus?.();
+    }, autoFocusDelayMs);
+    return () => clearTimeout(timer);
+  }, [autoFocusDelayMs]);
 
   const handleSave = () => {
     triggerHaptic("success");
@@ -38,12 +49,13 @@ export default function LessonEditorInputScreen({
       
       <View style={[styles.inputWrapper, { backgroundColor: themeColors.backgroundColor2 }]}>
         <TextInput
+          ref={inputRef}
           style={[styles.input, { color: themeColors.textColor }]}
           value={value}
           onChangeText={setValue}
           placeholder={placeholder}
           placeholderTextColor={themeColors.textColor2}
-          autoFocus
+          autoFocus={!autoFocusDelayMs}
           returnKeyType="done"
           onSubmitEditing={handleSave}
           accessibilityLabel={title}
@@ -62,10 +74,10 @@ export default function LessonEditorInputScreen({
             onPress={handleSave}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={t('common.save', lang)}
+            accessibilityLabel={saveLabel || t('common.save', lang)}
           >
             <Text style={[styles.saveBtnText, { color: "#fff" }]}>
-              {t('common.save', lang)}
+              {saveLabel || t('common.save', lang)}
             </Text>
           </TouchableOpacity>
         )}

@@ -60,6 +60,44 @@ const timeToMins = (timeStr) => {
     return minutes === null ? 999999 : minutes;
 };
 
+const canUseLayoutAnimation = () => (
+  Platform.OS !== "android" || global._IS_FABRIC !== true
+);
+
+const getInitialEditorRoute = (initialEditTarget, dataSource) => {
+  const requestedTeacherId = initialEditTarget?.type === "teacher"
+    ? initialEditTarget.teacherId
+    : null;
+  const canOpenRequestedTeacher = requestedTeacherId
+    && (dataSource?.teachers || []).some((teacher) => teacher.id === requestedTeacherId);
+
+  if (canOpenRequestedTeacher) {
+    return {
+      currentScreen: "teacherEditor",
+      pickerType: null,
+      inputType: null,
+      editingItemData: requestedTeacherId,
+    };
+  }
+
+  if (initialEditTarget?.type === "subject") {
+    const hasSubjects = (dataSource?.subjects || []).length > 0;
+    return {
+      currentScreen: hasSubjects ? "picker" : "input",
+      pickerType: "subject",
+      inputType: hasSubjects ? null : "subject_rename",
+      editingItemData: hasSubjects ? null : generateLocalId(),
+    };
+  }
+
+  return {
+    currentScreen: "main",
+    pickerType: null,
+    inputType: null,
+    editingItemData: null,
+  };
+};
+
 export default function LessonEditor({ lesson, initialEditTarget = null, onClose }) {
   const { global, schedule, lang, user } = useScheduleData();
   const { setGlobalDraft, setScheduleDraft } = useScheduleActions();
@@ -134,12 +172,19 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     attachments: 'global'
   });
 
-  const [currentScreen, setCurrentScreen] = useState("main");
-  const [pickerType, setPickerType] = useState(null);
-  const [inputType, setInputType] = useState(null);
-  const [editingItemData, setEditingItemData] = useState(null);
+  const initialEditorRouteRef = useRef(null);
+  if (!initialEditorRouteRef.current) {
+    initialEditorRouteRef.current = getInitialEditorRoute(initialEditTarget, dataSource);
+  }
+  const didSyncInitialRouteRef = useRef(false);
+
+  const [currentScreen, setCurrentScreen] = useState(initialEditorRouteRef.current.currentScreen);
+  const [pickerType, setPickerType] = useState(initialEditorRouteRef.current.pickerType);
+  const [inputType, setInputType] = useState(initialEditorRouteRef.current.inputType);
+  const [editingItemData, setEditingItemData] = useState(initialEditorRouteRef.current.editingItemData);
   const [editingSlotIndex, setEditingSlotIndex] = useState(null);
   const [attachAfterEdit, setAttachAfterEdit] = useState(false);
+  const [relatedEditReturnScreen, setRelatedEditReturnScreen] = useState("main");
 
   const [editingGradient, setEditingGradient] = useState(null);
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
@@ -175,18 +220,18 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     setRemovedStoredAttachments([]);
     setAttachmentUploadState({ uploading: false });
 
-    const requestedTeacherId = initialEditTarget?.type === "teacher"
-      ? initialEditTarget.teacherId
-      : null;
-    const canOpenRequestedTeacher = requestedTeacherId
-      && (dataSource?.teachers || []).some((teacher) => teacher.id === requestedTeacherId);
+    const nextRoute = didSyncInitialRouteRef.current
+      ? getInitialEditorRoute(initialEditTarget, dataSource)
+      : initialEditorRouteRef.current;
+    didSyncInitialRouteRef.current = true;
 
-    setCurrentScreen(canOpenRequestedTeacher ? "teacherEditor" : "main");
-    setEditingItemData(canOpenRequestedTeacher ? requestedTeacherId : null);
-    setPickerType(null);
-    setInputType(null);
+    setCurrentScreen(nextRoute.currentScreen);
+    setEditingItemData(nextRoute.editingItemData);
+    setPickerType(nextRoute.pickerType);
+    setInputType(nextRoute.inputType);
     setEditingSlotIndex(null);
     setAttachAfterEdit(false);
+    setRelatedEditReturnScreen("main");
 
     if (isMinimized) {
       handleExpand(false);
@@ -260,20 +305,56 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   };
 
   const goToScreen = (screenName, data = null) => {
-    if (!reduceMotion) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (!reduceMotion && canUseLayoutAnimation()) {
+      try {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      } catch {
+        // Layout changes still apply when animation is unavailable on the runtime.
+      }
     }
     if (data !== null) setEditingItemData(data);
     setCurrentScreen(screenName);
   };
 
+  const openNewSubjectInput = () => {
+    const newId = generateLocalId();
+    setPickerType("subject");
+    setInputType("subject_rename");
+    setAttachAfterEdit(false);
+    goToScreen("input", newId);
+  };
+  const getRelatedEditReturnScreen = (type) => {
+    if (relatedEditReturnScreen !== "picker") return "main";
+    if (type === "teacher") return localData.teachers.length > 0 ? "picker" : "main";
+    if (type === "link") return localData.links.length > 0 ? "picker" : "main";
+    return "main";
+  };
+
+  const openNewRelatedItemEditor = (type, index = editingSlotIndex, returnScreen = "main") => {
+    const newId = generateLocalId();
+    setPickerType(type);
+    setInputType(null);
+    setEditingSlotIndex(index);
+    setAttachAfterEdit(true);
+    setRelatedEditReturnScreen(returnScreen);
+    goToScreen(type === "teacher" ? "teacherEditor" : "linkEditor", newId);
+  };
+
   const handleBack = () => {
     triggerHaptic("navigateBack");
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
-    if (currentScreen === "teacherEditor") return goToScreen(pickerType ? "picker" : "main");
-    if (currentScreen === "linkEditor") return goToScreen(pickerType ? "picker" : "main");
+    if (currentScreen === "teacherEditor") {
+      setAttachAfterEdit(false);
+      return goToScreen(getRelatedEditReturnScreen("teacher"));
+    }
+    if (currentScreen === "linkEditor") {
+      setAttachAfterEdit(false);
+      return goToScreen(getRelatedEditReturnScreen("link"));
+    }
 
-    if (currentScreen === "input" && inputType === "subject_rename") return goToScreen("picker");
+    if (currentScreen === "input" && inputType === "subject_rename") {
+      return goToScreen(localData.subjects.length > 0 ? "picker" : "main");
+    }
 
     if (["picker", "input", "subjectColor"].includes(currentScreen)) {
         return goToScreen("main");
@@ -296,10 +377,19 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             if (inputType === 'building') return t('schedule.lesson_editor.building', lang);
             if (inputType === 'room') return t('schedule.lesson_editor.room', lang);
             if (inputType === 'type') return t('schedule.lesson_editor.lesson_type', lang);
-            if (inputType === 'subject_rename') return t('schedule.lesson_editor.change_name', lang);
+            if (inputType === 'subject_rename') {
+                const isExistingSubject = localData.subjects.some((subject) => subject.id === editingItemData);
+                return isExistingSubject ? t('schedule.lesson_editor.change_name', lang) : t('schedule.lesson_editor.new_subject', lang);
+            }
             return t('schedule.lesson_editor.input', lang);
-        case "teacherEditor": return t('schedule.lesson_editor.edit_teacher', lang);
-        case "linkEditor": return t('schedule.lesson_editor.edit_link', lang);
+        case "teacherEditor": {
+            const isExistingTeacher = localData.teachers.some((teacher) => teacher.id === editingItemData);
+            return isExistingTeacher ? t('schedule.lesson_editor.edit_teacher', lang) : t('schedule.lesson_editor.new_teacher', lang);
+        }
+        case "linkEditor": {
+            const isExistingLink = localData.links.some((link) => link.id === editingItemData);
+            return isExistingLink ? t('schedule.lesson_editor.edit_link', lang) : t('schedule.lesson_editor.new_link', lang);
+        }
         default: return "";
     }
   };
@@ -615,18 +705,31 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
         setInputType(type);
         setPickerType(null);
         setAttachAfterEdit(false);
+        setRelatedEditReturnScreen("main");
         goToScreen("input");
-    } else {
-        setPickerType(type);
-        setInputType(null);
-        setEditingSlotIndex(index);
-        setAttachAfterEdit(createNew && ["teacher", "link"].includes(type));
-        if (createNew && ["teacher", "link"].includes(type)) {
-          goToScreen(type === "teacher" ? "teacherEditor" : "linkEditor", generateLocalId());
-          return;
-        }
-        goToScreen("picker");
+        return;
     }
+
+    if (type === "subject" && localData.subjects.length === 0) {
+        setEditingSlotIndex(null);
+        openNewSubjectInput();
+        return;
+    }
+
+    if (["teacher", "link"].includes(type)) {
+        const hasOptions = type === "teacher" ? localData.teachers.length > 0 : localData.links.length > 0;
+        if (createNew || !hasOptions) {
+            openNewRelatedItemEditor(type, index, "main");
+            return;
+        }
+    }
+
+    setPickerType(type);
+    setInputType(null);
+    setEditingSlotIndex(index);
+    setAttachAfterEdit(false);
+    setRelatedEditReturnScreen("picker");
+    goToScreen("picker");
   };
 
   const handleDirectEdit = (type, id, index) => {
@@ -635,6 +738,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     setEditingSlotIndex(index);
     setPickerType(null);
     setAttachAfterEdit(false);
+    setRelatedEditReturnScreen("main");
 
     if (type === "teacher") goToScreen("teacherEditor", id);
     if (type === "link") goToScreen("linkEditor", id);
@@ -714,12 +818,8 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             selected: currentSelectedId ? [currentSelectedId] : [],
             alreadySelected,
             multi: false,
-            onAdd: () => {
-                const newId = generateLocalId();
-                setAttachAfterEdit(true);
-                goToScreen("teacherEditor", newId);
-            },
-            onEdit: (id) => { if (id !== 'none') { setAttachAfterEdit(false); goToScreen("teacherEditor", id); } },
+            onAdd: () => openNewRelatedItemEditor("teacher", editingSlotIndex, "picker"),
+            onEdit: (id) => { if (id !== 'none') { setAttachAfterEdit(false); setRelatedEditReturnScreen("picker"); goToScreen("teacherEditor", id); } },
             onSave: (key) => {
                 let newArr = [...cleanSelected];
                 if (key === 'none') {
@@ -757,12 +857,8 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             selected: currentSelectedId ? [currentSelectedId] : [],
             alreadySelected,
             multi: false,
-            onAdd: () => {
-                const newId = generateLocalId();
-                setAttachAfterEdit(true);
-                goToScreen("linkEditor", newId);
-            },
-            onEdit: (id) => { if (id !== 'none') { setAttachAfterEdit(false); goToScreen("linkEditor", id); } },
+            onAdd: () => openNewRelatedItemEditor("link", editingSlotIndex, "picker"),
+            onEdit: (id) => { if (id !== 'none') { setAttachAfterEdit(false); setRelatedEditReturnScreen("picker"); goToScreen("linkEditor", id); } },
             onSave: (key) => {
                 let newArr = [...cleanSelected];
                 if (key === 'none') {
@@ -783,12 +879,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             options: localData.subjects.map((s) => ({ key: s.id, label: s.name })),
             selected: selectedSubjectId ? [selectedSubjectId] : [],
             multi: false,
-            onAdd: () => {
-                const newId = generateLocalId();
-                setPickerType("subject");
-                setInputType("subject_rename");
-                goToScreen("input", newId);
-            },
+            onAdd: openNewSubjectInput,
             onEdit: (id) => { setPickerType("subject"); setInputType("subject_rename"); goToScreen("input", id); },
             onSave: (key) => { setSelectedSubjectId(key); goToScreen("main"); }
         };
@@ -1109,6 +1200,8 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                   onSave={inputData.onSave}
                   onReset={inputData.onReset}
                   themeColors={themeColors}
+                  saveLabel={inputType === "subject_rename" && !localData.subjects.some((subject) => subject.id === editingItemData) ? t("common.create", lang) : undefined}
+                  autoFocusDelayMs={initialEditTarget?.type === "subject" && inputType === "subject_rename" ? 280 : 0}
               />
             )}
 
@@ -1137,17 +1230,19 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                                   : [...prev.teachers, updated]
                           };
                       });
-                      if (pickerType === "teacher" && attachAfterEdit) {
+                      if (attachAfterEdit) {
                         bindItemToCurrentSlot("teacher", updated.id);
                         setAttachAfterEdit(false);
                       } else {
-                        goToScreen(pickerType ? "picker" : "main");
+                        goToScreen(pickerType === "teacher" ? getRelatedEditReturnScreen("teacher") : "main");
                       }
                   }}
                   onBack={() => {
                     triggerHaptic("navigateBack");
-                    goToScreen(pickerType ? "picker" : "main");
+                    setAttachAfterEdit(false);
+                    goToScreen(pickerType === "teacher" ? getRelatedEditReturnScreen("teacher") : "main");
                   }}
+                  saveLabel={localData.teachers.some(t => t.id === editingItemData) ? undefined : t("common.create", lang)}
                   onOpenColorPicker={openAdvancedColorPicker}
                   themeColors={themeColors}
                 />
@@ -1168,17 +1263,19 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                                   : [...prev.links, updated]
                           };
                       });
-                      if (pickerType === "link" && attachAfterEdit) {
+                      if (attachAfterEdit) {
                         bindItemToCurrentSlot("link", updated.id);
                         setAttachAfterEdit(false);
                       } else {
-                        goToScreen(pickerType ? "picker" : "main");
+                        goToScreen(pickerType === "link" ? getRelatedEditReturnScreen("link") : "main");
                       }
                   }}
                   onBack={() => {
                     triggerHaptic("navigateBack");
-                    goToScreen(pickerType ? "picker" : "main");
+                    setAttachAfterEdit(false);
+                    goToScreen(pickerType === "link" ? getRelatedEditReturnScreen("link") : "main");
                   }}
+                  saveLabel={localData.links.some(l => l.id === editingItemData) ? undefined : t("common.create", lang)}
                   onOpenColorPicker={openAdvancedColorPicker}
                   themeColors={themeColors}
                 />

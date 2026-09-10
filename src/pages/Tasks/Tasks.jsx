@@ -29,7 +29,7 @@ import tinycolor from "tinycolor2";
 
 import AppBlur from "../../components/ui/AppBlur";
 import AttachmentImagePreview from "../../components/attachments/AttachmentImagePreview";
-import GradientBackground from "../../components/ui/GradientBackground";
+import { getGradientBackgroundStyle } from "../../components/ui/GradientBackground";
 import LessonViewer from "../Schedule/components/LessonViewer";
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
@@ -37,6 +37,12 @@ import { getIconComponent } from "../../config/subjectIcons";
 import { t } from "../../utils/i18n";
 import { getScheduleDisplayName } from "../../utils/scheduleDisplay";
 import { resolveScheduleColor, scheduleColorWithAlpha } from "../../utils/scheduleColors";
+import {
+  getGradientColor,
+  getGradientColors,
+  getReadableForeground,
+  isLightForeground,
+} from "../../utils/gradientColors";
 import {
   addScheduleRecordToMap,
   withStartingWeekFallback,
@@ -149,16 +155,6 @@ const normalizeSelectedScheduleIds = (value, schedules, fallbackScheduleId) => {
   return firstSchedule?.id ? [firstSchedule.id] : [];
 };
 
-const getGradientColors = (gradient) => (
-  Array.isArray(gradient?.colors)
-    ? gradient.colors
-      .map((colorStop) => (typeof colorStop === "string" ? colorStop : colorStop?.color))
-      .filter((color) => typeof color === "string" && tinycolor(color).isValid())
-    : []
-);
-
-const getGradientColor = (gradient) => getGradientColors(gradient)[0] || null;
-
 const getDimmedCardColor = (color, opacity = COMPLETED_CARD_OVERLAY_OPACITY) => {
   const parsed = tinycolor(color);
   if (!parsed.isValid()) return color;
@@ -172,27 +168,12 @@ const getDimmedGradientForText = (gradient, opacity = COMPLETED_CARD_OVERLAY_OPA
     : gradient;
 };
 
-const getReadableTextColor = (backgroundColor, fallback = "#fff") => {
-  const parsed = tinycolor(backgroundColor);
-  if (!parsed.isValid()) return fallback;
-  return parsed.isLight() ? "#111827" : "#fff";
-};
-
 const getTaskTextColor = (backgroundColor, gradient, fallback) => {
   const gradientColors = getGradientColors(gradient);
-  if (gradientColors.length === 0) return getReadableTextColor(backgroundColor, fallback);
-
-  const parsedColors = gradientColors.map((color) => tinycolor(color)).filter((color) => color.isValid());
-
-  if (parsedColors.length === 0) return fallback;
-
-  const isNeutralLightGradient = parsedColors.every((color) => (
-    color.isLight() && color.getBrightness() >= 205 && color.toHsl().s < 0.18
-  ));
-
-  if (isNeutralLightGradient) return "#111827";
-
-  return "#fff";
+  return getReadableForeground(
+    gradientColors.length > 0 ? gradient : backgroundColor,
+    fallback,
+  );
 };
 
 const withAlpha = (color, alpha) => tinycolor(color).setAlpha(alpha).toRgbString();
@@ -613,15 +594,18 @@ function TaskCard({
   const textCardColor = completed ? getDimmedCardColor(cardColor) : cardColor;
   const textGradient = completed ? getDimmedGradientForText(activeGradient) : activeGradient;
   const textOnCard = getTaskTextColor(textCardColor, textGradient, isDarkTheme ? "#fff" : "#111827");
+  const usesLightText = isLightForeground(textOnCard);
   const mutedTextOnCard = withAlpha(textOnCard, 0.82);
-  const chipBackground = withAlpha(textOnCard, textOnCard === "#fff" ? 0.17 : 0.13);
-  const usesLightText = textOnCard === "#fff";
-  const borderColor = textOnCard === "#fff"
+  const chipBackground = withAlpha(textOnCard, usesLightText ? 0.17 : 0.13);
+  const borderColor = usesLightText
     ? (completed ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.24)")
     : (completed ? "rgba(17,24,39,0.26)" : "rgba(17,24,39,0.18)");
   const titleLabel = subject?.name || t("tasks.no_subject", lang);
   const SubjectIcon = getIconComponent(subject?.icon);
-  const iconPatternOpacity = usesLightText ? 0.18 : 0.07;
+  const iconPatternOpacity = usesLightText ? 0.18 : 0.12;
+  const textShadowStyle = usesLightText
+    ? null
+    : Platform.select({ web: { textShadow: "none" }, default: { textShadowColor: "transparent" } });
   const animatedCardStyle = {
     minHeight: collapseProgress.interpolate({
       inputRange: [0, 1],
@@ -755,14 +739,11 @@ function TaskCard({
       style={[
         styles.card,
         animatedCardStyle,
-        {
-          backgroundColor: cardColor,
-        },
+        activeGradient
+          ? getGradientBackgroundStyle(activeGradient, cardColor)
+          : { backgroundColor: cardColor },
       ]}
     >
-      {activeGradient && (
-        <GradientBackground gradient={activeGradient} style={StyleSheet.absoluteFillObject} />
-      )}
       <TaskIconPattern
         Icon={SubjectIcon}
         color={textOnCard}
@@ -798,11 +779,15 @@ function TaskCard({
 
       <View style={styles.cardBody}>
         <View style={styles.metaRow}>
+          {!!SubjectIcon && (
+            <SubjectIcon size={17} color={textOnCard} weight="bold" />
+          )}
           <Text
             style={[
               styles.subjectName,
               { color: textOnCard },
               styles.subjectNameSingle,
+              textShadowStyle,
             ]}
             numberOfLines={1}
           >
@@ -821,7 +806,7 @@ function TaskCard({
                 styles.lessonTimeButton,
                 {
                   backgroundColor: chipBackground,
-                  borderColor: withAlpha(textOnCard, textOnCard === "#fff" ? 0.36 : 0.24),
+                  borderColor: withAlpha(textOnCard, usesLightText ? 0.36 : 0.24),
                   opacity: canOpenLinkedLesson ? 1 : 0.78,
                 },
               ]}
@@ -839,6 +824,7 @@ function TaskCard({
             style={[
               styles.taskText,
               { color: textOnCard },
+              textShadowStyle,
             ]}
           >
             {task?.text || t("tasks.empty_text", lang)}

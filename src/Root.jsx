@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as LinkingExpo from 'expo-linking';
 
 import { auth } from "./config/firebase";
@@ -31,7 +32,7 @@ SplashScreen.preventAutoHideAsync();
 const Stack = createNativeStackNavigator();
 
 const linking = {
-  prefixes: [LinkingExpo.createURL('/'), 'planit://'],
+  prefixes: [LinkingExpo.createURL('/'), 'planit://', 'https://planit.app'],
   getInitialURL: async () => {
     const url = await LinkingExpo.getInitialURL();
     return createPasswordResetNavigationUrl(url);
@@ -181,71 +182,73 @@ export default function RootApp() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
-      <AdsProvider>
-        <ScheduleProvider
-          key={user?.uid || (guest ? 'guest' : 'signed-out')}
-          guest={guest}
-          user={user}
-        >
-          <NavigationContainer
-            ref={navigationRef}
-            linking={linking}
-            theme={AppDarkTheme}
-            onReady={() => {
-              if (navigationRef.current) {
-                routeNameRef.current = navigationRef.current.getCurrentRoute().name;
-              }
-              SplashScreen.hideAsync().catch(() => {});
-            }}
-            onStateChange={async () => {
-              const previousRouteName = routeNameRef.current;
-              const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
-
-              if (previousRouteName !== currentRouteName && currentRouteName) {
-                trackScreenView(currentRouteName);
-              }
-              routeNameRef.current = currentRouteName;
-            }}
+      <SafeAreaProvider>
+        <AdsProvider>
+          <ScheduleProvider
+            key={user?.uid || (guest ? 'guest' : 'signed-out')}
+            guest={guest}
+            user={user}
           >
-            <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
-              {user || guest ? (
-                <Stack.Screen name="MainLayout">
-                  {(props) => (
-                    <EditorProvider>
-                      <BottomSheetModalProvider>
-                        <MainLayout
+            <BottomSheetModalProvider>
+              <NavigationContainer
+                ref={navigationRef}
+                linking={linking}
+                theme={AppDarkTheme}
+                onReady={() => {
+                  if (navigationRef.current) {
+                    routeNameRef.current = navigationRef.current.getCurrentRoute().name;
+                  }
+                  SplashScreen.hideAsync().catch(() => {});
+                }}
+                onStateChange={async () => {
+                  const previousRouteName = routeNameRef.current;
+                  const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+
+                  if (previousRouteName !== currentRouteName && currentRouteName) {
+                    trackScreenView(currentRouteName);
+                  }
+                  routeNameRef.current = currentRouteName;
+                }}
+              >
+                <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
+                  {user || guest ? (
+                    <Stack.Screen name="MainLayout">
+                      {(props) => (
+                        <EditorProvider>
+                          <MainLayout
+                            {...props}
+                            guest={guest}
+                            onExitGuest={handleExitGuest}
+                          />
+                        </EditorProvider>
+                      )}
+                    </Stack.Screen>
+                  ) : (
+                    <Stack.Screen name="Auth">
+                      {(props) => (
+                        <AuthScreen
                           {...props}
-                          guest={guest}
-                          onExitGuest={handleExitGuest}
+                          onGuestLogin={() => setGuest(true)}
                         />
-                      </BottomSheetModalProvider>
-                    </EditorProvider>
+                      )}
+                    </Stack.Screen>
                   )}
-                </Stack.Screen>
-              ) : (
-                <Stack.Screen name="Auth">
-                  {(props) => (
-                    <AuthScreen
-                      {...props}
-                      onGuestLogin={() => setGuest(true)}
-                    />
-                  )}
-                </Stack.Screen>
-              )}
-              <Stack.Screen name="PasswordReset">
-                {(props) => (
-                  <PasswordResetScreen
-                    {...props}
-                    fallbackRoute={user || guest ? 'MainLayout' : 'Auth'}
-                  />
-                )}
-              </Stack.Screen>
-              <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </ScheduleProvider>
-      </AdsProvider>
-      <CookieConsentBanner lang={lang} />
+                  <Stack.Screen name="PasswordReset">
+                    {(props) => (
+                      <PasswordResetScreen
+                        {...props}
+                        fallbackRoute={user || guest ? 'MainLayout' : 'Auth'}
+                      />
+                    )}
+                  </Stack.Screen>
+                  <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
+                </Stack.Navigator>
+              </NavigationContainer>
+            </BottomSheetModalProvider>
+          </ScheduleProvider>
+        </AdsProvider>
+        <CookieConsentBanner lang={lang} />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

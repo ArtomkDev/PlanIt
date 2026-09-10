@@ -3,8 +3,6 @@ import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/un
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import {
-  Animated,
-  Easing,
   PanResponder,
   Platform,
   StyleSheet,
@@ -14,6 +12,14 @@ import {
 } from 'react-native';
 import { CalendarDots, CheckSquare, GearSix } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Reanimated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import themes from '../config/themes';
 import { useScheduleData, useScheduleLayout } from '../context/ScheduleProvider';
 import { NotificationDrawerProvider } from '../context/NotificationDrawerContext';
@@ -43,24 +49,22 @@ import SharedSchedulesManager from '../pages/Settings/components/SharedSchedules
 import NavigationSettings from '../pages/Settings/components/preferences/NavigationSettings';
 import NotificationInboxPanel from '../pages/Schedule/components/NotificationInboxPanel';
 import { triggerHaptic } from '../utils/haptics';
+import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 
 const Tab = createBottomTabNavigator();
 const NativeTab = Platform.OS === 'ios' ? createNativeBottomTabNavigator() : null;
 const Stack = createNativeStackNavigator();
 const DRAWER_OPEN_DURATION = 285;
 const DRAWER_CLOSE_DURATION = 240;
-const DRAWER_VISUAL_OPEN_DURATION = 330;
-const DRAWER_VISUAL_CLOSE_DURATION = 270;
 const DRAWER_MOTION_EASING = Easing.bezier(0.2, 0, 0, 1);
-const DRAWER_VISUAL_EASING = Easing.inOut(Easing.quad);
 const getNativeTabIcon = (name, selectedName = name) => ({ focused }) => ({
   type: 'sfSymbol',
   name: focused ? selectedName : name,
 });
 
 function SettingsStack({ screenProps }) {
-  const { global } = useScheduleData();
-  const [mode, accent] = global?.theme || ["light", "blue"];
+  const { global: globalSettings } = useScheduleData();
+  const [mode, accent] = globalSettings?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
@@ -99,20 +103,20 @@ function SettingsStack({ screenProps }) {
 }
 
 export default function TabNavigator({ screenProps }) {
-  const { global, lang, isLoading } = useScheduleData();
+  const { global: globalSettings, lang, isLoading } = useScheduleData();
   const { tabBarHeight, setTabBarHeight } = useScheduleLayout();
+  const reduceMotion = useReducedMotionPreference();
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [mode, accent] = global?.theme || ["light", "blue"];
+  const [mode, accent] = globalSettings?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const navigationStyle = resolveNavigationStyle(global?.navigationStyle);
+  const navigationStyle = resolveNavigationStyle(globalSettings?.navigationStyle);
   const useLiquidGlassTabs = navigationStyle === LIQUID_GLASS_NAVIGATION_STYLE && Boolean(NativeTab);
-  const showLabels = global?.navigationLabels ?? true;
+  const showLabels = globalSettings?.navigationLabels ?? true;
   const scheduleTabLabel = t('common.schedule', lang);
   const tasksTabLabel = t('common.tasks', lang);
   const settingsTabLabel = t('common.settings', lang);
-  const drawerProgress = useRef(new Animated.Value(0)).current;
-  const drawerMotionProgress = useRef(new Animated.Value(0)).current;
+  const drawerProgress = useSharedValue(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsMounted, setNotificationsMounted] = useState(false);
 
@@ -122,66 +126,49 @@ export default function TabNavigator({ screenProps }) {
     Math.max(280, screenWidth - 86)
   );
   const drawerInset = screenWidth - drawerWidth;
-  const appTranslateX = drawerMotionProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -drawerWidth],
-  });
-  const appScale = drawerMotionProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.975],
-  });
-  const appRadius = drawerProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 20],
-  });
-  const drawerOpacity = drawerMotionProgress.interpolate({
-    inputRange: [0, 0.65, 1],
-    outputRange: [0, 0.82, 1],
-  });
-  const drawerTranslateX = drawerMotionProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [26, 0],
-  });
-  const inactiveOverlayOpacity = drawerMotionProgress.interpolate({
-    inputRange: [0, 0.7, 1],
-    outputRange: [0, 0.1, 0.16],
-  });
+  const appShellMotionStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(
+          drawerProgress.value,
+          [0, 1],
+          [0, -drawerWidth]
+        ),
+      },
+      {
+        scale: interpolate(drawerProgress.value, [0, 1], [1, 0.975]),
+      },
+    ],
+  }), [drawerWidth]);
+  const appShellStyle = useAnimatedStyle(() => ({
+    borderRadius: interpolate(drawerProgress.value, [0, 1], [0, 20]),
+  }));
+  const inactiveOverlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      drawerProgress.value,
+      [0, 0.7, 1],
+      [0, 0.1, 0.16]
+    ),
+  }));
 
   const animateNotifications = useCallback((open) => {
     triggerHaptic(open ? "open" : "sheetClose", { key: "notification-drawer" });
     if (open) {
       setNotificationsMounted(true);
+    } else {
+      setNotificationsMounted(false);
     }
 
     setNotificationsOpen(open);
-    drawerProgress.stopAnimation();
-    drawerMotionProgress.stopAnimation();
+    cancelAnimation(drawerProgress);
 
     const toValue = open ? 1 : 0;
-    const motionDuration = open ? DRAWER_OPEN_DURATION : DRAWER_CLOSE_DURATION;
-    const visualDuration = open ? DRAWER_VISUAL_OPEN_DURATION : DRAWER_VISUAL_CLOSE_DURATION;
-
-    Animated.parallel([
-      Animated.timing(drawerMotionProgress, {
-        toValue,
-        duration: motionDuration,
-        easing: DRAWER_MOTION_EASING,
-        isInteraction: false,
-        useNativeDriver: true,
-      }),
-      Animated.timing(drawerProgress, {
-        toValue,
-        duration: visualDuration,
-        easing: DRAWER_VISUAL_EASING,
-        isInteraction: false,
-        useNativeDriver: false,
-      }),
-    ]).start(({ finished }) => {
-      if (finished && !open) {
-        setNotificationsMounted(false);
-      }
+    const motionDuration = reduceMotion ? 0 : (open ? DRAWER_OPEN_DURATION : DRAWER_CLOSE_DURATION);
+    drawerProgress.value = withTiming(toValue, {
+      duration: motionDuration,
+      easing: DRAWER_MOTION_EASING,
     });
-  }, [drawerMotionProgress, drawerProgress]);
+  }, [drawerProgress, reduceMotion]);
 
   const openNotifications = useCallback(() => {
     animateNotifications(true);
@@ -196,8 +183,8 @@ export default function TabNavigator({ screenProps }) {
     openNotifications,
     closeNotifications,
     drawerProgress,
-    drawerContentInset: drawerInset,
-  }), [closeNotifications, drawerInset, drawerProgress, notificationsOpen, openNotifications]);
+    drawerContentInset: 0,
+  }), [closeNotifications, drawerProgress, notificationsOpen, openNotifications]);
 
   const drawerPanResponder = useMemo(
     () => PanResponder.create({
@@ -213,8 +200,7 @@ export default function TabNavigator({ screenProps }) {
           0,
           Math.min(1, 1 - gestureState.dx / drawerWidth)
         );
-        drawerProgress.setValue(nextProgress);
-        drawerMotionProgress.setValue(nextProgress);
+        drawerProgress.value = nextProgress;
       },
       onPanResponderRelease: (_, gestureState) => {
         if (!notificationsOpen) return;
@@ -229,7 +215,7 @@ export default function TabNavigator({ screenProps }) {
         animateNotifications(!shouldClose);
       },
     }),
-    [animateNotifications, drawerMotionProgress, drawerProgress, drawerWidth, notificationsOpen]
+    [animateNotifications, drawerProgress, drawerWidth, notificationsOpen]
   );
 
   const screenPropsRef = useRef(screenProps);
@@ -266,55 +252,25 @@ export default function TabNavigator({ screenProps }) {
         style={[styles.drawerRoot, { backgroundColor: themeColors.backgroundColor }]}
         {...(notificationsMounted ? drawerPanResponder.panHandlers : {})}
       >
-        {notificationsMounted && (
-          <Animated.View
-            pointerEvents={notificationsOpen ? 'auto' : 'none'}
-            style={[
-              styles.notificationUnderlay,
-              {
-                opacity: drawerOpacity,
-                backgroundColor: themeColors.backgroundColor,
-              },
-            ]}
-          >
-            <Animated.View
-              renderToHardwareTextureAndroid={notificationsMounted}
-              shouldRasterizeIOS={notificationsMounted}
-              style={[
-                styles.notificationDrawer,
-                {
-                  left: 0,
-                  right: 0,
-                  transform: [{ translateX: drawerTranslateX }],
-                },
-              ]}
-            >
-              <NotificationInboxPanel />
-            </Animated.View>
-          </Animated.View>
-        )}
+        <View
+          pointerEvents={notificationsOpen ? 'auto' : 'none'}
+          style={[styles.notificationLayer, { width: drawerWidth }]}
+        >
+          <NotificationInboxPanel backgroundColor="transparent" />
+        </View>
 
-        <Animated.View
-          renderToHardwareTextureAndroid={notificationsMounted}
-          shouldRasterizeIOS={notificationsMounted}
+        <Reanimated.View
           style={[
             styles.appShellMotion,
-            {
-              shadowOpacity: notificationsMounted ? 0.18 : 0,
-              elevation: notificationsMounted ? 16 : 0,
-              transform: [
-                { translateX: appTranslateX },
-                { scale: appScale },
-              ],
-            },
+            appShellMotionStyle,
           ]}
         >
-          <Animated.View
+          <Reanimated.View
             style={[
               styles.appShell,
+              appShellStyle,
               {
                 backgroundColor: themeColors.backgroundColor,
-                borderRadius: appRadius,
               },
             ]}
           >
@@ -411,26 +367,24 @@ export default function TabNavigator({ screenProps }) {
               </Tab.Navigator>
             )}
 
-            {notificationsMounted && (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.inactiveOverlay,
-                  {
-                    opacity: inactiveOverlayOpacity,
-                    backgroundColor: themeColors.backgroundColor3 || '#000',
-                  },
-                ]}
-              />
-            )}
-          </Animated.View>
-        </Animated.View>
+            <Reanimated.View
+              pointerEvents="none"
+              style={[
+                styles.inactiveOverlay,
+                inactiveOverlayStyle,
+                {
+                  backgroundColor: themeColors.backgroundColor3 || '#000',
+                },
+              ]}
+            />
+          </Reanimated.View>
+        </Reanimated.View>
 
         {notificationsOpen && (
           <TouchableOpacity
             activeOpacity={1}
             onPress={closeNotifications}
-            style={[styles.closeTapTarget, { right: drawerWidth }]}
+            style={[styles.closeTapTarget, { width: drawerInset }]}
           />
         )}
       </View>
@@ -446,9 +400,6 @@ const styles = StyleSheet.create({
   appShellMotion: {
     flex: 1,
     zIndex: 2,
-    shadowColor: '#000',
-    shadowRadius: 24,
-    shadowOffset: { width: 10, height: 0 },
   },
   appShell: {
     flex: 1,
@@ -458,14 +409,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 999,
   },
-  notificationUnderlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
-  notificationDrawer: {
+  notificationLayer: {
     position: 'absolute',
     top: 0,
+    right: 0,
     bottom: 0,
+    zIndex: 1,
   },
   closeTapTarget: {
     position: 'absolute',
@@ -473,5 +422,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     zIndex: 3,
+    elevation: 17,
   },
 });

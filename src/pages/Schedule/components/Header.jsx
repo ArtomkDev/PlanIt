@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Reanimated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
 import { ArrowCounterClockwise, Bell, CalendarBlank } from "phosphor-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -66,8 +67,8 @@ function ScaleTouchable({ style, onPressIn, onPressOut, children, ...props }) {
 }
 
 export default function Header({ currentDate, onTodayPress, onTitlePress }) {
-  const { user, guest, global, schedule, lang } = useScheduleData();
-  const { openNotifications } = useNotificationDrawer();
+  const { user, guest, global: globalSettings, schedule, lang } = useScheduleData();
+  const { openNotifications, drawerProgress } = useNotificationDrawer();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [schedulePickerVisible, setSchedulePickerVisible] = useState(false);
@@ -77,8 +78,15 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
   const seenUnreadIdsRef = useRef(new Set());
   const didLoadNotificationsRef = useRef(false);
 
-  const [mode, accent] = global?.theme || ["light", "blue"];
+  const [mode, accent] = globalSettings?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
+  const scheduleButtonColorStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      drawerProgress?.value ?? 0,
+      [0, 1],
+      [themeColors.backgroundColor2, themeColors.backgroundColor]
+    ),
+  }), [themeColors.backgroundColor, themeColors.backgroundColor2]);
   const scheduleColor = resolveScheduleColor(schedule, themeColors.accentColor);
   const locale = t("locale", lang);
   const isToday = isSameDay(currentDate, new Date());
@@ -233,6 +241,13 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
               },
             ]}
           >
+            <Reanimated.View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFillObject,
+                scheduleButtonColorStyle,
+              ]}
+            />
             <View style={[styles.scheduleDot, { backgroundColor: scheduleColor }]} />
             <Text
               numberOfLines={1}
@@ -379,6 +394,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
+    overflow: "hidden",
   },
   scheduleDot: {
     width: 8,

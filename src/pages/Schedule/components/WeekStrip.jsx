@@ -15,8 +15,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Reanimated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
 
 import themes from "../../../config/themes";
+import { useNotificationDrawer } from "../../../context/NotificationDrawerContext";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { triggerHaptic } from "../../../utils/haptics";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
@@ -150,9 +152,17 @@ const DayButton = React.memo(({
 });
 
 const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
-  const { global, lang } = useScheduleData();
-  const [mode, accent] = global?.theme || ["light", "blue"];
+  const { global: globalSettings, lang } = useScheduleData();
+  const { drawerProgress } = useNotificationDrawer();
+  const [mode, accent] = globalSettings?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
+  const weekSurfaceColorStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      drawerProgress?.value ?? 0,
+      [0, 1],
+      [themeColors.backgroundColor2, themeColors.backgroundColor]
+    ),
+  }), [themeColors.backgroundColor, themeColors.backgroundColor2]);
   const reduceMotion = useReducedMotionPreference();
   const locale = t("locale", lang);
 
@@ -169,12 +179,12 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
   }, [locale]);
 
   const startDayOfWeek = useMemo(() => {
-    if (global?.starting_week) {
-      const d = new Date(global.starting_week);
+    if (globalSettings?.starting_week) {
+      const d = new Date(globalSettings.starting_week);
       if (!isNaN(d.getTime())) return d.getDay();
     }
     return 1;
-  }, [global?.starting_week]);
+  }, [globalSettings?.starting_week]);
 
   const orderedDayNames = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => DAYS[(startDayOfWeek + i) % 7]);
@@ -315,6 +325,13 @@ const WeekStrip = React.memo(({ currentDate, onSelectDate }) => {
           },
         ]}
       >
+        <Reanimated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            weekSurfaceColorStyle,
+          ]}
+        />
         <Animated.View style={[
           styles.daysWrapper,
           {

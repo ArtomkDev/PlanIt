@@ -23,6 +23,7 @@ const firebaseAuthLinkHost = normalizeHost(
   || process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
   || (firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : ''),
 );
+const shareLinkHost = normalizeHost(process.env.EXPO_PUBLIC_SHARE_LINK_DOMAIN || 'planit.app');
 const authLinkIntentFilters = firebaseAuthLinkHost ? [{
   action: 'VIEW',
   autoVerify: true,
@@ -36,6 +37,19 @@ const authLinkIntentFilters = firebaseAuthLinkHost ? [{
       scheme: 'https',
       host: firebaseAuthLinkHost,
       pathPrefix: '/password-reset',
+    },
+  ],
+  category: ['BROWSABLE', 'DEFAULT'],
+}] : [];
+
+const shareLinkIntentFilters = shareLinkHost ? [{
+  action: 'VIEW',
+  autoVerify: true,
+  data: [
+    {
+      scheme: 'https',
+      host: shareLinkHost,
+      pathPrefix: '/share',
     },
   ],
   category: ['BROWSABLE', 'DEFAULT'],
@@ -99,9 +113,10 @@ export default {
       googleServicesFile:
         process.env.GOOGLE_SERVICE_INFO_PLIST
         || "./GoogleService-Info.plist",
-      ...(firebaseAuthLinkHost
-        ? { associatedDomains: [`applinks:${firebaseAuthLinkHost}`] }
-        : {}),
+      associatedDomains: [
+        ...(firebaseAuthLinkHost ? [`applinks:${firebaseAuthLinkHost}`] : []),
+        ...(shareLinkHost ? [`applinks:${shareLinkHost}`] : []),
+      ],
       infoPlist: {
         CFBundleAllowMixedLocalizations: true
       }
@@ -110,9 +125,10 @@ export default {
       package: "com.artomk.planit",
       versionCode: versionCode,
       googleServicesFile: "./google-services.json",
-      ...(authLinkIntentFilters.length
-        ? { intentFilters: authLinkIntentFilters }
-        : {}),
+      intentFilters: [
+        ...authLinkIntentFilters,
+        ...shareLinkIntentFilters,
+      ],
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff"

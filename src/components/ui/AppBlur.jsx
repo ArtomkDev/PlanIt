@@ -1,15 +1,25 @@
 import React from "react";
-import { View, Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
+import Animated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
 import { useNavigationState } from "@react-navigation/native";
 import { useScheduleData } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
 
-export default function AppBlur({ style, intensity = 80, children }) {
-  const { global } = useScheduleData();
-  const blurEnabled = global?.blur ?? true;
+export default function AppBlur({
+  style,
+  intensity = 80,
+  children,
+  backgroundColor,
+  backgroundColorTo,
+  overlayColor,
+  overlayColorTo,
+  colorProgress,
+}) {
+  const { global: globalSettings } = useScheduleData();
+  const blurEnabled = globalSettings?.blur ?? true;
   
-  const themeSetting = global?.theme || ["light", "blue"];
+  const themeSetting = globalSettings?.theme || ["light", "blue"];
   const [mode, accent] = Array.isArray(themeSetting) ? themeSetting : ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -17,13 +27,31 @@ export default function AppBlur({ style, intensity = 80, children }) {
   const activeRouteName = navState?.routes?.[navState?.index]?.name || "Unknown";
 
   const dynamicOpacity = activeRouteName === 'ScheduleTab' || activeRouteName === 'TasksTab' ? 0.7 : 0.1;
-  const solidColor = themeColors.backgroundColor2;
+  const solidColor = backgroundColor || themeColors.backgroundColor2;
+  const finalSolidColor = backgroundColorTo || solidColor;
+  const translucentOverlayColor = overlayColor || themeColors.backgroundColor;
+  const finalTranslucentOverlayColor = overlayColorTo || translucentOverlayColor;
+  const solidAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      colorProgress?.value ?? 0,
+      [0, 1],
+      [solidColor, finalSolidColor]
+    ),
+  }), [finalSolidColor, solidColor]);
+  const overlayAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      colorProgress?.value ?? 0,
+      [0, 1],
+      [translucentOverlayColor, finalTranslucentOverlayColor]
+    ),
+    opacity: dynamicOpacity,
+  }), [dynamicOpacity, finalTranslucentOverlayColor, translucentOverlayColor]);
 
   if (Platform.OS === "android" || !blurEnabled) {
     return (
-      <View style={[{ backgroundColor: solidColor }, style]}>
+      <Animated.View style={[style, solidAnimatedStyle]}>
         {children}
-      </View>
+      </Animated.View>
     );
   }
 
@@ -35,13 +63,13 @@ export default function AppBlur({ style, intensity = 80, children }) {
       tint={blurTint} 
       style={style} 
     >
-      <View style={[
-        StyleSheet.absoluteFill, 
-        { 
-          backgroundColor: themeColors.backgroundColor, 
-          opacity: dynamicOpacity 
-        }
-      ]} />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          overlayAnimatedStyle,
+        ]}
+      />
       {children}
     </BlurView>
   );
