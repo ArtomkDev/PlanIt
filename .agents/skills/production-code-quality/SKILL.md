@@ -7,6 +7,8 @@ description: Write or refactor production code in PlanIt with concise, maintaina
 
 Match the best established patterns in the files surrounding the change. Preserve local naming, imports, module boundaries, platform variants, state management, error handling, theme usage, and localization behavior.
 
+For meaningful changes, use `$engineering-workflow` for the design pass and senior self-review and `$architecture-guardian` for ownership and reuse decisions. This skill governs the quality of the implementation itself.
+
 ## Implementation standard
 
 - Prefer direct code over speculative layers, needless wrappers, one-use factories/managers/adapters, or helpers that make simple logic harder to follow.
