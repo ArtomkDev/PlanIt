@@ -46,6 +46,16 @@ npm.cmd run graphify -- path "Auth" "Firestore"
 npm.cmd run graphify -- explain "CalendarScreen"
 ```
 
+## Update the Graph
+
+For source-code changes, update the graph locally without an LLM backend:
+
+```powershell
+npm.cmd run graphify:update-code
+```
+
+Use `npm.cmd run graphify:update` when changed documentation or images also need semantic extraction and a supported backend is configured.
+
 ## Codex Integration
 
 After the CLI is installed, register Graphify's Codex project integration:
@@ -58,4 +68,4 @@ This lets future Codex sessions prefer the graph for architecture and relationsh
 
 ## Team Notes
 
-`graphify-out/` is intentionally not ignored so the generated map can be shared with the team. `graphify-out/cost.json` stays ignored because it is local run metadata. Keep `graphify-out/cache/` commented in `.gitignore`: commit it for faster team rebuilds, or uncomment it if the repository becomes too large.
+The current graph, report, manifest, labels, learning data, and query memory under `graphify-out/` are intentionally tracked so the project map can be shared with the team. HTML exports, dated snapshots, `cost.json`, and `cache/` are local generated artifacts and stay ignored; they can be regenerated.

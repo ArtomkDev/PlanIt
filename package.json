@@ -30,6 +30,7 @@
     "graphify:build": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 .",
     "graphify:build-code": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 extract . --code-only",
     "graphify:update": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 . --update",
+    "graphify:update-code": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 . --update --code-only",
     "graphify:query": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 query",
     "graphify:install-codex": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1 install --project --platform codex",
     "test:account-deletion": "node --test tests/accountDeletionService.test.cjs tests/accountDeletionAuth.test.cjs",

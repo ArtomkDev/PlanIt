@@ -9,10 +9,6 @@ const escapeForRegex = (value) => value.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
 const localOnlyFolders = [
   '.agents',
   '.codex',
-  '.codex-build-check',
-  '.codex-build-check-web',
-  '.codex-doc-review',
-  '.codex-verify-export',
   '.expo',
   '.firebase',
   '.git',

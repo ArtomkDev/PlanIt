@@ -1,8 +1,6 @@
 # Local/generated Codex artifacts
 .agents/
 .codex/
-.codex-build-check/
-.codex-verify-export/
 .idx/
 
 # Local tool environments
