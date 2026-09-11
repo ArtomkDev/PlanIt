@@ -46,6 +46,20 @@ const rootAppPath = path.resolve(
   __dirname,
   '../src/Root.jsx',
 );
+const attachmentPreviewContextPath = path.resolve(
+  __dirname,
+  '../src/context/AttachmentImagePreviewContext.jsx',
+);
+const bottomSheetPath = path.resolve(
+  __dirname,
+  '../src/components/ui/BottomSheet.jsx',
+);
+const attachmentPreviewCallSitePaths = [
+  '../src/components/attachments/AttachmentManager.jsx',
+  '../src/pages/Schedule/components/LessonViewer.jsx',
+  '../src/pages/Settings/components/FileLibraryScreen.jsx',
+  '../src/pages/Tasks/Tasks.jsx',
+].map((relativePath) => path.resolve(__dirname, relativePath));
 const loadNotificationService = ({ isExpoGo = true } = {}) => {
   let notificationsModuleLoads = 0;
   const notificationHandlers = [];
@@ -210,6 +224,34 @@ test('provides safe area context above navigation and attachment modals', () => 
     safeAreaProviderEndIndex > navigationContainerIndex,
     'SafeAreaProvider must remain mounted around modal descendants',
   );
+});
+
+test('hosts image previews above bottom sheets instead of nesting attachment modals', () => {
+  const rootSource = fs.readFileSync(rootAppPath, 'utf8');
+  const providerSource = fs.readFileSync(attachmentPreviewContextPath, 'utf8');
+  const bottomSheetSource = fs.readFileSync(bottomSheetPath, 'utf8');
+  const previewProviderIndex = rootSource.indexOf('<AttachmentImagePreviewProvider');
+  const navigationContainerIndex = rootSource.indexOf('<NavigationContainer');
+  const previewProviderEndIndex = rootSource.indexOf('</AttachmentImagePreviewProvider>');
+  const providerChildrenIndex = providerSource.indexOf('{children}');
+  const previewHostIndex = providerSource.indexOf('<AttachmentImagePreview\n', providerChildrenIndex);
+
+  assert.match(rootSource, /import \{ AttachmentImagePreviewProvider \} from "\.\/context\/AttachmentImagePreviewContext";/);
+  assert.ok(previewProviderIndex >= 0, 'attachment preview provider must be rendered');
+  assert.ok(previewProviderIndex < navigationContainerIndex, 'attachment preview provider must wrap navigation');
+  assert.ok(previewProviderEndIndex > navigationContainerIndex, 'attachment preview provider must remain mounted around navigation');
+  assert.ok(providerChildrenIndex < previewHostIndex, 'the shared preview host must render after app content');
+
+  assert.match(bottomSheetSource, /const BOTTOM_SHEET_LAYER = 1000;/);
+  assert.match(bottomSheetSource, /zIndex: BOTTOM_SHEET_LAYER/);
+  assert.match(bottomSheetSource, /elevation: BOTTOM_SHEET_LAYER/);
+  assert.doesNotMatch(bottomSheetSource, /zIndex:\s*10000|elevation:\s*10000/);
+
+  attachmentPreviewCallSitePaths.forEach((sourcePath) => {
+    const source = fs.readFileSync(sourcePath, 'utf8');
+    assert.match(source, /useAttachmentImagePreview/);
+    assert.doesNotMatch(source, /import AttachmentImagePreview/);
+  });
 });
 
 test('keeps notification movement and corner radius on the Reanimated UI thread', () => {

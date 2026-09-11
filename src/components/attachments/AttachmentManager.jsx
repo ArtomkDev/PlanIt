@@ -47,7 +47,7 @@ import {
 } from "../../services/attachmentService";
 import { t } from "../../utils/i18n";
 import { triggerHaptic } from "../../utils/haptics";
-import AttachmentImagePreview from "./AttachmentImagePreview";
+import { useAttachmentImagePreview } from "../../context/AttachmentImagePreviewContext";
 
 const interpolate = (template, params = {}) => (
   Object.entries(params).reduce(
@@ -78,11 +78,11 @@ export default function AttachmentManager({
 }) {
   const [localError, setLocalError] = useState("");
   const [internalUploadState, setInternalUploadState] = useState({ uploading: false });
-  const [previewAttachment, setPreviewAttachment] = useState(null);
   const [cacheStates, setCacheStates] = useState({});
   const [renamingAttachmentId, setRenamingAttachmentId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const { openImagePreview } = useAttachmentImagePreview();
   const activeUploadState = uploadState || internalUploadState;
   const normalizedAttachments = useMemo(
     () => normalizeAttachmentDraftList(attachments),
@@ -308,7 +308,13 @@ export default function AttachmentManager({
     try {
       triggerHaptic("open");
       if (!download && isImageAttachment(attachment)) {
-        setPreviewAttachment(attachment);
+        openImagePreview({
+          attachment,
+          attachments: displayAttachments,
+          onCacheStateChange: handlePreviewCacheStateChange,
+          themeColors,
+          lang,
+        });
         return;
       }
       await openAttachment(attachment, { download });
@@ -648,15 +654,6 @@ export default function AttachmentManager({
         </View>
       )}
 
-      <AttachmentImagePreview
-        visible={!!previewAttachment}
-        attachment={previewAttachment}
-        attachments={displayAttachments}
-        onClose={() => setPreviewAttachment(null)}
-        onCacheStateChange={handlePreviewCacheStateChange}
-        themeColors={themeColors}
-        lang={lang}
-      />
     </View>
   );
 }

@@ -28,10 +28,10 @@ import {
 
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import SettingsGroup from "../../../components/ui/SettingsKit/SettingsGroup";
-import AttachmentImagePreview from "../../../components/attachments/AttachmentImagePreview";
 import StagedAttachmentImage from "../../../components/attachments/StagedAttachmentImage";
 import TabSwitcher from "../../../components/ui/TabSwitcher";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
+import { useAttachmentImagePreview } from "../../../context/AttachmentImagePreviewContext";
 import themes from "../../../config/themes";
 import {
   cacheAttachmentFromLocalUri,
@@ -183,7 +183,6 @@ export default function FileLibraryScreen() {
   const [error, setError] = useState("");
   const [renamingFileId, setRenamingFileId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
-  const [previewFile, setPreviewFile] = useState(null);
   const [activeFileTab, setActiveFileTab] = useState("photos");
   const [photoPreviewCache, setPhotoPreviewCache] = useState({});
   const [addingSource, setAddingSource] = useState(null);
@@ -193,6 +192,7 @@ export default function FileLibraryScreen() {
   const webDropZoneRef = useRef(null);
   const [webDropActive, setWebDropActive] = useState(false);
   const isWebLayout = Platform.OS === "web";
+  const { openImagePreview } = useAttachmentImagePreview();
 
   const files = useMemo(
     () => normalizeAttachmentLibrary(global?.fileLibrary),
@@ -355,7 +355,13 @@ export default function FileLibraryScreen() {
       triggerHaptic("open");
       setError("");
       if (!download && isImageAttachment(file)) {
-        setPreviewFile(file);
+        openImagePreview({
+          attachment: file,
+          attachments: filesWithPreviewUris,
+          onCacheStateChange: handlePreviewCacheStateChange,
+          themeColors,
+          lang,
+        });
         return;
       }
       await openAttachment(file, { download });
@@ -1237,15 +1243,6 @@ export default function FileLibraryScreen() {
         )}
       </SettingsGroup>
 
-      <AttachmentImagePreview
-        visible={!!previewFile}
-        attachment={previewFile}
-        attachments={filesWithPreviewUris}
-        onClose={() => setPreviewFile(null)}
-        onCacheStateChange={handlePreviewCacheStateChange}
-        themeColors={themeColors}
-        lang={lang}
-      />
     </SettingsScreenLayout>
   );
 }

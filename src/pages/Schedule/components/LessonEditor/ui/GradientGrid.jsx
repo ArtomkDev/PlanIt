@@ -70,8 +70,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     position: "relative",
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.05)",
   },
   selectedMark: {
     position: "absolute",

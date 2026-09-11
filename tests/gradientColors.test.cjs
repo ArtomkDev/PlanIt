@@ -7,6 +7,7 @@ const babel = require('@babel/core');
 
 const gradientColorsPath = path.resolve(__dirname, '../src/utils/gradientColors.js');
 const gradientBackgroundPath = path.resolve(__dirname, '../src/components/ui/GradientBackground.jsx');
+const gradientAnglesPath = path.resolve(__dirname, '../src/utils/gradientAngles.js');
 const gradientGridPath = path.resolve(
   __dirname,
   '../src/pages/Schedule/components/LessonEditor/ui/GradientGrid.jsx',
@@ -14,6 +15,18 @@ const gradientGridPath = path.resolve(
 const reactNativeBackgroundParserPath = path.resolve(
   __dirname,
   '../node_modules/react-native/Libraries/StyleSheet/processBackgroundImage.js',
+);
+const reactNativeBackgroundRepeatParserPath = path.resolve(
+  __dirname,
+  '../node_modules/react-native/Libraries/StyleSheet/processBackgroundRepeat.js',
+);
+const reactNativeBackgroundSizeParserPath = path.resolve(
+  __dirname,
+  '../node_modules/react-native/Libraries/StyleSheet/processBackgroundSize.js',
+);
+const reactNativeBackgroundPositionParserPath = path.resolve(
+  __dirname,
+  '../node_modules/react-native/Libraries/StyleSheet/processBackgroundPosition.js',
 );
 const lessonCardPath = path.resolve(__dirname, '../src/pages/Schedule/components/LessonCard.jsx');
 const tasksPath = path.resolve(__dirname, '../src/pages/Tasks/Tasks.jsx');
@@ -50,6 +63,21 @@ const loadGradientColors = () => {
 };
 
 const colors = loadGradientColors();
+
+const loadEsmUtility = (filePath) => {
+  const source = fs.readFileSync(filePath, 'utf8');
+  const transformed = babel.transformSync(source, {
+    filename: filePath,
+    plugins: ['@babel/plugin-transform-modules-commonjs'],
+  }).code;
+  const testModule = new Module(filePath, module);
+  testModule.filename = filePath;
+  testModule.paths = Module._nodeModulePaths(path.dirname(filePath));
+  testModule._compile(transformed, filePath);
+  return testModule.exports;
+};
+
+const angles = loadEsmUtility(gradientAnglesPath);
 
 const loadGradientBackground = (os) => {
   const source = fs.readFileSync(gradientBackgroundPath, 'utf8');
@@ -94,6 +122,30 @@ const loadReactNativeBackgroundParser = () => {
   return testModule.exports.default;
 };
 
+const loadReactNativeSimpleStyleParser = (parserPath) => {
+  const source = fs.readFileSync(parserPath, 'utf8');
+  const transformed = babel.transformSync(source, {
+    filename: parserPath,
+    presets: ['babel-preset-expo'],
+    plugins: ['@babel/plugin-transform-modules-commonjs'],
+  }).code;
+  const testModule = new Module(parserPath, module);
+  testModule.filename = parserPath;
+  testModule.paths = Module._nodeModulePaths(path.dirname(parserPath));
+  testModule._compile(transformed, parserPath);
+  return testModule.exports.default;
+};
+
+const loadReactNativeBackgroundRepeatParser = () => (
+  loadReactNativeSimpleStyleParser(reactNativeBackgroundRepeatParserPath)
+);
+const loadReactNativeBackgroundSizeParser = () => (
+  loadReactNativeSimpleStyleParser(reactNativeBackgroundSizeParserPath)
+);
+const loadReactNativeBackgroundPositionParser = () => (
+  loadReactNativeSimpleStyleParser(reactNativeBackgroundPositionParserPath)
+);
+
 test('normalizes legacy string stops to safe colors and locations', () => {
   assert.deepEqual(
     colors.normalizeGradientStops({ colors: ['#4facfe', '#00f2fe'] }),
@@ -125,6 +177,38 @@ test('preserves valid object stop locations and repairs broken ones', () => {
     }).map((stop) => stop.position),
     [0, 1],
   );
+});
+
+test('adds perceptually even intermediate stops without changing saved endpoints', () => {
+  const stops = colors.createPerceptualGradientStops({
+    colors: ['#4f46ff', '#ff007a'],
+  });
+
+  assert.equal(stops.length, 7);
+  assert.deepEqual(stops[0], { color: 'rgb(79, 70, 255)', position: 0 });
+  assert.deepEqual(stops.at(-1), { color: 'rgb(255, 0, 122)', position: 1 });
+  assert.equal(stops[3].position, 0.5);
+  assert.notEqual(
+    stops[3].color,
+    require('tinycolor2').mix('#4f46ff', '#ff007a', 50).toRgbString(),
+  );
+
+  assert.equal(
+    colors.createPerceptualGradientStops({ colors: ['transparent', '#000'] }).length,
+    2,
+  );
+});
+
+test('softly attracts angle changes to cardinal values and snaps only near them', () => {
+  assert.equal(angles.applySoftCardinalMagnet(90), 90);
+  assert.equal(angles.applySoftCardinalMagnet(91.5), 90);
+  assert.ok(angles.applySoftCardinalMagnet(95) < 95);
+  assert.ok(angles.applySoftCardinalMagnet(98) < 98);
+  assert.ok(angles.applySoftCardinalMagnet(98) > 90);
+  assert.equal(angles.applySoftCardinalMagnet(101), 101);
+  assert.equal(angles.snapGradientAngleOnRelease(264.5), 270);
+  assert.equal(angles.snapGradientAngleOnRelease(263), 263);
+  assert.equal(angles.clampGradientSliderAngle(360), 0);
 });
 
 test('keeps white as the card default and switches only for consistently light surfaces', () => {
@@ -166,17 +250,55 @@ test('builds a Fabric-native background image instead of an absolute native grad
     ],
   };
 
-  assert.deepEqual(ios.getGradientBackgroundStyle(gradient), {
-    backgroundColor: 'rgb(79, 172, 254)',
+  const smoothStyle = ios.getGradientBackgroundStyle(gradient);
+  const iosStyle = ios.getGradientBackgroundStyle(gradient, null, { smoothColors: false });
+  const webStyle = web.getGradientBackgroundStyle(gradient, null, { smoothColors: false });
+  assert.equal(
+    loadReactNativeBackgroundParser()(smoothStyle.experimental_backgroundImage)[0].colorStops.length,
+    7,
+  );
+
+  assert.deepEqual(iosStyle, {
     experimental_backgroundImage: 'linear-gradient(90deg, rgb(79, 172, 254) 0%, rgb(0, 242, 254) 100%)',
+    experimental_backgroundSize: '102% 102%',
+    experimental_backgroundPosition: 'center',
+    experimental_backgroundRepeat: 'no-repeat',
   });
   assert.equal(
-    web.getGradientBackgroundStyle(gradient).backgroundImage,
+    webStyle.backgroundImage,
     'linear-gradient(90deg, rgb(79, 172, 254) 0%, rgb(0, 242, 254) 100%)',
+  );
+  assert.equal(webStyle.backgroundRepeat, 'no-repeat');
+  assert.equal(webStyle.backgroundColor, undefined);
+
+  assert.deepEqual(
+    loadReactNativeBackgroundRepeatParser()(
+      iosStyle.experimental_backgroundRepeat,
+    ),
+    [{ x: 'no-repeat', y: 'no-repeat' }],
+  );
+  assert.deepEqual(
+    loadReactNativeBackgroundSizeParser()(
+      iosStyle.experimental_backgroundSize,
+    ),
+    [{ x: '102%', y: '102%' }],
+  );
+  assert.deepEqual(
+    loadReactNativeBackgroundPositionParser()(
+      iosStyle.experimental_backgroundPosition,
+    ),
+    [{ top: '50%', left: '50%' }],
+  );
+  assert.deepEqual(
+    ios.getGradientSurfaceStyle({
+      colors: ['not-a-color'],
+      fallbackColor: '#fff',
+    }),
+    { backgroundColor: 'rgb(255, 255, 255)' },
   );
 
   const parsedByReactNative = loadReactNativeBackgroundParser()(
-    ios.getGradientBackgroundStyle(gradient).experimental_backgroundImage,
+    iosStyle.experimental_backgroundImage,
   );
   assert.equal(parsedByReactNative.length, 1);
   assert.deepEqual(parsedByReactNative[0].direction, { type: 'angle', value: 90 });
@@ -210,8 +332,12 @@ test('supports point directions, layered surfaces, and alpha without a second re
 
   const iosStyle = ios.getGradientSurfaceStyle({ layers, fallbackColor: '#fff' });
   const webStyle = web.getGradientSurfaceStyle({ layers, fallbackColor: '#fff' });
-  assert.equal(iosStyle.backgroundColor, 'rgb(255, 255, 255)');
+  assert.equal(iosStyle.backgroundColor, undefined);
   assert.equal(webStyle.backgroundImage, iosStyle.experimental_backgroundImage);
+  assert.equal(iosStyle.experimental_backgroundSize, '102% 102%');
+  assert.equal(iosStyle.experimental_backgroundPosition, 'center');
+  assert.equal(iosStyle.experimental_backgroundRepeat, 'no-repeat');
+  assert.equal(webStyle.backgroundRepeat, 'no-repeat');
 
   const parsedByReactNative = loadReactNativeBackgroundParser()(
     iosStyle.experimental_backgroundImage,
@@ -246,6 +372,9 @@ test('all UI gradient call sites use the shared surface component', () => {
 
   assert.match(gradientSource, /normalizeGradientStops\(gradient\)/);
   assert.match(gradientSource, /experimental_backgroundImage: backgroundImage/);
+  assert.match(gradientSource, /experimental_backgroundSize: "102% 102%"/);
+  assert.match(gradientSource, /experimental_backgroundPosition: "center"/);
+  assert.match(gradientSource, /experimental_backgroundRepeat: "no-repeat"/);
   assert.match(gradientSource, /component: Component = View/);
   assert.match(gradientSource, /const composedStyle = typeof style === "function"/);
   assert.match(gridSource, /<GradientBackground[\s\S]*component=\{TouchableOpacity\}[\s\S]*gradient=\{item\}/);
@@ -256,6 +385,8 @@ test('all UI gradient call sites use the shared surface component', () => {
   assert.match(breakCardSource, /<GradientBackground[\s\S]*gradientOpacity=\{bgOpacity\}/);
   assert.match(taskEditorSource, /<GradientBackground[\s\S]*gradientOpacity=\{0\.1\}/);
   assert.match(mainScreenSource, /<GradientBackground[\s\S]*gradient=\{gradient\}[\s\S]*fallbackColor=\{color\}/);
+  assert.doesNotMatch(gridSource, /gradientTile:\s*\{[^}]*borderWidth/);
+  assert.doesNotMatch(mainScreenSource, /colorPreview:\s*\{[^}]*borderWidth/);
   for (const source of migratedGradientSources) {
     assert.doesNotMatch(source, /expo-linear-gradient/);
     assert.match(source, /GradientBackground/);

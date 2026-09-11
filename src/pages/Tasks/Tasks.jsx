@@ -28,9 +28,9 @@ import {
 import tinycolor from "tinycolor2";
 
 import AppBlur from "../../components/ui/AppBlur";
-import AttachmentImagePreview from "../../components/attachments/AttachmentImagePreview";
 import GradientBackground from "../../components/ui/GradientBackground";
 import LessonViewer from "../Schedule/components/LessonViewer";
+import { useAttachmentImagePreview } from "../../context/AttachmentImagePreviewContext";
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
 import { getIconComponent } from "../../config/subjectIcons";
@@ -542,7 +542,7 @@ function TaskCard({
 }) {
   const { task, subject, links, attachments, scheduleId, scheduleColor, activeGradient } = entry;
   const completed = task?.completed === true;
-  const [previewAttachment, setPreviewAttachment] = useState(null);
+  const { openImagePreview } = useAttachmentImagePreview();
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   const collapseProgress = useRef(new Animated.Value(completed ? 1 : 0)).current;
   const normalizedLessonRef = normalizeLessonRef(task?.lessonRef, scheduleId);
@@ -671,7 +671,12 @@ function TaskCard({
     try {
       triggerHaptic("open");
       if (isImageAttachment(attachment)) {
-        setPreviewAttachment(attachment);
+        openImagePreview({
+          attachment,
+          attachments,
+          themeColors,
+          lang,
+        });
         return;
       }
       await openAttachment(attachment);
@@ -855,14 +860,6 @@ function TaskCard({
         </Animated.View>
       </View>
     </GradientBackground>
-    <AttachmentImagePreview
-      visible={!!previewAttachment}
-      attachment={previewAttachment}
-      attachments={attachments}
-      onClose={() => setPreviewAttachment(null)}
-      themeColors={themeColors}
-      lang={lang}
-    />
     </>
   );
 }

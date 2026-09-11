@@ -782,8 +782,6 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.1)",
   },
   emptyContainer: {
     paddingVertical: 14,

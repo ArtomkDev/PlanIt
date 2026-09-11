@@ -18,6 +18,7 @@ import MainLayout from "./layouts/MainLayout";
 import LegalDocumentScreen from "./pages/Settings/components/LegalDocumentScreen";
 import { ScheduleProvider } from "./context/ScheduleProvider";
 import { EditorProvider } from "./context/EditorProvider";
+import { AttachmentImagePreviewProvider } from "./context/AttachmentImagePreviewContext";
 import { registerDevice, listenForDeviceRemoval } from "./utils/deviceService";
 import { consumeManualLogin, setManualLogin } from "./utils/authFlags";
 import useAppLanguage from './hooks/useAppLanguage';
@@ -183,14 +184,14 @@ export default function RootApp() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
       <SafeAreaProvider>
-        <AdsProvider>
-          <ScheduleProvider
-            key={user?.uid || (guest ? 'guest' : 'signed-out')}
-            guest={guest}
-            user={user}
-          >
-            <BottomSheetModalProvider>
-              <NavigationContainer
+        <AttachmentImagePreviewProvider key={user?.uid || (guest ? 'guest' : 'signed-out')}>
+          <AdsProvider>
+            <ScheduleProvider
+              guest={guest}
+              user={user}
+            >
+              <BottomSheetModalProvider>
+                <NavigationContainer
                 ref={navigationRef}
                 linking={linking}
                 theme={AppDarkTheme}
@@ -209,8 +210,8 @@ export default function RootApp() {
                   }
                   routeNameRef.current = currentRouteName;
                 }}
-              >
-                <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
+                >
+                  <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
                   {user || guest ? (
                     <Stack.Screen name="MainLayout">
                       {(props) => (
@@ -242,12 +243,13 @@ export default function RootApp() {
                     )}
                   </Stack.Screen>
                   <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
-                </Stack.Navigator>
-              </NavigationContainer>
-            </BottomSheetModalProvider>
-          </ScheduleProvider>
-        </AdsProvider>
-        <CookieConsentBanner lang={lang} />
+                  </Stack.Navigator>
+                </NavigationContainer>
+              </BottomSheetModalProvider>
+            </ScheduleProvider>
+          </AdsProvider>
+          <CookieConsentBanner lang={lang} />
+        </AttachmentImagePreviewProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

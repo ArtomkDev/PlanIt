@@ -6,19 +6,83 @@ import TabSwitcher from "../../../../../components/ui/TabSwitcher";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
+import {
+  applySoftCardinalMagnet,
+  CARDINAL_GRADIENT_ANGLES,
+  clampGradientSliderAngle,
+  getCardinalSnapTarget,
+  GRADIENT_ANGLE_MAX,
+  GRADIENT_ANGLE_RELEASE_RADIUS,
+  snapGradientAngleOnRelease,
+} from "../../../../../utils/gradientAngles";
 
 const HUE_COLORS = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000'];
 const HUE_INDICATOR_WIDTH = 32;
 const ANGLE_THUMB_SIZE = 24;
+const ANGLE_ACCESSIBILITY_STEP = 5;
 
 const AngleSlider = ({ value, onChange, themeColors, accessibilityLabel }) => {
   const [trackWidth, setTrackWidth] = useState(0);
+  const gestureStartX = useRef(0);
+  const rawAngleRef = useRef(clampGradientSliderAngle(value));
+  const snappedTargetRef = useRef(null);
+  const pendingAngleRef = useRef(clampGradientSliderAngle(value));
+  const frameRef = useRef(null);
+
+  const emitAngle = useCallback((nextAngle, immediate = false) => {
+    pendingAngleRef.current = nextAngle;
+
+    if (immediate) {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      onChange(nextAngle);
+      return;
+    }
+
+    if (frameRef.current !== null) return;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      onChange(pendingAngleRef.current);
+    });
+  }, [onChange]);
+
+  useEffect(() => () => {
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+  }, []);
 
   const updateAngle = useCallback((x) => {
     if (trackWidth <= 0 || !Number.isFinite(x)) return;
     const clampedX = Math.max(0, Math.min(x, trackWidth));
-    onChange(Math.round((clampedX / trackWidth) * 360));
-  }, [onChange, trackWidth]);
+    const rawAngle = Math.min(
+      GRADIENT_ANGLE_MAX,
+      (clampedX / trackWidth) * 360,
+    );
+    const snapTarget = getCardinalSnapTarget(rawAngle);
+
+    rawAngleRef.current = rawAngle;
+    if (snapTarget !== null && snappedTargetRef.current !== snapTarget) {
+      snappedTargetRef.current = snapTarget;
+      triggerHaptic("selection", { key: `gradient-angle-${snapTarget}` });
+    } else if (snapTarget === null) {
+      snappedTargetRef.current = null;
+    }
+
+    emitAngle(applySoftCardinalMagnet(rawAngle));
+  }, [emitAngle, trackWidth]);
+
+  const finishAngleGesture = useCallback(() => {
+    const releasedAngle = snapGradientAngleOnRelease(rawAngleRef.current);
+    const releaseTarget = getCardinalSnapTarget(
+      rawAngleRef.current,
+      GRADIENT_ANGLE_RELEASE_RADIUS,
+    );
+
+    if (releaseTarget !== null && snappedTargetRef.current !== releaseTarget) {
+      triggerHaptic("selection", { key: `gradient-angle-${releaseTarget}` });
+    }
+    snappedTargetRef.current = null;
+    emitAngle(releasedAngle, true);
+  }, [emitAngle]);
 
   const anglePanResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -29,26 +93,54 @@ const AngleSlider = ({ value, onChange, themeColors, accessibilityLabel }) => {
     onShouldBlockNativeResponder: () => true,
     onPanResponderGrant: (event) => {
       triggerHaptic("dragStart", { key: "gradient-angle-slider" });
-      updateAngle(event.nativeEvent.locationX);
+      gestureStartX.current = event.nativeEvent.locationX;
+      updateAngle(gestureStartX.current);
     },
-    onPanResponderMove: (event) => {
-      updateAngle(event.nativeEvent.locationX);
+    onPanResponderMove: (_, gestureState) => {
+      updateAngle(gestureStartX.current + gestureState.dx);
     },
-  }), [updateAngle]);
+    onPanResponderRelease: finishAngleGesture,
+    onPanResponderTerminate: finishAngleGesture,
+  }), [finishAngleGesture, updateAngle]);
 
-  const progress = trackWidth > 0 ? Math.max(0, Math.min(value, 360)) / 360 : 0;
+  const handleAccessibilityAction = useCallback((event) => {
+    const direction = event.nativeEvent.actionName === "increment" ? 1 : -1;
+    const rawAngle = clampGradientSliderAngle(
+      Number(value) + direction * ANGLE_ACCESSIBILITY_STEP,
+    );
+    rawAngleRef.current = rawAngle;
+    emitAngle(applySoftCardinalMagnet(rawAngle), true);
+  }, [emitAngle, value]);
+
+  const displayedAngle = clampGradientSliderAngle(value);
+  const progress = trackWidth > 0 ? displayedAngle / 360 : 0;
 
   return (
     <View
       style={styles.angleSliderTouchArea}
       accessibilityRole="adjustable"
       accessibilityLabel={accessibilityLabel}
-      accessibilityValue={{ min: 0, max: 360, now: Math.round(value) }}
+      accessibilityValue={{ min: 0, max: GRADIENT_ANGLE_MAX, now: Math.round(displayedAngle) }}
+      accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+      onAccessibilityAction={handleAccessibilityAction}
       onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
       {...anglePanResponder.panHandlers}
     >
       <View style={[styles.angleTrack, { backgroundColor: themeColors.backgroundColor3 }]}>
         <View style={[styles.angleTrackFill, { width: `${progress * 100}%`, backgroundColor: themeColors.accentColor }]} />
+        {CARDINAL_GRADIENT_ANGLES.map((cardinalAngle) => (
+          <View
+            key={cardinalAngle}
+            pointerEvents="none"
+            style={[
+              styles.angleTick,
+              {
+                left: `${(cardinalAngle / 360) * 100}%`,
+                backgroundColor: themeColors.textColor,
+              },
+            ]}
+          />
+        ))}
       </View>
       {trackWidth > 0 && (
         <View
@@ -62,6 +154,22 @@ const AngleSlider = ({ value, onChange, themeColors, accessibilityLabel }) => {
           ]}
         />
       )}
+      <View pointerEvents="none" style={styles.angleScale}>
+        {CARDINAL_GRADIENT_ANGLES.map((cardinalAngle) => (
+          <Text
+            key={cardinalAngle}
+            style={[
+              styles.angleScaleLabel,
+              {
+                left: `${(cardinalAngle / 360) * 100}%`,
+                color: themeColors.textColor2,
+              },
+            ]}
+          >
+            {cardinalAngle}°
+          </Text>
+        ))}
+      </View>
     </View>
   );
 };
@@ -136,14 +244,14 @@ const InlineColorPicker = ({ initialColor, onChange, themeColors, accessibilityL
         style={[styles.saturationValuePicker, { borderColor: themeColors.borderColor }]}
         fallbackColor="#fff"
         layers={[
-          { colors: ['transparent', '#000'], angle: 90 },
-          { colors: ['#fff', tinycolor({ h: hsv.h, s: 1, v: 1 }).toHexString()], angle: 0 },
+          { colors: ['transparent', '#000'], angle: 90, smoothColors: false },
+          { colors: ['#fff', tinycolor({ h: hsv.h, s: 1, v: 1 }).toHexString()], angle: 0, smoothColors: false },
         ]}
       >
         {pickerSize.width > 0 && <View style={[styles.pickerIndicator, { top: (1 - hsv.v) * pickerSize.height - 12, left: hsv.s * pickerSize.width - 12 }]} />}
       </GradientBackground>
       <View accessibilityRole="adjustable" accessibilityLabel={accessibilityLabel + " hue"} onLayout={(e) => setHueSliderWidth(e.nativeEvent.layout.width)} {...huePanResponder.panHandlers} style={styles.hueSliderContainer}>
-        <GradientBackground colors={HUE_COLORS} angle={0} style={styles.hueSlider} />
+        <GradientBackground colors={HUE_COLORS} angle={0} smoothColors={false} style={styles.hueSlider} />
         {hueSliderWidth > 0 && <View style={[styles.hueIndicator, { left: (hsv.h / 360) * hueSliderWidth - (HUE_INDICATOR_WIDTH / 2), backgroundColor: tinycolor(hsv).toHexString() }]} />}
       </View>
     </View>
@@ -163,7 +271,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
 
   const [color1, setColor1] = useState(() => getInitialColor(0, "#4facfe"));
   const [color2, setColor2] = useState(() => getInitialColor(1, "#00f2fe"));
-  const [angle, setAngle] = useState(() => gradientToEdit?.angle ?? 90);
+  const [angle, setAngle] = useState(() => clampGradientSliderAngle(gradientToEdit?.angle ?? 90));
   const [activeTab, setActiveTab] = useState(0); 
 
   useEffect(() => {
@@ -172,7 +280,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
       const c2 = typeof gradientToEdit.colors[1] === 'string' ? gradientToEdit.colors[1] : gradientToEdit.colors[1]?.color;
       setColor1(c1 || "#4facfe");
       setColor2(c2 || "#00f2fe");
-      setAngle(gradientToEdit.angle ?? 90);
+      setAngle(clampGradientSliderAngle(gradientToEdit.angle ?? 90));
     }
   }, [gradientToEdit]);
 
@@ -181,7 +289,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
       ...gradientToEdit,
       id: gradientToEdit ? gradientToEdit.id : Date.now(),
       type: "linear",
-      angle: Math.round(angle),
+      angle: Math.round(clampGradientSliderAngle(angle)),
       colors: [ { color: color1, position: 0 }, { color: color2, position: 1 } ],
     };
     onSave(newGradient);
@@ -203,7 +311,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
       <View style={styles.sliderContainer}>
         <View style={styles.sliderHeader}>
           <Text style={[styles.label, { color: themeColors.textColor }]}>{t('schedule.lesson_editor.gradient_angle', lang)}</Text>
-          <Text style={[styles.value, { color: themeColors.accentColor }]}>{Math.round(angle)}°</Text>
+          <Text style={[styles.value, { color: themeColors.accentColor }]}>{Math.round(clampGradientSliderAngle(angle))}°</Text>
         </View>
         <View style={styles.sliderTrackWrapper} onStartShouldSetResponder={() => true} onResponderTerminationRequest={() => false}>
           <AngleSlider value={angle} onChange={setAngle} themeColors={themeColors} accessibilityLabel={t('schedule.lesson_editor.gradient_angle', lang)} />
@@ -243,12 +351,13 @@ const styles = StyleSheet.create({
   label: { fontSize: 15, fontWeight: "600" },
   value: { fontWeight: "bold", fontSize: 15 },
   sliderTrackWrapper: { paddingHorizontal: 5 },
-  angleSliderTouchArea: { minHeight: 44, justifyContent: "center", position: "relative" },
+  angleSliderTouchArea: { minHeight: 62, paddingTop: 12, position: "relative" },
   angleTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
   angleTrackFill: { height: "100%", borderRadius: 4 },
+  angleTick: { position: "absolute", top: 1, bottom: 1, width: 1, opacity: 0.38 },
   angleThumb: {
     position: "absolute",
-    top: 8,
+    top: 4,
     width: ANGLE_THUMB_SIZE,
     height: ANGLE_THUMB_SIZE,
     borderRadius: ANGLE_THUMB_SIZE / 2,
@@ -259,6 +368,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
+  },
+  angleScale: { height: 18, marginTop: 7, position: "relative" },
+  angleScaleLabel: {
+    position: "absolute",
+    width: 42,
+    marginLeft: -21,
+    fontSize: 10,
+    fontWeight: "600",
+    textAlign: "center",
+    opacity: 0.72,
   },
   inlinePickerContainer: { flex: 1, marginBottom: 20 },
   saturationValuePicker: { flex: 1, minHeight: 180, borderRadius: 16, overflow: 'hidden', borderWidth: 1 },

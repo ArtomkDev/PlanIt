@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const DEFAULT_SNAP_POINTS = ["48%", "90%"];
 const DESKTOP_BREAKPOINT = 768;
+const BOTTOM_SHEET_LAYER = 1000;
 
 const BottomSheet = forwardRef(function BottomSheet(
   {
@@ -265,13 +266,13 @@ export const SheetFlatList = forwardRef(function SheetFlatList(
 
 const styles = StyleSheet.create({
   modalContainer: {
-    zIndex: 10000,
+    zIndex: BOTTOM_SHEET_LAYER,
     ...Platform.select({
       web: {
         overscrollBehavior: "contain",
       },
       default: {
-        elevation: 10000,
+        elevation: BOTTOM_SHEET_LAYER,
       },
     }),
   },

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import {
   View,
   Text,
@@ -45,7 +45,7 @@ import {
 } from "../../../utils/contactData";
 import { calculateScheduleWeek, getScheduleDayIndex } from "../../../utils/scheduleTime";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
-import AttachmentImagePreview from "../../../components/attachments/AttachmentImagePreview";
+import { useAttachmentImagePreview } from "../../../context/AttachmentImagePreviewContext";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
   deleteLocalAttachmentCaches,
@@ -74,7 +74,7 @@ export default function LessonViewer({
   const { setScheduleDraft } = useScheduleActions();
   const daySchedule = useOptionalDaySchedule();
   const insets = useSafeAreaInsets();
-  const [previewAttachment, setPreviewAttachment] = useState(null);
+  const { openImagePreview } = useAttachmentImagePreview();
   const suppressedContactPressRef = useRef(null);
 
   if (!lesson) return null;
@@ -184,7 +184,12 @@ export default function LessonViewer({
     try {
       triggerHaptic("open");
       if (!download && isImageAttachment(attachment)) {
-        setPreviewAttachment(attachment);
+        openImagePreview({
+          attachment,
+          attachments: displayAttachments,
+          themeColors,
+          lang,
+        });
         return;
       }
       await openAttachment(attachment, { download });
@@ -634,14 +639,6 @@ export default function LessonViewer({
           </View>
 
     </BottomSheet>
-    <AttachmentImagePreview
-      visible={!!previewAttachment}
-      attachment={previewAttachment}
-      attachments={displayAttachments}
-      onClose={() => setPreviewAttachment(null)}
-      themeColors={themeColors}
-      lang={lang}
-    />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import React from "react";
 import { Platform, View } from "react-native";
 import {
+  createPerceptualGradientStops,
   multiplyColorAlpha,
   normalizeGradientStops,
   resolveValidColor,
@@ -64,7 +65,11 @@ export const createGradientDefinition = ({
   };
 };
 
-const resolveLayer = (layer, fallbackOpacity = 1) => {
+const resolveLayer = (
+  layer,
+  fallbackOpacity = 1,
+  fallbackSmoothColors = true,
+) => {
   if (!layer) return null;
 
   const gradient = layer.gradient
@@ -72,9 +77,14 @@ const resolveLayer = (layer, fallbackOpacity = 1) => {
       Array.isArray(layer.colors)
         ? createGradientDefinition(layer)
         : layer
-    );
+  );
   const opacity = layer.opacity ?? fallbackOpacity;
-  const stops = normalizeGradientStops(gradient).map((stop) => ({
+  const normalizedStops = normalizeGradientStops(gradient);
+  const smoothColors = layer.smoothColors ?? fallbackSmoothColors;
+  const displayStops = smoothColors
+    ? createPerceptualGradientStops(normalizedStops)
+    : normalizedStops;
+  const stops = displayStops.map((stop) => ({
     ...stop,
     color: multiplyColorAlpha(stop.color, opacity, stop.color),
   }));
@@ -105,13 +115,14 @@ export const getGradientSurfaceStyle = ({
   start,
   end,
   gradientOpacity = 1,
+  smoothColors = true,
   fallbackColor = null,
 } = {}) => {
   const layerInputs = Array.isArray(layers) && layers.length > 0
     ? layers
     : [
       gradient
-        ? { gradient, opacity: gradientOpacity }
+        ? { gradient, opacity: gradientOpacity, smoothColors }
         : {
           colors,
           locations,
@@ -120,10 +131,11 @@ export const getGradientSurfaceStyle = ({
           start,
           end,
           opacity: gradientOpacity,
+          smoothColors,
         },
     ];
   const resolvedLayers = layerInputs
-    .map((layer) => resolveLayer(layer, gradientOpacity))
+    .map((layer) => resolveLayer(layer, gradientOpacity, smoothColors))
     .filter(Boolean);
   const automaticFallback = [...resolvedLayers]
     .reverse()
@@ -142,8 +154,21 @@ export const getGradientSurfaceStyle = ({
   }
 
   return Platform.OS === "web"
-    ? { backgroundColor: resolvedFallback, backgroundImage }
-    : { backgroundColor: resolvedFallback, experimental_backgroundImage: backgroundImage };
+    ? {
+      backgroundImage,
+      backgroundRepeat: "no-repeat",
+    }
+    : {
+      experimental_backgroundImage: backgroundImage,
+      // Overscan the native tile symmetrically so fractional device pixels
+      // cannot reveal the surface underneath at any rounded edge.
+      experimental_backgroundSize: "102% 102%",
+      experimental_backgroundPosition: "center",
+      // React Native defaults experimental backgrounds to `repeat`. Fractional
+      // physical pixels can then expose a repeated first/last gradient row as a
+      // bright seam along rounded cards and small previews.
+      experimental_backgroundRepeat: "no-repeat",
+    };
 };
 
 export const getGradientBackgroundStyle = (
@@ -163,6 +188,7 @@ const GradientBackground = React.forwardRef(function GradientBackground({
   start,
   end,
   gradientOpacity = 1,
+  smoothColors = true,
   fallbackColor = null,
   style,
   children,
@@ -178,6 +204,7 @@ const GradientBackground = React.forwardRef(function GradientBackground({
     start,
     end,
     gradientOpacity,
+    smoothColors,
     fallbackColor,
   });
   const composedStyle = typeof style === "function"
