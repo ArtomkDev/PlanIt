@@ -22,6 +22,7 @@ import Animated, { FadeInDown, ZoomOut } from "react-native-reanimated";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import MorphingLoader from "../../../components/ui/MorphingLoader";
+import ScheduleIcon from "../../../components/ScheduleIcon";
 import themes from "../../../config/themes"; 
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
@@ -389,25 +390,15 @@ const ScheduleSwitcher = () => {
                         },
                       ]}
                     >
-                      <View
-                        style={[
-                          styles.monogram,
-                          {
-                            backgroundColor: isSelected
-                              ? itemColor
-                              : scheduleColorWithAlpha(itemColor, 0.16),
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.monogramText,
-                            { color: isSelected ? "#fff" : itemColor },
-                          ]}
-                        >
-                          {scheduleName.trim().charAt(0).toUpperCase() || "."}
-                        </Text>
-                      </View>
+                      <ScheduleIcon
+                        icon={s.icon}
+                        name={scheduleName}
+                        backgroundColor={isSelected
+                          ? itemColor
+                          : scheduleColorWithAlpha(itemColor, 0.16)}
+                        color={isSelected ? "#fff" : itemColor}
+                        style={styles.monogram}
+                      />
 
                       <View style={styles.scheduleText}>
                         <Text
@@ -566,16 +557,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   monogram: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 12,
-  },
-  monogramText: {
-    fontSize: 16,
-    fontWeight: '800',
   },
   scheduleText: {
     flex: 1,

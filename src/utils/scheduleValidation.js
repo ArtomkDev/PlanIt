@@ -506,6 +506,7 @@ const sanitizeScheduleCore = (input, options = {}, metadata) => {
   };
 
   pushIfDefined(schedule, "color", options.shareGradients === false ? undefined : cleanColor(input.color));
+  pushIfDefined(schedule, "icon", cleanOptionalString(input.icon, LIMITS.icon));
 
   return compactRefs(schedule);
 };

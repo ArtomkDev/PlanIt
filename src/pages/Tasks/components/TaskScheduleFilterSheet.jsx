@@ -10,6 +10,7 @@ import { CalendarDots, CheckSquare, Square, X } from "phosphor-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
+import ScheduleIcon from "../../../components/ScheduleIcon";
 import themes from "../../../config/themes";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { t } from "../../../utils/i18n";
@@ -182,20 +183,15 @@ export default function TaskScheduleFilterSheet({
                 },
               ]}
             >
-              <View
-                style={[
-                  styles.monogram,
-                  {
-                    backgroundColor: isSelected
-                      ? itemColor
-                      : scheduleColorWithAlpha(itemColor, 0.16),
-                  },
-                ]}
-              >
-                <Text style={[styles.monogramText, { color: isSelected ? "#fff" : itemColor }]}>
-                  {name.trim().charAt(0).toUpperCase() || "."}
-                </Text>
-              </View>
+              <ScheduleIcon
+                icon={item.icon}
+                name={name}
+                backgroundColor={isSelected
+                  ? itemColor
+                  : scheduleColorWithAlpha(itemColor, 0.16)}
+                color={isSelected ? "#fff" : itemColor}
+                style={styles.monogram}
+              />
 
               <Text
                 numberOfLines={1}
@@ -293,16 +289,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   monogram: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
     marginRight: 12,
-  },
-  monogramText: {
-    fontSize: 16,
-    fontWeight: "800",
   },
   scheduleName: {
     flex: 1,

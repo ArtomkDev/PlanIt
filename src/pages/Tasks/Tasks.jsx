@@ -29,6 +29,7 @@ import tinycolor from "tinycolor2";
 
 import AppBlur from "../../components/ui/AppBlur";
 import GradientBackground from "../../components/ui/GradientBackground";
+import ScheduleIcon from "../../components/ScheduleIcon";
 import LessonViewer from "../Schedule/components/LessonViewer";
 import { useAttachmentImagePreview } from "../../context/AttachmentImagePreviewContext";
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
@@ -63,6 +64,7 @@ import {
 import TaskEditor from "./components/TaskEditor";
 import TaskScheduleFilterSheet from "./components/TaskScheduleFilterSheet";
 import { triggerHaptic } from "../../utils/haptics";
+import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
 import {
   formatFileSize,
   isImageAttachment,
@@ -478,6 +480,10 @@ const TaskIconPattern = React.memo(({ Icon, color, width, height, collapseProgre
 
   const motionStyle = collapseProgress
     ? {
+      opacity: collapseProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0],
+      }),
       transform: [
         {
           translateY: collapseProgress.interpolate({
@@ -531,11 +537,84 @@ const TaskIconPattern = React.memo(({ Icon, color, width, height, collapseProgre
   );
 });
 
+function TaskCheckboxIcon({ checked, checkedColor, uncheckedColor, reduceMotion }) {
+  const [displayedChecked, setDisplayedChecked] = useState(checked);
+  const displayedCheckedRef = useRef(checked);
+  const transitionIdRef = useRef(0);
+  const visibility = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const transitionId = transitionIdRef.current + 1;
+    transitionIdRef.current = transitionId;
+    visibility.stopAnimation();
+
+    if (reduceMotion || displayedCheckedRef.current === checked) {
+      displayedCheckedRef.current = checked;
+      setDisplayedChecked(checked);
+      visibility.setValue(1);
+      return undefined;
+    }
+
+    Animated.timing(visibility, {
+      toValue: 0,
+      duration: 80,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished || transitionIdRef.current !== transitionId) return;
+
+      displayedCheckedRef.current = checked;
+      setDisplayedChecked(checked);
+      visibility.setValue(0.2);
+      Animated.timing(visibility, {
+        toValue: 1,
+        duration: 140,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
+
+    return () => {
+      transitionIdRef.current += 1;
+      visibility.stopAnimation();
+    };
+  }, [checked, reduceMotion, visibility]);
+
+  const Icon = displayedChecked ? CheckSquare : Square;
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.checkboxIcon,
+        {
+          opacity: visibility,
+          transform: [
+            {
+              scale: visibility.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.88, 1],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
+      <Icon
+        size={30}
+        color={displayedChecked ? checkedColor : uncheckedColor}
+        weight={displayedChecked ? "fill" : "regular"}
+      />
+    </Animated.View>
+  );
+}
+
 function TaskCard({
   entry,
   themeColors,
   themeMode,
   lang,
+  reduceMotion,
   onPress,
   onToggle,
   onLinkedLessonPress,
@@ -569,6 +648,9 @@ function TaskCard({
     : (completed ? "rgba(17,24,39,0.26)" : "rgba(17,24,39,0.18)");
   const titleLabel = subject?.name || t("tasks.no_subject", lang);
   const SubjectIcon = getIconComponent(subject?.icon);
+  const CompletedSubjectIcon = SubjectIcon || ClipboardText;
+  const [renderPattern, setRenderPattern] = useState(Boolean(SubjectIcon && !completed));
+  const [renderCompletedIcon, setRenderCompletedIcon] = useState(completed);
   const iconPatternOpacity = usesLightText ? 0.18 : 0.07;
   const textShadowStyle = usesLightText
     ? null
@@ -611,25 +693,16 @@ function TaskCard({
       outputRange: [0, COMPLETED_CARD_OVERLAY_OPACITY],
     }),
   };
-  const uncheckedIconStyle = {
-    opacity: collapseProgress.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [1, 0, 0],
+  const completedSubjectIconStyle = {
+    width: collapseProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 24],
     }),
-    transform: [
-      {
-        scale: collapseProgress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1, 0.86],
-        }),
-      },
-    ],
-  };
-  const checkedIconStyle = {
-    opacity: collapseProgress.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [0, 1, 1],
+    marginRight: collapseProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 8],
     }),
+    opacity: collapseProgress,
     transform: [
       {
         scale: collapseProgress.interpolate({
@@ -641,13 +714,37 @@ function TaskCard({
   };
 
   useEffect(() => {
+    let active = true;
+
+    if (completed) setRenderCompletedIcon(true);
+    else setRenderPattern(Boolean(SubjectIcon));
+
+    if (reduceMotion) {
+      collapseProgress.setValue(completed ? 1 : 0);
+      setRenderPattern(Boolean(SubjectIcon && !completed));
+      setRenderCompletedIcon(completed);
+      return () => {
+        active = false;
+      };
+    }
+
+    collapseProgress.stopAnimation();
     Animated.timing(collapseProgress, {
       toValue: completed ? 1 : 0,
       duration: 230,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
-    }).start();
-  }, [collapseProgress, completed]);
+    }).start(({ finished }) => {
+      if (!active || !finished) return;
+      setRenderPattern(Boolean(SubjectIcon && !completed));
+      setRenderCompletedIcon(completed);
+    });
+
+    return () => {
+      active = false;
+      collapseProgress.stopAnimation();
+    };
+  }, [collapseProgress, completed, reduceMotion, SubjectIcon]);
 
   const handleLinkPress = async (link) => {
     if (!link?.url) return;
@@ -717,7 +814,6 @@ function TaskCard({
   }, []);
 
   return (
-    <>
     <GradientBackground
       component={AnimatedTouchableOpacity}
       gradient={activeGradient}
@@ -730,13 +826,15 @@ function TaskCard({
         animatedCardStyle,
       ]}
     >
-      <TaskIconPattern
-        Icon={SubjectIcon}
-        color={withAlpha(textOnCard, iconPatternOpacity)}
-        width={cardSize.width}
-        height={cardSize.height}
-        collapseProgress={collapseProgress}
-      />
+      {renderPattern && (
+        <TaskIconPattern
+          Icon={SubjectIcon}
+          color={withAlpha(textOnCard, iconPatternOpacity)}
+          width={cardSize.width}
+          height={cardSize.height}
+          collapseProgress={collapseProgress}
+        />
+      )}
       <Animated.View
         pointerEvents="none"
         style={[styles.completedCardOverlay, completedOverlayStyle]}
@@ -752,31 +850,40 @@ function TaskCard({
         hitSlop={10}
         style={styles.checkboxButton}
         accessibilityRole="checkbox"
+        accessibilityLabel={titleLabel}
         accessibilityState={{ checked: completed }}
       >
-        <View style={styles.checkboxIconSlot}>
-          <Animated.View style={[styles.checkboxIconLayer, uncheckedIconStyle]}>
-            <Square size={30} color={mutedTextOnCard} weight="regular" />
-          </Animated.View>
-          <Animated.View style={[styles.checkboxIconLayer, checkedIconStyle]}>
-            <CheckSquare size={30} color={textOnCard} weight="fill" />
-          </Animated.View>
-        </View>
+        <TaskCheckboxIcon
+          checked={completed}
+          checkedColor={textOnCard}
+          uncheckedColor={mutedTextOnCard}
+          reduceMotion={reduceMotion}
+        />
       </TouchableOpacity>
 
       <View style={styles.cardBody}>
         <View style={styles.metaRow}>
-          <Text
-            style={[
-              styles.subjectName,
-              { color: textOnCard },
-              styles.subjectNameSingle,
-              textShadowStyle,
-            ]}
-            numberOfLines={1}
-          >
-            {titleLabel}
-          </Text>
+          <View style={styles.subjectTitleRow}>
+            {renderCompletedIcon && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.completedSubjectIcon, completedSubjectIconStyle]}
+              >
+                <CompletedSubjectIcon size={22} color={textOnCard} weight="bold" />
+              </Animated.View>
+            )}
+            <Text
+              style={[
+                styles.subjectName,
+                { color: textOnCard },
+                styles.subjectNameSingle,
+                textShadowStyle,
+              ]}
+              numberOfLines={1}
+            >
+              {titleLabel}
+            </Text>
+          </View>
 
           {!!lessonTimeLabel && (
             <TouchableOpacity
@@ -860,7 +967,6 @@ function TaskCard({
         </Animated.View>
       </View>
     </GradientBackground>
-    </>
   );
 }
 
@@ -869,6 +975,7 @@ export default function Tasks({ route, navigation }) {
   const { setScheduleDraft, setData } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotionPreference();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = useMemo(() => themes.getColors(mode, accent), [mode, accent]);
@@ -1286,12 +1393,13 @@ export default function Tasks({ route, navigation }) {
         themeColors={themeColors}
         themeMode={mode}
         lang={lang}
+        reduceMotion={reduceMotion}
         onPress={() => openTask(entry)}
         onToggle={() => toggleCompleted(entry)}
         onLinkedLessonPress={() => openLinkedLesson(entry)}
       />
     );
-  }, [lang, mode, openLinkedLesson, openTask, themeColors, toggleCompleted]);
+  }, [lang, mode, openLinkedLesson, openTask, reduceMotion, themeColors, toggleCompleted]);
 
   const renderContent = () => {
     if (!schedules.length) {
@@ -1368,9 +1476,20 @@ export default function Tasks({ route, navigation }) {
               accessibilityRole="button"
               accessibilityLabel={t("tasks.filter.title", lang)}
             >
-              <View style={[styles.filterIcon, { backgroundColor: scheduleColorWithAlpha(filterColor, 0.16) }]}>
-                <CalendarDots size={18} color={filterColor} weight="bold" />
-              </View>
+              {singleSelectedSchedule ? (
+                <ScheduleIcon
+                  icon={singleSelectedSchedule.icon}
+                  name={selectedCountLabel}
+                  size={30}
+                  iconSize={18}
+                  backgroundColor={scheduleColorWithAlpha(filterColor, 0.16)}
+                  color={filterColor}
+                />
+              ) : (
+                <View style={[styles.filterIcon, { backgroundColor: scheduleColorWithAlpha(filterColor, 0.16) }]}>
+                  <CalendarDots size={18} color={filterColor} weight="bold" />
+                </View>
+              )}
               <Text style={[styles.filterLabel, { color: themeColors.textColor }]} numberOfLines={1}>
                 {selectedCountLabel}
               </Text>
@@ -1632,18 +1751,18 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-12deg" }],
   },
   checkboxButton: {
-    width: 38,
-    alignItems: "flex-start",
-    paddingTop: 2,
+    width: 44,
+    height: 44,
+    marginLeft: -5,
+    marginRight: 3,
+    alignSelf: "flex-start",
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 3,
   },
-  checkboxIconSlot: {
+  checkboxIcon: {
     width: 30,
     height: 30,
-    position: "relative",
-  },
-  checkboxIconLayer: {
-    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1655,9 +1774,19 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
-    rowGap: 6,
     columnGap: 8,
+  },
+  subjectTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  completedSubjectIcon: {
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
   subjectName: {
     fontSize: 14,

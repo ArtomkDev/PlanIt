@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Image as ExpoImage } from "expo-image";
 import {
   FlatList,
   Image,
@@ -69,6 +70,7 @@ const ZOOMED_EPSILON = 0.015;
 const WIDE_LAYOUT_WIDTH = 768;
 const EDGE_SWIPE_COMMIT_RATIO = 0.22;
 const EDGE_SWIPE_VELOCITY = 640;
+const IS_IOS = Platform.OS === "ios";
 const IS_ANDROID = Platform.OS === "android";
 const USE_ANDROID_NATIVE_PAGER = IS_ANDROID;
 const ANDROID_PAGER_RENDER_DISTANCE = 1;
@@ -671,6 +673,21 @@ function ZoomableImagePage({
   const cursorStyle = Platform.OS === "web" && uri
     ? { cursor: zoomActive ? "grab" : "zoom-in" }
     : null;
+  const handleImageLoad = (event) => {
+    loadedZoomImageKeys.add(imageLoadKey);
+    loadedImageKeyRef.current = imageLoadKey;
+    setLoadedImageKey(imageLoadKey);
+    setFailedImageSignature("");
+    const source = event?.source || event?.nativeEvent?.source;
+    if (source?.width && source?.height) {
+      setImageSize({ width: source.width, height: source.height });
+    }
+  };
+  const handleImageError = () => {
+    if (!loadedZoomImageKeys.has(imageLoadKey)) {
+      setFailedImageSignature(imageSignature);
+    }
+  };
 
   return (
     <GestureDetector gesture={imageGesture}>
@@ -703,28 +720,40 @@ function ZoomableImagePage({
           />
         )}
 
-        {!!uri && !imageFailed && (
+        {!!uri && !imageFailed && IS_IOS && (
+          <Animated.View
+            collapsable={false}
+            style={[
+              {
+                width: pageWidth,
+                height: pageHeight,
+              },
+              imageAnimatedStyle,
+            ]}
+          >
+            <ExpoImage
+              source={{ uri }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              recyclingKey={imageLoadKey}
+              transition={0}
+              useAppleWebpCodec={false}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              style={styles.image}
+            />
+          </Animated.View>
+        )}
+
+        {!!uri && !imageFailed && !IS_IOS && (
           <Animated.Image
             source={{ uri }}
             resizeMode="contain"
             resizeMethod={Platform.OS === "android" ? "resize" : undefined}
             progressiveRenderingEnabled={Platform.OS === "android"}
             fadeDuration={0}
-            onLoad={(event) => {
-              loadedZoomImageKeys.add(imageLoadKey);
-              loadedImageKeyRef.current = imageLoadKey;
-              setLoadedImageKey(imageLoadKey);
-              setFailedImageSignature("");
-              const source = event?.nativeEvent?.source;
-              if (source?.width && source?.height) {
-                setImageSize({ width: source.width, height: source.height });
-              }
-            }}
-            onError={() => {
-              if (!loadedZoomImageKeys.has(imageLoadKey)) {
-                setFailedImageSignature(imageSignature);
-              }
-            }}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
             style={[styles.image, imageAnimatedStyle]}
           />
         )}

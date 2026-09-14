@@ -50,6 +50,14 @@ const attachmentPreviewContextPath = path.resolve(
   __dirname,
   '../src/context/AttachmentImagePreviewContext.jsx',
 );
+const attachmentPreviewPath = path.resolve(
+  __dirname,
+  '../src/components/attachments/AttachmentImagePreview.jsx',
+);
+const stagedAttachmentImagePath = path.resolve(
+  __dirname,
+  '../src/components/attachments/StagedAttachmentImage.jsx',
+);
 const bottomSheetPath = path.resolve(
   __dirname,
   '../src/components/ui/BottomSheet.jsx',
@@ -252,6 +260,18 @@ test('hosts image previews above bottom sheets instead of nesting attachment mod
     assert.match(source, /useAttachmentImagePreview/);
     assert.doesNotMatch(source, /import AttachmentImagePreview/);
   });
+});
+
+test('uses the standard WebP decoder for iOS attachment images', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8'));
+  const previewSource = fs.readFileSync(attachmentPreviewPath, 'utf8');
+  const stagedSource = fs.readFileSync(stagedAttachmentImagePath, 'utf8');
+
+  assert.match(packageJson.dependencies['expo-image'], /^~57\.0\./);
+  assert.match(previewSource, /import \{ Image as ExpoImage \} from "expo-image";/);
+  assert.match(previewSource, /IS_IOS[\s\S]*?<ExpoImage[\s\S]*?useAppleWebpCodec=\{false\}/);
+  assert.match(stagedSource, /import \{ Image as ExpoImage \} from "expo-image";/);
+  assert.match(stagedSource, /IS_IOS[\s\S]*?<ExpoImage[\s\S]*?useAppleWebpCodec=\{false\}/);
 });
 
 test('keeps notification movement and corner radius on the Reanimated UI thread', () => {

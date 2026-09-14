@@ -1173,7 +1173,11 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             )}
 
             {currentScreen === "gradientEdit" && editingGradient && (
-              <LessonEditorGradientEditScreen themeColors={themeColors} gradientToEdit={editingGradient} onSave={handleSaveGradient} openColorPicker={openAdvancedColorPicker} />
+              <LessonEditorGradientEditScreen
+                themeColors={themeColors}
+                gradientToEdit={editingGradient}
+                onSave={handleSaveGradient}
+              />
             )}
 
             {currentScreen === "picker" && (

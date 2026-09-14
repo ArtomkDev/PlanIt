@@ -76,6 +76,17 @@ test('shared schedule canonicalizes handles and whitelists appearance fields', (
   assert.equal(result.links[0].color, '#2563EB');
 });
 
+test('shared schedules preserve an optional schedule icon', () => {
+  const withIcon = sanitizeSharedSchedule({
+    ...baseSchedule,
+    icon: 'date',
+  });
+  const withoutIcon = sanitizeSharedSchedule(baseSchedule);
+
+  assert.equal(withIcon.icon, 'date');
+  assert.equal(Object.prototype.hasOwnProperty.call(withoutIcon, 'icon'), false);
+});
+
 test('shared schedule removes contacts and destinations with unsafe schemes', () => {
   const result = sanitizeSharedSchedule({
     ...baseSchedule,

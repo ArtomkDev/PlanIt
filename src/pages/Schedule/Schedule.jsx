@@ -37,7 +37,7 @@ import {
   normalizeLessonRef,
   resolveOccurrenceFromLessonRef,
 } from "../../utils/taskLessonLinking";
-import { getAppHeaderHeight } from "../../config/layoutMetrics";
+import { getScheduleHeaderHeight } from "../../config/layoutMetrics";
 import { triggerHaptic } from "../../utils/haptics";
 
 const HALF_SIZE = 300; 
@@ -116,7 +116,7 @@ export default function Schedule({ route, navigation }) {
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
-  const headerHeight = getAppHeaderHeight(insets.top);
+  const headerHeight = getScheduleHeaderHeight(insets.top);
   const [editingLesson, setEditingLesson] = useState(null);
   const [editorInitialTarget, setEditorInitialTarget] = useState(null);
   const [viewingLesson, setViewingLesson] = useState(null);

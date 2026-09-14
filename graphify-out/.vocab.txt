@@ -1,5 +1,6 @@
 aab
 about
+accessible
 account
 action
 actions
@@ -18,6 +19,7 @@ analytics
 and
 android
 angle
+angles
 animated
 animation
 apk
@@ -75,12 +77,14 @@ cached
 caches
 calculate
 calendar
+call
 can
 cancel
 candidate
 canvas
 capture
 card
+cardinal
 catalogue
 categories
 cell
@@ -231,6 +235,7 @@ env
 equal
 error
 escape
+esm
 event
 events
 exact
@@ -280,6 +285,7 @@ from
 function
 functions
 gallery
+gap
 generate
 generated
 generator
@@ -329,6 +335,7 @@ imported
 inactive
 inbox
 index
+indicator
 indices
 infer
 inference
@@ -336,7 +343,6 @@ info
 init
 initial
 initialize
-inline
 input
 inset
 instagram
@@ -373,6 +379,7 @@ length
 lerp
 lesson
 lessons
+letter
 level
 library
 light
@@ -395,10 +402,12 @@ local
 locale
 localization
 location
+lock
 log
 logic
 logical
 login
+magnet
 main
 major
 make
@@ -424,6 +433,7 @@ midnight
 migration
 millis
 mime
+min
 minor
 mins
 minutes
@@ -450,6 +460,7 @@ names
 native
 navigation
 navigator
+nearest
 nested
 netinfo
 never
@@ -471,6 +482,7 @@ occurrences
 offer
 offers
 offset
+oklab
 onboarding
 only
 opacity
@@ -503,9 +515,11 @@ parts
 password
 patch
 path
+paths
 pattern
 pending
 per
+perceptual
 permission
 permissions
 persist
@@ -551,6 +565,7 @@ quality
 query
 queue
 radii
+radius
 random
 range
 rank
@@ -651,6 +666,7 @@ setting
 settings
 setup
 sha
+shadow
 shallow
 shape
 shapes
@@ -665,21 +681,26 @@ show
 sign
 signin
 simple
+site
 size
 sizes
 slider
 slot
+smooth
 smoother
 smtp
 snap
 snapshot
 snapshots
 social
+soft
 sort
 source
+spectrum
 splash
 spring
 src
+srgb
 stable
 stack
 staged
@@ -768,6 +789,7 @@ usage
 use
 user
 utc
+utility
 valid
 validate
 validation

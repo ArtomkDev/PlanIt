@@ -8,7 +8,7 @@ import BreakCard from "./BreakCard";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { buildLessonTimes } from "../../../utils/scheduleTime";
-import { APP_HEADER_CONTENT_GAP, getAppHeaderHeight } from "../../../config/layoutMetrics";
+import { APP_HEADER_CONTENT_GAP, getScheduleHeaderHeight } from "../../../config/layoutMetrics";
 import { triggerHaptic } from "../../../utils/haptics";
 import { getGradientColor, resolveValidColor } from "../../../utils/gradientColors";
 
@@ -31,7 +31,7 @@ export default function DaySchedule({
 
   const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
   const BOTTOM_SPACER_HEIGHT = safeTabBarHeight + 65; 
-  const resolvedHeaderHeight = headerHeight ?? getAppHeaderHeight(insets.top);
+  const resolvedHeaderHeight = headerHeight ?? getScheduleHeaderHeight(insets.top);
 
   const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
   

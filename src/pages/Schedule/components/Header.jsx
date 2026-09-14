@@ -18,10 +18,25 @@ import { useNotificationDrawer } from "../../../context/NotificationDrawerContex
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
 import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
-import { resolveScheduleColor } from "../../../utils/scheduleColors";
+import {
+  resolveScheduleColor,
+  scheduleColorWithAlpha,
+} from "../../../utils/scheduleColors";
 import useNotifications from "../../../hooks/useNotifications";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
+import ScheduleIcon from "../../../components/ScheduleIcon";
 import SchedulePickerSheet from "./SchedulePickerSheet";
+
+const COMPACT_SCHEDULE_BUTTON_SIZE = 44;
+const SCHEDULE_ICON_SIZE = 24;
+const SCHEDULE_ICON_GAP = 8;
+const SCHEDULE_BUTTON_HORIZONTAL_PADDING = 10;
+const SCHEDULE_BUTTON_BORDER_WIDTH = 1;
+const DATE_ACTION_BUTTON_SIZE = 44;
+const DATE_ACTION_GAP = 6;
+const DATE_ACTIONS_MARGIN = 12;
+const MIN_READABLE_DATE_TEXT_WIDTH = 96;
+const MIN_DATE_FONT_SCALE = 0.8;
 
 const isSameDay = (left, right) =>
   left.getFullYear() === right.getFullYear() &&
@@ -77,6 +92,15 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
   const bellPulse = useRef(new Animated.Value(0)).current;
   const seenUnreadIdsRef = useRef(new Set());
   const didLoadNotificationsRef = useRef(false);
+  const [topRowWidth, setTopRowWidth] = useState(0);
+  const [scheduleNameMeasurement, setScheduleNameMeasurement] = useState({
+    value: null,
+    width: 0,
+  });
+  const [dateTextMeasurement, setDateTextMeasurement] = useState({
+    value: null,
+    width: 0,
+  });
 
   const [mode, accent] = globalSettings?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -111,6 +135,45 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
   const scheduleName = schedule
     ? getScheduleDisplayName(schedule, lang, t("common.schedule", lang))
     : t("common.schedule", lang);
+  const measuredScheduleNameWidth = scheduleNameMeasurement.value === scheduleName
+    ? scheduleNameMeasurement.width
+    : 0;
+  const measuredDateTextWidth = dateTextMeasurement.value === formattedDate
+    ? dateTextMeasurement.width
+    : 0;
+  const dateActionCount = notificationsEnabled ? 3 : 2;
+  const fixedDateActionsWidth = (
+    dateActionCount * DATE_ACTION_BUTTON_SIZE
+    + dateActionCount * DATE_ACTION_GAP
+  );
+  const reservedDateTextWidth = measuredDateTextWidth > 0
+    ? Math.min(
+      measuredDateTextWidth,
+      Math.max(
+        MIN_READABLE_DATE_TEXT_WIDTH,
+        measuredDateTextWidth * MIN_DATE_FONT_SCALE,
+      ),
+    )
+    : MIN_READABLE_DATE_TEXT_WIDTH;
+  const availableScheduleWidth = Math.max(
+    COMPACT_SCHEDULE_BUTTON_SIZE,
+    topRowWidth
+      - DATE_ACTIONS_MARGIN
+      - fixedDateActionsWidth
+      - reservedDateTextWidth,
+  );
+  const expandedScheduleWidth = (
+    measuredScheduleNameWidth
+    + SCHEDULE_ICON_SIZE
+    + SCHEDULE_ICON_GAP
+    + SCHEDULE_BUTTON_HORIZONTAL_PADDING * 2
+    + SCHEDULE_BUTTON_BORDER_WIDTH * 2
+  );
+  const isScheduleCompact = (
+    topRowWidth === 0
+    || measuredScheduleNameWidth === 0
+    || expandedScheduleWidth > availableScheduleWidth
+  );
 
   const animateResetIcon = (pressed) => {
     if (isToday) return;
@@ -225,10 +288,18 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
   return (
     <>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) + 2 }]}>
-        <View style={styles.topRow}>
+        <View
+          style={styles.topRow}
+          onLayout={(event) => {
+            const nextWidth = Math.round(event.nativeEvent.layout.width);
+            setTopRowWidth((currentWidth) => (
+              currentWidth === nextWidth ? currentWidth : nextWidth
+            ));
+          }}
+        >
           <ScaleTouchable
             accessibilityRole="button"
-            accessibilityLabel={t("schedule.header.switch_schedule", lang)}
+            accessibilityLabel={`${t("schedule.header.switch_schedule", lang)}: ${scheduleName}`}
             accessibilityHint={t("schedule.header.long_press_hint", lang)}
             onPress={openSchedulePicker}
             onLongPress={() => openScheduleSettings()}
@@ -236,25 +307,43 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
             style={[
               styles.scheduleButton,
               {
-                backgroundColor: themeColors.backgroundColor2,
-                borderColor: themeColors.borderColor,
+                backgroundColor: isScheduleCompact
+                  ? "transparent"
+                  : themeColors.backgroundColor2,
+                borderColor: isScheduleCompact
+                  ? "transparent"
+                  : themeColors.borderColor,
+                maxWidth: availableScheduleWidth,
               },
+              isScheduleCompact && styles.scheduleButtonCompact,
             ]}
           >
-            <Reanimated.View
-              pointerEvents="none"
-              style={[
-                StyleSheet.absoluteFillObject,
-                scheduleButtonColorStyle,
-              ]}
+            {!isScheduleCompact && (
+              <Reanimated.View
+                pointerEvents="none"
+                style={[
+                  StyleSheet.absoluteFillObject,
+                  scheduleButtonColorStyle,
+                ]}
+              />
+            )}
+            <ScheduleIcon
+              icon={schedule?.icon}
+              name={scheduleName}
+              size={isScheduleCompact ? COMPACT_SCHEDULE_BUTTON_SIZE : SCHEDULE_ICON_SIZE}
+              iconSize={isScheduleCompact ? 26 : 15}
+              backgroundColor={scheduleColorWithAlpha(scheduleColor, 0.16)}
+              color={scheduleColor}
+              style={!isScheduleCompact ? styles.scheduleIcon : undefined}
             />
-            <View style={[styles.scheduleDot, { backgroundColor: scheduleColor }]} />
-            <Text
-              numberOfLines={1}
-              style={[styles.scheduleName, { color: themeColors.textColor }]}
-            >
-              {scheduleName}
-            </Text>
+            {!isScheduleCompact && (
+              <Text
+                numberOfLines={1}
+                style={[styles.scheduleName, { color: themeColors.textColor }]}
+              >
+                {scheduleName}
+              </Text>
+            )}
           </ScaleTouchable>
 
           <View style={styles.dateActions}>
@@ -268,6 +357,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
               <Text
                 numberOfLines={1}
                 adjustsFontSizeToFit
+                minimumFontScale={MIN_DATE_FONT_SCALE}
                 style={[styles.dateText, { color: themeColors.textColor }]}
               >
                 {formattedDate}
@@ -361,6 +451,47 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
               </Animated.View>
             </ScaleTouchable>
           </View>
+
+          <View
+            pointerEvents="none"
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={styles.measurementLayer}
+          >
+            <Text
+              key={`schedule-name-measurement:${scheduleName}`}
+              numberOfLines={1}
+              onLayout={(event) => {
+                const nextWidth = Math.ceil(event.nativeEvent.layout.width);
+                setScheduleNameMeasurement((currentMeasurement) => (
+                  currentMeasurement.value === scheduleName
+                  && currentMeasurement.width === nextWidth
+                    ? currentMeasurement
+                    : { value: scheduleName, width: nextWidth }
+                ));
+              }}
+              style={[styles.scheduleName, styles.measurementText]}
+            >
+              {scheduleName}
+            </Text>
+            <Text
+              key={`date-text-measurement:${formattedDate}`}
+              numberOfLines={1}
+              onLayout={(event) => {
+                const nextWidth = Math.ceil(event.nativeEvent.layout.width);
+                setDateTextMeasurement((currentMeasurement) => (
+                  currentMeasurement.value === formattedDate
+                  && currentMeasurement.width === nextWidth
+                    ? currentMeasurement
+                    : { value: formattedDate, width: nextWidth }
+                ));
+              }}
+              style={[styles.dateText, styles.measurementText]}
+            >
+              {formattedDate}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -384,10 +515,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    position: "relative",
   },
   scheduleButton: {
-    maxWidth: "42%",
-    flexShrink: 1,
+    flexShrink: 0,
     minHeight: 44,
     borderRadius: 14,
     borderWidth: 1,
@@ -396,10 +527,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
   },
-  scheduleDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  scheduleButtonCompact: {
+    width: COMPACT_SCHEDULE_BUTTON_SIZE,
+    height: COMPACT_SCHEDULE_BUTTON_SIZE,
+    borderRadius: 15,
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    justifyContent: "center",
+  },
+  scheduleIcon: {
     marginRight: 8,
   },
   scheduleName: {
@@ -452,5 +588,16 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     borderWidth: 1.5,
+  },
+  measurementLayer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    opacity: 0,
+    alignItems: "flex-start",
+  },
+  measurementText: {
+    flexShrink: 0,
+    alignSelf: "flex-start",
   },
 });

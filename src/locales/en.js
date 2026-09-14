@@ -42,6 +42,19 @@ export default {
     },
   },
 
+  color_picker: {
+    title: "Custom color",
+    subtitle: "Adjust saturation, hue, and brightness or enter an exact HEX value.",
+    current_color: "Selected color",
+    hex_label: "HEX value",
+    saturation_brightness: "Saturation & brightness",
+    hue: "Hue",
+    hex_hint: "Enter a 6-digit hexadecimal color value.",
+    saturation_brightness_hint: "Drag horizontally for saturation and vertically for brightness. Increment and decrement adjust brightness.",
+    hue_hint: "Drag to choose a hue. Increment and decrement adjust it by 10 degrees.",
+    save: "Save color",
+  },
+
   attachments: {
     title: "Attachments",
     file: "File",
@@ -798,6 +811,10 @@ export default {
       enter_name: "Enter name...",
       color: "Schedule color",
       color_hint: "Used in the header and schedule switcher",
+      icon: "Schedule icon",
+      icon_hint: "If no icon is selected, the first letter of the name is used.",
+      choose_icon: "Choose schedule icon",
+      no_icon: "Use the first letter",
       task_auto_link: "Task auto-link",
       task_auto_link_hint: "When enabled, tasks will automatically attach to the next lesson.",
       task_auto_link_desc: "Applies when creating a task from a concrete lesson. Manual task creation stays independent unless you choose a lesson.",

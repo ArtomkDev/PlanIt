@@ -25,7 +25,8 @@ import {
   Palette,
   Bell,
   CheckSquare,
-  PencilSimple
+  PencilSimple,
+  Shapes
 } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -62,6 +63,8 @@ import SettingsActionRow from '../../../components/ui/SettingsKit/SettingsAction
 import AppSwitch from '../../../components/ui/AppSwitch';
 import { triggerHaptic } from '../../../utils/haptics';
 import useReducedMotionPreference from '../../../hooks/useReducedMotionPreference';
+import ScheduleIcon from '../../../components/ScheduleIcon';
+import ScheduleIconPickerSheet from './ScheduleIconPickerSheet';
 
 if (
   Platform.OS === 'android' && 
@@ -97,6 +100,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const [localData, setLocalData] = useState({
     id: targetSchedule?.id || generateId(),
     name: targetSchedule?.name || "",
+    icon: targetSchedule?.icon || null,
     color: resolveScheduleColor(targetSchedule, themeColors.accentColor),
     repeat: String(targetSchedule?.repeat || 1),
     start_time: targetSchedule?.start_time || "08:30",
@@ -123,6 +127,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
 
   const [isCalendarVisible, setCalendarVisible] = useState(false);
   const [isColorPickerVisible, setColorPickerVisible] = useState(false);
+  const [isIconPickerVisible, setIconPickerVisible] = useState(false);
   
   const [isWeeksExpanded, setIsWeeksExpanded] = useState(false);
   const [isDurationExpanded, setIsDurationExpanded] = useState(false);
@@ -316,6 +321,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
       duration: Number(localData.duration) || 45,
       breaks: finalBreaks
     };
+    if (!localData.icon) delete scheduleData.icon;
 
     if (isNew) {
       addSchedule(scheduleData);
@@ -434,6 +440,26 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                         <PencilSimple size={10} color={localData.color} weight="bold" />
                       </View>
                     </View>
+                  )}
+                />
+              </View>
+
+              <View onLayout={e => cardYs.current['icon'] = e.nativeEvent.layout.y}>
+                <SettingsRow
+                  label={t('settings.schedule_editor.icon', lang)}
+                  desc={t('settings.schedule_editor.icon_hint', lang)}
+                  icon={Shapes}
+                  themeColors={themeColors}
+                  onPress={() => setIconPickerVisible(true)}
+                  rightContent={(
+                    <ScheduleIcon
+                      icon={localData.icon}
+                      name={localData.name || t('settings.schedule_editor.schedule_name', lang)}
+                      size={36}
+                      iconSize={20}
+                      backgroundColor={scheduleColorWithAlpha(localData.color, 0.16)}
+                      color={localData.color}
+                    />
                   )}
                 />
               </View>
@@ -747,6 +773,17 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
           setLocalData(prev => ({ ...prev, color }));
           setColorPickerVisible(false);
         }}
+      />
+
+      <ScheduleIconPickerSheet
+        visible={isIconPickerVisible}
+        onClose={() => setIconPickerVisible(false)}
+        onSelect={(icon) => setLocalData(prev => ({ ...prev, icon }))}
+        selectedIcon={localData.icon}
+        scheduleName={localData.name || t('settings.schedule_editor.schedule_name', lang)}
+        scheduleColor={localData.color}
+        themeColors={themeColors}
+        lang={lang}
       />
     </View>
   );

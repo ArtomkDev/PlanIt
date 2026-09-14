@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Image as ExpoImage } from "expo-image";
 import {
   Animated,
   Easing,
   Image,
+  Platform,
   StyleSheet,
   View,
 } from "react-native";
@@ -13,6 +15,7 @@ const DEFAULT_COLORS = ["rgba(136,136,146,0.56)", "rgba(96,96,108,0.7)"];
 const SCAN_LINE_HEIGHT = 58;
 const DEFAULT_LOADER_DELAY_MS = 140;
 const loadedAttachmentImageKeys = new Set();
+const IS_IOS = Platform.OS === "ios";
 
 const normalizePreviewColors = (colors) => (
   Array.isArray(colors)
@@ -309,33 +312,51 @@ export default function StagedAttachmentImage({
 
   const showOverlay = !imageLoaded;
   const showScanner = loaderScanning && showOverlay && !imageFailed;
+  const handleLoad = (event) => {
+    loadedAttachmentImageKeys.add(imageLoadKey);
+    setFailedSignature("");
+    setLoadVersion((value) => value + 1);
+    if (!IS_IOS) {
+      Animated.timing(imageOpacity, {
+        toValue: 1,
+        duration: 190,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+    onLoad?.(event);
+  };
+  const handleError = (event) => {
+    if (!loadedAttachmentImageKeys.has(imageLoadKey)) {
+      setFailedSignature(imageSignature);
+      setLoadVersion((value) => value + 1);
+    }
+    onError?.(event);
+  };
 
   return (
     <View style={[styles.root, style, { backgroundColor: baseColor }]}>
-      {!!uri && !imageFailed && (
+      {!!uri && !imageFailed && IS_IOS && (
+        <ExpoImage
+          source={{ uri }}
+          contentFit={resizeMode === "stretch" ? "fill" : resizeMode}
+          cachePolicy="memory-disk"
+          recyclingKey={imageLoadKey}
+          transition={imageLoaded ? 0 : 190}
+          useAppleWebpCodec={false}
+          onLoad={handleLoad}
+          onError={handleError}
+          style={[styles.absoluteImage, imageStyle]}
+        />
+      )}
+
+      {!!uri && !imageFailed && !IS_IOS && (
         <Animated.Image
           source={{ uri }}
           resizeMode={resizeMode}
           fadeDuration={0}
-          onLoad={(event) => {
-            loadedAttachmentImageKeys.add(imageLoadKey);
-            setFailedSignature("");
-            setLoadVersion((value) => value + 1);
-            Animated.timing(imageOpacity, {
-              toValue: 1,
-              duration: 190,
-              easing: Easing.out(Easing.cubic),
-              useNativeDriver: true,
-            }).start();
-            onLoad?.(event);
-          }}
-          onError={(event) => {
-            if (!loadedAttachmentImageKeys.has(imageLoadKey)) {
-              setFailedSignature(imageSignature);
-              setLoadVersion((value) => value + 1);
-            }
-            onError?.(event);
-          }}
+          onLoad={handleLoad}
+          onError={handleError}
           style={[
             styles.absoluteImage,
             imageStyle,

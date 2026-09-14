@@ -42,6 +42,7 @@ const gradientScreenPath = path.resolve(
   '../src/pages/Schedule/components/LessonEditor/screens/GradientScreen.jsx',
 );
 const advancedColorPickerPath = path.resolve(__dirname, '../src/components/ui/AdvancedColorPicker.jsx');
+const colorSpectrumPickerPath = path.resolve(__dirname, '../src/components/ui/ColorSpectrumPicker.jsx');
 const authScreenPath = path.resolve(__dirname, '../src/auth/AuthScreen.jsx');
 const onboardingPath = path.resolve(__dirname, '../src/pages/Onboarding/OnboardingWizard.jsx');
 const stagedAttachmentImagePath = path.resolve(
@@ -364,7 +365,7 @@ test('all UI gradient call sites use the shared surface component', () => {
   const mainScreenSource = fs.readFileSync(mainScreenPath, 'utf8');
   const migratedGradientSources = [
     gradientScreenPath,
-    advancedColorPickerPath,
+    colorSpectrumPickerPath,
     authScreenPath,
     onboardingPath,
     stagedAttachmentImagePath,
@@ -410,4 +411,48 @@ test('all UI gradient call sites use the shared surface component', () => {
   assert.match(lessonSource, /isLightForeground\(contentColor\)/);
   assert.match(taskSource, /isLightForeground\(textOnCard\)/);
   assert.doesNotMatch(taskSource, /textOnCard === "#fff"/);
+});
+
+test('advanced color picker keeps rapidly changing state below its stable sheet shell', () => {
+  const source = fs.readFileSync(advancedColorPickerPath, 'utf8');
+  const contentStart = source.indexOf('function AdvancedColorPickerContent');
+  const sheetStart = source.indexOf('const AdvancedColorPickerSheet');
+  const exportedPickerStart = source.indexOf('export default function AdvancedColorPicker');
+  const contentSource = source.slice(contentStart, sheetStart);
+  const sheetSource = source.slice(sheetStart, exportedPickerStart);
+
+  assert.ok(contentStart >= 0);
+  assert.ok(sheetStart > contentStart);
+  assert.ok(exportedPickerStart > sheetStart);
+  assert.match(contentSource, /useState/);
+  assert.doesNotMatch(contentSource, /<BottomSheet/);
+  assert.match(sheetSource, /React\.memo/);
+  assert.match(sheetSource, /<BottomSheet/);
+  assert.match(sheetSource, /<AdvancedColorPickerContent/);
+  assert.match(contentSource, /<ColorSpectrumPicker/);
+});
+
+test('solid and gradient color editors share one accessible spectrum implementation', () => {
+  const advancedSource = fs.readFileSync(advancedColorPickerPath, 'utf8');
+  const gradientScreenSource = fs.readFileSync(gradientScreenPath, 'utf8');
+  const spectrumSource = fs.readFileSync(colorSpectrumPickerPath, 'utf8');
+
+  assert.match(advancedSource, /import ColorSpectrumPicker/);
+  assert.match(advancedSource, /<ColorSpectrumPicker/);
+  assert.match(gradientScreenSource, /import ColorSpectrumPicker/);
+  assert.match(gradientScreenSource, /<ColorSpectrumPicker/);
+  assert.doesNotMatch(gradientScreenSource, /InlineColorPicker|const HUE_COLORS/);
+  assert.match(spectrumSource, /const handlePickerLayout = useCallback/);
+  assert.match(
+    spectrumSource,
+    /previous\.width === nextWidth && previous\.height === nextHeight/,
+  );
+  assert.match(spectrumSource, /onLayout=\{handlePickerLayout\}/);
+  assert.doesNotMatch(spectrumSource, /onLayout=\{\(event\) => setPickerSize/);
+  assert.match(
+    spectrumSource,
+    /<GradientBackground[\s\S]*accessibilityRole="adjustable"[\s\S]*onLayout=\{handlePickerLayout\}[\s\S]*layers=\{\[/,
+  );
+  assert.match(spectrumSource, /accessibilityActions=\{\[\{ name: "increment" \}, \{ name: "decrement" \}\]\}/);
+  assert.match(spectrumSource, /hueIndicator:[\s\S]*borderRadius: 8/);
 });

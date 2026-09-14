@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
-import { X, PlusCircle, Trash } from "phosphor-react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { PlusCircle, Trash } from "phosphor-react-native";
 
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
-import { ICON_CATEGORIES } from "../../../../../config/subjectIcons";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
 
+import AppIconPickerGrid from "../../../../../components/ui/AppIconPickerGrid";
 import SettingsSelectionRow from "../../../../../components/ui/SettingsKit/SettingsSelectionRow";
 import SettingsActionRow from "../../../../../components/ui/SettingsKit/SettingsActionRow";
-
-const GRID_SPACING = 10;
-const PHONE_COLUMNS = 5;
-const LARGE_SCREEN_COLUMNS = 8;
-const EDITOR_MAX_WIDTH = 800;
 
 export default function LessonEditorPickerScreen({
   options,
@@ -27,12 +22,7 @@ export default function LessonEditorPickerScreen({
   layout = 'list',
 }) {
   const { lang } = useScheduleData();
-  const { width } = useWindowDimensions();
   const [tempSelected, setTempSelected] = useState([]);
-
-  const columns = width >= 600 ? LARGE_SCREEN_COLUMNS : PHONE_COLUMNS;
-  const gridWidth = Math.min(width, EDITOR_MAX_WIDTH) - 32;
-  const itemSize = (gridWidth - (columns - 1) * GRID_SPACING) / columns;
 
   useEffect(() => {
     setTempSelected(Array.isArray(selectedValues) ? selectedValues : [selectedValues]);
@@ -49,40 +39,6 @@ export default function LessonEditorPickerScreen({
       setTempSelected([key]);
       if (onSave) onSave(key);
     }
-  };
-
-  const renderIconItem = (itemKey) => {
-    const option = options.find(o => o.key === itemKey);
-    if (!option && itemKey !== 'none') return null;
-
-    const isSelected = tempSelected.includes(itemKey);
-    const IconComponent = option?.iconComponent;
-
-    return (
-      <TouchableOpacity
-        key={itemKey}
-        style={[
-          styles.gridItem,
-          { width: itemSize, height: itemSize },
-          {
-            backgroundColor: isSelected ? themeColors.accentColor + '25' : themeColors.backgroundColor2,
-            borderColor: isSelected ? themeColors.accentColor : 'transparent',
-            borderWidth: 2
-          }
-        ]}
-        onPress={() => {
-          triggerHaptic(itemKey === 'none' ? "warning" : (isSelected ? "selection" : "success"));
-          handlePressItem(itemKey);
-        }}
-        activeOpacity={0.6}
-      >
-        {itemKey === 'none' ? (
-          <X size={24} color={themeColors.textColor2} weight="bold" />
-        ) : (
-          IconComponent && <IconComponent size={26} color={isSelected ? themeColors.accentColor : themeColors.textColor} weight={isSelected ? "fill" : "regular"} />
-        )}
-      </TouchableOpacity>
-    );
   };
 
   const renderListItem = (item) => {
@@ -119,29 +75,15 @@ export default function LessonEditorPickerScreen({
         showsVerticalScrollIndicator={false}
       >
         {isIconPicker ? (
-          <>
-            {options.some(o => o.key === 'none') && (
-               <View style={styles.categorySection}>
-                 <Text style={[styles.categoryTitle, { color: themeColors.textColor2 }]}>
-                   {(t('schedule.icon_categories.none', lang) || "").toUpperCase()}
-                 </Text>
-                 <View style={styles.gridContainer}>
-                    {renderIconItem('none')}
-                 </View>
-               </View>
-            )}
-
-            {ICON_CATEGORIES.map((category) => (
-              <View key={category.id} style={styles.categorySection}>
-                <Text style={[styles.categoryTitle, { color: themeColors.textColor2 }]}>
-                  {(t(`schedule.icon_categories.${category.id}`, lang) || category.id).toUpperCase()}
-                </Text>
-                <View style={styles.gridContainer}>
-                  {category.icons.map(iconKey => renderIconItem(iconKey))}
-                </View>
-              </View>
-            ))}
-          </>
+          <AppIconPickerGrid
+            iconKeys={options.map((option) => option.key).filter((key) => key !== 'none')}
+            selectedIcon={tempSelected[0] === 'none' ? null : tempSelected[0]}
+            onSelect={(iconKey) => handlePressItem(iconKey || 'none')}
+            themeColors={themeColors}
+            showNone={options.some(o => o.key === 'none')}
+            noneAccessibilityLabel={t('schedule.icon_categories.none', lang)}
+            accessibilityLabelPrefix={t('schedule.lesson_editor.choose_icon', lang)}
+          />
         ) : (
           <View style={styles.listWrapper}>
             {onAdd && (
@@ -192,24 +134,6 @@ export default function LessonEditorPickerScreen({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 40 },
-  categorySection: { marginBottom: 24 },
-  categoryTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    marginBottom: 12,
-    marginLeft: 4
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GRID_SPACING
-  },
-  gridItem: {
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
   listWrapper: { gap: 10 },
   optionIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   footer: {

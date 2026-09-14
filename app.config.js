@@ -165,6 +165,7 @@ export default {
       ],
       "expo-localization",
       "expo-notifications",
+      "expo-image",
       [
         "expo-image-picker",
         {
