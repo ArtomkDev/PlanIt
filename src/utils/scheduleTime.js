@@ -156,7 +156,7 @@ export const buildLessonOccurrences = (schedule, options = {}) => {
       const lesson = lessons[index];
       const subjectId = getLessonSubjectId(lesson);
       const timeInfo = lessonTimes[index];
-      if (!subjectId || !timeInfo?.start) continue;
+      if ((!subjectId && lesson?.subjectDeleted !== true) || !timeInfo?.start) continue;
 
       const startAt = createDateAtTime(date, timeInfo.start);
       if (!startAt) continue;

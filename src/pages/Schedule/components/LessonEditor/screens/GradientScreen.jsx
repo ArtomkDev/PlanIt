@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, PanResponder } from "react-native";
-import { Check } from "phosphor-react-native";
+import { Check, Trash } from "phosphor-react-native";
 import tinycolor from "tinycolor2";
 import { SheetScrollView } from "../../../../../components/ui/BottomSheet";
 import ColorSpectrumPicker from "../../../../../components/ui/ColorSpectrumPicker";
@@ -175,7 +175,7 @@ const AngleSlider = ({ value, onChange, themeColors, accessibilityLabel }) => {
   );
 };
 
-export default function LessonEditorGradientEditScreen({ themeColors, gradientToEdit, onSave }) {
+export default function LessonEditorGradientEditScreen({ themeColors, gradientToEdit, onSave, onDelete }) {
   const { lang } = useScheduleData();
 
   const getInitialColor = (index, fallback) => {
@@ -278,6 +278,18 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
         style={styles.colorPicker}
         spectrumStyle={styles.flexibleSpectrum}
       />
+      {onDelete && (
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={onDelete}
+          activeOpacity={0.78}
+          accessibilityRole="button"
+          accessibilityLabel={t('schedule.lesson_editor.delete_entity', lang)}
+        >
+          <Trash size={19} color="#DC2626" weight="bold" />
+          <Text style={styles.deleteText}>{t('schedule.lesson_editor.delete_entity', lang)}</Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity
         style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]}
         onPress={handleSave}
@@ -374,6 +386,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 150,
   },
+  deleteBtn: { minHeight: 48, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  deleteText: { color: "#DC2626", fontSize: 15, fontWeight: "700" },
   saveBtn: {
     minHeight: 52,
     paddingHorizontal: 18,

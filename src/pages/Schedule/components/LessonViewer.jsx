@@ -57,6 +57,7 @@ import {
   resolveAttachmentList,
   shareAttachment,
 } from "../../../services/attachmentService";
+import { deleteScheduleLesson } from "../../../utils/scheduleDeletion";
 
 export default function LessonViewer({
   visible,
@@ -213,7 +214,7 @@ export default function LessonViewer({
     triggerHaptic("warning");
     Alert.alert(
       t('common.warning', lang),
-      (t('common.delete', lang)) + "?",
+      t('schedule.lesson_editor.delete_lesson_confirm', lang),
       [
         { text: t('common.cancel', lang), style: 'cancel' },
         {
@@ -222,18 +223,9 @@ export default function LessonViewer({
           onPress: () => {
             triggerHaptic("success");
             setScheduleDraft((prev) => {
-              const next = { ...prev };
               const dayIndex = getDayIndex(currentDate);
               const weekKey = `week${calculateCurrentWeek(currentDate)}`;
-
-              if (next.schedule && next.schedule[dayIndex] && next.schedule[dayIndex][weekKey]) {
-                 const weekArr = [...next.schedule[dayIndex][weekKey]];
-                 if (Number.isInteger(lesson.index)) {
-                   weekArr.splice(lesson.index, 1);
-                 }
-                 next.schedule[dayIndex][weekKey] = weekArr;
-              }
-              return next;
+              return deleteScheduleLesson(prev, dayIndex, weekKey, lesson.index);
             });
             deleteLocalAttachmentCaches(instanceData.attachments).catch(() => {});
             onClose();

@@ -7,6 +7,7 @@ import {
   LayoutAnimation,
   Platform,
   Animated,
+  Alert,
 } from "react-native";
 import { CaretLeft, PencilSimple, CheckCircle, XCircle } from "phosphor-react-native";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
@@ -51,6 +52,7 @@ import {
   getDurationMinutes,
   parseTimeToMinutes,
 } from "../../../utils/scheduleTime";
+import { removeScheduleEntity } from "../../../utils/scheduleDeletion";
 
 const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
 const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
@@ -395,7 +397,6 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   };
 
   const handleSave = async () => {
-    const deletingExistingLesson = !selectedSubjectId && Number.isInteger(lesson?.index);
     const draftAttachments = normalizeAttachmentDraftList(effectiveAttachmentRefs);
     const resolvedDraftAttachments = resolveAttachmentList(draftAttachments, fileLibrary);
     const hasPendingAttachments = resolvedDraftAttachments.some((attachment) => (
@@ -414,10 +415,20 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
       return;
     }
 
-    const persistedAttachments = deletingExistingLesson ? [] : normalizeAttachmentDraftList(draftAttachments);
+    const persistedAttachments = normalizeAttachmentDraftList(draftAttachments);
 
     setScheduleDraft((prev) => {
       const next = { ...prev };
+      const removedEntities = ["subjects", "teachers", "links", "gradients"].flatMap((collection) => {
+        const retainedIds = new Set((localData[collection] || []).map((item) => item.id));
+        return (prev[collection] || [])
+          .filter((item) => !retainedIds.has(item.id))
+          .map((item) => ({ collection, id: item.id }));
+      });
+      const finishDeletionCleanup = (candidate) => removedEntities.reduce(
+        (current, { collection, id }) => removeScheduleEntity(current, collection, id),
+        candidate,
+      );
 
       next.subjects = localData.subjects;
       next.teachers = localData.teachers;
@@ -432,18 +443,19 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
       const weekArr = next.schedule[dayIndex][weekKey] ? [...next.schedule[dayIndex][weekKey]] : [];
 
-      if (!selectedSubjectId) {
-          if (Number.isInteger(lesson?.index)) {
-              weekArr.splice(lesson.index, 1);
-          }
+      if (!selectedSubjectId && !Number.isInteger(lesson?.index)) {
           next.schedule[dayIndex][weekKey] = weekArr;
-          return next;
+          return finishDeletionCleanup(next);
       }
 
-      const lessonObject = {
-        ...instanceData,
-        subjectId: selectedSubjectId,
-      };
+      const lessonObject = { ...instanceData };
+      if (selectedSubjectId) {
+        lessonObject.subjectId = selectedSubjectId;
+        delete lessonObject.subjectDeleted;
+      } else {
+        delete lessonObject.subjectId;
+        lessonObject.subjectDeleted = true;
+      }
       if (scopes.attachments === 'local' && persistedAttachments.length > 0) {
         lessonObject.attachments = persistedAttachments;
       } else {
@@ -520,7 +532,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
       next.schedule[dayIndex][weekKey] = tempArr.map(item => item.lesson);
 
-      return next;
+      return finishDeletionCleanup(next);
     });
 
     const attachmentsToDelete = removedStoredAttachments;
@@ -698,6 +710,62 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
     handleUpdateSubject({ colorGradient: newGradient.id, typeColor: "gradient" });
     goToScreen("main");
+  };
+
+  const handleDeleteEntity = (collection, id, name) => {
+    if (!id) return;
+
+    triggerHaptic("warning");
+    Alert.alert(
+      t("common.warning", lang),
+      t("schedule.lesson_editor.delete_entity_confirm", lang).replace(
+        "{name}",
+        name || t("schedule.lesson_viewer.untitled", lang),
+      ),
+      [
+        { text: t("common.cancel", lang), style: "cancel" },
+        {
+          text: t("common.delete", lang),
+          style: "destructive",
+          onPress: () => {
+            triggerHaptic("success");
+            setScheduleDraft((prev) => removeScheduleEntity(prev, collection, id));
+            setLocalData((prev) => {
+              const cleaned = removeScheduleEntity(
+                { ...prev, schedule: [], tasks: [] },
+                collection,
+                id,
+              );
+              return {
+                subjects: cleaned.subjects,
+                teachers: cleaned.teachers,
+                links: cleaned.links,
+                gradients: cleaned.gradients,
+              };
+            });
+            setInstanceData((prev) => {
+              const cleaned = removeScheduleEntity(
+                {
+                  subjects: [],
+                  teachers: [],
+                  links: [],
+                  gradients: [],
+                  schedule: [{ week1: [prev] }],
+                },
+                collection,
+                id,
+              );
+              return cleaned.schedule[0].week1[0];
+            });
+            if (collection === "subjects" && selectedSubjectId === id) {
+              setSelectedSubjectId(null);
+            }
+            setAttachAfterEdit(false);
+            goToScreen("main");
+          },
+        },
+      ],
+    );
   };
 
   const handleOpenPicker = (type, index = null, createNew = false) => {
@@ -950,7 +1018,10 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
           return {
               val: subj?.name || "",
               ph: t('schedule.lesson_editor.placeholder_subject', lang),
-              onSave: handleRenameSubject
+              onSave: handleRenameSubject,
+              onDelete: subj
+                ? () => handleDeleteEntity("subjects", subj.id, subj.name)
+                : null,
           };
       }
       return { val: "", ph: "", onSave: () => {} };
@@ -1177,6 +1248,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                 themeColors={themeColors}
                 gradientToEdit={editingGradient}
                 onSave={handleSaveGradient}
+                onDelete={() => handleDeleteEntity("gradients", editingGradient.id, editingGradient.name || t('schedule.lesson_editor.gradient_settings', lang))}
               />
             )}
 
@@ -1203,6 +1275,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                   placeholder={inputData.ph}
                   onSave={inputData.onSave}
                   onReset={inputData.onReset}
+                  onDelete={inputData.onDelete}
                   themeColors={themeColors}
                   saveLabel={inputType === "subject_rename" && !localData.subjects.some((subject) => subject.id === editingItemData) ? t("common.create", lang) : undefined}
                   autoFocusDelayMs={initialEditTarget?.type === "subject" && inputType === "subject_rename" ? 280 : 0}
@@ -1241,6 +1314,9 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                         goToScreen(pickerType === "teacher" ? getRelatedEditReturnScreen("teacher") : "main");
                       }
                   }}
+                  onDelete={localData.teachers.some(t => t.id === editingItemData)
+                    ? () => handleDeleteEntity("teachers", editingItemData, localData.teachers.find(t => t.id === editingItemData)?.name)
+                    : null}
                   onBack={() => {
                     triggerHaptic("navigateBack");
                     setAttachAfterEdit(false);
@@ -1274,6 +1350,9 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                         goToScreen(pickerType === "link" ? getRelatedEditReturnScreen("link") : "main");
                       }
                   }}
+                  onDelete={localData.links.some(l => l.id === editingItemData)
+                    ? () => handleDeleteEntity("links", editingItemData, localData.links.find(l => l.id === editingItemData)?.name)
+                    : null}
                   onBack={() => {
                     triggerHaptic("navigateBack");
                     setAttachAfterEdit(false);

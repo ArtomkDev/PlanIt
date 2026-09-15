@@ -10,6 +10,7 @@ import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { triggerHaptic } from "../../../utils/haptics";
+import { t } from "../../../utils/i18n";
 import {
   colorWithAlpha,
   getGradientColor,
@@ -223,7 +224,7 @@ const BackgroundPattern = React.memo(({ MainIcon, color, width, height }) => {
   );
 });
 
-const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPress, onLongPress }) => {
+const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark, onPress, onLongPress }) => {
   const { 
     subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad,
     subjectColor, contentColor, activePillText,
@@ -315,7 +316,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
 
         <View style={styles.mainInfo}>
           <Text style={[styles.subjectTitle, { color: contentColor }, titleShadowStyle]} numberOfLines={1}>
-            {subject?.name || "Предмет"}
+            {subject?.name || t('schedule.lesson_editor.subject_not_selected', lang)}
           </Text>
         </View>
 
@@ -344,11 +345,11 @@ const LessonCardPure = React.memo(({ lesson, schedule, targetDate, isDark, onPre
 });
 
 export default function LessonCard(props) {
-  const { schedule } = useScheduleData();
+  const { schedule, lang } = useScheduleData();
   const { currentDate } = useDaySchedule(); 
   const { isDark } = useSystemThemeColors();
 
-  return <LessonCardPure {...props} schedule={schedule} targetDate={currentDate} isDark={isDark} />;
+  return <LessonCardPure {...props} schedule={schedule} lang={lang} targetDate={currentDate} isDark={isDark} />;
 }
 
 const styles = StyleSheet.create({

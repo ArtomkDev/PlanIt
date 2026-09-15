@@ -346,9 +346,12 @@ const sanitizeLesson = (lesson, options) => {
   if (!isPlainObject(lesson)) return null;
 
   const subjectId = cleanId(lesson.subjectId || lesson.subject || lesson.id);
-  if (!subjectId) return null;
+  const subjectDeleted = lesson.subjectDeleted === true;
+  if (!subjectId && !subjectDeleted) return null;
 
-  const result = { subjectId };
+  const result = {};
+  if (subjectId) result.subjectId = subjectId;
+  else result.subjectDeleted = true;
 
   pushIfDefined(result, "type", cleanOptionalString(lesson.type, LIMITS.name));
   pushIfDefined(result, "room", cleanOptionalString(lesson.room, LIMITS.room));
@@ -447,10 +450,14 @@ const compactRefs = (schedule) => {
   schedule.schedule = schedule.schedule.map((day) => {
     const nextDay = {};
     Object.entries(day).forEach(([weekKey, lessons]) => {
-      nextDay[weekKey] = lessons
-        .filter((lesson) => subjectIds.has(lesson.subjectId))
-        .map((lesson) => {
+      nextDay[weekKey] = lessons.map((lesson) => {
           const next = { ...lesson };
+          if (next.subjectId && !subjectIds.has(next.subjectId)) {
+            delete next.subjectId;
+            next.subjectDeleted = true;
+          } else if (next.subjectId) {
+            delete next.subjectDeleted;
+          }
           if (next.teacher && !teacherIds.has(next.teacher)) delete next.teacher;
           if (next.teachers) {
             next.teachers = next.teachers.filter((id) => teacherIds.has(id));

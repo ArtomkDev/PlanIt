@@ -48,6 +48,7 @@ export default function TeacherEditor({
   initialContactId,
   initialContact,
   onSaveLocal,
+  onDelete,
   onBack,
   saveLabel,
   onOpenColorPicker,
@@ -405,6 +406,17 @@ export default function TeacherEditor({
         </View>
 
         <View style={{ flex: 1, minHeight: 24 }} />
+        {onDelete && (
+          <TouchableOpacity
+            style={styles.deleteEntityButton}
+            onPress={onDelete}
+            accessibilityRole="button"
+            accessibilityLabel={t("schedule.lesson_editor.delete_entity", lang)}
+          >
+            <Trash size={19} color="#DC2626" weight="bold" />
+            <Text style={styles.deleteEntityText}>{t("schedule.lesson_editor.delete_entity", lang)}</Text>
+          </TouchableOpacity>
+        )}
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: themeColors.backgroundColor2 }]}
@@ -457,6 +469,8 @@ const styles = StyleSheet.create({
   typeButtonText: { fontSize: 13, fontWeight: "700" },
   addContactButton: { minHeight: 48, borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   addContactText: { fontSize: 14, fontWeight: "700" },
+  deleteEntityButton: { minHeight: 48, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  deleteEntityText: { color: "#DC2626", fontSize: 15, fontWeight: "700" },
   buttonRow: { flexDirection: "row", justifyContent: "space-between", gap: 12, marginTop: 16 },
   button: { flex: 1, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   saveButton: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },

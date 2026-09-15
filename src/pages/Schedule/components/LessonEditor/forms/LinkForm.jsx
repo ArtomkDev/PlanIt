@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Link as LinkIcon, TextT } from "phosphor-react-native";
+import { Link as LinkIcon, TextT, Trash } from "phosphor-react-native";
 import { getLinkTypeMeta, LINK_TYPES } from "../../../../../config/contactTypes";
 import {
   getContactTypeColor,
@@ -23,7 +23,16 @@ import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import ContactAppearancePicker from "./ContactAppearancePicker";
 
-export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack, saveLabel, onOpenColorPicker, themeColors }) {
+export default function LinkEditor({
+  linkId,
+  localLinkData,
+  onSaveLocal,
+  onDelete,
+  onBack,
+  saveLabel,
+  onOpenColorPicker,
+  themeColors,
+}) {
   const { lang } = useScheduleData();
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -221,6 +230,17 @@ export default function LinkEditor({ linkId, localLinkData, onSaveLocal, onBack,
         </Text>
 
         <View style={{ flex: 1, minHeight: 32 }} />
+        {onDelete && (
+          <TouchableOpacity
+            style={styles.deleteEntityButton}
+            onPress={onDelete}
+            accessibilityRole="button"
+            accessibilityLabel={t("schedule.lesson_editor.delete_entity", lang)}
+          >
+            <Trash size={19} color="#DC2626" weight="bold" />
+            <Text style={styles.deleteEntityText}>{t("schedule.lesson_editor.delete_entity", lang)}</Text>
+          </TouchableOpacity>
+        )}
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: themeColors.backgroundColor2 }]}
@@ -257,6 +277,8 @@ const styles = StyleSheet.create({
   typeButton: { minHeight: 44, borderRadius: 11, borderWidth: 1, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6 },
   typeButtonText: { fontSize: 13, fontWeight: "700" },
   legalHint: { fontSize: 13, lineHeight: 19, marginHorizontal: 4 },
+  deleteEntityButton: { minHeight: 48, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  deleteEntityText: { color: "#DC2626", fontSize: 15, fontWeight: "700" },
   buttonRow: { flexDirection: "row", justifyContent: "space-between", gap: 12, marginTop: 20 },
   button: { flex: 1, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   saveButton: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },

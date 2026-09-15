@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { XCircle } from "phosphor-react-native";
+import { Trash, XCircle } from "phosphor-react-native";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
@@ -10,6 +10,7 @@ export default function LessonEditorInputScreen({
   initialValue,
   placeholder,
   onSave,
+  onDelete,
   themeColors,
   saveLabel,
   autoFocusDelayMs = 0,
@@ -68,6 +69,20 @@ export default function LessonEditorInputScreen({
       </View>
 
       <View style={styles.footerContainer}>
+        {onDelete && (
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={onDelete}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('schedule.lesson_editor.delete_entity', lang)}
+          >
+            <Trash size={19} color="#DC2626" weight="bold" />
+            <Text style={styles.deleteBtnText}>
+              {t('schedule.lesson_editor.delete_entity', lang)}
+            </Text>
+          </TouchableOpacity>
+        )}
         {onSave && (
           <TouchableOpacity 
             style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} 
@@ -122,6 +137,8 @@ const styles = StyleSheet.create({
   footerContainer: { 
     gap: 12 
   },
+  deleteBtn: { minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  deleteBtnText: { color: '#DC2626', fontWeight: '700', fontSize: 15 },
   saveBtn: { 
     width: '100%', 
     paddingVertical: 14, 

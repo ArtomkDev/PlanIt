@@ -101,3 +101,40 @@ test('shared schedule removes contacts and destinations with unsafe schemes', ()
   assert.equal(result.teachers[0].contacts, undefined);
   assert.equal(result.links[0].url, undefined);
 });
+
+test('shared schedules preserve lesson slots whose subject was deleted', () => {
+  const result = sanitizeSharedSchedule({
+    ...baseSchedule,
+    schedule: [{
+      week1: [
+        { subjectDeleted: true, startTime: '08:30', endTime: '09:15' },
+      ],
+    }],
+  });
+
+  assert.deepEqual(result.schedule[0].week1, [{
+    subjectDeleted: true,
+    startTime: '08:30',
+    endTime: '09:15',
+  }]);
+});
+
+test('shared schedules detach missing subjects without deleting lesson slots', () => {
+  const result = sanitizeSharedSchedule({
+    ...baseSchedule,
+    subjects: [{ id: 'physics', name: 'Physics' }],
+    schedule: [{
+      week1: [
+        { subjectId: 'deleted-subject', startTime: '08:30' },
+        { subjectId: 'physics', startTime: '09:30' },
+      ],
+    }],
+  });
+
+  assert.equal(result.schedule[0].week1.length, 2);
+  assert.deepEqual(result.schedule[0].week1[0], {
+    subjectDeleted: true,
+    startTime: '08:30',
+  });
+  assert.equal(result.schedule[0].week1[1].subjectId, 'physics');
+});

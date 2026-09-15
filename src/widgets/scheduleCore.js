@@ -188,7 +188,7 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput
 
       items.push({
         type: 'lesson',
-        id: lessonData.id || subjectId,
+        id: lessonData.id || subjectId || `slot-${dayIndex}-${i}`,
         dayIndex,
         lessonIndex: i,
         subject: lessonData.name || subjectObj.name || 'Пара',
