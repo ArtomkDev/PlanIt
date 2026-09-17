@@ -69,6 +69,7 @@ export const normalizeLessonRef = (value, fallbackScheduleId = null) => {
   const scheduleId = value.scheduleId || fallbackScheduleId;
   if (scheduleId) next.scheduleId = String(scheduleId);
   if (value.subjectId) next.subjectId = String(value.subjectId);
+  if (value.seriesId) next.seriesId = String(value.seriesId);
   if (value.date) next.date = String(value.date);
   if (value.weekKey) next.weekKey = String(value.weekKey);
   if (value.start) next.start = String(value.start);
@@ -105,7 +106,9 @@ export const areLessonRefsSame = (left, right) => {
     leftRef.scheduleId === rightRef.scheduleId
     && leftRef.date === rightRef.date
     && leftRef.weekKey === rightRef.weekKey
-    && Number(leftRef.lessonIndex) === Number(rightRef.lessonIndex)
+    && (leftRef.seriesId && rightRef.seriesId
+      ? leftRef.seriesId === rightRef.seriesId
+      : Number(leftRef.lessonIndex) === Number(rightRef.lessonIndex))
   );
 };
 
@@ -172,6 +175,7 @@ export const createLessonRefForDate = (schedule, lesson, dateInput = new Date())
   return normalizeLessonRef({
     scheduleId: schedule.id,
     subjectId,
+    seriesId: getLessonContextData(lesson)?.recurrence?.id,
     date: getLocalISODate(dateInput),
     dayIndex,
     weekKey,
@@ -208,6 +212,7 @@ export const createLessonRefFromOccurrence = (schedule, occurrence) => {
   return normalizeLessonRef({
     scheduleId: schedule.id,
     subjectId: occurrence.subjectId,
+    seriesId: occurrence.seriesId,
     date: getLocalISODate(occurrence.date),
     dayIndex: occurrence.dayIndex,
     weekKey: occurrence.weekKey,
@@ -278,7 +283,10 @@ export const resolveOccurrenceFromLessonRef = (schedule, lessonRef) => {
   return occurrences.find((occurrence) => (
     (!ref.weekKey || occurrence.weekKey === ref.weekKey)
     && (ref.dayIndex === undefined || Number(occurrence.dayIndex) === Number(ref.dayIndex))
-    && Number(occurrence.lessonIndex) === Number(ref.lessonIndex)
+    && (
+      (ref.seriesId && occurrence.seriesId === ref.seriesId)
+      || (!ref.seriesId && Number(occurrence.lessonIndex) === Number(ref.lessonIndex))
+    )
   )) || null;
 };
 

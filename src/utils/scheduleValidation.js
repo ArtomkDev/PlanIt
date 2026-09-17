@@ -4,6 +4,10 @@ import {
   normalizeSubjectReminder,
 } from "./reminderSettings";
 import {
+  MAX_SCHEDULE_WEEKS,
+  normalizeScheduleRepeat,
+} from "./scheduleTime";
+import {
   getContactTypeColor,
   getLinkOpenUrl,
   getTeacherContactOpenUrl,
@@ -32,13 +36,13 @@ const LIMITS = {
   links: 250,
   gradients: 100,
   days: 7,
-  weeks: 12,
+  weeks: MAX_SCHEDULE_WEEKS,
   lessonsPerWeek: 40,
   breaks: 40,
   gradientStops: 8,
 };
 
-const WEEK_KEY_RE = /^week([1-9]|1[0-2])$/;
+const WEEK_KEY_RE = /^week([1-9]\d*)$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const HEX_RE = /^#?[0-9a-fA-F]{3,8}$/;
 
@@ -46,6 +50,11 @@ const isPlainObject = (value) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
+};
+
+const isSupportedWeekKey = (value) => {
+  const match = String(value || "").match(WEEK_KEY_RE);
+  return !!match && Number(match[1]) <= LIMITS.weeks;
 };
 
 const clampNumber = (value, min, max, fallback) => {
@@ -337,6 +346,25 @@ const sanitizeSubject = (subject, options) => {
   return result;
 };
 
+const sanitizeLessonRecurrence = (value) => {
+  if (!isPlainObject(value)) return undefined;
+  const id = cleanId(value.id);
+  if (!id) return undefined;
+
+  const weeks = [...new Set((Array.isArray(value.weeks) ? value.weeks : [])
+    .map(Number)
+    .filter((week) => Number.isInteger(week) && week >= 1 && week <= LIMITS.weeks))]
+    .sort((left, right) => left - right);
+  const overrides = cleanIdArray(value.overrides, LIMITS.lessonsPerWeek);
+
+  return {
+    id,
+    mode: value.mode === "all" ? "all" : "selected",
+    weeks,
+    ...(overrides ? { overrides } : {}),
+  };
+};
+
 const sanitizeLesson = (lesson, options) => {
   if (typeof lesson === "string" || typeof lesson === "number") {
     const subjectId = cleanId(lesson);
@@ -353,6 +381,7 @@ const sanitizeLesson = (lesson, options) => {
   if (subjectId) result.subjectId = subjectId;
   else result.subjectDeleted = true;
 
+  pushIfDefined(result, "recurrence", sanitizeLessonRecurrence(lesson.recurrence));
   pushIfDefined(result, "type", cleanOptionalString(lesson.type, LIMITS.name));
   pushIfDefined(result, "room", cleanOptionalString(lesson.room, LIMITS.room));
   pushIfDefined(result, "building", cleanOptionalString(lesson.building, LIMITS.building));
@@ -390,7 +419,7 @@ const sanitizeScheduleGrid = (scheduleGrid, options) => {
     if (!isPlainObject(day)) return {};
 
     return Object.keys(day).reduce((acc, weekKey) => {
-      if (!WEEK_KEY_RE.test(weekKey) || !Array.isArray(day[weekKey])) return acc;
+      if (!isSupportedWeekKey(weekKey) || !Array.isArray(day[weekKey])) return acc;
 
       const lessons = day[weekKey]
         .slice(0, LIMITS.lessonsPerWeek)
@@ -491,7 +520,7 @@ const sanitizeScheduleCore = (input, options = {}, metadata) => {
 
   const schedule = {
     name: cleanString(input.name, LIMITS.name, "Imported schedule"),
-    repeat: Math.round(clampNumber(input.repeat, 1, LIMITS.weeks, 1)),
+    repeat: normalizeScheduleRepeat(input.repeat),
     duration: Math.round(clampNumber(input.duration, 1, 600, 45)),
     breaks: sanitizeBreaks(input.breaks),
     start_time: cleanTime(input.start_time) || "08:30",

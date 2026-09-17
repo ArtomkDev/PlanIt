@@ -5,7 +5,7 @@ const path = require("node:path");
 const test = require("node:test");
 const babel = require("@babel/core");
 
-const compileCommonJsModule = (filePath) => {
+const compileCommonJsModule = (filePath, mocks = new Map()) => {
   const source = fs.readFileSync(filePath, "utf8");
   const transformed = babel.transformSync(source, {
     filename: filePath,
@@ -14,14 +14,25 @@ const compileCommonJsModule = (filePath) => {
   const testModule = new Module(filePath, module);
   testModule.filename = filePath;
   testModule.paths = Module._nodeModulePaths(path.dirname(filePath));
+  const originalRequire = testModule.require.bind(testModule);
+  testModule.require = (request) => (
+    mocks.has(request) ? mocks.get(request) : originalRequire(request)
+  );
   testModule._compile(transformed, filePath);
   return testModule.exports;
 };
 
-const deletionPath = path.resolve(__dirname, "../src/utils/scheduleDeletion.js");
-const { deleteScheduleLesson, removeScheduleEntity } = compileCommonJsModule(deletionPath);
 const scheduleTimePath = path.resolve(__dirname, "../src/utils/scheduleTime.js");
-const { buildLessonOccurrences } = compileCommonJsModule(scheduleTimePath);
+const scheduleTime = compileCommonJsModule(scheduleTimePath);
+const recurrencePath = path.resolve(__dirname, "../src/utils/lessonRecurrence.js");
+const lessonRecurrence = compileCommonJsModule(recurrencePath, new Map([
+  ["./scheduleTime", scheduleTime],
+]));
+const deletionPath = path.resolve(__dirname, "../src/utils/scheduleDeletion.js");
+const { deleteScheduleLesson, removeScheduleEntity } = compileCommonJsModule(deletionPath, new Map([
+  ["./lessonRecurrence", lessonRecurrence],
+]));
+const { buildLessonOccurrences } = scheduleTime;
 
 const createSchedule = () => ({
   subjects: [

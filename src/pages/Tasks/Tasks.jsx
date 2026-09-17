@@ -54,7 +54,11 @@ import {
   resolveOccurrenceFromLessonRef,
   uniqueIds,
 } from "../../utils/taskLessonLinking";
-import { calculateScheduleWeek, parseTimeToMinutes } from "../../utils/scheduleTime";
+import {
+  calculateScheduleWeek,
+  normalizeScheduleRepeat,
+  parseTimeToMinutes,
+} from "../../utils/scheduleTime";
 import {
   APP_HEADER_BODY_HEIGHT,
   APP_HEADER_CONTENT_GAP,
@@ -260,7 +264,7 @@ const getTaskGroupMeta = (entry, lang) => {
   const date = parseTaskDayDate(lessonDate || createdAt);
   const scheduleName = entry?.scheduleName || t("settings.schedule_switcher.untitled", lang);
   const scheduleId = lessonRef?.scheduleId || entry?.scheduleId || "__schedule__";
-  const repeatWeeks = Math.max(1, Number(entry?.sourceSchedule?.repeat) || 1);
+  const repeatWeeks = normalizeScheduleRepeat(entry?.sourceSchedule?.repeat);
   const refWeekNumber = getLessonRefWeekNumber(lessonRef);
   const calculatedWeekNumber = date && repeatWeeks > 1
     ? calculateScheduleWeek(entry?.sourceSchedule, date)

@@ -1,3 +1,5 @@
+import { normalizeScheduleRepeat } from '../utils/scheduleTime';
+
 export const formatTime = (mins) =>
   `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 
@@ -50,10 +52,7 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput
     if (dayIndex < 0) dayIndex = 6;
 
     let currentWeekNum = 1;
-    const parsedRepeat = Number(scheduleData.repeat);
-    const totalWeeks = Number.isFinite(parsedRepeat) && parsedRepeat > 0
-      ? Math.floor(parsedRepeat)
-      : 1;
+    const totalWeeks = normalizeScheduleRepeat(scheduleData.repeat);
 
     if (scheduleData.starting_week && totalWeeks > 1) {
       const startDay = parseUtcCalendarDay(scheduleData.starting_week);

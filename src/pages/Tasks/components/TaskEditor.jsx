@@ -40,6 +40,7 @@ import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
 import { resolveScheduleColor } from "../../../utils/scheduleColors";
 import { getGradientColor } from "../../../utils/gradientColors";
 import { addScheduleRecordToMap } from "../../../utils/scheduleRecordMerge";
+import { normalizeScheduleRepeat } from "../../../utils/scheduleTime";
 import { triggerHaptic } from "../../../utils/haptics";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import {
@@ -217,7 +218,7 @@ const getOccurrenceEndTime = (occurrence) => (
 );
 
 const formatOccurrenceWeekLabel = (schedule, occurrence, lang) => {
-  const repeatWeeks = Math.max(1, Number(schedule?.repeat) || 1);
+  const repeatWeeks = normalizeScheduleRepeat(schedule?.repeat);
   if (repeatWeeks <= 1) return "";
 
   const weekNumber = occurrence?.weekNumber

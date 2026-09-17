@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import Animated, { FadeIn, LinearTransition, Easing } from "react-native-reanimated";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 
 const isAndroid = Platform.OS === "android";
 const isWeb = Platform.OS === "web";
@@ -13,10 +14,12 @@ export default function SettingsGroup({
   headerRight,
   contentStyle 
 }) {
+  const reduceMotion = useReducedMotionPreference();
   const validChildren = React.Children.toArray(children).filter(Boolean);
+  const layoutTransition = reduceMotion ? undefined : customLayoutTransition;
 
   return (
-    <Animated.View style={styles.container} layout={customLayoutTransition}>
+    <Animated.View style={styles.container} layout={layoutTransition}>
       {(title || headerRight) && (
         <View style={styles.header}>
           {title ? (
@@ -42,7 +45,7 @@ export default function SettingsGroup({
           },
           contentStyle
         ]}
-        layout={customLayoutTransition}
+        layout={layoutTransition}
       >
         {validChildren.map((child, index) => {
           const isLast = index === validChildren.length - 1;
@@ -50,7 +53,7 @@ export default function SettingsGroup({
           return (
             <Animated.View 
               key={child.key || `sg-item-${index}`} 
-              entering={isWeb ? undefined : FadeIn.duration(200)}
+              entering={isWeb || reduceMotion ? undefined : FadeIn.duration(200)}
             >
               {child}
               {!isLast && !isAndroid && (

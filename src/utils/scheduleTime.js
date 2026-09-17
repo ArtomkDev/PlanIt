@@ -1,6 +1,17 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+export const MAX_SCHEDULE_WEEKS = 12;
+
+export const normalizeScheduleRepeat = (value) => Math.min(
+  MAX_SCHEDULE_WEEKS,
+  Math.max(1, Math.round(Number(value) || 1)),
+);
+
+export const getScheduleWeekNumbers = (value) => (
+  Array.from({ length: normalizeScheduleRepeat(value) }, (_, index) => index + 1)
+);
+
 export const parseTimeToMinutes = (timeStr) => {
   if (!timeStr || typeof timeStr !== "string" || !TIME_RE.test(timeStr)) return null;
   const [hours, minutes] = timeStr.split(":").map(Number);
@@ -83,7 +94,7 @@ export const getScheduleDayIndex = (dateInput = new Date()) => {
 };
 
 export const calculateScheduleWeek = (schedule, dateInput = new Date()) => {
-  const repeatWeeks = Math.max(1, Math.round(Number(schedule?.repeat) || 1));
+  const repeatWeeks = normalizeScheduleRepeat(schedule?.repeat);
   if (!schedule?.starting_week || repeatWeeks <= 1) return 1;
 
   const firstWeekDate = normalizeScheduleDate(schedule.starting_week);
@@ -177,6 +188,7 @@ export const buildLessonOccurrences = (schedule, options = {}) => {
         lessonIndex: index,
         lesson,
         lessonData: getLessonData(lesson),
+        seriesId: getLessonData(lesson)?.recurrence?.id || null,
         subjectId,
         subject: subjects.find((subject) => subject.id === subjectId) || {},
         timeInfo,

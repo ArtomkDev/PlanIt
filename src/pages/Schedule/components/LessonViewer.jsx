@@ -210,28 +210,60 @@ export default function LessonViewer({
     }
   };
 
+  const deleteLessonWithScope = (scope) => {
+    const recurrenceWeeks = Array.isArray(instanceData.recurrence?.weeks)
+      ? instanceData.recurrence.weeks
+      : [];
+    const keepsOtherOccurrences = (
+      scope === "occurrence"
+      && !!instanceData.recurrence?.id
+      && recurrenceWeeks.length > 1
+    );
+    triggerHaptic("success");
+    setScheduleDraft((prev) => {
+      const dayIndex = getDayIndex(currentDate);
+      const weekKey = `week${calculateCurrentWeek(currentDate)}`;
+      return deleteScheduleLesson(prev, dayIndex, weekKey, lesson.index, scope);
+    });
+    if (!keepsOtherOccurrences) {
+      deleteLocalAttachmentCaches(instanceData.attachments).catch(() => {});
+    }
+    onClose();
+  };
+
   const handleDelete = () => {
     triggerHaptic("warning");
+    const recurrenceWeeks = Array.isArray(instanceData.recurrence?.weeks)
+      ? instanceData.recurrence.weeks
+      : [];
+    const isRepeating = !!instanceData.recurrence?.id && recurrenceWeeks.length > 1;
+
     Alert.alert(
       t('common.warning', lang),
-      t('schedule.lesson_editor.delete_lesson_confirm', lang),
-      [
-        { text: t('common.cancel', lang), style: 'cancel' },
-        {
-          text: t('common.delete', lang),
-          style: 'destructive',
-          onPress: () => {
-            triggerHaptic("success");
-            setScheduleDraft((prev) => {
-              const dayIndex = getDayIndex(currentDate);
-              const weekKey = `week${calculateCurrentWeek(currentDate)}`;
-              return deleteScheduleLesson(prev, dayIndex, weekKey, lesson.index);
-            });
-            deleteLocalAttachmentCaches(instanceData.attachments).catch(() => {});
-            onClose();
-          }
-        }
-      ]
+      isRepeating
+        ? t('schedule.lesson_editor.delete_series_confirm', lang)
+        : t('schedule.lesson_editor.delete_lesson_confirm', lang),
+      isRepeating
+        ? [
+          { text: t('common.cancel', lang), style: 'cancel' },
+          {
+            text: t('schedule.lesson_editor.delete_occurrence', lang),
+            onPress: () => deleteLessonWithScope("occurrence"),
+          },
+          {
+            text: t('schedule.lesson_editor.delete_series', lang),
+            style: 'destructive',
+            onPress: () => deleteLessonWithScope("series"),
+          },
+        ]
+        : [
+          { text: t('common.cancel', lang), style: 'cancel' },
+          {
+            text: t('common.delete', lang),
+            style: 'destructive',
+            onPress: () => deleteLessonWithScope("occurrence"),
+          },
+        ],
     );
   };
 

@@ -50,17 +50,17 @@ import {
   buildLessonTimes,
   getBreakDuration,
   getDurationMinutes,
-  parseTimeToMinutes,
+  normalizeScheduleRepeat,
 } from "../../../utils/scheduleTime";
 import { removeScheduleEntity } from "../../../utils/scheduleDeletion";
+import {
+  applyLessonRecurrence,
+  getLessonRecurrenceSelection,
+} from "../../../utils/lessonRecurrence";
 
 const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
 const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 
-const timeToMins = (timeStr) => {
-    const minutes = parseTimeToMinutes(timeStr);
-    return minutes === null ? 999999 : minutes;
-};
 
 const canUseLayoutAnimation = () => (
   Platform.OS !== "android" || global._IS_FABRIC !== true
@@ -120,7 +120,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
   const getCleanInstanceData = (data) => {
     if (!data || typeof data !== 'object') return {};
-    const { subjectId, ...rest } = data;
+    const { subjectId, recurrence, ...rest } = data;
     return rest;
   };
 
@@ -130,8 +130,14 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   );
 
   const dayIndex = getDayIndex(currentDate);
-  const weekKey = `week${calculateCurrentWeek(currentDate)}`;
+  const currentWeekNumber = calculateCurrentWeek(currentDate);
+  const weekKey = `week${currentWeekNumber}`;
   const currentDaySchedule = dataSource?.schedule?.[dayIndex]?.[weekKey] || [];
+  const resolveInitialRecurrence = () => (
+    getLessonRecurrenceSelection(dataSource, dayIndex, currentWeekNumber, lesson)
+  );
+  const [recurrenceSelection, setRecurrenceSelection] = useState(resolveInitialRecurrence);
+  const [initialRecurrenceSelection, setInitialRecurrenceSelection] = useState(resolveInitialRecurrence);
 
   const start_time_global = dataSource?.start_time || "08:30";
   const duration_global = Number(dataSource?.duration) || 45;
@@ -204,6 +210,9 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
     const initialInstanceData = lesson?.data ? getCleanInstanceData(lesson.data) : {};
     setInstanceData(initialInstanceData);
+    const nextRecurrence = resolveInitialRecurrence();
+    setRecurrenceSelection(nextRecurrence);
+    setInitialRecurrenceSelection(nextRecurrence);
 
     setScopes({
       people: initialInstanceData.teachers !== undefined ? 'local' : 'global',
@@ -483,56 +492,19 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
       lessonObject.defaultStartTime = defStart;
       lessonObject.defaultEndTime = defEnd;
 
-      const duration_global = Number(next.duration) || 45;
-      let tempArr = [];
+      lessonObject.startTime = lessonObject.startTime || defStart;
+      lessonObject.endTime = lessonObject.endTime || defEnd;
 
-      for (let i = 0; i < weekArr.length; i++) {
-          if (Number.isInteger(lesson?.index) && i === lesson.index) continue;
-          if (!weekArr[i]) continue;
-
-          const item = weekArr[i];
-          const effectiveStart = item.startTime || computedLessonTimes[i]?.start || "08:00";
-          const effectiveEnd = item.endTime || computedLessonTimes[i]?.end || addMinutes(effectiveStart, duration_global);
-
-          const itemDefStart = item.defaultStartTime || computedLessonTimes[i]?.start || "08:00";
-          const itemDefEnd = item.defaultEndTime || computedLessonTimes[i]?.end || addMinutes(itemDefStart, duration_global);
-
-          tempArr.push({
-              lesson: {
-                  ...item,
-                  startTime: effectiveStart,
-                  endTime: effectiveEnd,
-                  defaultStartTime: itemDefStart,
-                  defaultEndTime: itemDefEnd
-              },
-              effectiveStart: effectiveStart,
-              originalIndex: i
-          });
-      }
-
-      const newLessonStart = lessonObject.startTime || defStart;
-      const newLessonEnd = lessonObject.endTime || defEnd;
-
-      lessonObject.startTime = newLessonStart;
-      lessonObject.endTime = newLessonEnd;
-
-      tempArr.push({
-          lesson: lessonObject,
-          effectiveStart: newLessonStart,
-          originalIndex: Number.isInteger(lesson?.index) ? lesson.index : 9999
+      const withRecurrence = applyLessonRecurrence(next, {
+        dayIndex,
+        weekNumber: currentWeekNumber,
+        lessonIndex: Number.isInteger(lesson?.index) ? lesson.index : null,
+        lesson: lessonObject,
+        selection: recurrenceSelection,
+        previousSelection: initialRecurrenceSelection,
       });
 
-      tempArr.sort((a, b) => {
-          const timeDiff = timeToMins(a.effectiveStart) - timeToMins(b.effectiveStart);
-          if (timeDiff === 0) {
-              return a.originalIndex - b.originalIndex;
-          }
-          return timeDiff;
-      });
-
-      next.schedule[dayIndex][weekKey] = tempArr.map(item => item.lesson);
-
-      return finishDeletionCleanup(next);
+      return finishDeletionCleanup(withRecurrence);
     });
 
     const attachmentsToDelete = removedStoredAttachments;
@@ -1203,6 +1175,10 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                 instanceData={instanceData}
                 defaultTime={storedDefaultTime}
                 onTimeChange={handleTimeChange}
+                recurrenceSelection={recurrenceSelection}
+                onRecurrenceChange={setRecurrenceSelection}
+                scheduleRepeat={normalizeScheduleRepeat(schedule?.repeat)}
+                currentWeekNumber={currentWeekNumber}
                 onClearSubject={() => setSelectedSubjectId(null)}
                 scheduleReminder={schedule?.reminder}
                 onSubjectReminderChange={handleUpdateSubjectReminder}

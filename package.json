@@ -42,6 +42,7 @@
     "test:widgets": "node --test tests/widgetCore.test.cjs",
     "test:contacts": "node --test tests/contactData.test.cjs tests/scheduleContactValidation.test.cjs",
     "test:schedule-deletion": "node --test tests/scheduleDeletion.test.cjs tests/scheduleContactValidation.test.cjs",
+    "test:schedule-recurrence": "node --test tests/lessonRecurrence.test.cjs",
     "test:sync": "node --test tests/scheduleSync.test.cjs tests/localStorageDurability.test.cjs tests/scheduleOwnership.test.cjs tests/firestoreSync.test.cjs"
   },
   "dependencies": {

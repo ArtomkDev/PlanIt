@@ -1,3 +1,5 @@
+import { deleteLessonRecurrence } from "./lessonRecurrence";
+
 const removeIdFromList = (value, id) => {
   if (!Array.isArray(value)) return value;
   const next = value.filter((itemId) => itemId !== id);
@@ -178,7 +180,18 @@ const updateTaskAfterLessonDeletion = (task, scheduleId, dayIndex, weekKey, less
   return task;
 };
 
-export const deleteScheduleLesson = (schedule, dayIndex, weekKey, lessonIndex) => {
+export const deleteScheduleLesson = (schedule, dayIndex, weekKey, lessonIndex, scope = "occurrence") => {
+  const weekMatch = String(weekKey || "").match(/^week(\d+)$/);
+  const recurringResult = weekMatch
+    ? deleteLessonRecurrence(schedule, {
+      dayIndex,
+      weekNumber: Number(weekMatch[1]),
+      lessonIndex,
+      scope,
+    })
+    : null;
+  if (recurringResult) return recurringResult;
+
   const lessons = schedule?.schedule?.[dayIndex]?.[weekKey];
   if (!Array.isArray(lessons) || !Number.isInteger(lessonIndex) || lessonIndex < 0 || lessonIndex >= lessons.length) {
     return schedule;

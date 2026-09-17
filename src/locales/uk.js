@@ -341,6 +341,19 @@ export default {
       delete_entity: "Видалити назавжди",
       delete_entity_confirm: "Видалити \"{name}\" назавжди? Запис буде прибрано з усіх пар і завдань, але самі пари залишаться.",
       delete_lesson_confirm: "Видалити цю пару з розкладу?",
+      delete_occurrence: "Лише з цього тижня",
+      delete_series: "Усю серію",
+      delete_series_confirm: "Ця пара повторюється. Видалити її лише з цього тижня чи з усіх вибраних тижнів?",
+      repeat_group: "Повторення",
+      repeat_label: "Коли проводиться",
+      repeat_hint: "Зміни застосовуються до всієї серії.",
+      repeat_every_week: "Щотижня",
+      repeat_selected_weeks: "У вибрані тижні",
+      repeat_selected_weeks_value: "Тижні: {weeks}",
+      repeat_selected_count: "Вибрано тижнів: {count}",
+      repeat_choose_weeks: "Оберіть тижні циклу",
+      repeat_week: "Тиждень {week}",
+      repeat_override_hint: "Пара у вибраному тижні замінює щотижневу, якщо їхній час перетинається.",
       add_teacher: "Додати викладача",
       add_link: "Додати посилання",
       placeholder_building: "Наприклад: Головний",
@@ -787,7 +800,7 @@ export default {
       desc_delete_guest: "Повністю видаляє розклади вашого хмарного акаунта ТА будь-які локальні гостьові розклади на цьому пристрої.",
     },
 
-    week_manager: { repeat_label: "Або інша кількість", },
+    week_manager: { repeat_label: "Або 5–12 тижнів", },
     breaks_manager: { add_btn: "Додати перерву" },
 
     schedule_switcher: {

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from "react";
-import { ScrollView, StyleSheet, View, Text, Platform, LayoutAnimation, UIManager, TouchableOpacity, TextInput, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, View, Text, Platform, TouchableOpacity, TextInput, Alert } from "react-native";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   BookOpen,
@@ -13,6 +13,7 @@ import {
   Clock,
   Bell,
   Plus,
+  CalendarDots,
   ArrowsCounterClockwise
 } from "phosphor-react-native";
 
@@ -26,7 +27,6 @@ import { getIconComponent } from "../../../../../config/subjectIcons";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
-import useReducedMotionPreference from "../../../../../hooks/useReducedMotionPreference";
 import {
   CUSTOM_REMINDER_FALLBACK_MINUTES,
   REMINDER_PRESET_MINUTES,
@@ -39,11 +39,10 @@ import {
   NOTIFICATION_TYPES,
   ensureNotificationPushPermissionsForType,
 } from "../../../../../services/notificationService";
-import { getDurationMinutes } from "../../../../../utils/scheduleTime";
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental && global._IS_FABRIC !== true) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import {
+  getDurationMinutes,
+  getScheduleWeekNumbers,
+} from "../../../../../utils/scheduleTime";
 
 export default function LessonEditorMainScreen({
   themeColors,
@@ -61,6 +60,10 @@ export default function LessonEditorMainScreen({
   instanceData,
   defaultTime,
   onTimeChange,
+  recurrenceSelection,
+  onRecurrenceChange,
+  scheduleRepeat,
+  currentWeekNumber,
   onClearSubject,
   scheduleReminder,
   onSubjectReminderChange,
@@ -79,9 +82,7 @@ export default function LessonEditorMainScreen({
 }) {
   const { global, lang } = useScheduleData();
   const [expandedField, setExpandedField] = useState(null);
-  const reduceMotion = useReducedMotionPreference();
   const [customSubjectReminderMinutes, setCustomSubjectReminderMinutes] = useState(String(CUSTOM_REMINDER_FALLBACK_MINUTES));
-  const scrollViewRef = useRef(null);
 
   const safeGetLabel = getLabel || ((type, val) => t('schedule.main_screen.not_defined', lang));
 
@@ -94,6 +95,18 @@ export default function LessonEditorMainScreen({
   const isTimeModified = currentStart !== defaultTime?.start || currentEnd !== defaultTime?.end;
 
   const duration = getDurationMinutes(currentStart, currentEnd);
+  const repeatWeeks = getScheduleWeekNumbers(scheduleRepeat);
+  const repeatCount = repeatWeeks.length;
+  const selectedRepeatWeeks = recurrenceSelection?.mode === "all"
+    ? repeatWeeks
+    : (recurrenceSelection?.weeks || []).filter((week) => repeatWeeks.includes(Number(week)));
+  const recurrenceValue = recurrenceSelection?.mode === "all"
+    ? t('schedule.lesson_editor.repeat_every_week', lang)
+    : selectedRepeatWeeks.length <= 4
+      ? t('schedule.lesson_editor.repeat_selected_weeks_value', lang)
+        .replace("{weeks}", selectedRepeatWeeks.join(", "))
+      : t('schedule.lesson_editor.repeat_selected_count', lang)
+        .replace("{count}", String(selectedRepeatWeeks.length));
   const scheduleDefaultReminder = normalizeScheduleReminder(scheduleReminder);
   const subjectReminder = normalizeSubjectReminder(currentSubject?.reminder);
   const reminderSelectionId = currentSubject?.reminder === undefined
@@ -107,21 +120,9 @@ export default function LessonEditorMainScreen({
   }, [currentSubject?.id, subjectReminder?.enabled, subjectReminder?.minutesBefore]);
 
   const toggleExpand = (field) => {
-    triggerHaptic(expandedField === field ? "sheetClose" : "expand");
-    if (Platform.OS === 'android' || reduceMotion) {
-        setExpandedField(field);
-    } else {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setExpandedField(prev => {
-            const nextField = prev === field ? null : field;
-            if (nextField) {
-                setTimeout(() => {
-                    scrollViewRef.current?.scrollToEnd({ animated: true });
-                }, 250);
-            }
-            return nextField;
-        });
-    }
+    const isClosing = expandedField === field;
+    triggerHaptic(isClosing ? "sheetClose" : "expand");
+    setExpandedField(isClosing ? null : field);
   };
 
   const interpolate = (template, params) => (
@@ -130,6 +131,40 @@ export default function LessonEditorMainScreen({
       template
     )
   );
+
+  const updateRecurrenceMode = (mode) => {
+    triggerHaptic("selection");
+    const selectedWeek = repeatWeeks.includes(Number(currentWeekNumber))
+      ? Number(currentWeekNumber)
+      : repeatWeeks[0];
+    onRecurrenceChange?.({
+      ...recurrenceSelection,
+      mode,
+      weeks: mode === "all"
+        ? repeatWeeks
+        : recurrenceSelection?.mode === "selected" && selectedRepeatWeeks.length > 0
+          ? selectedRepeatWeeks
+          : [selectedWeek],
+    });
+  };
+
+  const toggleRecurrenceWeek = (week) => {
+    const selected = selectedRepeatWeeks.includes(week);
+    if (selected && selectedRepeatWeeks.length === 1) {
+      triggerHaptic("error");
+      return;
+    }
+    triggerHaptic("selection");
+    const weeks = selected
+      ? selectedRepeatWeeks.filter((item) => item !== week)
+      : [...selectedRepeatWeeks, week].sort((left, right) => left - right);
+    const allWeeksSelected = weeks.length === repeatWeeks.length;
+    onRecurrenceChange?.({
+      ...recurrenceSelection,
+      mode: allWeeksSelected ? "all" : "selected",
+      weeks: allWeeksSelected ? repeatWeeks : weeks,
+    });
+  };
 
   const formatReminderValue = (reminder) => {
     const normalized = normalizeScheduleReminder(reminder);
@@ -407,7 +442,6 @@ export default function LessonEditorMainScreen({
 
   return (
     <ScrollView
-      ref={scrollViewRef}
       style={styles.content}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
@@ -430,6 +464,96 @@ export default function LessonEditorMainScreen({
           themeColors={themeColors}
           icon={BookOpen}
         />
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('schedule.lesson_editor.repeat_group', lang)}
+      >
+        <SettingsRow
+          label={t('schedule.lesson_editor.repeat_label', lang)}
+          value={recurrenceValue}
+          desc={t('schedule.lesson_editor.repeat_hint', lang)}
+          onPress={repeatCount > 1 ? () => toggleExpand("recurrence") : undefined}
+          themeColors={themeColors}
+          icon={CalendarDots}
+          showCaret={repeatCount > 1}
+          accessibilityState={{ expanded: expandedField === "recurrence" }}
+        />
+
+        {repeatCount > 1 && expandedField === "recurrence" && (
+          <View style={styles.reminderOptions}>
+            <View style={styles.reminderChoiceGrid}>
+              {[
+                { id: "all", label: t('schedule.lesson_editor.repeat_every_week', lang) },
+                { id: "selected", label: t('schedule.lesson_editor.repeat_selected_weeks', lang) },
+              ].map((option) => {
+                const selected = recurrenceSelection?.mode === option.id;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.reminderChoice,
+                      {
+                        backgroundColor: selected ? themeColors.accentColor : themeColors.backgroundColor,
+                        borderColor: selected ? themeColors.accentColor : themeColors.borderColor,
+                      },
+                    ]}
+                    onPress={() => updateRecurrenceMode(option.id)}
+                    activeOpacity={0.75}
+                    accessibilityRole="radio"
+                    accessibilityLabel={option.label}
+                    accessibilityState={{ selected, checked: selected }}
+                  >
+                    <Text style={[styles.reminderChoiceText, { color: selected ? "#fff" : themeColors.textColor }]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {recurrenceSelection?.mode === "selected" && (
+              <>
+                <Text style={[styles.recurrenceHelp, { color: themeColors.textColor2 }]}>
+                  {t('schedule.lesson_editor.repeat_choose_weeks', lang)}
+                </Text>
+                <View style={styles.reminderChoiceGrid}>
+                  {repeatWeeks.map((week) => {
+                    const selected = selectedRepeatWeeks.includes(week);
+                    const label = interpolate(t('schedule.lesson_editor.repeat_week', lang), { week });
+                    return (
+                      <TouchableOpacity
+                        key={week}
+                        style={[
+                          styles.reminderChoice,
+                          styles.recurrenceWeekChoice,
+                          {
+                            backgroundColor: selected ? themeColors.accentColor : themeColors.backgroundColor,
+                            borderColor: selected ? themeColors.accentColor : themeColors.borderColor,
+                          },
+                        ]}
+                        onPress={() => toggleRecurrenceWeek(week)}
+                        activeOpacity={0.75}
+                        accessibilityRole="checkbox"
+                        accessibilityLabel={label}
+                        accessibilityState={{ checked: selected }}
+                      >
+                        <Text style={[styles.reminderChoiceText, { color: selected ? "#fff" : themeColors.textColor }]}>
+                          {week}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            <Text style={[styles.recurrenceHelp, { color: themeColors.textColor2 }]}>
+              {t('schedule.lesson_editor.repeat_override_hint', lang)}
+            </Text>
+          </View>
+        )}
       </SettingsGroup>
 
       <SettingsGroup
@@ -712,6 +836,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 120,
+  },
+  recurrenceHelp: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 12,
+  },
+  recurrenceWeekChoice: {
+    minWidth: 52,
   },
   headerActionButton: {
     width: 44,

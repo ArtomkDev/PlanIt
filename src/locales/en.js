@@ -341,6 +341,19 @@ export default {
       delete_entity: "Delete permanently",
       delete_entity_confirm: "Delete \"{name}\" permanently? It will be removed from every lesson and task, while the lesson slots will remain.",
       delete_lesson_confirm: "Delete this lesson from the schedule?",
+      delete_occurrence: "Only from this week",
+      delete_series: "Entire series",
+      delete_series_confirm: "This lesson repeats. Delete it only from this week or from every selected week?",
+      repeat_group: "Recurrence",
+      repeat_label: "When it occurs",
+      repeat_hint: "Changes apply to the entire series.",
+      repeat_every_week: "Every week",
+      repeat_selected_weeks: "On selected weeks",
+      repeat_selected_weeks_value: "Weeks: {weeks}",
+      repeat_selected_count: "{count} weeks selected",
+      repeat_choose_weeks: "Choose cycle weeks",
+      repeat_week: "Week {week}",
+      repeat_override_hint: "A lesson on a selected week replaces an every-week lesson when their times overlap.",
       add_teacher: "Add teacher",
       add_link: "Add link",
       placeholder_building: "E.g.: Main",
@@ -787,7 +800,7 @@ export default {
       desc_delete_guest: "Completely deletes your cloud account schedules AND any local guest schedules on this device.",
     },
 
-    week_manager: { repeat_label: "Or another number", },
+    week_manager: { repeat_label: "Or 5–12 weeks", },
     breaks_manager: { add_btn: "Add break" },
 
     schedule_switcher: {

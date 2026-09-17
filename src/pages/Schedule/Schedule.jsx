@@ -29,6 +29,8 @@ import { NowTickProvider } from "../../hooks/useNowTick";
 import themes from "../../config/themes";
 import {
   buildLessonTimes,
+  calculateScheduleWeek,
+  getScheduleDayIndex,
   getScheduleDayLessons,
 } from "../../utils/scheduleTime";
 import {
@@ -412,25 +414,11 @@ export default function Schedule({ route, navigation }) {
                     }, 100);
 
                     if (schedule && schedule.schedule) {
-                        let dayIndex = targetDate.getDay() - 1;
-                        if (dayIndex < 0) dayIndex = 6;
+                        const dayIndex = getScheduleDayIndex(targetDate);
                         
                         const dayObj = schedule.schedule[dayIndex];
                         if (dayObj) {
-                            let totalWeeks = schedule.repeat || 1;
-                            let currentWeekNum = 1;
-                            
-                            if (schedule.starting_week && totalWeeks > 1) {
-                                const start = new Date(schedule.starting_week);
-                                start.setHours(0,0,0,0);
-                                const t = new Date(targetDate);
-                                const weeksPassed = Math.floor((t.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                let mod = weeksPassed % totalWeeks;
-                                if (mod < 0) mod += totalWeeks;
-                                currentWeekNum = mod + 1;
-                            }
-                            
-                            const weekKey = `week${currentWeekNum}`;
+                            const weekKey = `week${calculateScheduleWeek(schedule, targetDate)}`;
                             const rawLessons = Array.isArray(dayObj[weekKey]) ? dayObj[weekKey] : [];
                             const item = rawLessons[lessonIndex];
                             

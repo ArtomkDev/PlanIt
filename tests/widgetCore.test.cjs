@@ -25,7 +25,11 @@ const compileCommonJsModule = (filePath, mocks = new Map()) => {
 };
 
 const scheduleCorePath = path.resolve(__dirname, '../src/widgets/scheduleCore.js');
-const scheduleCore = compileCommonJsModule(scheduleCorePath);
+const scheduleTimePath = path.resolve(__dirname, '../src/utils/scheduleTime.js');
+const scheduleTime = compileCommonJsModule(scheduleTimePath);
+const scheduleCore = compileCommonJsModule(scheduleCorePath, new Map([
+  ['../utils/scheduleTime', scheduleTime],
+]));
 
 const createSchedule = () => ({
   repeat: 2,
@@ -67,6 +71,16 @@ test('switches current lesson exactly at the boundary', () => {
   assert.equal(result.items[1].type, 'break');
   assert.equal(result.items[1].isCurrent, true);
   assert.equal(result.nextTransitionAt, new Date(2026, 2, 30, 11, 0, 0, 0).getTime());
+});
+
+test('caps legacy repeat values to the supported schedule cycle', () => {
+  const now = new Date(2026, 2, 30, 10, 15, 30, 0);
+  const schedule = createSchedule();
+  schedule.repeat = 99;
+
+  const result = scheduleCore.parseRealSchedule(schedule, now, 0, now);
+
+  assert.equal(result.totalWeeks, 12);
 });
 
 test('builds a presentation-ready model and schedules the next boundary', () => {

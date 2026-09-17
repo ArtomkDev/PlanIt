@@ -40,7 +40,10 @@ import {
   TASK_AUTO_LINK_MODES,
   getTaskAutoLinkMode,
 } from '../../utils/taskLessonLinking';
-import { getLastMondayISODate } from '../../utils/scheduleTime';
+import {
+  getLastMondayISODate,
+  normalizeScheduleRepeat,
+} from '../../utils/scheduleTime';
 import { generateId } from '../../utils/idGenerator';
 
 const TOTAL_STEPS = 5;
@@ -273,7 +276,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
   const handleFinish = async () => {
     triggerHaptic("success");
-    const finalRepeat = Math.max(1, Number(weeksCount) || 1);
+    const finalRepeat = normalizeScheduleRepeat(weeksCount);
     const scheduleId = generateId();
     addSchedule({
       ...defaultSchedule,
@@ -507,7 +510,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
         <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.weeks_count_desc', lang)}</Text>
         <TabSwitcher tabs={[{ id: '1', label: '1' }, { id: '2', label: '2' }, { id: '3', label: '3' }, { id: '4', label: '4' }]} activeTab={String(weeksCount)} onTabPress={setWeeksCount} themeColors={themeColors} activeTabBackgroundColor={isCustomRepeat ? 'transparent' : themeColors.accentColor} containerBackgroundColor={themeColors.backgroundColor2} containerBorderColor={themeColors.borderColor} />
         <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor2, borderColor: (isCustomRepeat && weeksCount !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
-          <TextInput accessibilityLabel={t('settings.menu.weeks.title', lang)} style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomRepeat ? String(weeksCount) : ""} onChangeText={(text) => setWeeksCount(text.replace(/[^0-9]/g, ''))} placeholder={t('settings.week_manager.repeat_label', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={2} />
+          <TextInput accessibilityLabel={t('settings.menu.weeks.title', lang)} style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomRepeat ? String(weeksCount) : ""} onChangeText={(text) => setWeeksCount(text.replace(/[^0-9]/g, ''))} onBlur={() => setWeeksCount(String(normalizeScheduleRepeat(weeksCount)))} placeholder={t('settings.week_manager.repeat_label', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={2} />
         </View>
       </View>
 
@@ -872,7 +875,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
       </Animated.View>
 
-      <CalendarSheet visible={isCalendarVisible} onClose={() => setCalendarVisible(false)} currentDate={new Date(startingWeek)} customSchedule={{ repeat: Math.max(1, Number(weeksCount) || 1) }} onDateSelect={(date) => { setStartingWeek(date.toISOString()); setCalendarVisible(false); }} />
+      <CalendarSheet visible={isCalendarVisible} onClose={() => setCalendarVisible(false)} currentDate={new Date(startingWeek)} customSchedule={{ repeat: normalizeScheduleRepeat(weeksCount) }} onDateSelect={(date) => { setStartingWeek(date.toISOString()); setCalendarVisible(false); }} />
     </KeyboardAvoidingView>
   );
 }

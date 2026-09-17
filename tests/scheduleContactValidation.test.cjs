@@ -138,3 +138,30 @@ test('shared schedules detach missing subjects without deleting lesson slots', (
   });
   assert.equal(result.schedule[0].week1[1].subjectId, 'physics');
 });
+
+test('shared schedules preserve safe lesson recurrence metadata', () => {
+  const result = sanitizeSharedSchedule({
+    ...baseSchedule,
+    repeat: 2,
+    subjects: [{ id: 'math', name: 'Math' }],
+    schedule: [{
+      week1: [{
+        subjectId: 'math',
+        recurrence: {
+          id: 'series-1',
+          mode: 'all',
+          weeks: [2, 1, 13, 1],
+          overrides: ['series-base', '', 'series-base'],
+        },
+      }],
+      week2: [],
+    }],
+  });
+
+  assert.deepEqual(result.schedule[0].week1[0].recurrence, {
+    id: 'series-1',
+    mode: 'all',
+    weeks: [1, 2],
+    overrides: ['series-base'],
+  });
+});

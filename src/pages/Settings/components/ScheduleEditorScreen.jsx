@@ -55,7 +55,11 @@ import {
   TASK_AUTO_LINK_MODES,
   getTaskAutoLinkMode,
 } from '../../../utils/taskLessonLinking';
-import { getLastMondayISODate } from '../../../utils/scheduleTime';
+import {
+  getLastMondayISODate,
+  normalizeScheduleRepeat,
+} from '../../../utils/scheduleTime';
+import { reconcileScheduleRepeat } from '../../../utils/lessonRecurrence';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
@@ -102,7 +106,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     name: targetSchedule?.name || "",
     icon: targetSchedule?.icon || null,
     color: resolveScheduleColor(targetSchedule, themeColors.accentColor),
-    repeat: String(targetSchedule?.repeat || 1),
+    repeat: String(normalizeScheduleRepeat(targetSchedule?.repeat)),
     start_time: targetSchedule?.start_time || "08:30",
     duration: String(targetSchedule?.duration || "45"),
     breaks: targetSchedule?.breaks?.map(String) || ["10", "10", "10", "10", "10"],
@@ -310,7 +314,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
 
   const handleFinalSave = () => {
     const finalName = localData.name?.trim() || t('settings.schedule_editor.schedule_name', lang);
-    const finalRepeat = Math.max(1, Number(localData.repeat) || 1);
+    const finalRepeat = normalizeScheduleRepeat(localData.repeat);
     const finalBreaks = localData.breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b));
 
     const scheduleData = { 
@@ -322,15 +326,21 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
       breaks: finalBreaks
     };
     if (!localData.icon) delete scheduleData.icon;
+    const reconciledSchedule = reconcileScheduleRepeat(
+      scheduleData,
+      targetSchedule?.repeat ?? finalRepeat,
+    );
 
     if (isNew) {
-      addSchedule(scheduleData);
-      setGlobalDraft(prev => ({ ...prev, currentScheduleId: scheduleData.id }));
+      addSchedule(reconciledSchedule);
+      setGlobalDraft(prev => ({ ...prev, currentScheduleId: reconciledSchedule.id }));
     } else {
       setData(prev => {
         if (!prev) return prev;
         const nextSchedules = prev.schedules.map(s => 
-          s.id === scheduleData.id ? { ...s, ...scheduleData, lastModified: Date.now() } : s
+          s.id === reconciledSchedule.id
+            ? { ...s, ...reconciledSchedule, lastModified: Date.now() }
+            : s
         );
         return { ...prev, schedules: nextSchedules };
       });
@@ -594,6 +604,10 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                       maxLength={2} 
                       returnKeyType="done"
                       accessibilityLabel={t('settings.week_manager.repeat_label', lang)}
+                      onBlur={() => setLocalData(prev => ({
+                        ...prev,
+                        repeat: String(normalizeScheduleRepeat(prev.repeat)),
+                      }))}
                       onFocus={() => scrollToElement('general', 'weeks', 60, 300)}
                     />
                   </View>
@@ -757,7 +771,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
         currentDate={new Date(localData.starting_week)} 
         customSchedule={{
           ...localData,
-          repeat: Math.max(1, Number(localData.repeat) || 1)
+          repeat: normalizeScheduleRepeat(localData.repeat)
         }}
         onDateSelect={(date) => { 
           setLocalData(prev => ({ ...prev, starting_week: date.toISOString() })); 
