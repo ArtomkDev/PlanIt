@@ -87,9 +87,8 @@ export function NowTickProvider({ activeDate, children }) {
 
   const contextValue = useMemo(() => ({
     store: storeRef.current,
-    activeDate,
     isRunning: shouldRun,
-  }), [activeDateTime, shouldRun]);
+  }), [shouldRun]);
 
   return (
     <NowTickContext.Provider value={contextValue}>
@@ -102,12 +101,10 @@ export function useNowTick(targetDate, enabled = true) {
   const context = useContext(NowTickContext);
   const store = context?.store;
   const targetDateTime = targetDate ? new Date(targetDate).getTime() : 0;
-  const activeDateTime = context?.activeDate ? new Date(context.activeDate).getTime() : 0;
   const shouldSubscribe = (
     !!store &&
     !!enabled &&
     context?.isRunning &&
-    isTimerRelevantDate(context.activeDate) &&
     isTimerRelevantDate(targetDate)
   );
 
@@ -119,7 +116,7 @@ export function useNowTick(targetDate, enabled = true) {
   const getSnapshot = useMemo(() => {
     if (!shouldSubscribe) return () => 0;
     return () => store.getSnapshot();
-  }, [shouldSubscribe, store, targetDateTime, activeDateTime]);
+  }, [shouldSubscribe, store, targetDateTime]);
 
   const nowMs = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return shouldSubscribe && nowMs ? new Date(nowMs) : null;

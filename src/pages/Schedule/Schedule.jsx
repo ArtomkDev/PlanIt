@@ -1,14 +1,11 @@
 import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from "react";
 import {
   AppState,
-  Animated,
-  FlatList,
   StyleSheet,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
-import Reanimated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
+import Reanimated, { interpolateColor, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { Plus } from "phosphor-react-native"; 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -16,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import Header from "./components/Header";
 import WeekStrip from "./components/WeekStrip";
+import DayPager from "./components/DayPager";
 import DaySchedule from "./components/DaySchedule";
 import LessonEditor from "./components/LessonEditor";
 import LessonViewer from "./components/LessonViewer";
@@ -32,6 +30,7 @@ import {
   calculateScheduleWeek,
   getScheduleDayIndex,
   getScheduleDayLessons,
+  prepareScheduleDays,
 } from "../../utils/scheduleTime";
 import {
   createTaskDraftFromLesson,
@@ -41,10 +40,7 @@ import {
 } from "../../utils/taskLessonLinking";
 import { getScheduleHeaderHeight } from "../../config/layoutMetrics";
 import { triggerHaptic } from "../../utils/haptics";
-
-const HALF_SIZE = 300; 
-const TOTAL_SIZE = HALF_SIZE * 2 + 1;
-const DAYS_INDICES = Array.from({ length: TOTAL_SIZE }, (_, i) => i - HALF_SIZE);
+import { getCalendarDayKey, getCalendarDayNumber, normalizeCalendarDate } from "./dayNavigation";
 
 const getLocalISODate = (date = new Date()) => {
   const offset = date.getTimezoneOffset() * 60000;
@@ -52,68 +48,67 @@ const getLocalISODate = (date = new Date()) => {
 };
 
 const DayPage = memo(({
-    offset,
-    anchorDate,
-    width,
+    date,
+    dayData,
+    decorationsReady,
+    moving,
     headerHeight,
     openViewer,
     openEditor,
     handleAddLesson,
-    scrollY,
 }) => {
-    const targetDate = useMemo(() => {
-        const d = new Date(anchorDate);
-        d.setDate(d.getDate() + offset);
-        return d;
-    }, [offset, anchorDate]);
-
     return (
-        <View style={{ width, flex: 1 }}>
-            <DayScheduleProvider date={targetDate}>
-               <DaySchedule 
-                  targetDate={targetDate} 
+        <View style={styles.dayPage}>
+            <DayScheduleProvider date={date}>
+               <DaySchedule
+                  targetDate={date}
+                  dayData={dayData}
+                  decorationsReady={decorationsReady}
+                  moving={moving}
                   onLessonPress={openViewer}
                   onLessonLongPress={openEditor}
                   onEmptyPress={handleAddLesson}
-                  scrollY={scrollY}
                   headerHeight={headerHeight}
                />
             </DayScheduleProvider>
         </View>
     );
-});
+}, (previous, next) => (
+    getCalendarDayKey(previous.date) === getCalendarDayKey(next.date)
+    && previous.dayData === next.dayData
+    && previous.decorationsReady === next.decorationsReady
+    && previous.moving === next.moving
+    && previous.headerHeight === next.headerHeight
+    && previous.openViewer === next.openViewer
+    && previous.openEditor === next.openEditor
+    && previous.handleAddLesson === next.handleAddLesson
+));
 
 export default function Schedule({ route, navigation }) {
   const { global: globalSettings, schedule, schedules } = useScheduleData();
   const { drawerProgress } = useNotificationDrawer();
   const { setGlobalDraft } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   
   const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
   const dynamicBottomOffset = safeTabBarHeight + 16;
   
-  const [anchorDate, setAnchorDate] = useState(() => {
-    const d = new Date(getLocalISODate());
-    d.setHours(0,0,0,0);
-    return d;
-  });
-  const [currentDate, setCurrentDate] = useState(new Date(getLocalISODate()));
+  const [currentDate, setCurrentDate] = useState(() => (
+    normalizeCalendarDate(new Date())
+  ));
   
-  const flatListRef = useRef(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const isUserInteraction = useRef(false);
-  const isJumping = useRef(false);
-  const jumpResetTimeout = useRef(null);
+  const dayPagerRef = useRef(null);
+  const dayProgress = useSharedValue(getCalendarDayNumber(currentDate));
+  const weekTransition = useSharedValue({ id: 0, active: false, origin: 0, finished: false });
+  const weekProgress = useSharedValue(0);
+  useEffect(() => {
+    if (!schedule) dayProgress.value = getCalendarDayNumber(currentDate);
+  }, [currentDate, dayProgress, schedule]);
   const handledLessonViewIntentRef = useRef(null);
   const requestedLessonScheduleSwitchRef = useRef(null);
   const [pendingLessonViewIntent, setPendingLessonViewIntent] = useState(null);
   const lessonViewIntent = route?.params?.lessonViewIntent;
-
-  useEffect(() => () => {
-    if (jumpResetTimeout.current) clearTimeout(jumpResetTimeout.current);
-  }, []);
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -133,50 +128,32 @@ export default function Schedule({ route, navigation }) {
     ),
   }), [themeColors.backgroundColor, themeColors.backgroundColor2]);
 
-  const handleScroll = useCallback((event) => {
-    if (isJumping.current || !isUserInteraction.current) return;
+  const handleDateChange = useCallback((dateInput) => {
+    const nextDate = normalizeCalendarDate(dateInput);
+    if (!nextDate) return;
 
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / SCREEN_WIDTH);
-    const offset = index - HALF_SIZE;
-
-    const newDate = new Date(anchorDate);
-    newDate.setDate(anchorDate.getDate() + offset);
-
-    if (newDate.toDateString() !== currentDate.toDateString()) {
-        setCurrentDate(newDate);
-    }
-  }, [SCREEN_WIDTH, anchorDate, currentDate]);
+    setCurrentDate((previousDate) => (
+      getCalendarDayKey(previousDate) === getCalendarDayKey(nextDate)
+        ? previousDate
+        : nextDate
+    ));
+  }, []);
 
   const goToDate = useCallback((targetDateInput, animated = true) => {
-    let targetDate = new Date(targetDateInput);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = normalizeCalendarDate(targetDateInput);
+    if (!targetDate) return;
 
-    const diffDays = Math.round((targetDate.getTime() - anchorDate.getTime()) / (1000 * 3600 * 24));
-    
-    if (Math.abs(diffDays) < HALF_SIZE - 10) {
-        const shouldAnimate = animated && !isJumping.current;
-        isJumping.current = true;
-        setCurrentDate(new Date(targetDate));
-        flatListRef.current?.scrollToIndex({
-          index: HALF_SIZE + diffDays,
-          animated: shouldAnimate,
-        });
-        if (jumpResetTimeout.current) clearTimeout(jumpResetTimeout.current);
-        jumpResetTimeout.current = setTimeout(() => {
-          isJumping.current = false;
-          jumpResetTimeout.current = null;
-        }, shouldAnimate ? 500 : 50);
-    } else {
-        const newAnchor = new Date(targetDate);
-        setAnchorDate(newAnchor);
-        setCurrentDate(new Date(targetDate));
+    if (dayPagerRef.current) {
+      dayPagerRef.current.navigateToDate(targetDate, { animated });
+      return;
     }
-  }, [anchorDate]);
 
-  const goToToday = () => {
-    goToDate(new Date(getLocalISODate()), true);
-  };
+    handleDateChange(targetDate);
+  }, [handleDateChange]);
+
+  const goToToday = useCallback(() => {
+    goToDate(new Date(), true);
+  }, [goToDate]);
 
   const openViewer = useCallback((lesson) => { setViewingLesson(lesson); setViewerVisible(true); }, []);
   const openEditor = useCallback((lesson, initialTarget = null) => {
@@ -461,15 +438,18 @@ export default function Schedule({ route, navigation }) {
     };
   }, [schedule, findLessonById, openViewer, goToDate]);
 
-  const renderItem = useCallback(({ item: offset }) => (
-      <DayPage 
-         offset={offset} anchorDate={anchorDate} width={SCREEN_WIDTH}
+  const getPreparedDay = useMemo(() => prepareScheduleDays(schedule), [schedule]);
+  const renderDay = useCallback((date, decorationsReady, moving) => (
+      <DayPage
+         date={date}
+         dayData={getPreparedDay(date)}
+         decorationsReady={decorationsReady}
+         moving={moving}
          headerHeight={headerHeight}
          openViewer={openViewer} openEditor={openEditor}
          handleAddLesson={openNewLessonEditor}
-         scrollY={scrollY}
       />
-  ), [anchorDate, SCREEN_WIDTH, headerHeight, openViewer, openEditor, openNewLessonEditor, scrollY]);
+  ), [getPreparedDay, headerHeight, openViewer, openEditor, openNewLessonEditor]);
 
   return (
     <NowTickProvider activeDate={currentDate}>
@@ -493,28 +473,23 @@ export default function Schedule({ route, navigation }) {
         />
         <WeekStrip
           currentDate={currentDate}
-          onSelectDate={(d) => goToDate(d, true)}
+          dayProgress={dayProgress}
+          weekTransition={schedule ? weekTransition : undefined}
+          weekProgress={schedule ? weekProgress : undefined}
+          onSelectDate={goToDate}
         />
-        <Animated.View style={{ height: 1, backgroundColor: themeColors.borderColor, width: '100%' }} />
+        <View style={{ height: 1, backgroundColor: themeColors.borderColor, width: '100%' }} />
       </View>
 
       {schedule && (
-        <FlatList
-          key={`list-${anchorDate.toISOString()}`}
-          ref={flatListRef}
-          data={DAYS_INDICES}
-          renderItem={renderItem}
-          keyExtractor={item => item.toString()}
-          horizontal
-          pagingEnabled
-          initialScrollIndex={HALF_SIZE}
-          getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
-          onScrollBeginDrag={() => { isUserInteraction.current = true; }} 
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          onMomentumScrollEnd={() => { isUserInteraction.current = false; }}
-          windowSize={3}
-          showsHorizontalScrollIndicator={false}
+        <DayPager
+          ref={dayPagerRef}
+          weekTransition={weekTransition}
+          weekProgress={weekProgress}
+          dayProgress={dayProgress}
+          date={currentDate}
+          onDateChange={handleDateChange}
+          renderDay={renderDay}
         />
       )}
 
@@ -569,6 +544,7 @@ export default function Schedule({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  dayPage: { flex: 1 },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerContainer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   fab: { position: 'absolute', right: 17, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, zIndex: 50 }

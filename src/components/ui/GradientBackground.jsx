@@ -194,7 +194,7 @@ const GradientBackground = React.forwardRef(function GradientBackground({
   children,
   ...props
 }, ref) {
-  const backgroundStyle = getGradientSurfaceStyle({
+  const backgroundStyle = React.useMemo(() => getGradientSurfaceStyle({
     gradient,
     layers,
     colors,
@@ -206,7 +206,7 @@ const GradientBackground = React.forwardRef(function GradientBackground({
     gradientOpacity,
     smoothColors,
     fallbackColor,
-  });
+  }), [gradient, layers, colors, locations, type, angle, start, end, gradientOpacity, smoothColors, fallbackColor]);
   const composedStyle = typeof style === "function"
     ? (state) => [style(state), backgroundStyle]
     : [style, backgroundStyle];

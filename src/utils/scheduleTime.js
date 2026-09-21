@@ -119,6 +119,28 @@ export const getLessonSubjectId = (lesson) => {
   return lesson;
 };
 
+export const prepareScheduleDays = (schedule) => {
+  const emptyDay = { lessons: [], cards: [], lessonTimes: [] };
+  const prepared = new Map();
+  for (const day of schedule?.schedule ?? []) {
+    for (const week of getScheduleWeekNumbers(schedule?.repeat)) {
+      const lessons = day?.[`week${week}`];
+      if (!Array.isArray(lessons) || prepared.has(lessons)) continue;
+      const lessonTimes = buildLessonTimes(
+        schedule.start_time || "08:30", schedule.duration || 45, schedule.breaks || [], lessons,
+      );
+      const cards = lessons.map((item, index) => !item ? null : ({
+        subjectId: typeof item === "object" ? item.subjectId : item,
+        index,
+        timeInfo: lessonTimes[index],
+        data: typeof item === "object" ? item : {},
+      }));
+      prepared.set(lessons, { lessons, cards, lessonTimes });
+    }
+  }
+  return (date) => prepared.get(getScheduleDayLessons(schedule, date)) ?? emptyDay;
+};
+
 export const getLessonData = (lesson) => (
   lesson && typeof lesson === "object" ? lesson : {}
 );

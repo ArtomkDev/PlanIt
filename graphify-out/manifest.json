@@ -36,10 +36,10 @@
     "semantic_hash": "5cea5acb504f61ba856a512620293f4c"
   },
   "package.json": {
-    "mtime": 1789517073.7252715,
-    "seen": 1789602495.4443526,
-    "ast_hash": "68d91cf69305ad3267e0755e90992558",
-    "semantic_hash": "68d91cf69305ad3267e0755e90992558"
+    "mtime": 1789760592.5243788,
+    "seen": 1789760996.900035,
+    "ast_hash": "6d44f4521aaffbae8367f447622f57df",
+    "semantic_hash": "6d44f4521aaffbae8367f447622f57df"
   },
   "scripts/build-aab.ps1": {
     "mtime": 1789063686.2232335,
@@ -216,10 +216,10 @@
     "semantic_hash": "5fbe73ac03aacf1019318a3a7d99093d"
   },
   "src/components/ui/GradientBackground.jsx": {
-    "mtime": 1789138680.438257,
-    "seen": 1789139097.6112022,
-    "ast_hash": "d88bc90e1ff59a7d2046d952f991580a",
-    "semantic_hash": "d88bc90e1ff59a7d2046d952f991580a"
+    "mtime": 1789848577.6714253,
+    "seen": 1789997619.9433157,
+    "ast_hash": "8238f8a27639e3a47a880c24b516cfd2",
+    "semantic_hash": "8238f8a27639e3a47a880c24b516cfd2"
   },
   "src/components/ui/MorphingLoader.jsx": {
     "mtime": 1789063686.2541616,
@@ -372,10 +372,10 @@
     "semantic_hash": "93578248f2b8b7351de53cc852b7a2c3"
   },
   "src/hooks/useNowTick.js": {
-    "mtime": 1783806080.1056836,
-    "seen": 1788889535.7659235,
-    "ast_hash": "09a8c731940a5c0d2293e2f6b284b121",
-    "semantic_hash": "09a8c731940a5c0d2293e2f6b284b121"
+    "mtime": 1789848539.682686,
+    "seen": 1789997619.950596,
+    "ast_hash": "a83091506d3b402f197296655713f9db",
+    "semantic_hash": "a83091506d3b402f197296655713f9db"
   },
   "src/hooks/useSystemThemeColors.js": {
     "mtime": 1776324952.9848332,
@@ -438,10 +438,10 @@
     "semantic_hash": "ffecb3a7b012740c829f172419b5999b"
   },
   "src/pages/Schedule/Schedule.jsx": {
-    "mtime": 1789602150.1785264,
-    "seen": 1789602495.4596877,
-    "ast_hash": "90d81723b0764276384bbcc631333848",
-    "semantic_hash": "90d81723b0764276384bbcc631333848"
+    "mtime": 1789998518.9164455,
+    "seen": 1789998522.0123687,
+    "ast_hash": "14c92132f1c73252a08eb696472f7a2c",
+    "semantic_hash": "14c92132f1c73252a08eb696472f7a2c"
   },
   "src/pages/Schedule/components/BreakCard.jsx": {
     "mtime": 1789066953.4392574,
@@ -450,10 +450,10 @@
     "semantic_hash": "1914c04cfad55fe469d2f9ab4edad7dc"
   },
   "src/pages/Schedule/components/DaySchedule.jsx": {
-    "mtime": 1789296131.9068089,
-    "seen": 1789296190.0165029,
-    "ast_hash": "d45f37f06e10cc7a7d72c719e5abb32e",
-    "semantic_hash": "d45f37f06e10cc7a7d72c719e5abb32e"
+    "mtime": 1789848475.3017092,
+    "seen": 1789997619.9536586,
+    "ast_hash": "487b4b78f004381425a7afaaabca225f",
+    "semantic_hash": "487b4b78f004381425a7afaaabca225f"
   },
   "src/pages/Schedule/components/Header.jsx": {
     "mtime": 1789241593.532818,
@@ -462,10 +462,10 @@
     "semantic_hash": "09069921c430b0dfc944ce6422c97ecc"
   },
   "src/pages/Schedule/components/LessonCard.jsx": {
-    "mtime": 1789508895.9229052,
-    "seen": 1789602495.4602706,
-    "ast_hash": "859dc970b918f6dc77bab6e3ceaee5df",
-    "semantic_hash": "859dc970b918f6dc77bab6e3ceaee5df"
+    "mtime": 1789848539.6839519,
+    "seen": 1789997619.953897,
+    "ast_hash": "4db3b2bcd1712a57854d6a2cf033aaa9",
+    "semantic_hash": "4db3b2bcd1712a57854d6a2cf033aaa9"
   },
   "src/pages/Schedule/components/LessonEditor.jsx": {
     "mtime": 1789602123.1605814,
@@ -558,10 +558,10 @@
     "semantic_hash": "17e417734343cfea2f2b524e66f7f8c9"
   },
   "src/pages/Schedule/components/WeekStrip.jsx": {
-    "mtime": 1789063686.292232,
-    "seen": 1789064222.0317059,
-    "ast_hash": "d6ef9a7777a4fe241fcd54bdf7ea3295",
-    "semantic_hash": "d6ef9a7777a4fe241fcd54bdf7ea3295"
+    "mtime": 1790000730.2050464,
+    "seen": 1790000734.2728243,
+    "ast_hash": "243b95f09b6d5997a0eda000a50077e7",
+    "semantic_hash": "243b95f09b6d5997a0eda000a50077e7"
   },
   "src/pages/Settings/Settings.jsx": {
     "mtime": 1789063686.292232,
@@ -804,10 +804,10 @@
     "semantic_hash": "05eecd86ff8221f54a532ca34e15a479"
   },
   "src/utils/scheduleTime.js": {
-    "mtime": 1789601099.4546444,
-    "seen": 1789602495.4719079,
-    "ast_hash": "8b0fd5431d6d7b7969d1a26812d439c3",
-    "semantic_hash": "8b0fd5431d6d7b7969d1a26812d439c3"
+    "mtime": 1789761735.3736317,
+    "seen": 1789762053.4445748,
+    "ast_hash": "9c07e06437f7fdcc7b90ec5c10259b45",
+    "semantic_hash": "9c07e06437f7fdcc7b90ec5c10259b45"
   },
   "src/utils/scheduleValidation.js": {
     "mtime": 1789601234.9625585,
@@ -1303,5 +1303,23 @@
     "seen": 1789602495.4754906,
     "ast_hash": "085f1cbadcd2482026fee34b7c12b177",
     "semantic_hash": "085f1cbadcd2482026fee34b7c12b177"
+  },
+  "src/pages/Schedule/dayNavigation.js": {
+    "mtime": 1790000445.4461563,
+    "seen": 1790000734.2728262,
+    "ast_hash": "73846dbdcd575bd822413a4db34e572f",
+    "semantic_hash": "73846dbdcd575bd822413a4db34e572f"
+  },
+  "tests/dayPagerNavigation.test.cjs": {
+    "mtime": 1790000661.3298671,
+    "seen": 1790000734.2857764,
+    "ast_hash": "0cb7834a5e6cdb75fdea1a5e3e235823",
+    "semantic_hash": "0cb7834a5e6cdb75fdea1a5e3e235823"
+  },
+  "src/pages/Schedule/components/DayPager.jsx": {
+    "mtime": 1790000445.4471579,
+    "seen": 1790000734.2692716,
+    "ast_hash": "52cd628e8bdcb3e47ecb6d0859e3ba58",
+    "semantic_hash": "52cd628e8bdcb3e47ecb6d0859e3ba58"
   }
 }

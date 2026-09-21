@@ -1,26 +1,25 @@
-import React, { useMemo } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, Animated, Platform, useWindowDimensions } from "react-native";
+import React from "react";
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useScheduleData, useScheduleLayout } from "../../../context/ScheduleProvider";
 import LessonCard from "./LessonCard";
 import BreakCard from "./BreakCard";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
-import { buildLessonTimes } from "../../../utils/scheduleTime";
 import { APP_HEADER_CONTENT_GAP, getScheduleHeaderHeight } from "../../../config/layoutMetrics";
 import { triggerHaptic } from "../../../utils/haptics";
 import { getGradientColor, resolveValidColor } from "../../../utils/gradientColors";
 
 export default function DaySchedule({ 
   targetDate, 
+  dayData,
+  decorationsReady,
+  moving,
   onLessonPress, 
   onLessonLongPress, 
   onEmptyPress,
-  scrollY,
   headerHeight,
 }) {
-  const { getDaySchedule } = useDaySchedule();
   const { schedule, global, lang } = useScheduleData();
   const { tabBarHeight } = useScheduleLayout();
   const insets = useSafeAreaInsets();
@@ -33,13 +32,7 @@ export default function DaySchedule({
   const BOTTOM_SPACER_HEIGHT = safeTabBarHeight + 65; 
   const resolvedHeaderHeight = headerHeight ?? getScheduleHeaderHeight(insets.top);
 
-  const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
-  
-  const scheduleForDay = getDaySchedule && targetDate ? getDaySchedule(targetDate) : [];
-
-  const lessonTimes = useMemo(() => {
-    return buildLessonTimes(start_time, duration, breaks, scheduleForDay);
-  }, [start_time, duration, breaks, scheduleForDay]);
+  const { cards, lessonTimes } = dayData;
 
   const handleEmptyLongPress = () => {
     triggerHaptic("longPress");
@@ -47,15 +40,10 @@ export default function DaySchedule({
   };
 
   return (
-    <Animated.ScrollView 
+    <ScrollView
       contentContainerStyle={[styles.scrollContent, { paddingTop: resolvedHeaderHeight + APP_HEADER_CONTENT_GAP }]}
       showsVerticalScrollIndicator={false}
       overScrollMode="always"
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: Platform.OS !== 'web' }
-      )}
-      scrollEventThrottle={16}
     >
       <TouchableOpacity 
         activeOpacity={1} 
@@ -63,13 +51,10 @@ export default function DaySchedule({
         onLongPress={handleEmptyLongPress}
         delayLongPress={500}
       >
-        {scheduleForDay.length > 0 ? (
-          scheduleForDay.map((item, index) => {
-            if (!item) return null; 
-
-            const isInstance = typeof item === 'object' && item !== null;
-            const subjectId = isInstance ? item.subjectId : item;
-            const lessonData = isInstance ? item : {};
+        {cards.length > 0 ? (
+          cards.map((lesson, index) => {
+            if (!lesson) return null;
+            const { subjectId } = lesson;
             const timeInfo = lessonTimes?.[index] || {};
             const nextTimeInfo = lessonTimes?.[index + 1];
 
@@ -90,12 +75,14 @@ export default function DaySchedule({
             return (
               <View key={uniqueKey}>
                 <LessonCard
-                  lesson={{ subjectId, index, timeInfo, data: lessonData }}
+                  lesson={lesson}
+                  decorationsReady={decorationsReady}
+                  moving={moving}
                   onPress={onLessonPress}
                   onLongPress={onLessonLongPress}
                 />
                 
-                {index < scheduleForDay.length - 1 && nextTimeInfo && (
+                {index < cards.length - 1 && nextTimeInfo && (
                    <BreakCard
                      lessonStart={timeInfo.start}
                      breakStart={timeInfo.end}
@@ -123,7 +110,7 @@ export default function DaySchedule({
 
         <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
       </TouchableOpacity>
-    </Animated.ScrollView>
+    </ScrollView>
   );
 }
 

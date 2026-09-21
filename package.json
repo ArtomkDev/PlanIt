@@ -43,6 +43,7 @@
     "test:contacts": "node --test tests/contactData.test.cjs tests/scheduleContactValidation.test.cjs",
     "test:schedule-deletion": "node --test tests/scheduleDeletion.test.cjs tests/scheduleContactValidation.test.cjs",
     "test:schedule-recurrence": "node --test tests/lessonRecurrence.test.cjs",
+    "test:schedule-navigation": "node --test tests/dayPagerNavigation.test.cjs",
     "test:sync": "node --test tests/scheduleSync.test.cjs tests/localStorageDurability.test.cjs tests/scheduleOwnership.test.cjs tests/firestoreSync.test.cjs"
   },
   "dependencies": {
@@ -99,7 +100,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "react-test-renderer": "^19.2.3"
   },
   "overrides": {
     "websocket-driver": "0.7.5"

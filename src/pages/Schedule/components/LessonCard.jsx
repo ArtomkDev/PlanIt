@@ -1,6 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback, useId } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Animated, Platform } from "react-native";
 import { Clock, Hourglass, User, MapPin } from "phosphor-react-native";
+import Svg, { Defs, G, Use, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
+import { cancelAnimation, createAnimatedComponent, Easing, runOnJS, useAnimatedProps, useAnimatedReaction, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useNowTick } from "../../../hooks/useNowTick";
@@ -20,41 +22,32 @@ import {
   resolveValidColor,
 } from "../../../utils/gradientColors";
 
-const CELL_SIZE = 38;
 const ICON_SIZE = 18;
-const PATTERN_ICON_OPACITY = 0.25;
+const PATTERN_ICON_OPACITY = 0.2;
 const CARD_BORDER_RADIUS = 18;
-
-const cachedPatternPositions = {};
+const PATTERN_REVEAL_DURATION = 1000;
+const PATTERN_CARD_STAGGER = 180;
+const PATTERN_WAVE_SOFTNESS = 0.8;
+const AnimatedWaveGradient = createAnimatedComponent(LinearGradient);
 
 const getPatternPositions = (width, height) => {
-  const key = `${width}_${height}`;
-  if (cachedPatternPositions[key]) {
-    return cachedPatternPositions[key];
-  }
-
+  if (width < 52 || height < 52) return [];
+  const columns = Math.floor((width - 52) / 46) + 1;
+  const rows = Math.floor((height - 52) / 38) + 1;
   const positions = [];
-  const startX = (width % CELL_SIZE) / 2 - CELL_SIZE;
-  const startY = (height % CELL_SIZE) / 2 - CELL_SIZE;
-
-  let r = 0;
-  for (let y = startY; y < height; y += CELL_SIZE) {
-    let c = 0;
-    for (let x = startX; x < width; x += CELL_SIZE) {
-      if ((r + c) % 2 === 0) {
-        const iconTop = y + (CELL_SIZE - ICON_SIZE) / 2;
-        const iconLeft = x + (CELL_SIZE - ICON_SIZE) / 2;
-        
-        if (iconLeft + ICON_SIZE > 0 && iconLeft < width && iconTop + ICON_SIZE > 0 && iconTop < height) {
-          positions.push({ top: iconTop, left: iconLeft, key: `${r}-${c}` });
-        }
-      }
-      c++;
+  for (let row = 0; row < rows; row += 1) {
+    const count = Math.max(1, columns - row % 2);
+    const top = (height - (rows - 1) * 38 - ICON_SIZE) / 2 + row * 38;
+    const start = (width - (count - 1) * 46 - ICON_SIZE) / 2;
+    for (let column = 0; column < count; column += 1) {
+      positions.push({
+        key: `${row}-${column}`,
+        left: start + column * 46,
+        top,
+        angle: (row + column) % 2 ? 8 : -8,
+      });
     }
-    r++;
   }
-  
-  cachedPatternPositions[key] = positions;
   return positions;
 };
 
@@ -188,14 +181,48 @@ const ActiveHighlight = React.memo(({ isActive, isDark }) => {
   );
 });
 
-const BackgroundPattern = React.memo(({ MainIcon, color, width, height }) => {
-  const positions = useMemo(() => {
-    if (width <= 0 || height <= 0) return [];
-    return getPatternPositions(width, height);
-  }, [height, width]);
-
-  if (!MainIcon || positions.length === 0) return null;
-
+const BackgroundPattern = React.memo(({ MainIcon, color, width, height, order, moving }) => {
+  const id = useId();
+  const patternId = `lesson-pattern-${id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const positions = useMemo(() => getPatternPositions(width, height), [width, height]);
+  const reduceMotion = useReducedMotionPreference();
+  const progress = useSharedValue(reduceMotion ? 1 : 0);
+  const [revealed, setRevealed] = useState(reduceMotion);
+  const finishReveal = useCallback(() => setRevealed(true), []);
+  useAnimatedReaction(
+    () => moving?.value ?? false,
+    (isMoving) => {
+      if (!isMoving) return;
+      cancelAnimation(progress);
+      progress.value = 1;
+      runOnJS(finishReveal)();
+    },
+  );
+  const gradientId = `${patternId}-gradient`;
+  const maskId = `${patternId}-mask`;
+  const waveProps = useAnimatedProps(() => {
+    const start = progress.value * (1 + PATTERN_WAVE_SOFTNESS) - PATTERN_WAVE_SOFTNESS;
+    return {
+      x1: `${(1 - start) * 100}%`,
+      y1: `${start * 100}%`,
+      x2: `${(1 - start - PATTERN_WAVE_SOFTNESS) * 100}%`,
+      y2: `${(start + PATTERN_WAVE_SOFTNESS) * 100}%`,
+    };
+  });
+  useEffect(() => {
+    if (revealed || reduceMotion || moving?.value) {
+      progress.value = 1;
+      setRevealed(true);
+      return;
+    }
+    progress.value = withDelay(
+      Math.max(0, order) * PATTERN_CARD_STAGGER,
+      withTiming(1, { duration: PATTERN_REVEAL_DURATION, easing: Easing.linear }, (finished) => {
+        if (finished) runOnJS(finishReveal)();
+      }),
+    );
+    return () => cancelAnimation(progress);
+  }, [finishReveal, moving, progress, reduceMotion, order, revealed]);
   const iconColor = colorWithAlpha(color, PATTERN_ICON_OPACITY, color);
 
   return (
@@ -207,24 +234,37 @@ const BackgroundPattern = React.memo(({ MainIcon, color, width, height }) => {
       importantForAccessibility="no-hide-descendants"
       collapsable={false}
     >
-      {positions.map(pos => (
-        <View 
-          key={pos.key} 
-          style={[styles.patternIconWrapper, { top: pos.top, left: pos.left }]}
-        >
-          <MainIcon 
-            size={ICON_SIZE} 
-            color={iconColor}
-            weight="regular"
-            style={Platform.OS === 'web' ? { overflow: 'visible' } : {}}
-          />
-        </View>
-      ))}
+      <Svg width={width} height={height}>
+        <Defs>
+          <G id={patternId}>
+            <MainIcon size={ICON_SIZE} color={iconColor} weight="regular" />
+          </G>
+          {!revealed && <AnimatedWaveGradient id={gradientId} gradientUnits="objectBoundingBox" animatedProps={waveProps}>
+            <Stop offset="0%" stopColor="white" stopOpacity={1} />
+            <Stop offset="25%" stopColor="white" stopOpacity={0.84} />
+            <Stop offset="50%" stopColor="white" stopOpacity={0.5} />
+            <Stop offset="75%" stopColor="white" stopOpacity={0.16} />
+            <Stop offset="100%" stopColor="white" stopOpacity={0} />
+          </AnimatedWaveGradient>}
+          {!revealed && <Mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={width} height={height}>
+            <Rect x={0} y={0} width={width} height={height} fill={`url(#${gradientId})`} />
+          </Mask>}
+        </Defs>
+        <G mask={revealed ? undefined : `url(#${maskId})`}>
+          {positions.map(({ key, left, top, angle }) => (
+            <Use
+              key={key}
+              href={`#${patternId}`}
+              transform={`translate(${left} ${top}) rotate(${angle} ${ICON_SIZE / 2} ${ICON_SIZE / 2})`}
+            />
+          ))}
+        </G>
+      </Svg>
     </View>
   );
 });
 
-const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark, onPress, onLongPress }) => {
+const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark, onPress, onLongPress, decorationsReady = true, moving }) => {
   const { 
     subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad,
     subjectColor, contentColor, activePillText,
@@ -282,12 +322,14 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
       onLayout={handleCardLayout}
       delayLongPress={300}
     >
-      <BackgroundPattern
+      {decorationsReady && MainIcon && cardSize.width > 0 && cardSize.height > 0 && <BackgroundPattern
         MainIcon={MainIcon}
         color={contentColor}
         width={cardSize.width}
         height={cardSize.height}
-      />
+        order={lesson?.index ?? 0}
+        moving={moving}
+      />}
 
       <ActiveHighlight isActive={isActive} isDark={isDark} />
 
@@ -370,14 +412,6 @@ const styles = StyleSheet.create({
     borderRadius: CARD_BORDER_RADIUS,
     overflow: 'hidden',
     zIndex: 1,
-  },
-  patternIconWrapper: {
-    position: 'absolute', 
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    transform: [{ rotate: '-12deg' }],
-    justifyContent: 'center',
-    alignItems: 'center'
   },
   cardContent: { 
     paddingVertical: 10, 
