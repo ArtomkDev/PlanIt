@@ -1,3 +1,5 @@
+import { t } from '../utils/i18n';
+
 export const MIN_PASSWORD_LENGTH = 10;
 export const MAX_PASSWORD_LENGTH = 128;
 
@@ -30,9 +32,7 @@ export const isPasswordAllowed = (password) =>
   getPasswordPolicyStatus(password).isValid;
 
 export const getPasswordPolicyMessage = (lang = 'en') => (
-  lang === 'uk'
-    ? `Пароль має містити ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} символів, велику й малу літери та цифру.`
-    : `Password must contain ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters, an uppercase letter, a lowercase letter, and a number.`
+  t('auth.password_requirements', lang, { min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH })
 );
 
 export const getPasswordStrength = (password = '') => {

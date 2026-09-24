@@ -376,18 +376,18 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   const getHeaderTitle = () => {
     switch (currentScreen) {
         case "main": return Number.isInteger(lesson?.index) ? t('schedule.lesson_editor.edit', lang) : t('schedule.lesson_editor.new_lesson', lang);
-        case "subjectColor": return t('schedule.lesson_editor.card_color', lang);
+        case "subjectColor": return t('common.card_color', lang);
         case "gradientEdit": return t('schedule.lesson_editor.gradient_settings', lang);
         case "picker":
             if (pickerType === 'teacher') return t('schedule.lesson_editor.teachers', lang);
-            if (pickerType === 'link') return t('schedule.lesson_editor.links', lang);
+            if (pickerType === 'link') return t('common.links', lang);
             if (pickerType === 'subject') return t('schedule.lesson_editor.subjects', lang);
             if (pickerType === 'icon') return t('schedule.lesson_editor.choose_icon', lang);
             return t('schedule.lesson_editor.selection', lang);
         case "input":
-            if (inputType === 'building') return t('schedule.lesson_editor.building', lang);
-            if (inputType === 'room') return t('schedule.lesson_editor.room', lang);
-            if (inputType === 'type') return t('schedule.lesson_editor.lesson_type', lang);
+            if (inputType === 'building') return t('common.building', lang);
+            if (inputType === 'room') return t('common.room', lang);
+            if (inputType === 'type') return t('common.class_type', lang);
             if (inputType === 'subject_rename') {
                 const isExistingSubject = localData.subjects.some((subject) => subject.id === editingItemData);
                 return isExistingSubject ? t('schedule.lesson_editor.change_name', lang) : t('schedule.lesson_editor.new_subject', lang);
@@ -690,10 +690,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     triggerHaptic("warning");
     Alert.alert(
       t("common.warning", lang),
-      t("schedule.lesson_editor.delete_entity_confirm", lang).replace(
-        "{name}",
-        name || t("schedule.lesson_viewer.untitled", lang),
-      ),
+      t("schedule.lesson_editor.delete_entity_confirm", lang, { name: name || t("common.untitled", lang) }),
       [
         { text: t("common.cancel", lang), style: "cancel" },
         {
@@ -980,7 +977,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
           return {
             val: currentType || "",
-            ph: t('schedule.lesson_editor.lesson_type', lang),
+            ph: t('common.class_type', lang),
             onSave: (val) => handleGenericSave("type", val, 'type'),
             onReset: scope === 'local' && hasLocal ? () => handleResetLocal("type") : null
           };
@@ -989,7 +986,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
           const subj = localData.subjects.find(s => s.id === editingItemData);
           return {
               val: subj?.name || "",
-              ph: t('schedule.lesson_editor.placeholder_subject', lang),
+              ph: t('common.subject_name', lang),
               onSave: handleRenameSubject,
               onDelete: subj
                 ? () => handleDeleteEntity("subjects", subj.id, subj.name)
@@ -1063,9 +1060,9 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
       <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>{getHeaderTitle()}</Text>
       <View style={{ minWidth: 60, alignItems: "flex-end" }}>
         {currentScreen === "main" && (
-          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15} accessibilityRole="button" accessibilityLabel={attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.done', lang)} accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}>
+          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15} accessibilityRole="button" accessibilityLabel={attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.save', lang)} accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}>
             <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
-              {attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.done', lang)}
+              {attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.save', lang)}
             </Text>
           </TouchableOpacity>
         )}

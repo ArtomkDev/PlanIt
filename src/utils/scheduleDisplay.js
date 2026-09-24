@@ -10,7 +10,7 @@ const LEGACY_DEFAULT_SCHEDULE_NAMES = new Set([
 export const getScheduleDisplayName = (
   schedule,
   lang,
-  fallback = t("settings.schedule_switcher.untitled", lang)
+  fallback = t("common.untitled", lang)
 ) => {
   const nameKey = typeof schedule?.nameKey === "string" ? schedule.nameKey.trim() : "";
   if (nameKey) return t(nameKey, lang);

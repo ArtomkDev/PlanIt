@@ -1,6 +1,7 @@
 import {
   doc,
   setDoc,
+  updateDoc,
   getDocs,
   collection,
   onSnapshot,
@@ -24,6 +25,9 @@ import {
   isNotificationPushEnabled,
   syncDevicePushRegistration,
 } from "../services/notificationService";
+
+import { normalizeLanguage } from "./i18n";
+import { getDevicePrefs } from "./storage";
 
 let isAccountBeingDeleted = false;
 const UNKNOWN_IP = "Unknown IP";
@@ -228,6 +232,8 @@ export async function registerDevice(userId, options = {}) {
   const shouldCreateLoginNotification = options.createLoginNotification === true;
   const notificationContext = await getUserNotificationContext(userId);
   const notificationPreferences = notificationContext.notificationPreferences || {};
+  const devicePrefs = await getDevicePrefs();
+  const language = normalizeLanguage(devicePrefs?.language || options.lang || notificationContext.language);
   const shouldRequestPushPermissions = options.requestNotificationPermissions === true
     || (
       options.requestNotificationPermissions !== false
@@ -250,7 +256,7 @@ export async function registerDevice(userId, options = {}) {
         platform: deviceInfo.platform,
         ipAddress,
         createdAt: now,
-        lang: options.lang || notificationContext.language,
+        lang: language,
         notificationPreferences,
         sourceExpoPushToken: pushRegistration?.expoPushToken,
         metadata: {
@@ -266,6 +272,7 @@ export async function registerDevice(userId, options = {}) {
 
   const deviceUpdate = {
     ...deviceInfo,
+    language,
     status: DEVICE_STATUS.ACTIVE,
     lastLogin: now,
     lastSeenAt: now,
@@ -422,6 +429,18 @@ export async function removeAllOtherDevices(userId) {
       await removeDevice(userId, d.id);
     }
   }
+}
+
+export async function syncCurrentDeviceLanguage(userId, language) {
+  if (!userId) return;
+  const deviceId = await getDeviceId();
+  const ref = doc(db, "users", userId, "devices", deviceId);
+  const snapshot = await getDoc(ref);
+  if (!snapshot.exists()) return;
+  const device = snapshot.data();
+  const normalizedLanguage = normalizeLanguage(language);
+  if ((device.status || DEVICE_STATUS.ACTIVE) !== DEVICE_STATUS.ACTIVE || device.language === normalizedLanguage) return;
+  await updateDoc(ref, { language: normalizedLanguage });
 }
 
 export async function refreshCurrentDevicePushRegistration(userId, options = {}) {

@@ -54,12 +54,12 @@ export default function ContactAppearancePicker({
           onPress={() => togglePanel("color")}
           activeOpacity={0.72}
           accessibilityRole="button"
-          accessibilityLabel={t("schedule.lesson_editor.contact_color_label", lang)}
+          accessibilityLabel={t("schedule.lesson_editor.color_tab", lang)}
           accessibilityState={{ expanded: activePanel === "color" }}
         >
           <View style={[styles.colorPreview, { backgroundColor: color, borderColor: themeColors.borderColor }]} />
           <Text style={[styles.actionText, { color: themeColors.textColor }]} numberOfLines={1}>
-            {t("schedule.lesson_editor.contact_color_label", lang)}
+            {t("schedule.lesson_editor.color_tab", lang)}
           </Text>
           <CaretDown
             size={15}

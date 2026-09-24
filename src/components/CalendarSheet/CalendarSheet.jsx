@@ -256,7 +256,7 @@ export default function CalendarSheet({
         ) : (
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel={t("schedule.header.today", lang)}
+            accessibilityLabel={t("common.today", lang)}
             accessibilityState={{ disabled: isTodaySelected }}
             disabled={isTodaySelected}
             onPress={selectToday}
@@ -281,7 +281,7 @@ export default function CalendarSheet({
                 { color: isTodaySelected ? themeColors.textColor3 : themeColors.accentColor },
               ]}
             >
-              {t("schedule.header.today", lang)}
+              {t("common.today", lang)}
             </Text>
           </TouchableOpacity>
         )}

@@ -24,11 +24,11 @@ const flushPendingSchedule = () => {
   syncDebounceTimer = null;
   if (pendingSchedule === NO_PENDING_SCHEDULE) return;
 
-  const schedule = pendingSchedule;
+  const { schedule, lang } = pendingSchedule;
   pendingSchedule = NO_PENDING_SCHEDULE;
   enqueueOperation(async () => {
     try {
-      await persistWidgetSchedule(schedule);
+      await persistWidgetSchedule(schedule, lang);
       if (Platform.OS === 'android') await refreshScheduleWidgets();
     } catch (error) {
       console.error('Widget sync error:', error);
@@ -36,8 +36,8 @@ const flushPendingSchedule = () => {
   });
 };
 
-export const syncScheduleToWidget = (schedule) => {
-  pendingSchedule = schedule;
+export const syncScheduleToWidget = (schedule, lang = 'en') => {
+  pendingSchedule = { schedule, lang };
   if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(flushPendingSchedule, SYNC_DEBOUNCE_MS);
 };

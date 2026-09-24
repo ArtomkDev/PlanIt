@@ -1,21 +1,23 @@
-export function createDefaultTeacher(generateId) {
+import { t } from '../utils/i18n';
+
+export function createDefaultTeacher(generateId, lang = 'en') {
   return {
     id: generateId(),
-    name: "Новий вчитель",
+    name: t("schedule.lesson_editor.new_teacher", lang),
   };
 }
 
-export function createDefaultSubject(generateId) {
+export function createDefaultSubject(generateId, lang = 'en') {
   return {
     id: generateId(),
-    name: "Нова пара",
+    name: t("schedule.lesson_editor.new_subject", lang),
   };
 }
 
-export function createDefaultLink(generateId) {
+export function createDefaultLink(generateId, lang = 'en') {
   return {
     id: generateId(),
-    name: "Нове посилання",
+    name: t("schedule.lesson_editor.new_link", lang),
     url: "",
   };
 }

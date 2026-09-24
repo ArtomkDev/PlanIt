@@ -1,30 +1,37 @@
 import { useState, useEffect } from 'react';
 import { getDevicePrefs } from '../utils/storage';
 import * as Localization from 'expo-localization';
-import { SUPPORTED_LANGUAGES } from '../utils/i18n';
+import { normalizeLanguage } from '../utils/i18n';
 
-export default function useAppLanguage(globalLanguage) {
+export default function useAppLanguage(globalLanguage, deviceLanguage) {
   const [lang, setLang] = useState('en');
   const [isLangLoading, setIsLangLoading] = useState(true);
-  
+
   useEffect(() => {
     let isMounted = true;
 
     const determineLanguage = async () => {
       try {
+        if (deviceLanguage) {
+          if (isMounted) {
+            setLang(normalizeLanguage(deviceLanguage));
+            setIsLangLoading(false);
+          }
+          return;
+        }
         const prefs = await getDevicePrefs();
         if (prefs?.language) {
-          if (isMounted) { 
-            setLang(prefs.language); 
-            setIsLangLoading(false); 
+          if (isMounted) {
+            setLang(normalizeLanguage(prefs.language));
+            setIsLangLoading(false);
           }
           return;
         }
 
         if (globalLanguage) {
-          if (isMounted) { 
-            setLang(globalLanguage); 
-            setIsLangLoading(false); 
+          if (isMounted) {
+            setLang(normalizeLanguage(globalLanguage));
+            setIsLangLoading(false);
           }
           return;
         }
@@ -32,17 +39,15 @@ export default function useAppLanguage(globalLanguage) {
         const locales = Localization.getLocales();
         const deviceLang = locales?.[0]?.languageCode?.toLowerCase() || '';
 
-        const isSupported = SUPPORTED_LANGUAGES.some(l => l.code === deviceLang);
-
         if (isMounted) {
-          setLang(isSupported ? deviceLang : 'en');
+          setLang(normalizeLanguage(deviceLang));
           setIsLangLoading(false);
         }
       } catch (error) {
         console.error("Language detection failed, falling back to English:", error);
-        if (isMounted) { 
-          setLang('en'); 
-          setIsLangLoading(false); 
+        if (isMounted) {
+          setLang('en');
+          setIsLangLoading(false);
         }
       }
     };
@@ -50,7 +55,7 @@ export default function useAppLanguage(globalLanguage) {
     determineLanguage();
 
     return () => { isMounted = false; };
-  }, [globalLanguage]);
+  }, [globalLanguage, deviceLanguage]);
 
   return { lang, isLangLoading };
 }

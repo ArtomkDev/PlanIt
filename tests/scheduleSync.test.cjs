@@ -27,7 +27,13 @@ const sync = compileModule(syncPath, new Map([
   ['./scheduleDataFingerprint', fingerprint],
 ]));
 const createDefaultDataPath = path.resolve(__dirname, '../src/config/createDefaultData.js');
-const createDefaultData = compileModule(createDefaultDataPath).default;
+const navigationMetrics = compileModule(path.resolve(__dirname, '../src/navigation/navigationMetrics.js'), new Map([
+  ['expo-constants', { __esModule: true, default: {}, ExecutionEnvironment: { StoreClient: 'storeClient' } }],
+  ['react-native', { Platform: { OS: 'web' } }],
+]));
+const createDefaultData = compileModule(createDefaultDataPath, new Map([
+  ['../navigation/navigationMetrics', navigationMetrics],
+])).default;
 const shareServicePath = path.resolve(__dirname, '../src/services/shareService.js');
 const shareService = compileModule(shareServicePath, new Map([
   ['firebase/firestore', {}],

@@ -2,8 +2,8 @@ import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { View, Text, StyleSheet, Animated, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
-  Table, Palette, Translate, SignIn, UserCircle, Cpu, 
+import {
+  Table, Palette, Translate, SignIn, UserCircle, Cpu,
   SignOut, Trash, Info, ShareNetwork, SquaresFour, Bell, Vibrate, Files,
   Cookie, ShieldCheck
 } from 'phosphor-react-native';
@@ -85,19 +85,19 @@ export default function Settings({ guest, onExitGuest }) {
       t('settings.alerts.logout_confirm', lang),
       [
         { text: t('common.cancel', lang), style: "cancel" },
-        { 
-          text: t('settings.menu.logout.title', lang), 
-          style: "destructive", 
+        {
+          text: t('settings.menu.logout.title', lang),
+          style: "destructive",
           onPress: async () => {
             try {
               setIsLoggingOut(true);
-              await safeLogout(); 
+              await safeLogout();
             } catch (error) {
               console.error("Logout error:", error);
               setIsLoggingOut(false);
               Alert.alert(t('common.error', lang), t('settings.alerts.logout_error', lang));
             }
-          } 
+          }
         }
       ]
     );
@@ -118,11 +118,11 @@ export default function Settings({ guest, onExitGuest }) {
     {
       title: t('settings.sections.schedule', lang),
       data: [
-        { 
-          label: t('settings.menu.global_schedule.title', lang), 
-          screen: 'ScheduleSwitcher', 
-          icon: Table, 
-          desc: t('settings.menu.global_schedule.desc', lang) 
+        {
+          label: t('settings.menu.global_schedule.title', lang),
+          screen: 'ScheduleSwitcher',
+          icon: Table,
+          desc: t('settings.menu.global_schedule.desc', lang)
         },
         ...(user ? [{
           label: t('settings.menu.shared_schedules.title', lang),
@@ -156,12 +156,12 @@ export default function Settings({ guest, onExitGuest }) {
             />
           ),
         },
-        { 
-          label: t('settings.menu.language.title', lang), 
-          screen: 'Language', 
-          icon: Translate, 
+        {
+          label: t('settings.menu.language.title', lang),
+          screen: 'Language',
+          icon: Translate,
           meta: lang.toUpperCase(),
-          desc: t('settings.menu.language.desc', lang) 
+          desc: t('settings.menu.language.desc', lang)
         },
       ],
     },
@@ -180,11 +180,11 @@ export default function Settings({ guest, onExitGuest }) {
     {
       title: t('settings.sections.about', lang),
       data: [
-        { 
-          label: t('settings.about_screen.title', lang), 
-          screen: 'AboutApp', 
-          icon: Info, 
-          desc: t('settings.about_screen.description', lang) 
+        {
+          label: t('settings.sections.about', lang),
+          screen: 'AboutApp',
+          icon: Info,
+          desc: t('settings.about_screen.description', lang)
         },
         ...(Platform.OS === 'web' ? [{
           label: t('settings.about_screen.cookie_settings', lang),
@@ -228,7 +228,7 @@ export default function Settings({ guest, onExitGuest }) {
 
   useEffect(() => {
     const listenerId = scrollY.addListener(({ value }) => {
-      const checkPoint = value + headerHeight + 20; 
+      const checkPoint = value + headerHeight + 20;
       let newActiveIndex = 0;
       for (let i = 0; i < sections.length; i++) {
         const sectionY = sectionPositions.current[i];
@@ -249,27 +249,27 @@ export default function Settings({ guest, onExitGuest }) {
         <View style={[StyleSheet.absoluteFill, styles.loadingOverlay]}>
           <MorphingLoader size={60} />
           <Text style={styles.loadingText}>
-            {t('settings.alerts.cloud_saving_warning', lang) || "..."}
+            {t('settings.alerts.cloud_saving_warning', lang)}
           </Text>
         </View>
       )}
 
-      <SettingsHeader 
-        title={t('common.settings', lang)} 
-        subTitle={sections[activeSectionIndex]?.title || ""} 
+      <SettingsHeader
+        title={t('common.settings', lang)}
+        subTitle={sections[activeSectionIndex]?.title || ""}
         subTitleIndex={activeSectionIndex}
-        scrollY={scrollY} 
-        showBackButton={false} 
+        scrollY={scrollY}
+        showBackButton={false}
       />
 
       <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[
-          styles.scrollContent, 
-          { 
+          styles.scrollContent,
+          {
             paddingTop: headerHeight + 20,
             paddingBottom: bottomPadding
-          } 
+          }
         ]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -278,15 +278,15 @@ export default function Settings({ guest, onExitGuest }) {
         scrollEventThrottle={16}
       >
         {sections.map((section, sectionIndex) => (
-          <View 
+          <View
             key={`section-${sectionIndex}`}
             onLayout={(event) => {
               const layout = event.nativeEvent.layout;
               sectionPositions.current[sectionIndex] = layout.y;
             }}
           >
-            <SettingsGroup 
-              title={section.title} 
+            <SettingsGroup
+              title={section.title}
               themeColors={themeColors}
             >
               {section.data.map((item, itemIndex) => (
@@ -324,15 +324,15 @@ export default function Settings({ guest, onExitGuest }) {
 
 const styles = StyleSheet.create({
   loadingOverlay: {
-    backgroundColor: 'rgba(0,0,0,0.7)', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 9999
   },
   loadingText: {
-    color: '#fff', 
-    marginTop: 16, 
-    fontSize: 16, 
+    color: '#fff',
+    marginTop: 16,
+    fontSize: 16,
     fontWeight: '600'
   },
   scrollContent: {

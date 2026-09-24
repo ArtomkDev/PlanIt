@@ -1,3 +1,4 @@
+import { t } from '../utils/i18n';
 import { normalizeScheduleRepeat } from '../utils/scheduleTime';
 
 export const formatTime = (mins) =>
@@ -41,7 +42,7 @@ const createBoundaryTimestamp = (date, minutes) => {
   return boundary.getTime();
 };
 
-export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput = new Date()) {
+export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput = new Date(), lang = 'en') {
   if (!scheduleData || !scheduleData.schedule) {
     return { items: [], currentWeekNum: 1, totalWeeks: 1, nextTransitionAt: null };
   }
@@ -190,8 +191,8 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput
         id: lessonData.id || subjectId || `slot-${dayIndex}-${i}`,
         dayIndex,
         lessonIndex: i,
-        subject: lessonData.name || subjectObj.name || 'Пара',
-        details: detailsArray.join(' • ') || 'Немає деталей',
+        subject: lessonData.name || subjectObj.name || t('common.class', lang),
+        details: detailsArray.join(' • ') || t('widget.no_details', lang),
         color,
         startTime: formatTime(tInfo.actualStart),
         endTime: formatTime(tInfo.actualEnd),

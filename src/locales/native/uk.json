@@ -1,0 +1,7 @@
+{
+  "ios": {
+    "NSPhotoLibraryUsageDescription": "Дозвольте PlanIt додавати фотографії до занять і завдань.",
+    "NSCameraUsageDescription": "Дозвольте PlanIt робити фотографії для вкладень до занять і завдань.",
+    "NSMicrophoneUsageDescription": "Дозвольте PlanIt записувати звук під час зйомки відео для вкладень."
+  }
+}

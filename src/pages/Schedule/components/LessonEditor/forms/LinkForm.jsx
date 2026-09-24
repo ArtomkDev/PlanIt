@@ -85,7 +85,7 @@ export default function LinkEditor({
     onSaveLocal({
       ...localLinkData,
       id: linkId,
-      name: name.trim() || t("schedule.lesson_editor.new_link_default", lang),
+      name: name.trim() || t("schedule.lesson_editor.new_link", lang),
       url: cleanUrl,
       type: cleanType,
       icon: normalizeContactIcon(icon, cleanType),
@@ -254,9 +254,9 @@ export default function LinkEditor({
             style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]}
             onPress={handleSave}
             accessibilityRole="button"
-            accessibilityLabel={saveLabel || t("common.save_changes", lang)}
+            accessibilityLabel={saveLabel || t("common.save", lang)}
           >
-            <Text style={styles.saveButtonText}>{saveLabel || t("common.save_changes", lang)}</Text>
+            <Text style={styles.saveButtonText}>{saveLabel || t("common.save", lang)}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

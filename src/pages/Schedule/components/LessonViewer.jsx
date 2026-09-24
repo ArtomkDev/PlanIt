@@ -284,7 +284,7 @@ export default function LessonViewer({
       maxWidth={700}
       backgroundColor={themeColors.backgroundColor}
       handleColor={themeColors.textColor3}
-      accessibilityLabel={fullSubject.name || t('schedule.lesson_viewer.untitled', lang)}
+      accessibilityLabel={fullSubject.name || t('common.untitled', lang)}
       closeAccessibilityLabel={t('common.close', lang)}
       testID="lesson-viewer-sheet"
     >
@@ -328,7 +328,7 @@ export default function LessonViewer({
                 </View>
               )}
               <Text style={[styles.subjectName, { color: themeColors.textColor }]}>
-                {fullSubject.name || t('schedule.lesson_viewer.untitled', lang)}
+                {fullSubject.name || t('common.untitled', lang)}
               </Text>
               {!!fullSubject.fullName && (
                 <Text style={[styles.subjectFullName, { color: themeColors.textColor2 }]}>
@@ -356,7 +356,7 @@ export default function LessonViewer({
                 <MapPin size={22} color={themeColors.accentColor} weight="regular" />
                 <View style={styles.gridTextContainer}>
                   <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>
-                    {t('schedule.lesson_viewer.room', lang)}
+                    {t('common.room', lang)}
                   </Text>
                   <Text style={[styles.gridValue, { color: themeColors.textColor }]} numberOfLines={1}>
                     {displayBuilding ? `${displayBuilding}, ` : ""}{displayRoom || "—"}
@@ -454,7 +454,7 @@ export default function LessonViewer({
                     <TouchableOpacity
                       key={index}
                       accessibilityRole="link"
-                      accessibilityLabel={`${link.name || t('schedule.lesson_viewer.default_link', lang)} ${openUrl}`}
+                      accessibilityLabel={`${link.name || t('common.link', lang)} ${openUrl}`}
                       style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
                       onPress={() => handleLinkPress(openUrl)}
                     >
@@ -463,7 +463,7 @@ export default function LessonViewer({
                       </View>
                       <View style={styles.rowContent}>
                         <Text style={[styles.rowTitle, { color, textDecorationLine: 'underline' }]}>
-                          {link.name || t('schedule.lesson_viewer.default_link', lang)}
+                          {link.name || t('common.link', lang)}
                         </Text>
                         <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
                           {t(meta.labelKey, lang)} · {link.url}
@@ -582,7 +582,7 @@ export default function LessonViewer({
             {!!onAddTask && (
               <TouchableOpacity
                   accessibilityRole="button"
-                  accessibilityLabel={t('schedule.lesson_viewer.add_task', lang)}
+                  accessibilityLabel={t('tasks.add_task', lang)}
                   style={[styles.actionButton, styles.primaryButton, styles.addTaskButton, { backgroundColor: themeColors.accentColor }]}
                   onPress={() => {
                     triggerHaptic("success");
@@ -591,7 +591,7 @@ export default function LessonViewer({
               >
                   <Plus size={20} color="#fff" style={{marginRight: 8}} weight="bold" />
                   <Text style={[styles.actionButtonText, { color: '#fff' }]} numberOfLines={1}>
-                    {t('schedule.lesson_viewer.add_task', lang)}
+                    {t('tasks.add_task', lang)}
                   </Text>
               </TouchableOpacity>
             )}

@@ -1,0 +1,7 @@
+{
+  "ios": {
+    "NSPhotoLibraryUsageDescription": "Allow PlanIt to attach photos to classes and tasks.",
+    "NSCameraUsageDescription": "Allow PlanIt to take photos for class and task attachments.",
+    "NSMicrophoneUsageDescription": "Allow PlanIt to record audio when capturing videos for attachments."
+  }
+}

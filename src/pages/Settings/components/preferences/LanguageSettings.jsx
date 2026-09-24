@@ -8,13 +8,13 @@ import { t, SUPPORTED_LANGUAGES } from "../../../../utils/i18n";
 import SettingsSelectionRow from "../../../../components/ui/SettingsKit/SettingsSelectionRow";
 
 const LanguageSettings = () => {
-  const { global } = useScheduleData();
+  const { global, lang } = useScheduleData();
   const { setGlobalDraft, saveNow } = useScheduleActions();
   const { isDirty } = useScheduleSync();
   
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const currentAppLang = global?.language || 'uk';
+  const currentAppLang = lang;
 
   const isFirstMount = useRef(true);
 

@@ -13,7 +13,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
-import { t } from '../../utils/i18n';
+import { t, formatText as interpolateText } from '../../utils/i18n';
 import themes from '../../config/themes';
 import defaultSchedule from '../../config/defaultSchedule';
 import TabSwitcher from '../../components/ui/TabSwitcher';
@@ -195,13 +195,6 @@ export default function OnboardingWizard({ onImportSchedule }) {
     closeTimePanels();
   };
 
-  const interpolateText = useCallback((template, params) => (
-    Object.entries(params).reduce(
-      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
-      template
-    )
-  ), []);
-
   const formatReminderValue = useCallback((reminder) => {
     const normalized = normalizeScheduleReminder(reminder);
     if (!normalized.enabled) return t('schedule.reminders.off', lang);
@@ -281,7 +274,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
     addSchedule({
       ...defaultSchedule,
       id: scheduleId,
-      name: scheduleName.trim() || t('sync_conflict.untitled', lang),
+      name: scheduleName.trim() || t('common.untitled', lang),
       repeat: finalRepeat,
       duration: Number(lessonDuration) || 80,
       breaks: breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b)),
@@ -318,7 +311,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
     }
     
     if (newStep === 1 && currentPosRef.current < 0.5 && !scheduleName.trim()) {
-      setScheduleName(t('sync_conflict.untitled', lang));
+      setScheduleName(t('common.untitled', lang));
     }
     
     Animated.spring(position, {
@@ -463,7 +456,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { color: themeColors.textColor }]}>{t('onboarding.step1_title', lang)}</Text>
         <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.step1_desc', lang)}</Text>
-        <TextInput accessibilityLabel={t('onboarding.step1_title', lang)} style={[styles.textInput, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: themeColors.borderColor }]} placeholder={t('onboarding.schedule_name_placeholder', lang)} placeholderTextColor={themeColors.textColor2} value={scheduleName} onChangeText={setScheduleName} />
+        <TextInput accessibilityLabel={t('onboarding.step1_title', lang)} style={[styles.textInput, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: themeColors.borderColor }]} placeholder={t("common.schedule_name", lang)} placeholderTextColor={themeColors.textColor2} value={scheduleName} onChangeText={setScheduleName} />
       </View>
 
       <View style={styles.inputGroup}>
@@ -857,13 +850,13 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel={step === TOTAL_STEPS - 1 ? t('settings.menu.done', lang) : t('onboarding.next', lang)}
+            accessibilityLabel={step === TOTAL_STEPS - 1 ? t('common.done', lang) : t('onboarding.next', lang)}
             style={[styles.navBtnMain, { backgroundColor: themeColors.accentColor }]}
             onPress={() => navigateToStep(step + 1)}
             activeOpacity={0.8}
           >
             <Text style={styles.navBtnMainText}>
-              {step === TOTAL_STEPS - 1 ? t('settings.menu.done', lang) : t('onboarding.next', lang)}
+              {step === TOTAL_STEPS - 1 ? t('common.done', lang) : t('onboarding.next', lang)}
             </Text>
             {step === TOTAL_STEPS - 1 ? (
               <Check size={20} color="#FFF" weight="bold" style={{ marginLeft: 8 }} />

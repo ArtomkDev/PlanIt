@@ -1,3 +1,4 @@
+import { t, getLocale, normalizeLanguage } from '../utils/i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules, Platform } from 'react-native';
 import { parseRealSchedule } from './scheduleCore';
@@ -7,14 +8,9 @@ export const WIDGET_SELECTED_SCHEDULE_ID_KEY = 'widget_selected_schedule_id';
 
 const SCHEDULE_KEY = 'widget_active_schedule';
 const OFFSET_KEY = 'widget_date_offset';
+const LANGUAGE_KEY = 'widget_language';
 const INTENT_KEY = 'widget_intent';
 const BOUNDARY_GRACE_MS = 750;
-
-const DAYS_UK = ['Нд', 'Пн', 'Вв', 'Ср', 'Чт', 'Пт', 'Сб'];
-const MONTHS_UK = [
-  'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
-  'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня',
-];
 
 let storageQueue = Promise.resolve();
 
@@ -39,6 +35,7 @@ const getNextLocalMidnight = (now) => {
 export function buildScheduleWidgetModel({
   schedule,
   dateOffset = 0,
+  lang = 'en',
   widgetInfo = {},
   now: nowInput = new Date(),
 }) {
@@ -53,16 +50,17 @@ export function buildScheduleWidgetModel({
     currentWeekNum,
     totalWeeks,
     nextTransitionAt,
-  } = parseRealSchedule(schedule, targetDate, normalizedOffset, now);
+  } = parseRealSchedule(schedule, targetDate, normalizedOffset, now, lang);
 
   const headerText = normalizedOffset === 0
-    ? 'Сьогодні'
+    ? t('common.today', lang)
     : normalizedOffset === 1
-      ? 'Завтра'
-      : DAYS_UK[targetDate.getDay()];
-  const dateInfo = `${targetDate.getDate()} ${MONTHS_UK[targetDate.getMonth()]}${
-    totalWeeks > 1 ? ` • Тиждень ${currentWeekNum}` : ''
-  }`;
+      ? t('common.tomorrow', lang)
+      : targetDate.toLocaleDateString(getLocale(lang), { weekday: 'short' });
+  const dateLabel = targetDate.toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' });
+  const dateInfo = totalWeeks > 1
+    ? `${dateLabel} • ${t('common.week', lang, { week: currentWeekNum })}`
+    : dateLabel;
 
   const refreshCandidates = schedule
     ? [nextTransitionAt, getNextLocalMidnight(now)].filter(
@@ -74,6 +72,7 @@ export function buildScheduleWidgetModel({
     : null;
 
   return {
+    lang: normalizeLanguage(lang),
     hasSchedule: Boolean(schedule),
     items,
     headerText,
@@ -90,7 +89,7 @@ export async function readWidgetState() {
   await storageQueue.catch(() => {});
 
   try {
-    const entries = await AsyncStorage.multiGet([SCHEDULE_KEY, OFFSET_KEY]);
+    const entries = await AsyncStorage.multiGet([SCHEDULE_KEY, OFFSET_KEY, LANGUAGE_KEY]);
     const values = Object.fromEntries(entries);
     const rawSchedule = values[SCHEDULE_KEY];
     const schedule = rawSchedule ? JSON.parse(rawSchedule) : null;
@@ -98,9 +97,10 @@ export async function readWidgetState() {
     return {
       schedule,
       dateOffset: normalizeOffset(values[OFFSET_KEY]),
+      lang: normalizeLanguage(values[LANGUAGE_KEY]),
     };
   } catch (_) {
-    return { schedule: null, dateOffset: 0 };
+    return { schedule: null, dateOffset: 0, lang: 'en' };
   }
 }
 
@@ -109,8 +109,9 @@ export async function getScheduleWidgetModel(widgetInfo, now = new Date(), state
   return buildScheduleWidgetModel({ ...widgetState, widgetInfo, now });
 }
 
-export function persistWidgetSchedule(schedule) {
+export function persistWidgetSchedule(schedule, lang = 'en') {
   return runStorageMutation(async () => {
+    await AsyncStorage.setItem(LANGUAGE_KEY, normalizeLanguage(lang));
     if (!schedule) {
       await AsyncStorage.multiRemove([SCHEDULE_KEY, OFFSET_KEY]);
       return;
@@ -174,6 +175,7 @@ export function clearWidgetData() {
     SCHEDULE_KEY,
     OFFSET_KEY,
     WIDGET_SELECTED_SCHEDULE_ID_KEY,
+    LANGUAGE_KEY,
   ]));
 }
 

@@ -91,7 +91,7 @@ export default function ResetDB() {
           <Warning size={32} color="#ef4444" weight="fill" style={styles.warningIcon} />
           <View style={styles.warningTextContainer}>
             <Text style={[styles.warningTitle, { color: mode === 'dark' || mode === 'oled' ? '#fca5a5' : '#991b1b' }]}>
-              {t('settings.reset_db_screen.box_title', lang)}
+              {t("settings.sections.danger_zone", lang)}
             </Text>
             <Text style={[styles.warningText, { color: mode === 'dark' || mode === 'oled' ? '#fecaca' : '#b91c1c' }]}>
               {t('settings.reset_db_screen.box_text', lang)}

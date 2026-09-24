@@ -202,7 +202,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
               ) : (
                 <View style={styles.previewContainer}>
                   <View style={[styles.previewCard, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
-                    <Text style={[styles.previewLabel, { color: themeColors.textColor2 }]}>{t("share.schedule_name", lang)}</Text>
+                    <Text style={[styles.previewLabel, { color: themeColors.textColor2 }]}>{t("common.schedule_name", lang)}</Text>
                     <Text style={[styles.previewValue, { color: themeColors.textColor }]}>{previewData.scheduleName}</Text>
                     
                     <Text style={[styles.previewLabel, { color: themeColors.textColor2, marginTop: 16 }]}>{t("share.author", lang)}</Text>

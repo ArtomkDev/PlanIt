@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useScheduleActions } from "../context/ScheduleProvider";
+import { useScheduleActions, useScheduleData } from "../context/ScheduleProvider";
 import { createDefaultTeacher, createDefaultSubject, createDefaultLink, createDefaultGradient } from "../config/createDefaults";
 import useUniqueId from "./useUniqueId";
 import { removeScheduleEntity } from "../utils/scheduleDeletion";
@@ -7,15 +7,16 @@ import { removeScheduleEntity } from "../utils/scheduleDeletion";
 export default function useEntityManager() {
   const { setScheduleDraft } = useScheduleActions();
   const generateId = useUniqueId();
+  const { lang } = useScheduleData();
 
   const addItem = useCallback((key, factory) => {
-    const newItem = factory(generateId);
+    const newItem = factory(generateId, lang);
     setScheduleDraft((prev) => ({
       ...prev,
       [key]: [...(prev[key] || []), newItem],
     }));
     return newItem;
-  }, [generateId, setScheduleDraft]);
+  }, [generateId, setScheduleDraft, lang]);
 
   const removeItem = useCallback((key, idToRemove) => {
     setScheduleDraft((prev) => removeScheduleEntity(prev, key, idToRemove));

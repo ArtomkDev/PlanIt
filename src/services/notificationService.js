@@ -21,7 +21,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
-import { t } from "../utils/i18n";
+import { t, normalizeLanguage, formatText as formatTemplate } from "../utils/i18n";
 import { buildLessonOccurrences } from "../utils/scheduleTime";
 import {
   normalizeScheduleReminder,
@@ -61,11 +61,11 @@ const dateTriggerType = Notifications?.SchedulableTriggerInputTypes?.DATE || "da
 const CHANNELS_BY_TYPE = {
   [NOTIFICATION_TYPES.ACCOUNT_LOGIN]: {
     id: "account-security",
-    name: "Account security",
+    nameKey: "settings.notifications.account_channel",
   },
   [NOTIFICATION_TYPES.LESSON_REMINDER]: {
     id: "lesson-reminders",
-    name: "Lesson reminders",
+    nameKey: "settings.notifications.types.lesson_reminder.title",
   },
 };
 
@@ -265,27 +265,28 @@ export const syncDevicePushRegistration = async (userId, deviceId, options = {})
   return registration;
 };
 
-const ensureAndroidChannel = async (type) => {
+const ensureAndroidChannel = async (type, lang) => {
   if (Platform.OS !== "android" || !Notifications) return null;
 
   const channel = CHANNELS_BY_TYPE[type] || CHANNELS_BY_TYPE[NOTIFICATION_TYPES.LESSON_REMINDER];
-  if (configuredChannels[channel.id]) return channel.id;
+  const name = t(channel.nameKey, lang);
+  if (configuredChannels[channel.id] === name) return channel.id;
 
   await Notifications.setNotificationChannelAsync(channel.id, {
-    name: channel.name,
+    name,
     importance: Notifications.AndroidImportance.DEFAULT,
     sound: "default",
     vibrationPattern: [0, 250, 250, 250],
   });
 
-  configuredChannels[channel.id] = true;
+  configuredChannels[channel.id] = name;
   return channel.id;
 };
 
-const withAndroidChannel = async (type, trigger) => {
+const withAndroidChannel = async (type, trigger, lang) => {
   if (Platform.OS !== "android") return trigger;
 
-  const channelId = await ensureAndroidChannel(type);
+  const channelId = await ensureAndroidChannel(type, lang);
   if (trigger && typeof trigger === "object") {
     return { ...trigger, channelId };
   }
@@ -307,7 +308,7 @@ const dispatchLocalPushNotification = async (type, content, options = {}) => {
     return { id: null, status: permission.status, permission };
   }
 
-  const trigger = await withAndroidChannel(type, options.trigger || null);
+  const trigger = await withAndroidChannel(type, options.trigger || null, options.lang);
   const id = await Notifications.scheduleNotificationAsync({
     identifier: options.identifier,
     content: {
@@ -411,13 +412,6 @@ const buildNotificationIdentifier = (scheduleId, occurrence, reminder) => {
   ].join("-");
 };
 
-const formatTemplate = (template, params) => (
-  Object.entries(params).reduce(
-    (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
-    template
-  )
-);
-
 const getExpoProjectId = () => (
   Constants.easConfig?.projectId
   || Constants.expoConfig?.extra?.eas?.projectId
@@ -432,7 +426,7 @@ const isExpoPushToken = (token) => (
 const buildAccountLoginContent = (notification = {}, lang = "en") => {
   const deviceName = notification.deviceName || t("settings.device_screen.unknown_device", lang);
   return {
-    title: t("settings.notifications.account_login_title", lang),
+    title: t("settings.notifications.types.account_login.title", lang),
     body: formatTemplate(t("settings.notifications.account_login_message", lang), {
       deviceName,
     }),
@@ -515,7 +509,7 @@ export const buildLessonReminderRequests = (schedule, options = {}) => {
     );
     if (triggerAt.getTime() <= nowMs + 1000) continue;
 
-    const subjectName = occurrence.subject?.name || t("schedule.reminders.lesson", lang);
+    const subjectName = occurrence.subject?.name || t("common.class", lang);
     const room = getLessonRoom(occurrence);
     const title = formatTemplate(t("schedule.reminders.notification_title", lang), {
       subject: subjectName,
@@ -636,6 +630,7 @@ export const reconcileLessonRemindersForSchedule = async (schedule, options = {}
         request.content,
         {
           identifier: request.identifier,
+          lang: options.lang,
           trigger: request.trigger,
           notificationPreferences: options.notificationPreferences,
         }
@@ -669,7 +664,6 @@ const sendAccountLoginPushToOtherDevices = async (userId, notification, options 
     const messages = [];
     const targets = [];
     const seenTokens = new Set();
-    const content = buildAccountLoginContent(notification, options.lang || "en");
 
     devicesSnap.docs.forEach((deviceSnap) => {
       if (sourceDeviceId && deviceSnap.id === sourceDeviceId) return;
@@ -680,6 +674,7 @@ const sendAccountLoginPushToOtherDevices = async (userId, notification, options 
       if (sourceExpoPushToken && token === sourceExpoPushToken) return;
       if (!isExpoPushToken(token) || seenTokens.has(token)) return;
 
+      const content = buildAccountLoginContent(notification, normalizeLanguage(device.language));
       seenTokens.add(token);
       targets.push(deviceSnap.ref);
       messages.push({
@@ -774,7 +769,7 @@ export async function createLoginNotification(userId, loginInfo = {}) {
   const rawDeviceName = !loginInfo.deviceName || loginInfo.deviceName === "Unknown Device"
     ? t("settings.device_screen.unknown_device", lang)
     : loginInfo.deviceName === "Web Browser"
-      ? t("settings.notifications.web_browser", lang)
+      ? t("settings.device_screen.web_browser", lang)
     : loginInfo.deviceName;
   const rawPlatform = !loginInfo.platform || loginInfo.platform === "Unknown"
     ? t("settings.notifications.unknown_platform", lang)

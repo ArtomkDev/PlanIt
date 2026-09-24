@@ -25,7 +25,7 @@ import GradientBackground from "../../../../../components/ui/GradientBackground"
 import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
-import { t } from "../../../../../utils/i18n";
+import { t, formatText as interpolate } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
 import {
   CUSTOM_REMINDER_FALLBACK_MINUTES,
@@ -103,10 +103,8 @@ export default function LessonEditorMainScreen({
   const recurrenceValue = recurrenceSelection?.mode === "all"
     ? t('schedule.lesson_editor.repeat_every_week', lang)
     : selectedRepeatWeeks.length <= 4
-      ? t('schedule.lesson_editor.repeat_selected_weeks_value', lang)
-        .replace("{weeks}", selectedRepeatWeeks.join(", "))
-      : t('schedule.lesson_editor.repeat_selected_count', lang)
-        .replace("{count}", String(selectedRepeatWeeks.length));
+      ? t('schedule.lesson_editor.repeat_selected_weeks_value', lang, { weeks: selectedRepeatWeeks.join(", ") })
+      : t('schedule.lesson_editor.repeat_selected_count', lang, { count: String(selectedRepeatWeeks.length) });
   const scheduleDefaultReminder = normalizeScheduleReminder(scheduleReminder);
   const subjectReminder = normalizeSubjectReminder(currentSubject?.reminder);
   const reminderSelectionId = currentSubject?.reminder === undefined
@@ -124,13 +122,6 @@ export default function LessonEditorMainScreen({
     triggerHaptic(isClosing ? "sheetClose" : "expand");
     setExpandedField(isClosing ? null : field);
   };
-
-  const interpolate = (template, params) => (
-    Object.entries(params).reduce(
-      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
-      template
-    )
-  );
 
   const updateRecurrenceMode = (mode) => {
     triggerHaptic("selection");
@@ -384,7 +375,7 @@ export default function LessonEditorMainScreen({
             }}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={t('schedule.lesson_editor.add_new', lang)}
+            accessibilityLabel={t('common.add', lang)}
             hitSlop={6}
           >
             <Plus size={18} color={themeColors.textColor} weight="bold" />
@@ -423,10 +414,10 @@ export default function LessonEditorMainScreen({
       >
         <SettingsGroup
           themeColors={themeColors}
-          title={t('schedule.main_screen.subject', lang)}
+          title={t('common.subject', lang)}
         >
           <SettingsRow
-            label={t('schedule.main_screen.subject_name', lang)}
+            label={t('common.subject_name', lang)}
             value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
             onPress={() => setActivePicker("subject")}
             themeColors={themeColors}
@@ -454,11 +445,11 @@ export default function LessonEditorMainScreen({
 
       <SettingsGroup
         themeColors={themeColors}
-        title={t('schedule.main_screen.subject', lang)}
+        title={t('common.subject', lang)}
         headerRight={renderHeaderRight(false, null, null, null, onClearSubject)}
       >
         <SettingsRow
-          label={t('schedule.main_screen.subject_name', lang)}
+          label={t('common.subject_name', lang)}
           value={safeGetLabel("subject", selectedSubjectId) || t('schedule.lesson_editor.not_selected', lang)}
           onPress={() => setActivePicker("subject")}
           themeColors={themeColors}
@@ -521,7 +512,7 @@ export default function LessonEditorMainScreen({
                 <View style={styles.reminderChoiceGrid}>
                   {repeatWeeks.map((week) => {
                     const selected = selectedRepeatWeeks.includes(week);
-                    const label = interpolate(t('schedule.lesson_editor.repeat_week', lang), { week });
+                    const label = interpolate(t('common.week', lang), { week });
                     return (
                       <TouchableOpacity
                         key={week}
@@ -629,11 +620,11 @@ export default function LessonEditorMainScreen({
 
       <SettingsGroup
         themeColors={themeColors}
-        title={t('schedule.main_screen.lesson_type_group', lang)}
+        title={t('common.class_type', lang)}
         headerRight={renderHeaderRight(true, scopes.type, (s) => onScopeChange('type', s), null, null)}
       >
         <SettingsRow
-          label={t('schedule.main_screen.lesson_type_label', lang)}
+          label={t('common.class_type', lang)}
           value={getValueLabel("type", "type", "type")}
           onPress={() => setActivePicker("type")}
           themeColors={themeColors}
@@ -647,14 +638,14 @@ export default function LessonEditorMainScreen({
         headerRight={renderHeaderRight(true, scopes.location, (s) => onScopeChange('location', s), null, null)}
       >
         <SettingsRow
-          label={t('schedule.main_screen.building', lang)}
+          label={t('common.building', lang)}
           value={getValueLabel("building", "text", "location")}
           onPress={() => setActivePicker("building")}
           themeColors={themeColors}
           icon={Buildings}
         />
         <SettingsRow
-          label={t('schedule.main_screen.room', lang)}
+          label={t('common.room', lang)}
           value={getValueLabel("room", "text", "location")}
           onPress={() => setActivePicker("room")}
           themeColors={themeColors}
@@ -735,7 +726,7 @@ export default function LessonEditorMainScreen({
                 return (
                   <SettingsRow
                       key={`link-${id}`}
-                      label={`${t('schedule.main_screen.link', lang)} ${index + 1}`}
+                      label={`${t('common.link', lang)} ${index + 1}`}
                       value={safeGetLabel("link", id)}
                       onPress={() => setActivePicker("link", index)}
                       onLongPress={() => onDirectEdit("link", id, index)}
@@ -775,10 +766,10 @@ export default function LessonEditorMainScreen({
 
       <SettingsGroup
         themeColors={themeColors}
-        title={t('schedule.main_screen.appearance', lang)}
+        title={t("settings.sections.appearance", lang)}
       >
         <SettingsRow
-          label={t('schedule.main_screen.card_color', lang)}
+          label={t('common.card_color', lang)}
           rightContent={renderColorPreview()}
           onPress={onEditSubjectColor}
           themeColors={themeColors}
@@ -795,14 +786,14 @@ export default function LessonEditorMainScreen({
 
       <SettingsGroup
         themeColors={themeColors}
-        title={t('schedule.main_screen.time', lang) || "Час заняття"}
+        title={t('schedule.main_screen.time', lang)}
         headerRight={renderHeaderRight(false, null, null, null, isTimeModified ? () => {
             onTimeChange("startTime", null);
             onTimeChange("endTime", null);
         } : null)}
       >
         <SettingsRow
-          label={t('schedule.main_screen.start_time', lang) || "Початок"}
+          label={t('schedule.main_screen.start_time', lang)}
           rightContent={renderTimeValue(currentStart, isTimeModified)}
           onPress={() => toggleExpand("startTime")}
           themeColors={themeColors}
@@ -811,7 +802,7 @@ export default function LessonEditorMainScreen({
         {expandedField === "startTime" && renderTimePicker("startTime", currentStart)}
 
         <SettingsRow
-          label={t('schedule.main_screen.end_time', lang) || "Кінець"}
+          label={t('schedule.main_screen.end_time', lang)}
           rightContent={renderTimeValue(currentEnd, isTimeModified)}
           onPress={() => toggleExpand("endTime")}
           themeColors={themeColors}

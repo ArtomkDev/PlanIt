@@ -45,16 +45,9 @@ import {
   upsertAttachmentLibraryFiles,
   uploadAttachmentDrafts,
 } from "../../services/attachmentService";
-import { t } from "../../utils/i18n";
+import { t, formatText as interpolate } from "../../utils/i18n";
 import { triggerHaptic } from "../../utils/haptics";
 import { useAttachmentImagePreview } from "../../context/AttachmentImagePreviewContext";
-
-const interpolate = (template, params = {}) => (
-  Object.entries(params).reduce(
-    (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
-    template
-  )
-);
 
 const getAttachmentKindIcon = (attachment) => (
   String(attachment?.mimeType || "").startsWith("image/") ? ImageIcon : File
@@ -570,7 +563,7 @@ export default function AttachmentManager({
     <View style={styles.container}>
       <View style={styles.actionRow}>
         {renderActionButton({
-          label: t("attachments.add_file", lang),
+          label: t("attachments.file", lang),
           icon: Paperclip,
           onPress: () => runPicker(pickAttachmentFiles),
         })}

@@ -3,7 +3,6 @@ import {
   Alert,
   Animated,
   Linking,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -27,21 +26,10 @@ export default function LegalDocumentScreen() {
   const { global, lang } = useScheduleData();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const document = getLegalDocument(route.params?.documentType);
+  const document = getLegalDocument(route.params?.documentType, lang);
   const scrollY = React.useRef(new Animated.Value(0)).current;
   const headerHeight = 60 + insets.top;
   const browserUrl = getLegalDocumentBrowserUrl(route.params?.documentType, lang);
-
-  React.useEffect(() => {
-    if (Platform.OS !== "web" || !browserUrl) return;
-
-    if (typeof window !== "undefined") {
-      window.location.assign(browserUrl);
-      return;
-    }
-
-    Linking.openURL(browserUrl).catch(() => {});
-  }, [browserUrl]);
 
   const openInBrowser = () => {
     if (!browserUrl) {
@@ -164,6 +152,11 @@ export default function LegalDocumentScreen() {
         <Text style={[styles.title, { color: themeColors.textColor }]}>
           {document.title}
         </Text>
+        {lang !== "en" && (
+          <Text style={[styles.paragraph, { color: themeColors.textColor2 }]}>
+            {t("settings.about_screen.document_language_notice", lang)}
+          </Text>
+        )}
         <Text style={[styles.meta, { color: themeColors.textColor2 }]}>
           {document.effectiveDateLine || document.effectiveDate}
         </Text>

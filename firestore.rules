@@ -114,6 +114,7 @@ service cloud.firestore {
           "expoPushToken",
           "pushPermissionStatus",
           "pushTokenPlatform",
+          "language",
           "pushTokenUpdatedAt",
           "pushTokenError",
           "revokedAt",
@@ -128,6 +129,7 @@ service cloud.firestore {
         && optionalNullableStringWithMax(data, "expoPushToken", 256)
         && optionalNullableStringWithMax(data, "pushPermissionStatus", 80)
         && optionalNullableStringWithMax(data, "pushTokenPlatform", 40)
+        && (!hasField(data, "language") || data.language in ["uk", "en"])
         && optionalNullableStringWithMax(data, "pushTokenError", 160)
         && optionalNullableStringWithMax(data, "revokedReason", 40)
         && optionalTimestamp(data, "createdAt")

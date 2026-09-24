@@ -1,4 +1,5 @@
 import pkg from './package.json';
+import nativeEnglish from './src/locales/native/en.json';
 
 const versionParts = pkg.version.split('.');
 const versionCode = parseInt(versionParts[0]) * 10000 + parseInt(versionParts[1]) * 100 + parseInt(versionParts[2]);
@@ -88,6 +89,10 @@ export default {
   expo: {
     name: "PlanIt",
     slug: "PlanIt",
+    locales: {
+      en: "./src/locales/native/en.json",
+      uk: "./src/locales/native/uk.json",
+    },
     version: pkg.version,
     scheme: "planit",
     // Keep the existing iOS behavior. The Android compliance plugin removes
@@ -169,8 +174,9 @@ export default {
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow PlanIt to attach photos to lessons and tasks.",
-          "cameraPermission": "Allow PlanIt to take photos for lesson and task attachments."
+          "photosPermission": nativeEnglish.ios.NSPhotoLibraryUsageDescription,
+          "cameraPermission": nativeEnglish.ios.NSCameraUsageDescription,
+          "microphonePermission": nativeEnglish.ios.NSMicrophoneUsageDescription
         }
       ],
       "expo-document-picker",

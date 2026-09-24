@@ -66,12 +66,9 @@ export default function ChangePasswordScreen() {
       setResetCooldown(60);
       Alert.alert(
         t('settings.account_settings.change_password.email_sent_title', lang),
-        t(
-          hasPassword
+        t(hasPassword
             ? 'settings.account_settings.change_password.reset_email_sent_desc'
-            : 'settings.account_settings.change_password.add_email_sent_desc',
-          lang,
-        ).replace('{email}', email),
+            : 'settings.account_settings.change_password.add_email_sent_desc', lang, { email: email }),
       );
     } catch (error) {
       if (
@@ -92,7 +89,7 @@ export default function ChangePasswordScreen() {
 
   const handleChangePassword = async () => {
     if (!currentPassword.trim() || !newPassword || !confirmPassword) {
-      setErrorMsg(t('settings.account_settings.change_password.req_empty', lang) || "Будь ласка, заповніть обидва поля.");
+      setErrorMsg(t('settings.account_settings.change_password.req_empty', lang));
       return;
     }
 
@@ -116,17 +113,17 @@ export default function ChangePasswordScreen() {
       await updatePassword(user, newPassword);
       
       Alert.alert(
-        t('common.success', lang) || "Успішно",
-        t('settings.account_settings.change_password.success_msg', lang) || "Ваш пароль успішно змінено.",
-        [{ text: t('common.ok', lang) || "OK", onPress: () => navigation.goBack() }]
+        t('common.success', lang),
+        t('settings.account_settings.change_password.success_msg', lang),
+        [{ text: t('common.ok', lang), onPress: () => navigation.goBack() }]
       );
     } catch (error) {
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setErrorMsg(t('settings.account_settings.change_password.wrong_password', lang) || "Невірний поточний пароль.");
+        setErrorMsg(t('settings.account_settings.change_password.wrong_password', lang));
       } else if (error.code === 'auth/weak-password') {
         setErrorMsg(getPasswordPolicyMessage(lang));
       } else {
-        setErrorMsg(error.message);
+        setErrorMsg(t('auth.errors.update_failed', lang));
       }
     } finally {
       setLoading(false);
@@ -152,8 +149,7 @@ export default function ChangePasswordScreen() {
               {t('settings.account_settings.change_password.add_password_title', lang)}
             </Text>
             <Text style={styles.infoText}>
-              {t('settings.account_settings.change_password.add_password_desc', lang)
-                .replace('{email}', user.email || '')}
+              {t('settings.account_settings.change_password.add_password_desc', lang, { email: user.email || '' })}
             </Text>
           </View>
 
@@ -173,7 +169,7 @@ export default function ChangePasswordScreen() {
             onPress={handleEmailVerification}
             disabled={loading || resetCooldown > 0}
             accessibilityRole="button"
-            accessibilityLabel={verificationSent ? t('settings.account_settings.change_password.resend_email_btn', lang) : t('settings.account_settings.change_password.send_email_btn', lang)}
+            accessibilityLabel={verificationSent ? t("auth.verify.resend_btn", lang) : t('settings.account_settings.change_password.send_email_btn', lang)}
             accessibilityState={{ disabled: loading || resetCooldown > 0, busy: loading }}
           >
             {loading ? (
@@ -184,9 +180,9 @@ export default function ChangePasswordScreen() {
             ) : (
               <Text style={styles.actionButtonText}>
                 {resetCooldown > 0
-                  ? `${t('settings.account_settings.change_password.resend_email_btn', lang)} (${resetCooldown})`
+                  ? `${t("auth.verify.resend_btn", lang)} (${resetCooldown})`
                   : verificationSent
-                    ? t('settings.account_settings.change_password.resend_email_btn', lang)
+                    ? t("auth.verify.resend_btn", lang)
                     : t('settings.account_settings.change_password.send_email_btn', lang)}
               </Text>
             )}
@@ -196,20 +192,20 @@ export default function ChangePasswordScreen() {
         <>
           <View style={styles.infoBox}>
             <Text style={styles.infoTitle}>
-              {t('settings.account_settings.change_password.title', lang) || "Зміна пароля"}
+              {t('settings.account_settings.change_password.title', lang)}
             </Text>
             <Text style={styles.infoText}>
-              {t('settings.account_settings.change_password.desc', lang) || "Для вашої безпеки введіть поточний пароль перед встановленням нового."}
+              {t('settings.account_settings.change_password.desc', lang)}
             </Text>
           </View>
 
           <Text style={styles.inputLabel}>
-            {t('settings.account_settings.change_password.current_password_label', lang) || "Поточний пароль"}
+            {t('settings.account_settings.change_password.current_password_label', lang)}
           </Text>
           <TextInput
             style={styles.input}
-            accessibilityLabel={t('settings.account_settings.change_password.current_password_label', lang) || "Current password"}
-            placeholder={t('settings.account_settings.change_password.current_password_placeholder', lang) || "Введіть поточний пароль"}
+            accessibilityLabel={t('settings.account_settings.change_password.current_password_label', lang)}
+            placeholder={t('settings.account_settings.change_password.current_password_placeholder', lang)}
             placeholderTextColor={themeColors.textColor2}
             secureTextEntry
             value={currentPassword}
@@ -245,13 +241,13 @@ export default function ChangePasswordScreen() {
           ) : null}
 
           <Text style={styles.inputLabel}>
-            {t('settings.account_settings.change_password.new_password_label', lang) || "Новий пароль"}
+            {t("auth.password_reset.new_password_label", lang)}
           </Text>
           <View style={styles.passwordFieldGroup}>
             <TextInput
               style={[styles.input, styles.passwordInput]}
-              accessibilityLabel={t('settings.account_settings.change_password.new_password_label', lang) || "New password"}
-              placeholder={t('settings.account_settings.change_password.new_password_placeholder', lang) || "Введіть новий пароль"}
+              accessibilityLabel={t("auth.password_reset.new_password_label", lang)}
+              placeholder={t("auth.password_reset.new_password_placeholder", lang)}
               placeholderTextColor={themeColors.textColor2}
               secureTextEntry
               value={newPassword}
@@ -297,17 +293,17 @@ export default function ChangePasswordScreen() {
             onPress={handleChangePassword}
             disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel={t('common.save', lang) || "Save"}
+            accessibilityLabel={t('common.save', lang)}
             accessibilityState={{ disabled: loading, busy: loading }}
           >
             {loading ? (
               <View style={styles.loadingButtonContent}>
                 <MorphingLoader size={22} />
-                <Text style={styles.actionButtonText}>{t('common.save', lang) || "Зберегти"}</Text>
+                <Text style={styles.actionButtonText}>{t('common.save', lang)}</Text>
               </View>
             ) : (
               <Text style={styles.actionButtonText}>
-                {t('common.save', lang) || "Зберегти"}
+                {t('common.save', lang)}
               </Text>
             )}
           </TouchableOpacity>

@@ -315,9 +315,6 @@ export const linkGoogleAccount = async (idToken) => {
     const userCredential = await linkWithCredential(auth.currentUser, credential);
     return { success: true, user: userCredential.user };
   } catch (error) {
-    if (error.code === 'auth/credential-already-in-use') {
-       throw new Error("Цей Google акаунт вже прив'язаний до іншого профілю.");
-    }
     throw error;
   }
 };

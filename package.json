@@ -3,6 +3,8 @@
   "version": "0.1.81",
   "main": "index.js",
   "scripts": {
+    "locales:check": "node scripts/check-locales.cjs",
+    "test:i18n": "node --test tests/i18n.test.cjs",
     "legal:sync": "node scripts/generate-legal-documents.js",
     "legal:check": "node scripts/generate-legal-documents.js --check",
     "legal:loading": "node scripts/generate-legal-loading-documents.js",

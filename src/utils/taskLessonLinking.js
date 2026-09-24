@@ -1,3 +1,5 @@
+import { t, getLocale } from './i18n';
+
 import {
   buildLessonOccurrences,
   buildLessonTimes,
@@ -119,7 +121,7 @@ export const formatLessonRefDate = (lessonRef, lang = "en") => {
   const parsed = new Date(`${ref.date}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return ref.date;
 
-  return parsed.toLocaleDateString(lang === "uk" ? "uk-UA" : "en-US", {
+  return parsed.toLocaleDateString(getLocale(lang), {
     day: "numeric",
     month: "short",
   });
@@ -150,11 +152,11 @@ export const formatOccurrenceDayLabel = (dateInput, lang = "en") => {
     ? Math.round((date.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
     : null;
 
-  if (diffDays === 0) return lang === "uk" ? "Сьогодні" : "Today";
-  if (diffDays === 1) return lang === "uk" ? "Завтра" : "Tomorrow";
-  if (diffDays === -1) return lang === "uk" ? "Вчора" : "Yesterday";
+  if (diffDays === 0) return t("common.today", lang);
+  if (diffDays === 1) return t("common.tomorrow", lang);
+  if (diffDays === -1) return t("common.yesterday", lang);
 
-  return date.toLocaleDateString(lang === "uk" ? "uk-UA" : "en-US", {
+  return date.toLocaleDateString(getLocale(lang), {
     weekday: "short",
     day: "numeric",
     month: "short",

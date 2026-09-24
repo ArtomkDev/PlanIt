@@ -33,7 +33,7 @@ export default function AccountSettings() {
   const { global, user: contextUser, lang } = useScheduleData();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
-  
+
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
   const styles = getStyles(themeColors);
@@ -55,7 +55,7 @@ export default function AccountSettings() {
   const handleLinkGoogle = async () => {
     if (isNativeDisabled) {
       Alert.alert(
-        t('auth.errors.expo_go_title', lang), 
+        t('auth.errors.expo_go_title', lang),
         t('auth.errors.expo_go_google_msg', lang)
       );
       return;
@@ -68,22 +68,24 @@ export default function AccountSettings() {
         await linkWithPopup(activeUser, provider);
       } else {
         const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-        
+
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
         const response = await GoogleSignin.signIn();
-        
+
         const idToken = response?.data?.idToken || response?.idToken;
-        
+
         if (!idToken) {
           throw new Error("No ID token returned");
         }
-        
+
         await linkGoogleAccount(idToken);
       }
       setLinkedProviders(getLinkedProviders());
     } catch (error) {
       if (error.code !== 'ERR_REQUEST_CANCELED' && error.message !== 'Sign in action cancelled') {
-        Alert.alert(t('common.error', lang), error.message);
+        Alert.alert(t('common.error', lang), t(error.code === 'auth/credential-already-in-use'
+          ? 'auth.errors.provider_already_linked'
+          : 'auth.errors.provider_link_failed', lang));
       }
     } finally {
       setIsProcessing(null);
@@ -93,7 +95,7 @@ export default function AccountSettings() {
   const handleLinkApple = async () => {
     if (isNativeDisabled) {
       Alert.alert(
-        t('auth.errors.expo_go_title', lang), 
+        t('auth.errors.expo_go_title', lang),
         t('auth.errors.expo_go_apple_msg', lang)
       );
       return;
@@ -117,7 +119,9 @@ export default function AccountSettings() {
       setLinkedProviders(getLinkedProviders());
     } catch (error) {
       if (error.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert(t('common.error', lang), error.message);
+        Alert.alert(t('common.error', lang), t(error.code === 'auth/credential-already-in-use'
+          ? 'auth.errors.provider_already_linked'
+          : 'auth.errors.provider_link_failed', lang));
       }
     } finally {
       setIsProcessing(null);
@@ -135,7 +139,7 @@ export default function AccountSettings() {
       await unlinkProvider(providerId);
       setLinkedProviders(getLinkedProviders());
     } catch (error) {
-      Alert.alert(t('common.error', lang), error.message);
+      Alert.alert(t('common.error', lang), t('auth.errors.provider_unlink_failed', lang));
     } finally {
       setIsProcessing(null);
     }
@@ -155,8 +159,8 @@ export default function AccountSettings() {
     }
 
     return (
-      <TouchableOpacity 
-        onPress={onLink} 
+      <TouchableOpacity
+        onPress={onLink}
         style={[styles.linkButton, isNativeDisabled && { opacity: 0.5 }]}
         activeOpacity={isNativeDisabled ? 1 : 0.7}
       >
@@ -165,11 +169,11 @@ export default function AccountSettings() {
     );
   };
 
-  const userName = activeUser?.displayName || t('settings.account_settings.not_specified', lang);
-  const userEmail = activeUser?.email || t('settings.account_settings.not_specified', lang);
-  
-  const initial = userName !== t('settings.account_settings.not_specified', lang) 
-    ? userName.charAt(0).toUpperCase() 
+  const userName = activeUser?.displayName || t('schedule.lesson_editor.not_specified', lang);
+  const userEmail = activeUser?.email || t('schedule.lesson_editor.not_specified', lang);
+
+  const initial = userName !== t('schedule.lesson_editor.not_specified', lang)
+    ? userName.charAt(0).toUpperCase()
     : '?';
 
   const isGoogleLinked = linkedProviders.includes('google.com');
@@ -185,21 +189,21 @@ export default function AccountSettings() {
         <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">{userEmail}</Text>
       </View>
 
-      <SettingsGroup 
-        title={t('settings.account_settings.info_section', lang)} 
+      <SettingsGroup
+        title={t('settings.account_settings.info_section', lang)}
         themeColors={themeColors}
       >
-        <SettingsRow 
-          icon={User} 
-          label={t('settings.account_settings.name', lang)} 
-          value={userName} 
+        <SettingsRow
+          icon={User}
+          label={t('settings.account_settings.name', lang)}
+          value={userName}
           themeColors={themeColors}
           onPress={() => navigation.navigate('ChangeName')}
         />
-        <SettingsRow 
-          icon={EnvelopeSimple} 
-          label={t('settings.account_settings.email', lang)} 
-          value={userEmail} 
+        <SettingsRow
+          icon={EnvelopeSimple}
+          label={t("auth.fields.email", lang)}
+          value={userEmail}
           themeColors={themeColors}
           onPress={() => {
             if (isSocialOnly) {
@@ -214,21 +218,21 @@ export default function AccountSettings() {
         />
       </SettingsGroup>
 
-      <SettingsGroup 
-        title={t('settings.account_settings.linked_accounts_section', lang)} 
+      <SettingsGroup
+        title={t('settings.account_settings.linked_accounts_section', lang)}
         themeColors={themeColors}
       >
-        <SettingsRow 
+        <SettingsRow
           icon={AuthenticGoogleIcon}
-          label="Google" 
+          label="Google"
           showCaret={false}
           themeColors={themeColors}
           rightContent={renderProviderStatus(isGoogleLinked, 'google.com', handleLinkGoogle)}
         />
         {Platform.OS !== 'android' && (
-          <SettingsRow 
+          <SettingsRow
             icon={AuthenticAppleIcon}
-            label="Apple" 
+            label="Apple"
             showCaret={false}
             themeColors={themeColors}
             rightContent={renderProviderStatus(isAppleLinked, 'apple.com', handleLinkApple)}
@@ -236,13 +240,13 @@ export default function AccountSettings() {
         )}
       </SettingsGroup>
 
-      <SettingsGroup 
-        title={t('settings.account_settings.security_section', lang)} 
+      <SettingsGroup
+        title={t('settings.account_settings.security_section', lang)}
         themeColors={themeColors}
       >
-        <SettingsRow 
-          icon={LockKey} 
-          label={t('settings.account_settings.password', lang)} 
+        <SettingsRow
+          icon={LockKey}
+          label={t("auth.fields.password", lang)}
           value={isSocialOnly
             ? t('settings.account_settings.password_not_set', lang)
             : '••••••••'}
@@ -251,13 +255,13 @@ export default function AccountSettings() {
         />
       </SettingsGroup>
 
-      <SettingsGroup 
-        title={t('settings.account_settings.management_section', lang)} 
+      <SettingsGroup
+        title={t('settings.account_settings.management_section', lang)}
         themeColors={themeColors}
       >
-        <SettingsRow 
-          icon={Trash} 
-          label={t('settings.account_settings.delete_account', lang)} 
+        <SettingsRow
+          icon={Trash}
+          label={t('settings.account_settings.delete_account', lang)}
           danger={true}
           showCaret={false}
           themeColors={themeColors}
@@ -273,66 +277,66 @@ const getStyles = (themeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
   },
-  header: { 
-    alignItems: 'center', 
-    marginBottom: 32, 
-    paddingHorizontal: 20 
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
+    paddingHorizontal: 20
   },
   avatar: {
-    width: 80, 
-    height: 80, 
+    width: 80,
+    height: 80,
     borderRadius: 40,
     backgroundColor: themeColors.accentColor,
-    justifyContent: 'center', 
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     shadowColor: themeColors.accentColor,
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.3, 
-    shadowRadius: 8, 
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 5,
   },
-  avatarText: { 
-    fontSize: 32, 
-    fontWeight: 'bold', 
-    color: '#FFFFFF' 
+  avatarText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF'
   },
-  userName: { 
-    fontSize: 22, 
-    fontWeight: '700', 
-    color: themeColors.textColor, 
-    marginBottom: 4, 
-    textAlign: 'center', 
-    width: '100%' 
+  userName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: themeColors.textColor,
+    marginBottom: 4,
+    textAlign: 'center',
+    width: '100%'
   },
-  userEmail: { 
-    fontSize: 14, 
-    color: themeColors.textColor2, 
-    textAlign: 'center', 
-    width: '100%' 
+  userEmail: {
+    fontSize: 14,
+    color: themeColors.textColor2,
+    textAlign: 'center',
+    width: '100%'
   },
-  linkButton: { 
-    backgroundColor: themeColors.accentColor, 
-    paddingVertical: 6, 
-    paddingHorizontal: 12, 
-    borderRadius: 16 
+  linkButton: {
+    backgroundColor: themeColors.accentColor,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16
   },
-  linkButtonText: { 
-    fontSize: 12, 
-    color: '#FFFFFF', 
-    fontWeight: '600' 
+  linkButtonText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600'
   },
-  unlinkButton: { 
-    backgroundColor: 'transparent', 
-    paddingVertical: 6, 
-    paddingHorizontal: 12, 
-    borderRadius: 16, 
-    borderWidth: 1, 
-    borderColor: '#FF3B30' 
+  unlinkButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FF3B30'
   },
-  unlinkButtonText: { 
-    fontSize: 12, 
-    color: '#FF3B30', 
-    fontWeight: '600' 
+  unlinkButtonText: {
+    fontSize: 12,
+    color: '#FF3B30',
+    fontWeight: '600'
   },
 });

@@ -91,7 +91,7 @@ const getGroupSubtitle = (lessonGroup) => (
 );
 
 const formatOccurrenceCount = (count, lang) => (
-  t("tasks.editor.occurrences_count", lang).replace("{count}", String(count || 0))
+  t("tasks.editor.occurrences_count", lang, { count: count || 0 })
 );
 
 const colorWithAlpha = (color, alpha, fallback) => {
@@ -225,7 +225,7 @@ const formatOccurrenceWeekLabel = (schedule, occurrence, lang) => {
     || Number(String(occurrence?.weekKey || "").replace("week", ""));
   if (!Number.isFinite(weekNumber) || weekNumber <= 0) return "";
 
-  return t("tasks.editor.week_label", lang).replace("{week}", String(weekNumber));
+  return t("common.week", lang, { week: String(weekNumber) });
 };
 
 function LessonCatalogueScreen({
@@ -901,8 +901,8 @@ export default function TaskEditor({
     if (currentScreen === "lessonOccurrence") {
       return getGroupTitle(selectedLessonGroup?.lessonGroup, lang);
     }
-    if (currentScreen === "linkPicker") return t("tasks.editor.links", lang);
-    if (currentScreen === "linkEditor") return t("tasks.editor.edit_link", lang);
+    if (currentScreen === "linkPicker") return t("common.links", lang);
+    if (currentScreen === "linkEditor") return t("schedule.lesson_editor.edit_link", lang);
     return task?.id ? t("tasks.editor.edit_task", lang) : t("tasks.editor.new_task", lang);
   };
 
@@ -1319,9 +1319,9 @@ export default function TaskEditor({
 
       <View style={styles.headerRight}>
         {currentScreen === "main" && (
-          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15} accessibilityRole="button" accessibilityLabel={attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.done", lang)} accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}>
+          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15} accessibilityRole="button" accessibilityLabel={attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.save", lang)} accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}>
             <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
-              {attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.done", lang)}
+              {attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.save", lang)}
             </Text>
           </TouchableOpacity>
         )}
@@ -1331,7 +1331,7 @@ export default function TaskEditor({
 
   const renderLinksValue = () => {
     if (selectedLinkObjects.length === 0) return t("tasks.editor.no_links", lang);
-    return t("tasks.editor.links_count", lang).replace("{count}", String(selectedLinkObjects.length));
+    return t("tasks.editor.links_count", lang, { count: String(selectedLinkObjects.length) });
   };
 
   const renderLessonQuickButton = ({
@@ -1533,7 +1533,7 @@ export default function TaskEditor({
       >
         <SettingsGroup
           themeColors={themeColors}
-          title={t("tasks.editor.lesson", lang)}
+          title={t("common.class", lang)}
           contentStyle={styles.lessonLinkGroupContent}
         >
           {renderLessonLinkControl()}
@@ -1573,7 +1573,7 @@ export default function TaskEditor({
           />
         </SettingsGroup>
 
-        <SettingsGroup themeColors={themeColors} title={t("tasks.editor.links", lang)}>
+        <SettingsGroup themeColors={themeColors} title={t("common.links", lang)}>
           <SettingsRow
             label={t("tasks.editor.attach_links", lang)}
             value={renderLinksValue()}
@@ -1585,7 +1585,7 @@ export default function TaskEditor({
           {selectedLinkObjects.map((link) => (
             <SettingsRow
               key={link.id}
-              label={link.name || t("tasks.default_link", lang)}
+              label={link.name || t("common.link", lang)}
               desc={link.url}
               onPress={() => {
                 setEditingLinkId(link.id);
@@ -1729,7 +1729,7 @@ export default function TaskEditor({
 
           {currentScreen === "linkPicker" && (
             <LessonEditorPickerScreen
-              options={localLinks.map((link) => ({ key: link.id, label: link.name || t("tasks.default_link", lang) }))}
+              options={localLinks.map((link) => ({ key: link.id, label: link.name || t("common.link", lang) }))}
               selectedValues={selectedLinks}
               multiSelect
               onSave={(keys) => {

@@ -35,7 +35,7 @@ import { useAttachmentImagePreview } from "../../context/AttachmentImagePreviewC
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
 import { getIconComponent } from "../../config/subjectIcons";
-import { t } from "../../utils/i18n";
+import { t, getLocale } from "../../utils/i18n";
 import { getScheduleDisplayName } from "../../utils/scheduleDisplay";
 import { resolveScheduleColor, scheduleColorWithAlpha } from "../../utils/scheduleColors";
 import {
@@ -193,7 +193,7 @@ const formatTaskCardDate = (value, lang) => {
 
   if (Number.isNaN(date.getTime())) return "";
 
-  return date.toLocaleDateString(lang === "uk" ? "uk-UA" : "en-US", {
+  return date.toLocaleDateString(getLocale(lang), {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -228,24 +228,17 @@ const getLessonRefWeekNumber = (lessonRef) => {
 };
 
 const formatTaskWeekLabel = (weekNumber, lang) => (
-  t("tasks.editor.week_label", lang).replace("{week}", String(weekNumber))
+  t("common.week", lang, { week: String(weekNumber) })
 );
 
-const getTranslatedValue = (key, lang, fallback) => {
-  const value = t(key, lang);
-  return value === key ? fallback : value;
-};
-
-const getTodayLabel = (lang) => (
-  getTranslatedValue("tasks.editor.today", lang, lang === "uk" ? "Сьогодні" : "Today")
-);
+const getTodayLabel = (lang) => t("common.today", lang);
 
 const formatTaskCountLabel = (count, lang) => (
-  t("tasks.count", lang).replace("{count}", String(count || 0))
+  t("tasks.count", lang, { count: count || 0 })
 );
 
 const formatPendingTaskCountLabel = (count, lang) => (
-  lang === "uk" ? `${count || 0} не виконано` : `${count || 0} open`
+  t("tasks.pending_count", lang, { count: count || 0 })
 );
 
 const formatTasksHeaderSummary = (totalCount, pendingCount, lang) => (
@@ -262,7 +255,7 @@ const getTaskGroupMeta = (entry, lang) => {
   const lessonDate = lessonRef?.date || entry?.task?.lessonRef?.date;
   const createdAt = parseTaskTimestamp(entry?.task?.createdAt);
   const date = parseTaskDayDate(lessonDate || createdAt);
-  const scheduleName = entry?.scheduleName || t("settings.schedule_switcher.untitled", lang);
+  const scheduleName = entry?.scheduleName || t("common.untitled", lang);
   const scheduleId = lessonRef?.scheduleId || entry?.scheduleId || "__schedule__";
   const repeatWeeks = normalizeScheduleRepeat(entry?.sourceSchedule?.repeat);
   const refWeekNumber = getLessonRefWeekNumber(lessonRef);
@@ -307,7 +300,7 @@ const getActiveScheduleSortRank = (scheduleId, activeScheduleId) => (
 );
 
 const compareTaskScheduleNames = (leftName, rightName, lang) => (
-  String(leftName || "").localeCompare(String(rightName || ""), lang === "uk" ? "uk-UA" : "en-US", {
+  String(leftName || "").localeCompare(String(rightName || ""), getLocale(lang), {
     sensitivity: "base",
   })
 );
@@ -939,7 +932,7 @@ function TaskCard({
                 >
                   <LinkIcon size={14} color={textOnCard} weight="bold" />
                   <Text style={[styles.linkText, { color: textOnCard }]} numberOfLines={1}>
-                    {link.name || t("tasks.default_link", lang)}
+                    {link.name || t("common.link", lang)}
                   </Text>
                   <ArrowUpRight size={13} color={mutedTextOnCard} weight="bold" />
                 </TouchableOpacity>
@@ -1042,7 +1035,7 @@ export default function Tasks({ route, navigation }) {
     : (draftSourceSchedule || newTaskSchedule);
 
   const flatTasks = useMemo(() => {
-    const untitledSchedule = t("settings.schedule_switcher.untitled", lang);
+    const untitledSchedule = t("common.untitled", lang);
 
     return selectedSchedules
       .flatMap((sourceSchedule) => {
@@ -1125,9 +1118,9 @@ export default function Tasks({ route, navigation }) {
 
   const selectedCountLabel = useMemo(() => {
     if (singleSelectedSchedule) {
-      return singleSelectedSchedule.name || t("settings.schedule_switcher.untitled", lang);
+      return singleSelectedSchedule.name || t("common.untitled", lang);
     }
-    return t("tasks.filter.selected_count", lang).replace("{count}", String(normalizedSelectedScheduleIds.length));
+    return t("tasks.filter.selected_count", lang, { count: String(normalizedSelectedScheduleIds.length) });
   }, [lang, normalizedSelectedScheduleIds.length, singleSelectedSchedule]);
 
   const filterColor = singleSelectedSchedule

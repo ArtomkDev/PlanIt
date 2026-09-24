@@ -16,7 +16,7 @@ import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import { db } from "../../../../config/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import themes from "../../../../config/themes";
-import { t } from "../../../../utils/i18n";
+import { t, getLocale } from "../../../../utils/i18n";
 
 import MorphingLoader from "../../../../components/ui/MorphingLoader";
 import SettingsGroup from "../../../../components/ui/SettingsKit/SettingsGroup";
@@ -91,7 +91,7 @@ export default function DeviceManager() {
     else if (ua.includes("Android")) os = "Android";
     else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
 
-    return `${browser} on ${os}`;
+    return t("settings.device_screen.browser_on_os", lang, { browser, os });
   };
 
   const getDeviceDisplayName = (device) => {
@@ -128,7 +128,7 @@ export default function DeviceManager() {
   const formatDate = (isoString) => {
     const timestamp = timestampToMs(isoString);
     if (!timestamp) return t('settings.device_screen.unknown_date', lang);
-    return new Date(timestamp).toLocaleString(undefined, {
+    return new Date(timestamp).toLocaleString(getLocale(lang), {
       month: "short",
       day: "numeric",
       hour: "2-digit",

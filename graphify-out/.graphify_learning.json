@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-21T13:52:46.144980+00:00",
+  "generated_at": "2026-09-24T14:31:20.316796+00:00",
   "nodes": {
     "functions_src_index_sendaddpasswordemail": {
       "code_fingerprint": "9390084fcf3e0a0ca66a07a362ef21b3756b6c125526db2a2c98a86b276d1fc5",
@@ -12,13 +12,13 @@
           "q": "спробував додати пароль а тут помилка"
         }
       ],
-      "score": 0.513079285,
+      "score": 0.478423735,
       "source_file": "functions/src/index.js",
       "status": "tentative",
       "uses": 1
     },
     "src_auth_authscreen": {
-      "code_fingerprint": "aa8a466ac45485612748f446f5122881f884e3bf558339542d93cccf46e8ffcf",
+      "code_fingerprint": "ffa3f8c4b15877cc6c599d9bdc589f77f1b1a10af2eba0ed9da6125d59b92d9d",
       "label": "AuthScreen.jsx",
       "last": "2026-08-21T23:55:12.821596+00:00",
       "provenance": [
@@ -28,7 +28,7 @@
           "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
         }
       ],
-      "score": 0.493325629,
+      "score": 0.460004325,
       "source_file": "src/auth/AuthScreen.jsx",
       "status": "tentative",
       "uses": 1
@@ -44,7 +44,7 @@
           "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
         }
       ],
-      "score": 0.493325629,
+      "score": 0.460004325,
       "source_file": "src/auth/components/PasswordStrengthBar.jsx",
       "status": "tentative",
       "uses": 1
@@ -60,7 +60,7 @@
           "q": "спробував додати пароль а тут помилка"
         }
       ],
-      "score": 0.513079285,
+      "score": 0.478423735,
       "source_file": "src/auth/passwordResetService.js",
       "status": "tentative",
       "uses": 1
@@ -76,7 +76,7 @@
           "q": "спробував додати пароль а тут помилка"
         }
       ],
-      "score": 0.513079285,
+      "score": 0.478423735,
       "source_file": "src/auth/passwordResetService.js",
       "status": "tentative",
       "uses": 1
@@ -92,13 +92,13 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.310348052,
+      "score": 0.289385829,
       "source_file": "src/components/AdBanner/AdBanner.native.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_components_attachments_attachmentimagepreview_attachmentimagepreview": {
-      "code_fingerprint": "786cd1156c084413fa3bc73b5213456293b05c814eaae9693316e1c8d228e48d",
+      "code_fingerprint": "9977027ffcc5089373765e35294cfd04b1c60e3f73cfe4d2b2d1fbae782547de",
       "label": "AttachmentImagePreview()",
       "last": "2026-09-13T21:23:51.218508+00:00",
       "neg": 1,
@@ -119,14 +119,14 @@
           "q": "програма лягає при добавлені пари: No safe area value available"
         }
       ],
-      "score": 0.776661066,
+      "score": 0.724202086,
       "source_file": "src/components/attachments/AttachmentImagePreview.jsx",
       "status": "contested",
       "uses": 2,
       "verdict": "useful"
     },
     "src_components_attachments_attachmentimagepreview_zoomableimagepage": {
-      "code_fingerprint": "786cd1156c084413fa3bc73b5213456293b05c814eaae9693316e1c8d228e48d",
+      "code_fingerprint": "9977027ffcc5089373765e35294cfd04b1c60e3f73cfe4d2b2d1fbae782547de",
       "label": "ZoomableImagePage()",
       "last": "2026-09-13T21:23:51.218508+00:00",
       "neg": 1,
@@ -142,7 +142,7 @@
           "q": "на ios фото не відкривається, а просто чорний екран"
         }
       ],
-      "score": -0.000166151,
+      "score": -0.000154928,
       "source_file": "src/components/attachments/AttachmentImagePreview.jsx",
       "status": "contested",
       "uses": 1,
@@ -159,7 +159,7 @@
           "q": "на ios фото не відкривається, а просто чорний екран"
         }
       ],
-      "score": 0.837109808,
+      "score": 0.780567864,
       "source_file": "src/components/attachments/StagedAttachmentImage.jsx",
       "status": "tentative",
       "uses": 1
@@ -175,7 +175,7 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.310428905,
+      "score": 0.289461221,
       "source_file": "src/components/privacy/CookieConsentBanner.web.jsx",
       "status": "tentative",
       "uses": 1
@@ -191,7 +191,7 @@
           "q": "Why did hidden bottom sheets and notification drawer break after Expo SDK 57?"
         }
       ],
-      "score": 0.743327758,
+      "score": 0.693120251,
       "source_file": "src/components/ui/BottomSheet.jsx",
       "status": "tentative",
       "uses": 1
@@ -207,7 +207,7 @@
           "q": "Зробити відображення градієнтів м’якшим, покращити зміну нахилу та додати ненав’язливе прилипання до 0, 90, 180 і 270 градусів"
         }
       ],
-      "score": 0.794624243,
+      "score": 0.740951954,
       "source_file": "src/components/ui/GradientBackground.jsx",
       "status": "tentative",
       "uses": 1
@@ -234,7 +234,7 @@
           "q": "Зробити всі градієнти одним продуманим компонентом і виправити верхній градієнт LessonViewer"
         }
       ],
-      "score": 0.779354811,
+      "score": 0.726713884,
       "source_file": "src/components/ui/GradientBackground.jsx",
       "status": "contested",
       "uses": 2,
@@ -251,7 +251,7 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.310348052,
+      "score": 0.289385829,
       "source_file": "src/context/AdsContext.native.jsx",
       "status": "tentative",
       "uses": 1
@@ -267,13 +267,45 @@
           "q": "будьласка пофіки проблеми: [Worklets] Cannot copy value of type AnimatedValue"
         }
       ],
-      "score": 0.776173889,
+      "score": 0.723747815,
       "source_file": "src/navigation/TabNavigator.jsx",
       "status": "tentative",
       "uses": 1
     },
+    "src_pages_schedule_components_daypager_daypager": {
+      "code_fingerprint": "bb0753441325ebb68921219d31e180fded3b75451beebf3c623c253e163a6826",
+      "label": "DayPager",
+      "last": "2026-09-21T13:57:43.639211+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-21T13:57:43.639211+00:00",
+          "outcome": "useful",
+          "q": "Why does weekly swiping wait before lesson pages move?"
+        }
+      ],
+      "score": 0.932529947,
+      "source_file": "src/pages/Schedule/components/DayPager.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_schedule_components_daypager_pagerpage": {
+      "code_fingerprint": "bb0753441325ebb68921219d31e180fded3b75451beebf3c623c253e163a6826",
+      "label": "PagerPage",
+      "last": "2026-09-21T13:57:43.639211+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-21T13:57:43.639211+00:00",
+          "outcome": "useful",
+          "q": "Why does weekly swiping wait before lesson pages move?"
+        }
+      ],
+      "score": 0.932529947,
+      "source_file": "src/pages/Schedule/components/DayPager.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
     "src_pages_schedule_components_lessoncard_backgroundpattern": {
-      "code_fingerprint": "7ae5f5fec8b1ae684b0972f1b0204664e2503d7e750d4dfecbb231c59d9925c4",
+      "code_fingerprint": "882fe5dea7546dc1007bbdcb7ef172675bd15c58150b501261cc7e1c255ddf0f",
       "label": "BackgroundPattern",
       "last": "2026-09-10T18:42:12.784818+00:00",
       "neg": 1,
@@ -289,14 +321,14 @@
           "q": "Іконки патерна відображаються у web, але відсутні на Android та iOS"
         }
       ],
-      "score": -8.7316e-05,
+      "score": -8.1418e-05,
       "source_file": "src/pages/Schedule/components/LessonCard.jsx",
       "status": "contested",
       "uses": 1,
       "verdict": "dead end"
     },
     "src_pages_schedule_components_lessoncard_lessoncard": {
-      "code_fingerprint": "7ae5f5fec8b1ae684b0972f1b0204664e2503d7e750d4dfecbb231c59d9925c4",
+      "code_fingerprint": "882fe5dea7546dc1007bbdcb7ef172675bd15c58150b501261cc7e1c255ddf0f",
       "label": "LessonCard()",
       "last": "2026-09-10T16:04:28.028691+00:00",
       "provenance": [
@@ -306,13 +338,13 @@
           "q": "Поломані покази градієнтів та іконок на картках пар і завдань"
         }
       ],
-      "score": 0.77721298,
+      "score": 0.724716721,
       "source_file": "src/pages/Schedule/components/LessonCard.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_schedule_components_lessoneditor_lessoneditor": {
-      "code_fingerprint": "f957ea13fb19085e34afe0b6061fd37737bb490d2c03458d018af28eba49f728",
+      "code_fingerprint": "272d7dc579bb19c2220a59b117b89f6a881148557ee7d8dbd533b9aaeed6a02a",
       "label": "LessonEditor()",
       "last": "2026-09-10T15:33:31.514080+00:00",
       "provenance": [
@@ -322,7 +354,7 @@
           "q": "програма лягає при добавлені пари: No safe area value available"
         }
       ],
-      "score": 0.776827216,
+      "score": 0.724357014,
       "source_file": "src/pages/Schedule/components/LessonEditor.jsx",
       "status": "tentative",
       "uses": 1
@@ -338,7 +370,7 @@
           "q": "Зробити відображення градієнтів м’якшим, покращити зміну нахилу та додати ненав’язливе прилипання до 0, 90, 180 і 270 градусів"
         }
       ],
-      "score": 0.794624243,
+      "score": 0.740951954,
       "source_file": "src/pages/Schedule/components/LessonEditor/screens/GradientScreen.jsx",
       "status": "tentative",
       "uses": 1
@@ -354,13 +386,13 @@
           "q": "Зробити відображення градієнтів м’якшим, покращити зміну нахилу та додати ненав’язливе прилипання до 0, 90, 180 і 270 градусів"
         }
       ],
-      "score": 0.794624243,
+      "score": 0.740951954,
       "source_file": "src/pages/Schedule/components/LessonEditor/screens/GradientScreen.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_schedule_components_lessoneditor_screens_mainscreen": {
-      "code_fingerprint": "71f53a1c37dcc760e1d3a512eccbb194a59928365abbc81aaebdf7e25608a3b1",
+      "code_fingerprint": "dce1d5864dde9f82337baf0b166619abbea576d5e8697868f260be64b6bffac5",
       "label": "MainScreen.jsx",
       "last": "2026-09-11T14:22:38.814605+00:00",
       "provenance": [
@@ -370,13 +402,13 @@
           "q": "Виправити кольорові смуги по краях елементів з градієнтом на iOS та Android"
         }
       ],
-      "score": 0.794081111,
+      "score": 0.740445507,
       "source_file": "src/pages/Schedule/components/LessonEditor/screens/MainScreen.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_schedule_components_lessoneditor_ui_gradientgrid": {
-      "code_fingerprint": "2326f1c2f4db085780dd0402d2d2c3a955fe24af4a3c5b4f7664e0c38ce33194",
+      "code_fingerprint": "3fc92778590b284a6557f81dfc99f9c7aaa9ec167d460334fc493ec9839efb97",
       "label": "GradientGrid.jsx",
       "last": "2026-09-11T14:22:38.814605+00:00",
       "provenance": [
@@ -386,8 +418,24 @@
           "q": "Виправити кольорові смуги по краях елементів з градієнтом на iOS та Android"
         }
       ],
-      "score": 0.794081111,
+      "score": 0.740445507,
       "source_file": "src/pages/Schedule/components/LessonEditor/ui/GradientGrid.jsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_schedule_components_weekstrip_weekstrip": {
+      "code_fingerprint": "f9dbe4623752685e410c49deaef7fba267719a437f87f103521c25624c264c49",
+      "label": "WeekStrip",
+      "last": "2026-09-21T13:57:43.639211+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-21T13:57:43.639211+00:00",
+          "outcome": "useful",
+          "q": "Why does weekly swiping wait before lesson pages move?"
+        }
+      ],
+      "score": 0.932529947,
+      "source_file": "src/pages/Schedule/components/WeekStrip.jsx",
       "status": "tentative",
       "uses": 1
     },
@@ -402,13 +450,13 @@
           "q": "будьласка пофіки проблеми: [Worklets] Cannot copy value of type AnimatedValue"
         }
       ],
-      "score": 0.776173889,
+      "score": 0.723747815,
       "source_file": "src/pages/Schedule/Schedule.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_settings_components_aboutapp_aboutapp": {
-      "code_fingerprint": "4a4a5750a9b6e16d36dfa7763d788e2c7b3d94cfbdf4449de2378014bebc8274",
+      "code_fingerprint": "31da0439102f93b432122a75daad55568e0d99571223a53cc73e4259b6124e44",
       "label": "AboutApp()",
       "last": "2026-08-01T22:45:37.950536+00:00",
       "provenance": [
@@ -418,13 +466,13 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.310428905,
+      "score": 0.289461221,
       "source_file": "src/pages/Settings/components/AboutApp.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_settings_components_accountsettings_components_changepasswordscreen_changepasswordscreen": {
-      "code_fingerprint": "de35b6962e3975db0db82aa3c64f08228164e9068e70a8a35d33f20f4b0ff024",
+      "code_fingerprint": "c143f83027a230655681ad70ae5a1424a94e704ab500239bd839b932cf851314",
       "label": "ChangePasswordScreen()",
       "last": "2026-08-21T23:55:12.821596+00:00",
       "provenance": [
@@ -434,13 +482,13 @@
           "q": "добав до строки нового паролю таку саму полоску надіжності паролю як на екрані регістрації"
         }
       ],
-      "score": 0.493325629,
+      "score": 0.460004325,
       "source_file": "src/pages/Settings/components/AccountSettings/components/ChangePasswordScreen.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_settings_settings_settings": {
-      "code_fingerprint": "0727cc45f9f4caf4b74d7a7fc99aebaac4ac7fe5318700ee150d9319c154d5a9",
+      "code_fingerprint": "5b1318990233629c832af7a4baf57a1660f8bbef9a779caf483df9bda4a08dc5",
       "label": "Settings()",
       "last": "2026-08-01T22:45:37.950536+00:00",
       "provenance": [
@@ -450,13 +498,13 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.310428905,
+      "score": 0.289461221,
       "source_file": "src/pages/Settings/Settings.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_tasks_tasks_taskcard": {
-      "code_fingerprint": "950b1c34a89187eb8ff864f06c2f3853bd21c6e29593fbf2463e92274de17c26",
+      "code_fingerprint": "a9da434eb96e78d267ca55fd3d3c64576d49dedbef82512daba5a93ab114340a",
       "label": "TaskCard()",
       "last": "2026-09-10T16:04:28.028691+00:00",
       "provenance": [
@@ -466,13 +514,13 @@
           "q": "Поломані покази градієнтів та іконок на картках пар і завдань"
         }
       ],
-      "score": 0.77721298,
+      "score": 0.724716721,
       "source_file": "src/pages/Tasks/Tasks.jsx",
       "status": "tentative",
       "uses": 1
     },
     "src_pages_tasks_tasks_taskiconpattern": {
-      "code_fingerprint": "950b1c34a89187eb8ff864f06c2f3853bd21c6e29593fbf2463e92274de17c26",
+      "code_fingerprint": "a9da434eb96e78d267ca55fd3d3c64576d49dedbef82512daba5a93ab114340a",
       "label": "TaskIconPattern",
       "last": "2026-09-10T18:42:12.784818+00:00",
       "neg": 1,
@@ -488,7 +536,7 @@
           "q": "Іконки патерна відображаються у web, але відсутні на Android та iOS"
         }
       ],
-      "score": -8.7316e-05,
+      "score": -8.1418e-05,
       "source_file": "src/pages/Tasks/Tasks.jsx",
       "status": "contested",
       "uses": 1,
@@ -505,7 +553,7 @@
           "q": "програма лягає при добавлені пари: No safe area value available"
         }
       ],
-      "score": 0.776827216,
+      "score": 0.724357014,
       "source_file": "src/Root.jsx",
       "status": "tentative",
       "uses": 1
@@ -521,13 +569,13 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.310428905,
+      "score": 0.289461221,
       "source_file": "src/services/cookieConsentService.web.js",
       "status": "tentative",
       "uses": 1
     },
     "src_services_notificationservice": {
-      "code_fingerprint": "28fb17f07d3d03f6cf1a8454cf6b6fcd5096d445ea815860138f5478f11582ba",
+      "code_fingerprint": "4219c2e596ba5fff83450f691949962485c1d3bb2d4b88b4eb065f5512ff8594",
       "label": "notificationService.js",
       "last": "2026-08-01T22:29:23.859146+00:00",
       "provenance": [
@@ -537,7 +585,7 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.310348052,
+      "score": 0.289385829,
       "source_file": "src/services/notificationService.js",
       "status": "tentative",
       "uses": 1
@@ -553,7 +601,7 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.310348052,
+      "score": 0.289385829,
       "source_file": "src/utils/adInit/adInit.native.js",
       "status": "tentative",
       "uses": 1
@@ -569,13 +617,13 @@
           "q": "Remove the persistent web cookie control, show consent automatically only when no choice exists, and move cookie preferences to Settings"
         }
       ],
-      "score": 0.310428905,
+      "score": 0.289461221,
       "source_file": "src/utils/analytics/analytics.web.js",
       "status": "tentative",
       "uses": 1
     },
     "src_utils_deviceservice": {
-      "code_fingerprint": "8b9c85e2c98101983e41f3eb941a0fd482b31006d5fbc15ce5b0da23d77ec5c8",
+      "code_fingerprint": "af2780438165cab986a1099c5e2256478867187b7baa2da2c5d7a2d4d689bc6f",
       "label": "deviceService.js",
       "last": "2026-08-01T22:29:23.859146+00:00",
       "provenance": [
@@ -585,7 +633,7 @@
           "q": "Expo Go logs expo-notifications warnings and RNGoogleMobileAdsModule could not be found"
         }
       ],
-      "score": 0.310348052,
+      "score": 0.289385829,
       "source_file": "src/utils/deviceService.js",
       "status": "tentative",
       "uses": 1
@@ -601,7 +649,7 @@
           "q": "Зробити відображення градієнтів м’якшим, покращити зміну нахилу та додати ненав’язливе прилипання до 0, 90, 180 і 270 градусів"
         }
       ],
-      "score": 0.794624243,
+      "score": 0.740951954,
       "source_file": "src/utils/gradientColors.js",
       "status": "tentative",
       "uses": 1
@@ -617,7 +665,7 @@
           "q": "Поломані покази градієнтів та іконок на картках пар і завдань"
         }
       ],
-      "score": 0.77721298,
+      "score": 0.724716721,
       "source_file": "src/utils/gradientColors.js",
       "status": "tentative",
       "uses": 1

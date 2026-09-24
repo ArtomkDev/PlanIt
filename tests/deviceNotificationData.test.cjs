@@ -33,6 +33,7 @@ test('installation id is random, persistent, and independent of the account id',
   const { exports: deviceService } = compileWithMocks(filename, new Map([
     ['firebase/firestore', {}],
     ['../config/firebase', { db: {}, auth: {} }],
+    ['./storage', { getDevicePrefs: async () => ({}) }],
     ['@react-native-async-storage/async-storage', { __esModule: true, default: asyncStorage }],
     ['expo-device', { modelName: 'Same Phone', brand: 'Brand', deviceName: 'Phone' }],
     ['react-native', { Platform: { OS: 'ios' } }],
@@ -81,6 +82,47 @@ class FakeTimestamp {
     return new FakeTimestamp(ms);
   }
 }
+
+const i18n = compileWithMocks(path.resolve(__dirname, '../src/utils/i18n.js'), new Map([
+  ['../locales/en.js', compileWithMocks(path.resolve(__dirname, '../src/locales/en.js'), new Map()).exports],
+  ['../locales/uk.js', compileWithMocks(path.resolve(__dirname, '../src/locales/uk.js'), new Map()).exports],
+])).exports;
+
+test('device language updates normalize tags without creating or reviving sessions', async () => {
+  let device = null;
+  const updates = [];
+  const { exports: service } = compileWithMocks(path.resolve(__dirname, '../src/utils/deviceService.js'), new Map([
+    ['firebase/firestore', {
+      doc: (...segments) => segments,
+      getDoc: async () => ({ exists: () => device !== null, data: () => device }),
+      updateDoc: async (ref, data) => updates.push({ ref, data }),
+    }],
+    ['../config/firebase', { db: {}, auth: {} }],
+    ['./i18n', i18n],
+    ['./storage', {}],
+    ['@react-native-async-storage/async-storage', { getItem: async () => 'installation-12345678' }],
+    ['expo-device', {}],
+    ['react-native', { Platform: { OS: 'web' } }],
+    ['expo-crypto', {}],
+    ['firebase/auth', {}],
+    ['../services/notificationService', {}],
+  ]));
+  await service.syncCurrentDeviceLanguage(null, 'uk');
+  await service.syncCurrentDeviceLanguage('user', 'uk');
+  for (const status of ['revoked', 'expired']) {
+    device = { status, language: 'en' };
+    await service.syncCurrentDeviceLanguage('user', 'uk');
+  }
+  device = { status: 'active', language: 'uk' };
+  await service.syncCurrentDeviceLanguage('user', 'uk-UA');
+  assert.equal(updates.length, 0);
+  device = { status: 'active', language: 'en' };
+  await service.syncCurrentDeviceLanguage('user', 'uk-UA');
+  device = {};
+  await service.syncCurrentDeviceLanguage('user', 'en-GB');
+  assert.deepEqual(updates.map(({ data }) => data), [{ language: 'uk' }, { language: 'en' }]);
+  assert.equal(updates[0].ref.at(-1), 'installation-12345678');
+});
 
 const loadNotificationService = () => {
   const filename = path.resolve(__dirname, '../src/services/notificationService.js');
@@ -133,7 +175,7 @@ const loadNotificationService = () => {
     ['expo', { isRunningInExpoGo: () => false }],
     ['firebase/firestore', firestore],
     ['../config/firebase', { db: {} }],
-    ['../utils/i18n', { t: (key) => key }],
+    ['../utils/i18n', i18n],
     ['../utils/scheduleTime', { buildLessonOccurrences: () => [] }],
     ['../utils/reminderSettings', {
       normalizeScheduleReminder: () => ({ enabled: false }),
@@ -213,4 +255,38 @@ test('Firestore rules validate device state transitions and notification schemas
   assert.match(rules, /resource\.data\.status in \["revoked", "expired"\]/);
   assert.match(rules, /request\.resource\.data\.diff\(resource\.data\)\.affectedKeys\(\)\.hasOnly\(\["readAt"\]\)/);
   assert.match(rules, /request\.resource\.data\.expiresAt <= request\.time \+ duration\.value\(91, "d"\)/);
+});
+
+
+test('login pushes use each recipient language, not the sender language', async () => {
+  const { service, getDocsHandlers } = loadNotificationService();
+  const devices = [
+    { id: 'source', language: 'uk', expoPushToken: 'ExponentPushToken[source]' },
+    { id: 'uk', language: 'uk-UA', expoPushToken: 'ExponentPushToken[uk]' },
+    { id: 'en', language: 'en', expoPushToken: 'ExponentPushToken[en]' },
+    { id: 'legacy', expoPushToken: 'ExponentPushToken[legacy]' },
+    { id: 'revoked', language: 'uk', status: 'revoked', expoPushToken: 'ExponentPushToken[revoked]' },
+  ];
+  getDocsHandlers.push(() => ({
+    docs: devices.map((device) => ({ id: device.id, ref: { id: device.id }, data: () => device })),
+  }));
+  const requests = [];
+  const originalFetch = global.fetch;
+  global.fetch = async (_url, options) => {
+    requests.push(...[].concat(JSON.parse(options.body)));
+    return { ok: true, json: async () => ({ data: requests.map(() => ({ status: 'ok' })) }) };
+  };
+  try {
+    await service.createLoginNotification('user-1', {
+      deviceId: 'source', deviceName: 'Phone $&', lang: 'uk',
+      notificationPreferences: { pushByType: { account_login: true } },
+    });
+  } finally {
+    global.fetch = originalFetch;
+  }
+  assert.equal(requests.length, 3);
+  assert.equal(requests[0].title, i18n.t('settings.notifications.types.account_login.title', 'uk'));
+  assert.equal(requests[1].title, i18n.t('settings.notifications.types.account_login.title', 'en'));
+  assert.equal(requests[2].title, requests[1].title);
+  assert.match(requests[0].body, /Phone \$&/);
 });

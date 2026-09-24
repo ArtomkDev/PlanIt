@@ -219,7 +219,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
                       <Square size={24} color={themeColors.textColor2} weight="regular" />
                     )}
                     <Text style={[styles.scheduleName, { color: themeColors.textColor }]} numberOfLines={1}>
-                      {item.name || t('migration_modal.untitled', lang)}
+                      {item.name || t('common.untitled', lang)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -234,7 +234,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
               disabled={isMigrating}
             >
               <Text style={[styles.skipButtonText, { color: themeColors.textColor }]}>
-                {t('migration_modal.skip', lang)}
+                {t('common.skip', lang)}
               </Text>
             </TouchableOpacity>
 

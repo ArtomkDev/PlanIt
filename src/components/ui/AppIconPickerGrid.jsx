@@ -99,7 +99,7 @@ export default function AppIconPickerGrid({
       {showNone && (
         <View style={styles.categorySection}>
           <Text style={[styles.categoryTitle, { color: themeColors.textColor2 }]}>
-            {(t("schedule.icon_categories.none", lang) || "").toUpperCase()}
+            {(t("schedule.icon_categories.none", lang)).toUpperCase()}
           </Text>
           <View style={styles.gridContainer}>
             {renderItem(null)}
@@ -116,7 +116,7 @@ export default function AppIconPickerGrid({
         return (
           <View key={category.id} style={styles.categorySection}>
             <Text style={[styles.categoryTitle, { color: themeColors.textColor2 }]}>
-              {(t(`schedule.icon_categories.${category.id}`, lang) || category.id).toUpperCase()}
+              {t(`schedule.icon_categories.${category.id}`, lang).toUpperCase()}
             </Text>
             <View style={styles.gridContainer}>
               {visibleIcons.map(renderItem)}

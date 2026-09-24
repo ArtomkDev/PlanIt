@@ -33,7 +33,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
-import { t } from '../../../utils/i18n';
+import { t, formatText as interpolate } from '../../../utils/i18n';
 import SettingsHeader from '../../../components/ui/SettingsHeader';
 import TabSwitcher from '../../../components/ui/TabSwitcher';
 import { generateId } from '../../../utils/idGenerator';
@@ -210,13 +210,6 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     }
   };
 
-  const interpolate = (template, params) => (
-    Object.entries(params).reduce(
-      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value)),
-      template
-    )
-  );
-
   const formatReminderValue = (reminder) => {
     const normalized = normalizeScheduleReminder(reminder);
     if (!normalized.enabled) return t('schedule.reminders.off', lang);
@@ -313,7 +306,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   };
 
   const handleFinalSave = () => {
-    const finalName = localData.name?.trim() || t('settings.schedule_editor.schedule_name', lang);
+    const finalName = localData.name?.trim() || t("common.schedule_name", lang);
     const finalRepeat = normalizeScheduleRepeat(localData.repeat);
     const finalBreaks = localData.breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b));
 
@@ -464,7 +457,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                   rightContent={(
                     <ScheduleIcon
                       icon={localData.icon}
-                      name={localData.name || t('settings.schedule_editor.schedule_name', lang)}
+                      name={localData.name || t("common.schedule_name", lang)}
                       size={36}
                       iconSize={20}
                       backgroundColor={scheduleColorWithAlpha(localData.color, 0.16)}
@@ -794,7 +787,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
         onClose={() => setIconPickerVisible(false)}
         onSelect={(icon) => setLocalData(prev => ({ ...prev, icon }))}
         selectedIcon={localData.icon}
-        scheduleName={localData.name || t('settings.schedule_editor.schedule_name', lang)}
+        scheduleName={localData.name || t("common.schedule_name", lang)}
         scheduleColor={localData.color}
         themeColors={themeColors}
         lang={lang}

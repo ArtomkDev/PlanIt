@@ -6,7 +6,7 @@ import { getUserSharedSchedules, deleteSharedSchedule } from "../../../services/
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import MorphingLoader from "../../../components/ui/MorphingLoader";
 import themes from "../../../config/themes";
-import { t } from "../../../utils/i18n";
+import { t, getLocale } from "../../../utils/i18n";
 
 export default function SharedSchedulesManager() {
   const { user, global, lang } = useScheduleData();
@@ -94,7 +94,7 @@ export default function SharedSchedulesManager() {
           <View style={styles.timeWrapper}>
             <Clock size={14} color={themeColors.textColor2} />
             <Text style={[styles.timeText, { color: themeColors.textColor2 }]}>
-              {new Date(expirationMs).toLocaleDateString()}
+              {new Date(expirationMs).toLocaleDateString(getLocale(lang))}
             </Text>
           </View>
         </View>
@@ -105,7 +105,7 @@ export default function SharedSchedulesManager() {
             onPress={() => handleDelete(item.id)}
           >
             <Trash size={18} color="#FF3B30" weight="bold" />
-            <Text style={styles.deactivateText}>{t("share.deactivate_action", lang)}</Text>
+            <Text style={styles.deactivateText}>{t("share.deactivate_btn", lang)}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -113,7 +113,7 @@ export default function SharedSchedulesManager() {
   };
 
   return (
-    <SettingsScreenLayout title={t("share.manager_title", lang)}>
+    <SettingsScreenLayout title={t("settings.menu.shared_schedules.title", lang)}>
       {loading ? (
         <View style={styles.center}>
           <MorphingLoader size={58} />

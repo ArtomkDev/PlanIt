@@ -65,7 +65,7 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
               onPress={handleAdd}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={t('schedule.lesson_editor.add_new', lang)}
+              accessibilityLabel={t('common.add', lang)}
               hitSlop={6}
             >
               <Plus size={18} color={themeColors.textColor} weight="bold" />

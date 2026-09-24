@@ -61,15 +61,8 @@ import {
   uploadAttachmentDrafts,
   upsertAttachmentLibraryFiles,
 } from "../../../services/attachmentService";
-import { t } from "../../../utils/i18n";
+import { t, formatText as interpolate } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
-
-const interpolate = (template, params = {}) => (
-  Object.entries(params).reduce(
-    (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
-    template
-  )
-);
 
 const getFileIcon = (file) => (
   String(file?.mimeType || "").startsWith("image/") ? ImageIcon : File
@@ -644,7 +637,7 @@ export default function FileLibraryScreen() {
       [
         { text: t("common.cancel", lang), style: "cancel" },
         {
-          text: t("settings.files.local_only_action", lang),
+          text: t("settings.files.make_local", lang),
           style: "destructive",
           onPress: () => makeLocalOnly(file),
         },
@@ -1195,7 +1188,7 @@ export default function FileLibraryScreen() {
           {renderAddLibraryButton({
             id: "photo",
             icon: Camera,
-            label: t("settings.files.add_photo", lang),
+            label: t("attachments.add_photo", lang),
             picker: captureAttachmentPhoto,
             fallbackTab: "photos",
           })}
@@ -1231,8 +1224,8 @@ export default function FileLibraryScreen() {
       <SettingsGroup
         themeColors={themeColors}
         title={activeFileTab === "photos"
-          ? t("settings.files.photos_title", lang)
-          : t("settings.files.other_files_title", lang)}
+          ? t("settings.files.photos_tab", lang)
+          : t("settings.files.other_files_tab", lang)}
       >
         {visibleFiles.length === 0 ? (
           renderEmptyState()

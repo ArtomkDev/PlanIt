@@ -59,25 +59,25 @@ export default function ChangeEmailScreen() {
       const userRef = doc(db, 'users', user.uid);
       await setDoc(userRef, { pendingEmail: newEmail.trim().toLowerCase() }, { merge: true });
 
-      const alertMsg = t('settings.account_settings.change_email_screen.alert_msg', lang).replace('{newEmail}', newEmail);
+      const alertMsg = t('settings.account_settings.change_email_screen.alert_msg', lang, { newEmail: newEmail });
 
       Alert.alert(
         t('settings.account_settings.change_email_screen.alert_title', lang),
         alertMsg,
-        [{ text: t('settings.account_settings.change_email_screen.understood', lang), onPress: () => navigation.goBack() }]
+        [{ text: t('common.ok', lang), onPress: () => navigation.goBack() }]
       );
 
     } catch (error) {
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         setErrorMsg(t('settings.account_settings.change_email_screen.wrong_password', lang));
       } else if (error.code === 'auth/invalid-email') {
-        setErrorMsg(t('settings.account_settings.change_email_screen.invalid_email_format', lang));
+        setErrorMsg(t("auth.errors.invalid_email", lang));
       } else if (error.code === 'auth/email-already-in-use') {
-        setErrorMsg(t('settings.account_settings.change_email_screen.email_in_use', lang));
+        setErrorMsg(t("auth.errors.email_in_use", lang));
       } else if (error.code === 'auth/requires-recent-login') {
         setErrorMsg(t('settings.account_settings.change_email_screen.req_recent_login', lang));
       } else {
-        setErrorMsg(error.message);
+        setErrorMsg(t('auth.errors.update_failed', lang));
       }
     } finally {
       setLoading(false);
@@ -106,10 +106,10 @@ export default function ChangeEmailScreen() {
             </Text>
           </View>
 
-          <Text style={styles.inputLabel}>{t('settings.account_settings.change_email_screen.current_password_label', lang)}</Text>
+          <Text style={styles.inputLabel}>{t("settings.account_settings.change_password.current_password_label", lang)}</Text>
           <TextInput
             style={styles.input}
-            accessibilityLabel={t('settings.account_settings.change_email_screen.current_password_label', lang)}
+            accessibilityLabel={t("settings.account_settings.change_password.current_password_label", lang)}
             placeholder={t('settings.account_settings.change_email_screen.current_password_placeholder', lang)}
             placeholderTextColor={themeColors.textColor2}
             secureTextEntry

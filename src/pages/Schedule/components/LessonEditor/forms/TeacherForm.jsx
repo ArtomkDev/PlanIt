@@ -430,9 +430,9 @@ export default function TeacherEditor({
             style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]}
             onPress={handleSave}
             accessibilityRole="button"
-            accessibilityLabel={saveLabel || t("common.save_changes", lang)}
+            accessibilityLabel={saveLabel || t("common.save", lang)}
           >
-            <Text style={styles.saveButtonText}>{saveLabel || t("common.save_changes", lang)}</Text>
+            <Text style={styles.saveButtonText}>{saveLabel || t("common.save", lang)}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

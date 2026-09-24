@@ -1,0 +1,105 @@
+export const legalMetadata = {
+  "slug": "licenses",
+  "title": "Повідомлення про стороннє програмне забезпечення",
+  "navigationTitle": "Стороннє програмне забезпечення",
+  "summary": "Повідомлення про стороннє програмне забезпечення коротко",
+  "effectiveDateLabel": "Набрання чинності та останнє оновлення:",
+  "effectiveDate": "2026-08-30",
+  "effectiveDateDisplay": "30 серпня 2026 року",
+  "version": "1.2",
+  "translationSourceHash": "f6d4384ac0095e67ed698f646304fe68fba04fe448fb03e2b255227c41812c33"
+};
+
+<div className="summary">
+  <strong>Повідомлення про стороннє програмне забезпечення коротко</strong>
+  <ul><li>PlanIt містить сторонні програмні компоненти. Авторські та інші права на них залишаються у відповідних авторів, учасників розробки й інших правовласників.</li></ul>
+  <ul><li>Цей перелік охоплює всі 49 прямих виробничих залежностей, оголошених у кореневому package.json PlanIt, з точними версіями, визначеними package-lock.json на зазначену вище дату.</li></ul>
+  <ul><li>Кожен компонент регулюється власною ліцензією. Це повідомлення не передає PlanIt право власності на сторонній компонент і не змінює умов відповідної ліцензії.</li></ul>
+  <ul><li>Залежності лише для розробки та транзитивні залежності не входять до цього переліку прямих залежностей. Межі й винятки пояснено нижче.</li></ul>
+</div>
+
+<section>
+  <h2>1. Обсяг і зазначення авторства</h2>
+  <p>Це повідомлення визначає прямі виробничі залежності JavaScript, використані мобільними й вебзастосунками PlanIt. Назви пакетів узято з кореневого package.json, версії — із прямих записів пакетів у package-lock.json, а ідентифікатори ліцензій перевірено за метаданими відповідних установлених пакетів.</p>
+  <p>Описи нижче узагальнюють поточну технічну роль кожного компонента в PlanIt. Вони не означають спонсорства, схвалення, пов’язаності або власності. Дозволи, умови й обмеження використання визначає ліцензія пакета, а не цей опис.</p>
+  <p>Пропрієтарне програмне забезпечення PlanIt із закритим вихідним кодом, його брендинг і вміст захищені окремо відповідно до Умов користування. За сторонніми компонентами зберігаються всі повідомлення та права, надані або застережені їхніми правовласниками.</p>
+  <p>Бібліотека іконок Phosphor використовується за вказаною ліцензією. Впізнавані назви сторонніх сервісів та іконки у формі брендів залишаються предметом прав відповідних власників і використовуються лише для визначення призначення посилання чи сервісу спілкування, без припущення про пов’язаність або схвалення.</p>
+  <p>Це повідомлення не надає доступу до оригінального вихідного коду PlanIt чи дозволу копіювати, змінювати, повторно поширювати або створювати похідні твори з оригінального програмного забезпечення PlanIt.</p>
+</section>
+
+<section>
+  <h2>2. Прямі виробничі залежності</h2>
+  <p>Таблиця фіксує точні версії залежностей, використані для цієї перевірки. Посилання ведуть до відповідних записів npm із репозиторієм, домашньою сторінкою, вихідним кодом і відомостями опублікованого пакета.</p>
+  <table><tbody><tr><td>Пакет</td><td>Версія</td><td>Ліцензія</td><td>Призначення в PlanIt</td></tr></tbody></table>
+  <table><tbody><tr><td>@expo/metro-runtime (https://www.npmjs.com/package/@expo/metro-runtime)</td><td>6.1.2</td><td>MIT</td><td>Забезпечує підтримку середовища Expo для коду, зібраного Metro, зокрема можливості вебсередовища.</td></tr></tbody></table>
+  <table><tbody><tr><td>@gorhom/bottom-sheet (https://www.npmjs.com/package/@gorhom/bottom-sheet)</td><td>5.2.10</td><td>MIT</td><td>Надає інтерактивні нижні панелі для імпорту розкладу та інших модальних елементів.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-native-async-storage/async-storage (https://www.npmjs.com/package/@react-native-async-storage/async-storage)</td><td>2.2.0</td><td>MIT</td><td>Локально зберігає розклади, налаштування, стан сповіщень, дані віджета й записи кешу вкладень.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-native-community/datetimepicker (https://www.npmjs.com/package/@react-native-community/datetimepicker)</td><td>8.4.4</td><td>MIT</td><td>Надає нативні елементи вибору дати й часу для редагування розкладу та початкового налаштування.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-native-community/netinfo (https://www.npmjs.com/package/@react-native-community/netinfo)</td><td>11.4.1</td><td>MIT</td><td>Визначає доступність мережі, щоб синхронізація реагувала на зміни з’єднання.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-native-firebase/analytics (https://www.npmjs.com/package/@react-native-firebase/analytics)</td><td>24.0.0</td><td>Apache-2.0</td><td>Підключає нативні збірки до Google Analytics for Firebase.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-native-firebase/app (https://www.npmjs.com/package/@react-native-firebase/app)</td><td>24.0.0</td><td>Apache-2.0</td><td>Надає основну нативну інтеграцію Firebase, потрібну його модулям.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-native-firebase/crashlytics (https://www.npmjs.com/package/@react-native-firebase/crashlytics)</td><td>24.0.0</td><td>Apache-2.0</td><td>Передає звіти про нативні збої та вибрані некритичні діагностичні події через Firebase Crashlytics.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-native-google-signin/google-signin (https://www.npmjs.com/package/@react-native-google-signin/google-signin)</td><td>16.1.2</td><td>MIT</td><td>Забезпечує автентифікацію Google та приєднання акаунтів у нативних збірках.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-navigation/bottom-tabs (https://www.npmjs.com/package/@react-navigation/bottom-tabs)</td><td>7.15.10</td><td>MIT</td><td>Реалізує структуру нижньої навігації із вкладками.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-navigation/native (https://www.npmjs.com/package/@react-navigation/native)</td><td>7.2.2</td><td>MIT</td><td>Надає контейнер навігації, стан маршрутів і навігаційні хуки.</td></tr></tbody></table>
+  <table><tbody><tr><td>@react-navigation/native-stack (https://www.npmjs.com/package/@react-navigation/native-stack)</td><td>7.14.12</td><td>MIT</td><td>Надає нативну стекову навігацію для екранів застосунку й налаштувань.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo (https://www.npmjs.com/package/expo)</td><td>54.0.35</td><td>MIT</td><td>Надає середовище виконання Expo, систему модулів і реєстрацію кореневого компонента.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-apple-authentication (https://www.npmjs.com/package/expo-apple-authentication)</td><td>8.0.8</td><td>MIT</td><td>Підтримує вхід з Apple, приєднання акаунта, повторну автентифікацію та дозвіл на видалення.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-blur (https://www.npmjs.com/package/expo-blur)</td><td>15.0.8</td><td>MIT</td><td>Відображає розмиті поверхні інтерфейсу на підтримуваних платформах.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-clipboard (https://www.npmjs.com/package/expo-clipboard)</td><td>8.0.8</td><td>MIT</td><td>Копіює дані поширеного розкладу та інші запитані значення до буфера обміну.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-constants (https://www.npmjs.com/package/expo-constants)</td><td>18.0.13</td><td>MIT</td><td>Надає метадані застосунку, збірки, власника й конфігурації середовища виконання.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-crypto (https://www.npmjs.com/package/expo-crypto)</td><td>15.0.8</td><td>MIT</td><td>Генерує криптографічно стійкі ідентифікатори й випадкові значення для локальних функцій та акаунта.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-dev-client (https://www.npmjs.com/package/expo-dev-client)</td><td>6.0.21</td><td>MIT</td><td>Підтримує власні збірки Expo для розробки; включений через оголошення прямою виробничою залежністю, хоча використовується переважно для розробки.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-device (https://www.npmjs.com/package/expo-device)</td><td>8.0.10</td><td>MIT</td><td>Надає характеристики пристрою для реєстрації та записів безпеки акаунта.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-document-picker (https://www.npmjs.com/package/expo-document-picker)</td><td>14.0.8</td><td>MIT</td><td>Відкриває системний вибір документів для додавання вкладення.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-file-system (https://www.npmjs.com/package/expo-file-system)</td><td>19.0.23</td><td>MIT</td><td>Керує локальними файлами вкладень, завантаженнями та нативним кешем вкладень.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-haptics (https://www.npmjs.com/package/expo-haptics)</td><td>15.0.8</td><td>MIT</td><td>Забезпечує тактильний відгук для підтримуваних взаємодій.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-image-manipulator (https://www.npmjs.com/package/expo-image-manipulator)</td><td>14.0.8</td><td>MIT</td><td>Змінює розмір, стискає й перекодовує вибрані зображення-вкладення.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-image-picker (https://www.npmjs.com/package/expo-image-picker)</td><td>17.0.11</td><td>MIT</td><td>Дозволяє вибирати зображення для вкладень або фотографувати камерою пристрою.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-linear-gradient (https://www.npmjs.com/package/expo-linear-gradient)</td><td>15.0.8</td><td>MIT</td><td>Відображає градієнтні теми, тло й елементи вибору кольору розкладу.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-linking (https://www.npmjs.com/package/expo-linking)</td><td>8.0.12</td><td>MIT</td><td>Створює й обробляє глибокі посилання, посилання поширення та переходи з віджета.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-localization (https://www.npmjs.com/package/expo-localization)</td><td>17.0.8</td><td>MIT</td><td>Читає мовні налаштування пристрою для вибору мови PlanIt.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-notifications (https://www.npmjs.com/package/expo-notifications)</td><td>0.32.17</td><td>MIT</td><td>Планує локальні нагадування та обробляє ввімкнені push-сповіщення.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-sharing (https://www.npmjs.com/package/expo-sharing)</td><td>14.0.8</td><td>MIT</td><td>Відкриває системне меню поширення для вибраних файлів.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-splash-screen (https://www.npmjs.com/package/expo-splash-screen)</td><td>31.0.13</td><td>MIT</td><td>Керує нативною заставкою під час запуску застосунку.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-status-bar (https://www.npmjs.com/package/expo-status-bar)</td><td>3.0.9</td><td>MIT</td><td>Узгоджує вигляд рядка стану з активною темою та макетом PlanIt.</td></tr></tbody></table>
+  <table><tbody><tr><td>expo-updates (https://www.npmjs.com/package/expo-updates)</td><td>29.0.18</td><td>MIT</td><td>Отримує й керує оновленнями застосунку та ресурсами, розміщеними в EAS.</td></tr></tbody></table>
+  <table><tbody><tr><td>firebase (https://www.npmjs.com/package/firebase)</td><td>11.10.0</td><td>Apache-2.0</td><td>Надає веб- і JavaScript-доступ до Firebase Authentication, Firestore, Storage та Analytics.</td></tr></tbody></table>
+  <table><tbody><tr><td>phosphor-react-native (https://www.npmjs.com/package/phosphor-react-native)</td><td>3.0.6</td><td>MIT</td><td>Надає набір іконок для екранів і елементів керування PlanIt.</td></tr></tbody></table>
+  <table><tbody><tr><td>react (https://www.npmjs.com/package/react)</td><td>19.1.0</td><td>MIT</td><td>Надає модель компонентів і стану для побудови інтерфейсу.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-dom (https://www.npmjs.com/package/react-dom)</td><td>19.1.0</td><td>MIT</td><td>Відображає компоненти React у браузері у складі вебзбірки PlanIt.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native (https://www.npmjs.com/package/react-native)</td><td>0.81.5</td><td>MIT</td><td>Надає кросплатформні нативні компоненти, стилізацію та платформні API.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-android-widget (https://www.npmjs.com/package/react-native-android-widget)</td><td>0.20.1</td><td>MIT</td><td>Реалізує віджет розкладу PlanIt на головному екрані Android.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-gesture-handler (https://www.npmjs.com/package/react-native-gesture-handler)</td><td>2.28.0</td><td>MIT</td><td>Забезпечує нативну обробку жестів для панелей, навігації та перегляду вкладень.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-google-mobile-ads (https://www.npmjs.com/package/react-native-google-mobile-ads)</td><td>16.3.3</td><td>Apache-2.0</td><td>Інтегрує Google Mobile Ads і показує налаштовані нативні рекламні банери.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-pager-view (https://www.npmjs.com/package/react-native-pager-view)</td><td>6.9.1</td><td>MIT</td><td>Надає нативні подання зі сторінками для перегляду вкладень на Android.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-reanimated (https://www.npmjs.com/package/react-native-reanimated)</td><td>4.1.7</td><td>MIT</td><td>Виконує анімації й переходи панелей, налаштувань та елементів розкладу.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-safe-area-context (https://www.npmjs.com/package/react-native-safe-area-context)</td><td>5.6.2</td><td>MIT</td><td>Розміщує екрани й елементи з урахуванням вирізів пристрою, системних ділянок та інших безпечних відступів.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-screens (https://www.npmjs.com/package/react-native-screens)</td><td>4.16.0</td><td>MIT</td><td>Надає нативні примітиви екранів для стеку React Navigation.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-svg (https://www.npmjs.com/package/react-native-svg)</td><td>15.12.1</td><td>MIT</td><td>Відображає масштабовану векторну графіку анімованого індикатора завантаження PlanIt.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-web (https://www.npmjs.com/package/react-native-web)</td><td>0.21.2</td><td>MIT</td><td>Відображає компоненти й API React Native у браузері для вебзбірки PlanIt.</td></tr></tbody></table>
+  <table><tbody><tr><td>react-native-worklets (https://www.npmjs.com/package/react-native-worklets)</td><td>0.5.1</td><td>MIT</td><td>Надає середовище worklet та інтеграцію збирання для React Native Reanimated.</td></tr></tbody></table>
+  <table><tbody><tr><td>tinycolor2 (https://www.npmjs.com/package/tinycolor2)</td><td>1.6.0</td><td>MIT</td><td>Розбирає й перетворює кольори для тем, градієнтів, розкладів і завдань.</td></tr></tbody></table>
+</section>
+
+<section>
+  <h2>3. Примітки щодо ліцензій</h2>
+  <p>Під час перевірки виявлено 44 пакети з ліцензією MIT і п’ять — Apache-2.0. Apache-2.0 мають @react-native-firebase/analytics, @react-native-firebase/app, @react-native-firebase/crashlytics, firebase та react-native-google-mobile-ads.</p>
+  <p>У перевірених метаданих жодна пряма виробнича залежність не мала відсутнього поля ліцензії, посилання SEE LICENSE IN, невідомого ідентифікатора чи складеного виразу AND, OR або WITH. Тому жоден прямий пакет не потребує ручного перегляду лише через відсутній або неоднозначний опублікований ідентифікатор ліцензії.</p>
+  <h3>Межі пакетів і платформ.</h3>
+  <p>Ідентифікатори в переліку описують самі npm-пакети. Пакет може пов’язувати PlanIt з окремо наданим нативним SDK, розміщеним сервісом, операційною системою чи магазином застосунків, для яких діють додаткові ліцензійні повідомлення або умови. Ці зовнішні умови тут не замінюються й не перелічуються вичерпно.</p>
+  <p>Повні тексти ліцензій, повідомлення про авторські права, файли зазначення авторства й застосовні матеріали NOTICE, що поширюються з пакетом або опубліковані в його пов’язаному джерелі, зберігають визначальне значення. Особа, яка має право повторно поширювати сторонній компонент або копію PlanIt із ним, повинна зберігати й відтворювати ці матеріали, коли цього вимагає ліцензія.</p>
+</section>
+
+<section>
+  <h2>4. Винятки та підтримка актуальності</h2>
+  <p>Цей перелік прямих залежностей свідомо не охоплює @babel/core і cross-env, призначені лише для розробки. Вони оголошені в devDependencies, забезпечують збирання або локальне виконання команд і не є функціями середовища виконання застосунку. Пряму залежність expo-dev-client включено, оскільки на момент перевірки проєкт оголошував її в dependencies попри призначення для розробки.</p>
+  <p>Транзитивні npm-залежності, згенеровані дерева нативних залежностей на кшталт Gradle чи CocoaPods, бібліотеки операційної системи, розміщені сервіси та програмне забезпечення магазинів не входять до заявленого обсягу документа. Це не означає відсутності ліцензійних зобов’язань чи вимог щодо повідомлень.</p>
+  <p>Цей перелік є знімком стану. Його слід повторно генерувати й перевіряти після зміни залежностей PlanIt, оновлення визначених версій, зміни нативної збірки або підготовки дистрибутива, вміст якого відрізняється від перевірених записів залежностей.</p>
+</section>
+
+<section>
+  <h2>5. Контакти</h2>
+  <p>Постачальник сервісу: Artomk, незалежний розробник PlanIt, Україна. Електронна пошта: planit.app.support@gmail.com. Рекомендована тема: «PlanIt Third-Party Software License Question».</p>
+  <p>Це повідомлення надане для зазначення авторства та прозорості. Воно не змінює сторонніх ліцензій і не обмежує невідчужуваних прав чи обов’язків за застосовним законодавством.</p>
+</section>

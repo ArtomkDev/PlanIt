@@ -46,14 +46,14 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}
           accessibilityRole="button"
-          accessibilityLabel={t("schedule.lesson_editor.add_new", lang)}
+          accessibilityLabel={t("common.add", lang)}
           onPress={() => {
             triggerHaptic("open");
             onAddGradient?.();
           }}
           activeOpacity={0.8}
         >
-          <Text style={styles.addButtonText}>+ {t("schedule.lesson_editor.add_new", lang)}</Text>
+          <Text style={styles.addButtonText}>+ {t("common.add", lang)}</Text>
         </TouchableOpacity>
       }
     />

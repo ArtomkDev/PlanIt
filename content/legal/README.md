@@ -22,3 +22,12 @@ Hosting.
 
 It does not rebuild the website. The website keeps its own app/runtime; this command only updates and publishes
 the legal document files that the website fetches at runtime.
+
+## Application translations
+
+English originals remain in this directory. Complete Ukrainian translations live in uk/.
+The generator validates source hashes, metadata, section/block structure and external links before
+building both languages. Run npm.cmd run legal:sync and npm.cmd run legal:check after edits.
+The translationSourceHash is the SHA-256 of the English MDX with LF line endings; update it only
+after reviewing the translation against a changed original. The existing website publication flow
+still publishes the English source files; do not assume a local app translation updates the website.

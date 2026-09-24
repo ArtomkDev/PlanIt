@@ -99,6 +99,7 @@ test('builds a presentation-ready model and schedules the next boundary', () => 
   const now = new Date(2026, 2, 30, 10, 15, 30, 0);
   const model = widgetCore.buildScheduleWidgetModel({
     schedule: createSchedule(),
+    lang: 'uk',
     dateOffset: 0,
     widgetInfo: { width: 320, height: 400 },
     now,
@@ -128,4 +129,34 @@ test('keeps the Android widget as a presentation-only component', () => {
   assert.doesNotMatch(widgetSource, /parseRealSchedule|new Date\(/);
   assert.match(taskSource, /renderScheduleWidgetTask\(widgetInfo, renderWidget\)/);
   assert.doesNotMatch(taskSource, /requestWidgetUpdate|isRendering/);
+});
+
+test('persists widget language and uses it for background rendering', async () => {
+  const values = new Map();
+  const widgetCore = compileCommonJsModule(path.resolve(__dirname, '../src/widgets/widgetCore.js'), new Map([
+    ['./scheduleCore', scheduleCore],
+    ['@react-native-async-storage/async-storage', {
+      __esModule: true,
+      default: {
+        setItem: async (key, value) => values.set(key, value),
+        getItem: async (key) => values.get(key) ?? null,
+        multiGet: async (keys) => keys.map((key) => [key, values.get(key) ?? null]),
+        multiRemove: async (keys) => keys.forEach((key) => values.delete(key)),
+      },
+    }],
+    ['react-native', { NativeModules: {}, Platform: { OS: 'android' } }],
+  ]));
+  const now = new Date(2026, 2, 30, 10, 15);
+  await widgetCore.persistWidgetSchedule(createSchedule(), 'uk-UA');
+  assert.equal((await widgetCore.getScheduleWidgetModel({}, now)).headerText, 'Сьогодні');
+  await widgetCore.persistWidgetSchedule(createSchedule(), 'en-US');
+  const english = await widgetCore.getScheduleWidgetModel({}, now);
+  assert.equal(english.headerText, 'Today');
+  assert.match(english.dateInfo, /March 30.*Week 2/);
+  await widgetCore.persistWidgetSchedule(null, 'uk');
+  const empty = await widgetCore.readWidgetState();
+  assert.equal(empty.schedule, null);
+  assert.equal(empty.lang, 'uk');
+  await widgetCore.clearWidgetData();
+  assert.equal(values.has('widget_language'), false);
 });

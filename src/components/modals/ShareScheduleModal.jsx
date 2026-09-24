@@ -49,7 +49,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
 
       const customOwnerName = shareAuthorName 
         ? (user.displayName || user.email || "User") 
-        : t("share.anonymous", lang) || "Anonymous";
+        : t("share.anonymous", lang);
 
       const code = await createSharedSchedule(
         { ...user, displayName: customOwnerName },
@@ -166,7 +166,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                   </View>
 
                   <Text style={[styles.label, { color: themeColors.textColor2, marginTop: 24, marginBottom: 8 }]}>
-                    {t("share.privacy_settings", lang) || "НАЛАШТУВАННЯ КОНФІДЕНЦІЙНОСТІ"}
+                    {t("share.privacy_settings", lang)}
                   </Text>
 
                   <View style={[styles.optionsGroup, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
@@ -174,11 +174,11 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       <View style={styles.optionLeft}>
                         <GraduationCap size={22} color={themeColors.textColor2} weight="bold" />
                         <Text style={[styles.optionText, { color: themeColors.textColor }]}>
-                          {t("share.include_teachers", lang) || "Поділитися викладачами"}
+                          {t("share.include_teachers", lang)}
                         </Text>
                       </View>
                       <AppSwitch
-                        accessibilityLabel={t("share.include_teachers", lang) || "Поділитися викладачами"}
+                        accessibilityLabel={t("share.include_teachers", lang)}
                         value={shareTeachers}
                         onValueChange={toggleShareOption(setShareTeachers)}
                         themeColors={themeColors}
@@ -191,11 +191,11 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       <View style={styles.optionLeft}>
                         <Palette size={22} color={themeColors.textColor2} weight="bold" />
                         <Text style={[styles.optionText, { color: themeColors.textColor }]}>
-                          {t("share.include_colors", lang) || "Зберегти кольори та градієнти"}
+                          {t("share.include_colors", lang)}
                         </Text>
                       </View>
                       <AppSwitch
-                        accessibilityLabel={t("share.include_colors", lang) || "Зберегти кольори та градієнти"}
+                        accessibilityLabel={t("share.include_colors", lang)}
                         value={shareGradients}
                         onValueChange={toggleShareOption(setShareGradients)}
                         themeColors={themeColors}
@@ -208,11 +208,11 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       <View style={styles.optionLeft}>
                         <Link size={22} color={themeColors.textColor2} weight="bold" />
                         <Text style={[styles.optionText, { color: themeColors.textColor }]}>
-                          {t("share.include_links", lang) || "Поділитися посиланнями"}
+                          {t("share.include_links", lang)}
                         </Text>
                       </View>
                       <AppSwitch
-                        accessibilityLabel={t("share.include_links", lang) || "Поділитися посиланнями"}
+                        accessibilityLabel={t("share.include_links", lang)}
                         value={shareLinks}
                         onValueChange={toggleShareOption(setShareLinks)}
                         themeColors={themeColors}
@@ -225,11 +225,11 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       <View style={styles.optionLeft}>
                         <Note size={22} color={themeColors.textColor2} weight="bold" />
                         <Text style={[styles.optionText, { color: themeColors.textColor }]}>
-                          {t("share.include_notes", lang) || "Включити нотатки до занять"}
+                          {t("share.include_notes", lang)}
                         </Text>
                       </View>
                       <AppSwitch
-                        accessibilityLabel={t("share.include_notes", lang) || "Включити нотатки до занять"}
+                        accessibilityLabel={t("share.include_notes", lang)}
                         value={shareNotes}
                         onValueChange={toggleShareOption(setShareNotes)}
                         themeColors={themeColors}
@@ -242,11 +242,11 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       <View style={styles.optionLeft}>
                         <User size={22} color={themeColors.textColor2} weight="bold" />
                         <Text style={[styles.optionText, { color: themeColors.textColor }]}>
-                          {t("share.include_author", lang) || "Показувати моє ім'я відправника"}
+                          {t("share.include_author", lang)}
                         </Text>
                       </View>
                       <AppSwitch
-                        accessibilityLabel={t("share.include_author", lang) || "Показувати моє ім'я відправника"}
+                        accessibilityLabel={t("share.include_author", lang)}
                         value={shareAuthorName}
                         onValueChange={toggleShareOption(setShareAuthorName)}
                         themeColors={themeColors}
@@ -284,7 +284,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
 
                   <View style={[styles.linkBox, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
                     <Text style={[styles.linkLabel, { color: themeColors.textColor2 }]}>
-                      {t("share.link_label", lang)}
+                      {t("common.link", lang)}
                     </Text>
                     <Text style={[styles.linkText, { color: themeColors.textColor }]} numberOfLines={2}>
                       {shareUrl}

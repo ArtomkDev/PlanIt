@@ -103,7 +103,7 @@ export default function LessonEditorPickerScreen({
               <View style={{ marginTop: 8 }}>
                 <SettingsActionRow
                   icon={Trash}
-                  label={t('schedule.picker_screen.delete_slot', lang)}
+                  label={t('schedule.lesson_editor.delete_slot', lang)}
                   onPress={() => handlePressItem('none')}
                   danger={true}
                   themeColors={themeColors}

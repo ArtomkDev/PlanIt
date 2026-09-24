@@ -16,7 +16,7 @@ import {
 
 import { auth, storage, storageBucketName } from "../config/firebase";
 import { generateId } from "../utils/idGenerator";
-import { t } from "../utils/i18n";
+import { t, formatText as interpolate } from "../utils/i18n";
 
 export const MAX_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
 export const MAX_ATTACHMENTS_PER_ENTITY = 10;
@@ -168,13 +168,6 @@ export const getAttachmentErrorCode = (error) => {
   }
   return "upload_failed";
 };
-
-const interpolate = (template, params = {}) => (
-  Object.entries(params).reduce(
-    (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, "g"), String(value)),
-    template
-  )
-);
 
 const getExtension = (name = "") => {
   const match = String(name).toLowerCase().match(/\.([a-z0-9]+)$/);
@@ -1308,7 +1301,7 @@ export const formatFileSize = (size) => {
 export const formatAttachmentError = (error, lang) => {
   const code = getAttachmentErrorCode(error);
   const params = error?.params || {};
-  const fallback = t("attachments.upload_failed", lang);
+  const fallback = t("attachments.errors.upload_failed", lang);
   const template = t(`attachments.errors.${code}`, lang);
   const resolvedTemplate = template === `attachments.errors.${code}` ? fallback : template;
 
@@ -2159,13 +2152,7 @@ const shareNativeAttachment = async (attachment) => {
   return attachment;
 };
 
-export const getAttachmentShareLabel = (lang) => {
-  const localized = t("attachments.share", lang);
-  if (localized && localized !== "attachments.share") return localized;
-  return String(lang || "").startsWith("uk")
-    ? "\u041f\u043e\u0434\u0456\u043b\u0438\u0442\u0438\u0441\u044f \u0432\u043a\u043b\u0430\u0434\u0435\u043d\u043d\u044f\u043c"
-    : "Share attachment";
-};
+export const getAttachmentShareLabel = (lang) => t("attachments.share", lang);
 
 export const shareAttachment = async (attachment) => {
   const preparedAttachment = await ensureLocalAttachment(attachment);

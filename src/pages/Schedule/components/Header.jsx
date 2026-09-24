@@ -418,7 +418,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
 
             <ScaleTouchable
               accessibilityRole="button"
-              accessibilityLabel={t("schedule.header.today", lang)}
+              accessibilityLabel={t("common.today", lang)}
               accessibilityState={{ disabled: isToday }}
               disabled={isToday}
               onPressIn={() => animateResetIcon(true)}

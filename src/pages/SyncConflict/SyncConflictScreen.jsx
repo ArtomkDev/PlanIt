@@ -82,7 +82,7 @@ export default function SyncConflictScreen({
 
           const localName = conflict.kind === 'global'
             ? t('sync_conflict.settings_and_files', lang)
-            : (localSch.name || t('sync_conflict.untitled', lang));
+            : (localSch.name || t('common.untitled', lang));
           const conflictId = conflict.id || localSch.id || `conflict-${index}`;
           const isResolving = resolvingId !== null;
           const resolveOnce = async (action) => {

@@ -22,6 +22,7 @@ import {
 } from "../utils/storage";
 import createDefaultData from "../config/createDefaultData";
 import useAppLanguage from "../hooks/useAppLanguage";
+import { syncCurrentDeviceLanguage } from "../utils/deviceService";
 import {
   getWidgetSelectedScheduleId,
   setWidgetSelectedScheduleId,
@@ -239,7 +240,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const autoSaveFailureCountRef = useRef(0);
   const autoSaveFingerprintRef = useRef(null);
 
-  const { lang, isLangLoading } = useAppLanguage(data?.global?.language);
+  const { lang, isLangLoading } = useAppLanguage(data?.global?.language, devicePrefs.language);
+
+  useEffect(() => {
+    if (guest || !user?.uid || isLoading || isLangLoading || !isOnline) return;
+    syncCurrentDeviceLanguage(user.uid, lang).catch((error) => {
+      console.warn("Device language sync failed:", error.code || error.message);
+    });
+  }, [guest, user?.uid, lang, isLoading, isLangLoading, isOnline]);
 
   const dataRef = useRef(data);
   useEffect(() => { dataRef.current = data; }, [data]);
@@ -721,17 +729,18 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     if (Platform.OS !== 'android' || isLoading) return;
     if (widgetScheduleId === undefined) return;
 
-    const currentScheduleFingerprint = widgetSchedule
-      ? getScheduleDataFingerprint({ global: {}, schedules: [widgetSchedule] })
-      : null;
+    const currentScheduleFingerprint = JSON.stringify([
+      lang,
+      widgetSchedule ? getScheduleDataFingerprint({ global: {}, schedules: [widgetSchedule] }) : null,
+    ]);
 
     if (prevWidgetScheduleFingerprint.current !== currentScheduleFingerprint) {
       prevWidgetScheduleFingerprint.current = currentScheduleFingerprint;
       setTimeout(() => {
-        syncScheduleToWidget(widgetSchedule);
+        syncScheduleToWidget(widgetSchedule, lang);
       }, 0);
     }
-  }, [widgetSchedule, widgetScheduleId, isLoading]);
+  }, [widgetSchedule, widgetScheduleId, isLoading, lang]);
 
   const selectWidgetSchedule = useCallback(async (scheduleId) => {
     const selected = activeSchedules.find((item) => item.id === scheduleId) || null;

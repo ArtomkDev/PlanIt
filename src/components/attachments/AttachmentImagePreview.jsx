@@ -1778,7 +1778,7 @@ export default function AttachmentImagePreview({
                     onPress={() => sendZoomCommand("out")}
                     style={styles.headerButton}
                     accessibilityRole="button"
-                    accessibilityLabel="Zoom out"
+                    accessibilityLabel={t("attachments.zoom_out", lang)}
                   >
                     <MagnifyingGlassMinus size={22} color={textColor} weight="bold" />
                   </TouchableOpacity>
@@ -1797,7 +1797,7 @@ export default function AttachmentImagePreview({
                     onPress={() => sendZoomCommand("in")}
                     style={styles.headerButton}
                     accessibilityRole="button"
-                    accessibilityLabel="Zoom in"
+                    accessibilityLabel={t("attachments.zoom_in", lang)}
                   >
                     <MagnifyingGlassPlus size={22} color={textColor} weight="bold" />
                   </TouchableOpacity>

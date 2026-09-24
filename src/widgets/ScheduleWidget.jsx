@@ -1,3 +1,4 @@
+import { t } from '../utils/i18n';
 import React from 'react';
 import { FlexWidget, TextWidget, SvgWidget, ListWidget } from 'react-native-android-widget';
 
@@ -19,6 +20,7 @@ function buildScale(width, height) {
 
 export function ScheduleWidget({ model }) {
   const {
+    lang,
     hasSchedule,
     items,
     headerText,
@@ -111,7 +113,7 @@ export function ScheduleWidget({ model }) {
           }}
         >
           <TextWidget
-            text="Виберіть розклад"
+            text={t("widget.choose_schedule", lang)}
             style={{ color: '#FFFFFF', fontSize: noSchFont, fontWeight: 'bold', marginBottom: noSchMarginB }}
           />
           <FlexWidget
@@ -124,7 +126,7 @@ export function ScheduleWidget({ model }) {
             }}
           >
             <TextWidget
-              text="Відкрити налаштування"
+              text={t("widget.open_settings", lang)}
               style={{ color: '#FFFFFF', fontSize: noSchBtnFont, fontWeight: '600' }}
             />
           </FlexWidget>
@@ -244,7 +246,7 @@ export function ScheduleWidget({ model }) {
                         }}
                       >
                         <TextWidget
-                          text="Зараз"
+                          text={t("widget.now", lang)}
                           style={{ color: '#32D74B', fontSize: badgeFont, fontWeight: 'bold' }}
                         />
                       </FlexWidget>
@@ -309,7 +311,7 @@ export function ScheduleWidget({ model }) {
                           style={{ width: breakIconSize, height: breakIconSize, marginRight: breakIconMarginR }}
                         />
                         <TextWidget
-                          text={`Перерва ${item.duration} хв`}
+                          text={t("widget.break_minutes", lang, { minutes: item.duration })}
                           style={{ color: breakTextColor, fontSize: breakFontTitle, fontWeight: '600' }}
                           maxLines={1}
                         />
@@ -331,7 +333,7 @@ export function ScheduleWidget({ model }) {
           <FlexWidget
             style={{ flex: 1, width: 'match_parent', height: 'match_parent', justifyContent: 'center', alignItems: 'center' }}
           >
-            <TextWidget text="Пар немає 🎉" style={{ color: '#8E8E93', fontSize: emptyFont }} />
+            <TextWidget text={t("schedule.day_schedule.no_classes", lang)} style={{ color: '#8E8E93', fontSize: emptyFont }} />
           </FlexWidget>
         )}
       </FlexWidget>
@@ -373,7 +375,7 @@ export function ScheduleWidget({ model }) {
           }}
         >
           <TextWidget
-            text="Сьогодні"
+            text={t("common.today", lang)}
             style={{ color: isTodayActive ? '#8E8E93' : '#FFFFFF', fontSize: navFontSize, fontWeight: 'bold' }}
             maxLines={1}
           />

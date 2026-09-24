@@ -11,7 +11,6 @@ import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import { useScheduleData } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
-import { getLegalDocumentBrowserUrl } from '../../../utils/legalDocumentLinks';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
@@ -41,20 +40,13 @@ export default function AboutApp() {
   });
 
   const openLegalDocument = (documentType) => {
-    if (Platform.OS === 'web') {
-      openLink(getLegalDocumentBrowserUrl(documentType, lang));
-      return;
-    }
-
-    navigation.navigate('LegalDocument', { documentType, lang });
+    navigation.navigate('LegalDocument', { documentType });
   };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: t('settings.about_screen.share_message', lang)
-          .replace('{appName}', appName)
-          .replace('{url}', WEBSITE_URL),
+        message: t('settings.about_screen.share_message', lang, { appName: appName, url: WEBSITE_URL }),
         url: WEBSITE_URL,
       });
     } catch (error) {
@@ -63,7 +55,7 @@ export default function AboutApp() {
   };
 
   return (
-    <SettingsScreenLayout title={t('settings.about_screen.title', lang)}>
+    <SettingsScreenLayout title={t('settings.sections.about', lang)}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
         <View style={styles.header}>

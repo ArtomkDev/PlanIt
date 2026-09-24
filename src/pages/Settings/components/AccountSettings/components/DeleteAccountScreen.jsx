@@ -326,7 +326,7 @@ export default function DeleteAccountScreen() {
       <View style={styles.warningBox}>
         <Text style={styles.warningTitle}>
           {t(
-            'settings.account_settings.delete_screen.danger_zone_title',
+            "settings.sections.danger_zone",
             lang,
           )}
         </Text>

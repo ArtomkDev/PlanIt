@@ -28,12 +28,12 @@ export default function ChangeNameScreen() {
     const trimmedName = newName.trim();
     
     if (!trimmedName) {
-      setErrorMsg(t('settings.account_settings.change_name.req_empty', lang) || "Ім'я не може бути порожнім.");
+      setErrorMsg(t('settings.account_settings.change_name.req_empty', lang));
       return;
     }
     
     if (trimmedName === user?.displayName) {
-      setErrorMsg(t('settings.account_settings.change_name.req_same', lang) || "Введіть нове ім'я, що відрізняється від поточного.");
+      setErrorMsg(t('settings.account_settings.change_name.req_same', lang));
       return;
     }
 
@@ -45,12 +45,12 @@ export default function ChangeNameScreen() {
       await user.reload();
       
       Alert.alert(
-        t('common.success', lang) || "Успішно",
-        t('settings.account_settings.change_name.success_msg', lang) || "Ваше ім'я було успішно оновлено.",
-        [{ text: t('common.ok', lang) || "OK", onPress: () => navigation.goBack() }]
+        t('common.success', lang),
+        t('settings.account_settings.change_name.success_msg', lang),
+        [{ text: t('common.ok', lang), onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(t('auth.errors.update_failed', lang));
     } finally {
       setLoading(false);
     }
@@ -62,20 +62,20 @@ export default function ChangeNameScreen() {
     <SettingsScreenLayout contentContainerStyle={styles.contentContainer}>
       <View style={styles.infoBox}>
         <Text style={styles.infoTitle}>
-          {t('settings.account_settings.change_name.title', lang) || "Зміна імені"}
+          {t('settings.account_settings.change_name.title', lang)}
         </Text>
         <Text style={styles.infoText}>
-          {t('settings.account_settings.change_name.desc', lang) || "Введіть нове ім'я, яке буде відображатися у вашому профілі та видимо для інших (якщо застосовно)."}
+          {t('settings.account_settings.change_name.desc', lang)}
         </Text>
       </View>
 
       <Text style={styles.inputLabel}>
-        {t('settings.account_settings.change_name.input_label', lang) || "Нове ім'я"}
+        {t("settings.account_settings.name", lang)}
       </Text>
       <TextInput
         style={styles.input}
-        accessibilityLabel={t('settings.account_settings.change_name.input_label', lang) || "New name"}
-        placeholder={t('settings.account_settings.name', lang) || "Ваше ім'я"}
+        accessibilityLabel={t("settings.account_settings.name", lang)}
+        placeholder={t('settings.account_settings.name', lang)}
         placeholderTextColor={themeColors.textColor2}
         value={newName}
         onChangeText={(text) => {
@@ -96,19 +96,19 @@ export default function ChangeNameScreen() {
         onPress={handleChangeName}
         disabled={loading}
         accessibilityRole="button"
-        accessibilityLabel={t('common.save', lang) || "Save"}
+        accessibilityLabel={t('common.save', lang)}
         accessibilityState={{ disabled: loading, busy: loading }}
       >
         {loading ? (
           <View style={styles.loadingButtonContent}>
             <MorphingLoader size={22} />
             <Text style={styles.actionButtonText}>
-              {t('common.save', lang) || "Зберегти"}
+              {t('common.save', lang)}
             </Text>
           </View>
         ) : (
           <Text style={styles.actionButtonText}>
-            {t('common.save', lang) || "Зберегти"}
+            {t('common.save', lang)}
           </Text>
         )}
       </TouchableOpacity>

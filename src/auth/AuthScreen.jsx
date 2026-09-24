@@ -393,7 +393,7 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
           <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
-          <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>{t('auth.signup.submit', lang)}</Text>
+          <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>{t("auth.signup.title", lang)}</Text>
         </TouchableOpacity>
         {onGuestLogin && (
           <TouchableOpacity style={styles.guestButton} onPress={() => checkTerms(onGuestLogin)}>
@@ -536,7 +536,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     }
     if (!validateEmail(trimmedEmail)) {
       triggerHaptic("warning");
-      return setFormError(t('auth.errors.invalid_email_format', lang));
+      return setFormError(t("auth.errors.invalid_email", lang));
     }
     if (!acceptedTerms) {
       triggerHaptic("warning");
@@ -574,7 +574,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     }
     if (!validateEmail(trimmedEmail)) {
       triggerHaptic("warning");
-      return setFormError(t('auth.errors.invalid_email_format', lang));
+      return setFormError(t("auth.errors.invalid_email", lang));
     }
     if (!isPasswordAllowed(password)) {
       triggerHaptic("warning");
@@ -618,7 +618,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     }
     if (!validateEmail(trimmedEmail)) {
       triggerHaptic("warning");
-      setFormError(t('auth.errors.invalid_email_format', lang));
+      setFormError(t("auth.errors.invalid_email", lang));
       return;
     }
 
@@ -702,7 +702,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
             {t('auth.verify.title', lang)}
           </Text>
           <Text style={[styles.formSubtitle, { color: colors.textColor2, textAlign: 'center', marginTop: 16, lineHeight: 24 }]}>
-            {t('auth.verify.subtitle', lang).replace('{email}', email || auth.currentUser?.email || '')}
+            {t('auth.verify.subtitle', lang, { email: email || auth.currentUser?.email || '' })}
           </Text>
           
           <View style={[styles.spamBox, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
@@ -718,7 +718,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
             disabled={resendCooldown > 0}
           >
             <Text style={styles.primaryButtonText}>
-              {resendCooldown > 0 ? t('auth.verify.resend_wait', lang).replace('{time}', resendCooldown) : t('auth.verify.resend_btn', lang)}
+              {resendCooldown > 0 ? t('auth.verify.resend_wait', lang, { time: resendCooldown }) : t('auth.verify.resend_btn', lang)}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity 
@@ -826,12 +826,12 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
             onPress={currentView === 'signin' ? handleSignIn : handleSignUp}
             disabled={isLoading}
             accessibilityRole="button"
-            accessibilityLabel={currentView === 'signin' ? t('auth.signin.submit', lang) : t('auth.signup.submit', lang)}
+            accessibilityLabel={currentView === 'signin' ? t('auth.signin.submit', lang) : t("auth.signup.title", lang)}
             accessibilityState={{ disabled: isLoading, busy: isLoading }}
           >
             {isLoading ? <MorphingLoader size={24} /> : null}
             <Text style={styles.primaryButtonText}>
-              {currentView === 'signin' ? t('auth.signin.submit', lang) : t('auth.signup.submit', lang)}
+              {currentView === 'signin' ? t('auth.signin.submit', lang) : t("auth.signup.title", lang)}
             </Text>
           </TouchableOpacity>
         </View>
@@ -858,7 +858,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
             </Text>
             <TouchableOpacity onPress={() => handleNavigate(currentView === 'signin' ? 'signup' : 'signin')}>
               <Text style={[styles.footerLink, { color: colors.accentColor }]}>
-                {' '}{currentView === 'signin' ? t('auth.signin.signup_link', lang) : t('auth.signup.login_link', lang)}
+                {' '}{currentView === 'signin' ? t('auth.signin.signup_link', lang) : t("auth.signin.submit", lang)}
               </Text>
             </TouchableOpacity>
           </View>

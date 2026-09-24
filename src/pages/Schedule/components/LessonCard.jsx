@@ -345,7 +345,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
                 )}
             </View>
             <Text style={[styles.timeText, { color: contentColor }, isActive && { color: activePillText }]}>
-              {isActive ? `Залишилось ${timeLeft}` : `${lesson?.timeInfo?.start || "—"} - ${lesson?.timeInfo?.end || "—"}`}
+              {isActive ? t("common.remaining_time", lang, { time: timeLeft }) : `${lesson?.timeInfo?.start || "—"} - ${lesson?.timeInfo?.end || "—"}`}
             </Text>
           </View>
 

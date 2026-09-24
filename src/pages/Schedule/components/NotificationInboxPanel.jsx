@@ -24,7 +24,7 @@ import { useScheduleData } from "../../../context/ScheduleProvider";
 import useNotifications from "../../../hooks/useNotifications";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import MorphingLoader from "../../../components/ui/MorphingLoader";
-import { t } from "../../../utils/i18n";
+import { t, getLocale, formatText as interpolate } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
   markAllNotificationsAsRead,
@@ -43,14 +43,6 @@ const timestampToMs = (value) => {
   if (typeof value.toMillis === "function") return value.toMillis();
   if (value.seconds) return value.seconds * 1000;
   return null;
-};
-
-const interpolate = (template, values) => {
-  if (!template || typeof template !== "string") return "";
-  return Object.entries(values).reduce(
-    (message, [key, value]) => message.split(`{${key}}`).join(value),
-    template
-  );
 };
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental && global._IS_FABRIC !== true) {
@@ -95,13 +87,13 @@ export default function NotificationInboxPanel({ backgroundColor }) {
     const ms = timestampToMs(value);
     if (!ms) return "";
 
-    return new Date(ms).toLocaleString(undefined, {
+    return new Date(ms).toLocaleString(getLocale(lang), {
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
-  }, []);
+  }, [lang]);
 
   const handleMarkAllAsRead = useCallback(async () => {
     if (!user || unreadCount === 0 || markingAll) return;
@@ -156,9 +148,9 @@ export default function NotificationInboxPanel({ backgroundColor }) {
 
   const getTitle = (notification) => {
     if (notification.type === NOTIFICATION_TYPES.ACCOUNT_LOGIN) {
-      return t("settings.notifications.account_login_title", lang);
+      return t("settings.notifications.types.account_login.title", lang);
     }
-    return notification.title || t("settings.notifications.title", lang);
+    return notification.title || t("settings.menu.notifications.title", lang);
   };
 
   const getMessage = (notification) => {
@@ -237,7 +229,7 @@ export default function NotificationInboxPanel({ backgroundColor }) {
                   </Text>
                 </View>
                 <Text style={[styles.detailText, styles.detailTextIndented, { color: themeColors.textColor2 }]}>
-                  {t("settings.notifications.platform", lang)}: {platform}
+                  {t("settings.about_screen.platform", lang)}: {platform}
                 </Text>
                 <Text style={[styles.detailText, styles.detailTextIndented, { color: themeColors.textColor2 }]}>
                   {t("settings.notifications.ip_address", lang)}: {ipAddress}
@@ -285,7 +277,7 @@ export default function NotificationInboxPanel({ backgroundColor }) {
       >
         <View style={styles.titleGroup}>
           <Text style={[styles.title, { color: themeColors.textColor }]} numberOfLines={1}>
-            {t("settings.notifications.title", lang)}
+            {t("settings.menu.notifications.title", lang)}
           </Text>
           {unreadCount > 0 && (
             <View style={[styles.unreadCountBadge, { backgroundColor: themeColors.accentColor }]}>

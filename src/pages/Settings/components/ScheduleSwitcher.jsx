@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   Alert
 } from "react-native";
-import { 
+import {
   Check,
-  CloudArrowUp, 
-  CloudArrowDown, 
-  PencilSimple, 
-  Trash, 
+  CloudArrowUp,
+  CloudArrowDown,
+  PencilSimple,
+  Trash,
   PlusCircle,
   ShareNetwork,
   DownloadSimple
@@ -23,7 +23,7 @@ import { useScheduleActions, useScheduleData } from "../../../context/SchedulePr
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import MorphingLoader from "../../../components/ui/MorphingLoader";
 import ScheduleIcon from "../../../components/ScheduleIcon";
-import themes from "../../../config/themes"; 
+import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
 import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
@@ -47,19 +47,19 @@ import ImportScheduleModal from "../../../components/modals/ImportScheduleModal"
 let storageOperationQueue = Promise.resolve();
 
 const ScheduleSwitcher = () => {
-  const { 
+  const {
     user,
-    guest, 
-    global, 
-    schedules, 
-    lang 
+    guest,
+    global,
+    schedules,
+    lang
   } = useScheduleData();
   const {
     setGlobalDraft,
     addSchedule,
     removeSchedule,
   } = useScheduleActions();
-  
+
   const navigation = useNavigation();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -134,7 +134,7 @@ const ScheduleSwitcher = () => {
     }
 
     triggerHaptic("warning");
-    const message = t('settings.schedule_switcher.delete_confirm_msg', lang).replace('{name}', scheduleName || "Untitled");
+    const message = t('settings.schedule_switcher.delete_confirm_msg', lang, { name: scheduleName || t('common.untitled', lang) });
 
     Alert.alert(
       t('settings.schedule_switcher.delete_title', lang),
@@ -182,12 +182,12 @@ const ScheduleSwitcher = () => {
         scheduleCopy.id = generateId();
         scheduleCopy.lastModified = Date.now();
         scheduleCopy.lastSynced = 0;
-        
+
         await addSchedule(scheduleCopy);
 
         const guestData = await getLocalSchedule(null);
         if (guestData) {
-          
+
           guestData.schedules = guestData.schedules.map(s => {
             if (s.id === oldId) {
               const movedAt = Date.now();
@@ -202,7 +202,7 @@ const ScheduleSwitcher = () => {
           });
 
           await saveLocalSchedule(guestData, null);
-          
+
           const filtered = guestData.schedules.filter(s => !s.isDeleted);
           setGuestSchedulesList(filtered);
           triggerHaptic("success");
@@ -238,12 +238,12 @@ const ScheduleSwitcher = () => {
         scheduleCopy.lastSynced = 0;
 
         let guestData = await getLocalSchedule(null) || { global: {}, schedules: [] };
-        
+
         if (!guestData.schedules) guestData.schedules = [];
         guestData.schedules.push(scheduleCopy);
-        
+
         await saveLocalSchedule(guestData, null);
-        
+
         const filtered = guestData.schedules.filter(s => !s.isDeleted);
         setGuestSchedulesList(filtered);
 
@@ -260,18 +260,18 @@ const ScheduleSwitcher = () => {
 
   const handleDeleteGuest = (scheduleId, scheduleName) => {
     triggerHaptic("warning");
-    const untitledName = t('settings.schedule_switcher.untitled', lang);
+    const untitledName = t('common.untitled', lang);
     const name = scheduleName || untitledName;
-    const message = t('settings.schedule_switcher.delete_guest_msg', lang).replace('{name}', name);
-    
+    const message = t('settings.schedule_switcher.delete_guest_msg', lang, { name: name });
+
     Alert.alert(
       t('common.delete', lang),
       message,
       [
         { text: t('common.cancel', lang), style: "cancel" },
-        { 
-          text: t('common.delete', lang), 
-          style: "destructive", 
+        {
+          text: t('common.delete', lang),
+          style: "destructive",
           onPress: () => {
             enqueueOperation(async () => {
               const guestData = await getLocalSchedule(null);
@@ -316,10 +316,10 @@ const ScheduleSwitcher = () => {
               {t('settings.schedule_switcher.your_schedules', lang)}
             </Text>
             <Text style={[styles.sectionDescription, { color: themeColors.textColor2 }]}>
-              {guest 
+              {guest
                 ? t('settings.schedule_switcher.description_guest', lang)
-                : isAccountTab 
-                  ? t('settings.schedule_switcher.description_account', lang) 
+                : isAccountTab
+                  ? t('settings.schedule_switcher.description_account', lang)
                   : t('settings.schedule_switcher.description_guest', lang)
               }
             </Text>
@@ -358,7 +358,7 @@ const ScheduleSwitcher = () => {
                   exiting={ZoomOut.duration(150)}
                   style={{ marginBottom: 10 }}
                 >
-                  <View 
+                  <View
                     style={{ opacity: isItemProcessing ? 0.4 : 1 }}
                     pointerEvents={isItemProcessing ? "none" : "auto"}
                   >
@@ -370,7 +370,7 @@ const ScheduleSwitcher = () => {
                           !isSelected && handleChange(s.id);
                         } else {
                           Alert.alert(
-                            t('settings.schedule_switcher.move_alert_title', lang), 
+                            t('common.warning', lang),
                             t('settings.schedule_switcher.move_alert_msg', lang)
                           );
                         }
@@ -424,7 +424,7 @@ const ScheduleSwitcher = () => {
                         ) : (
                           <View style={styles.actionButtons}>
                             {!guest && isAccountTab && (
-                              <TouchableOpacity 
+                              <TouchableOpacity
                                 hitSlop={15}
                                 onPress={() => handleMoveToLocal(s)}
                                 style={styles.iconButton}
@@ -434,7 +434,7 @@ const ScheduleSwitcher = () => {
                             )}
 
                             {!guest && !isAccountTab && (
-                              <TouchableOpacity 
+                              <TouchableOpacity
                                 hitSlop={15}
                                 onPress={() => handleMoveToCloud(s)}
                                 style={styles.iconButton}
@@ -442,9 +442,9 @@ const ScheduleSwitcher = () => {
                                 <CloudArrowUp size={20} color={themeColors.accentColor} weight="bold" />
                               </TouchableOpacity>
                             )}
-                            
+
                             {isAccountTab && (
-                              <TouchableOpacity 
+                              <TouchableOpacity
                                 hitSlop={15}
                                 onPress={() => handleShare(s)}
                                 style={styles.iconButton}
@@ -454,7 +454,7 @@ const ScheduleSwitcher = () => {
                             )}
 
                             {isAccountTab && (
-                              <TouchableOpacity 
+                              <TouchableOpacity
                                 hitSlop={15}
                                 onPress={() => handleEdit(s.id)}
                                 style={styles.iconButton}
@@ -463,7 +463,7 @@ const ScheduleSwitcher = () => {
                               </TouchableOpacity>
                             )}
 
-                            <TouchableOpacity 
+                            <TouchableOpacity
                               hitSlop={15}
                               onPress={() => isAccountTab ? handleDelete(s.id, scheduleName) : handleDeleteGuest(s.id, scheduleName)}
                               style={styles.iconButton}
@@ -507,10 +507,10 @@ const ScheduleSwitcher = () => {
         </View>
       </SettingsScreenLayout>
 
-      <ShareScheduleModal 
-        visible={shareModalVisible} 
-        onClose={() => setShareModalVisible(false)} 
-        scheduleToShare={scheduleToShare} 
+      <ShareScheduleModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        scheduleToShare={scheduleToShare}
       />
 
       <ImportScheduleModal

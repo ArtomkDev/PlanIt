@@ -135,10 +135,7 @@ export default function PasswordResetScreen({ fallbackRoute = 'Auth' }) {
               ? t(actionTranslationKey('invalid_desc'), lang)
               : status === 'complete'
                 ? t(actionTranslationKey('success_msg'), lang)
-              : t(actionTranslationKey('verified_desc'), lang).replace(
-                '{email}',
-                verifiedEmail,
-              )}
+              : t(actionTranslationKey('verified_desc'), lang, { email: verifiedEmail })}
         </Text>
       </View>
 
