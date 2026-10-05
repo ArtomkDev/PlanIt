@@ -2,6 +2,7 @@ import React, {
   forwardRef,
   useCallback,
   useEffect,
+  useId,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -18,10 +19,14 @@ import {
 } from "react-native";
 import {
   BottomSheetBackdrop,
+  BottomSheetHandle,
   BottomSheetModal,
   useBottomSheetSpringConfigs,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ReduceMotion, useSharedValue } from "react-native-reanimated";
+import { useBottomSheetPresentation } from "../../context/BottomSheetPresentationContext";
+import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
 
 const DEFAULT_SNAP_POINTS = ["48%", "90%"];
 const DESKTOP_BREAKPOINT = 768;
@@ -35,12 +40,13 @@ const BottomSheet = forwardRef(function BottomSheet(
     onChange,
     children,
     header,
+    headerBackground,
     backgroundColor = "#fff",
     handleColor = "rgba(120,120,128,0.55)",
     snapPoints = DEFAULT_SNAP_POINTS,
     initialSnapIndex,
     maxWidth = 720,
-    backdropOpacity = 0.52,
+    backdropOpacity = 0.36,
     closeOnBackdropPress = true,
     enablePanDownToClose = true,
     enableContentPanningGesture = false,
@@ -55,8 +61,12 @@ const BottomSheet = forwardRef(function BottomSheet(
   ref
 ) {
   const modalRef = useRef(null);
+  const sheetId = useId();
+  const animatedIndex = useSharedValue(-1);
+  const { registerSheet, unregisterSheet, isTopSheet } = useBottomSheetPresentation();
+  const reduceMotion = useReducedMotionPreference();
   const visibleRef = useRef(visible);
-  const presentedRef = useRef(false);
+  const phaseRef = useRef("idle");
   const dismissReasonRef = useRef(null);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -73,43 +83,39 @@ const BottomSheet = forwardRef(function BottomSheet(
   );
 
   const animationConfigs = useBottomSheetSpringConfigs({
-    damping: 30,
-    stiffness: 260,
-    mass: 0.82,
-    overshootClamping: false,
+    damping: 34,
+    stiffness: 360,
+    mass: 0.8,
+    overshootClamping: true,
     restDisplacementThreshold: 0.5,
     restSpeedThreshold: 0.5,
   });
 
-  useEffect(() => {
-    visibleRef.current = visible;
-    if (visible) {
-      dismissReasonRef.current = null;
-      if (!presentedRef.current) {
-        presentedRef.current = true;
-        modalRef.current?.present();
-      }
-      return;
-    }
-
-    // bottom-sheet 5.2.14 leaves an unpresented modal in DISMISSING state.
-    if (!presentedRef.current) return;
-
-    presentedRef.current = false;
-    dismissReasonRef.current = "controlled";
-    modalRef.current?.dismiss();
-  }, [visible]);
+  const present = useCallback(() => {
+    phaseRef.current = "presented";
+    dismissReasonRef.current = null;
+    registerSheet(sheetId, animatedIndex);
+    modalRef.current?.present();
+  }, [animatedIndex, registerSheet, sheetId]);
 
   const requestDismiss = useCallback(
     (reason = "close") => {
-      if (!presentedRef.current) return;
-      presentedRef.current = false;
+      if (phaseRef.current !== "presented") return;
+      phaseRef.current = "dismissing";
       dismissReasonRef.current = reason;
       Keyboard.dismiss();
       modalRef.current?.dismiss();
     },
     []
   );
+
+  useEffect(() => {
+    visibleRef.current = visible;
+    if (visible && phaseRef.current === "idle") present();
+    if (!visible) requestDismiss("controlled");
+  }, [present, requestDismiss, visible]);
+
+  useEffect(() => () => unregisterSheet(sheetId), [sheetId, unregisterSheet]);
 
   useImperativeHandle(
     ref,
@@ -128,35 +134,58 @@ const BottomSheet = forwardRef(function BottomSheet(
   useEffect(() => {
     if (!visible) return undefined;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!isTopSheet(sheetId)) return false;
       requestDismiss(onMinimize ? "minimize" : "close");
       return true;
     });
     return () => subscription.remove();
-  }, [onMinimize, requestDismiss, visible]);
+  }, [isTopSheet, onMinimize, requestDismiss, sheetId, visible]);
 
   useEffect(() => {
     if (!visible || Platform.OS !== "web" || typeof document === "undefined") return undefined;
     const onKeyDown = (event) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || !isTopSheet(sheetId)) return;
       event.preventDefault();
       requestDismiss(onMinimize ? "minimize" : "close");
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onMinimize, requestDismiss, visible]);
+  }, [isTopSheet, onMinimize, requestDismiss, sheetId, visible]);
 
   const handleDismiss = useCallback(() => {
-    presentedRef.current = false;
+    phaseRef.current = "idle";
+    unregisterSheet(sheetId);
     const reason = dismissReasonRef.current;
     dismissReasonRef.current = null;
     
-    if (!visibleRef.current || reason === "controlled") return;
+    if (reason === "controlled") {
+      if (visibleRef.current) present();
+      return;
+    }
+    if (!visibleRef.current) return;
     if (reason === "minimize" || (!reason && onMinimize)) {
       onMinimize?.();
       return;
     }
     onClose?.();
-  }, [onClose, onMinimize]);
+  }, [onClose, onMinimize, present, sheetId, unregisterSheet]);
+
+  const renderHandle = useCallback((props) => (
+    <View style={{ backgroundColor }}>
+      {headerBackground && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          {headerBackground}
+        </View>
+      )}
+      <BottomSheetHandle
+        {...props}
+        style={styles.handleArea}
+        indicatorStyle={[styles.handle, { backgroundColor: handleColor }]}
+        accessible={false}
+      />
+      {header}
+    </View>
+  ), [backgroundColor, handleColor, header, headerBackground]);
 
   const renderBackdrop = useCallback(
     (props) => (
@@ -164,6 +193,8 @@ const BottomSheet = forwardRef(function BottomSheet(
         {...props}
         accessibilityRole="button"
         accessibilityLabel={closeAccessibilityLabel}
+        accessible={closeOnBackdropPress}
+        accessibilityHint={closeAccessibilityLabel}
         appearsOnIndex={0}
         disappearsOnIndex={-1}
         opacity={backdropOpacity}
@@ -187,6 +218,7 @@ const BottomSheet = forwardRef(function BottomSheet(
       ref={modalRef}
       name={testID}
       index={openIndex}
+      animatedIndex={animatedIndex}
       snapPoints={resolvedSnapPoints}
       stackBehavior={stackBehavior}
       animateOnMount
@@ -202,15 +234,15 @@ const BottomSheet = forwardRef(function BottomSheet(
       enableBlurKeyboardOnGesture
       android_keyboardInputMode="adjustResize"
       maxDynamicContentSize={maxDynamicContentSize}
-      topInset={Math.max(insets.top, 8)}
+      topInset={Math.max(insets.top + 12, 20)}
       bottomInset={isDesktop ? 16 : 0}
       detached={isDesktop}
       animationConfigs={animationConfigs}
+      overrideReduceMotion={reduceMotion ? ReduceMotion.Always : ReduceMotion.System}
       backdropComponent={renderBackdrop}
+      handleComponent={renderHandle}
       containerStyle={styles.modalContainer}
       backgroundStyle={[styles.background, { backgroundColor }]}
-      handleStyle={[styles.handleArea, { backgroundColor }]}
-      handleIndicatorStyle={[styles.handle, { backgroundColor: handleColor }]}
       style={[
         styles.sheet,
         { backgroundColor },
@@ -226,7 +258,6 @@ const BottomSheet = forwardRef(function BottomSheet(
         style={[styles.content, { backgroundColor }, contentStyle]}
         testID={testID}
       >
-        {header}
         {children}
       </View>
     </BottomSheetModal>
@@ -278,8 +309,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     overflow: "hidden",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     ...(Platform.OS === "web"
       ? { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 }
       : null),
@@ -295,17 +326,17 @@ const styles = StyleSheet.create({
     }),
   },
   background: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     ...(Platform.OS === "web" ? { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 } : null),
   },
   handleArea: {
-    height: 36,
+    height: 44,
     paddingVertical: 0,
     justifyContent: "center",
   },
   handle: {
-    width: 42,
+    width: 40,
     height: 5,
     borderRadius: 3,
   },

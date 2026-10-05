@@ -1002,9 +1002,10 @@ test('card patterns reuse one icon and keep every rotated instance inside safe m
     timing: (value, config) => ({ start: () => value.setValue(config.toValue), stop() {} }),
   };
   const LessonCard = compile('src/pages/Schedule/components/LessonCard.jsx', {
+    './useActivityTransition': { __esModule: true, default: () => ({ activeOpacity: 0, inactiveOpacity: 1 }) },
     'react-native-reanimated': reanimated,
     'react-native': {
-      StyleSheet: { create: (x) => x, absoluteFillObject: {} },
+      StyleSheet: { create: (x) => x, absoluteFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } },
       Text: 'Text', View: 'View', TouchableOpacity: 'TouchableOpacity', Animated: animated,
       Platform: { OS: 'ios', select: (options) => options.ios ?? options.default },
     },
@@ -1020,6 +1021,7 @@ test('card patterns reuse one icon and keep every rotated instance inside safe m
     '../../../config/subjectIcons': { getIconComponent: () => 'PatternIcon' },
     '../../../utils/haptics': { triggerHaptic() {} },
     '../../../utils/i18n': { t: (key) => key },
+    '../../../utils/scheduleColors': { getLessonColors: () => ({ subjectColor: '#999', activeGrad: null }) },
     '../../../utils/gradientColors': {
       colorWithAlpha: (color) => color, getGradientColor: (_, color) => color, getGradientColors: () => [],
       getReadableForeground: () => '#111', isLightForeground: () => false,
@@ -1031,6 +1033,22 @@ test('card patterns reuse one icon and keep every rotated instance inside safe m
   await act(async () => { renderer = create(React.createElement(LessonCard, { ...props, decorationsReady: false })); });
   try {
     assert.ok(renderer.root.findAllByType('Text').some((text) => text.props.children === 'Mathematics'));
+    const outline = renderer.root.findByProps({ testID: 'lesson-active-outline' });
+    const outlineStyle = Object.assign({}, ...outline.props.style);
+    assert.deepEqual([outlineStyle.position, outlineStyle.top, outlineStyle.right, outlineStyle.bottom, outlineStyle.left], ['absolute', 1, 1, 1, 1]);
+    assert.equal(outlineStyle.borderRadius, 17);
+    assert.equal(outline.props.pointerEvents, 'none');
+    assert.equal(renderer.root.findAllByProps({ testID: 'lesson-slot-number' }).length, 0);
+    await act(async () => renderer.update(React.createElement(LessonCard, {
+      ...props, decorationsReady: false, lesson: { ...props.lesson, slotNumber: 8 },
+    })));
+    assert.equal(renderer.root.findByProps({ testID: 'lesson-slot-number' }).findByType('Text').props.children, 8);
+    await act(async () => renderer.update(React.createElement(LessonCard, {
+      ...props, decorationsReady: false,
+      lesson: { ...props.lesson, slotNumber: 3, data: { timeMode: 'custom' } },
+    })));
+    assert.equal(renderer.root.findAllByProps({ testID: 'lesson-slot-number' }).length, 0);
+    await act(async () => renderer.update(React.createElement(LessonCard, { ...props, decorationsReady: false })));
     await act(async () => renderer.root.findByType('GradientBackground').props.onLayout({ nativeEvent: { layout: { width: 380, height: 100 } } }));
     assert.equal(renderer.root.findAllByType('PatternIcon').length, 0);
     await act(async () => renderer.update(React.createElement(LessonCard, { ...props, decorationsReady: true })));

@@ -58,6 +58,8 @@ import {
 import {
   getLastMondayISODate,
   normalizeScheduleRepeat,
+  normalizeScheduleTiming,
+  buildScheduleSlots,
 } from '../../../utils/scheduleTime';
 import { reconcileScheduleRepeat } from '../../../utils/lessonRecurrence';
 
@@ -311,7 +313,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const finalBreaks = localData.breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b));
 
     const scheduleData = { 
-      ...targetSchedule, 
+      ...normalizeScheduleTiming(targetSchedule),
       ...localData, 
       name: finalName, 
       repeat: finalRepeat,
@@ -319,6 +321,13 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
       breaks: finalBreaks
     };
     if (!localData.icon) delete scheduleData.icon;
+    const slots = buildScheduleSlots(scheduleData.start_time, scheduleData.duration, finalBreaks);
+    const exceedsDay = (scheduleData.schedule || []).some((day) => Object.values(day || {}).some((lessons) =>
+      Array.isArray(lessons) && lessons.some((lesson) => lesson?.timeMode === 'slot' && !slots.some((slot) => slot.number === lesson.slotNumber))));
+    if (exceedsDay) {
+      Alert.alert(t('schedule.main_screen.time', lang), t('schedule.lesson_editor.slots_outside_day', lang));
+      return;
+    }
     const reconciledSchedule = reconcileScheduleRepeat(
       scheduleData,
       targetSchedule?.repeat ?? finalRepeat,

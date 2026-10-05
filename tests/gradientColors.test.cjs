@@ -383,7 +383,7 @@ test('all UI gradient call sites use the shared surface component', () => {
   assert.match(taskSource, /<GradientBackground[\s\S]*component=\{AnimatedTouchableOpacity\}[\s\S]*gradient=\{activeGradient\}[\s\S]*fallbackColor=\{cardColor\}/);
   assert.match(lessonViewerSource, /<GradientBackground[\s\S]*gradient=\{headerGradient\}[\s\S]*fallbackColor=\{headerColor\}[\s\S]*style=\{styles\.headerContainer\}/);
   assert.doesNotMatch(lessonViewerSource, /getHeaderBackground|headerBackground/);
-  assert.match(breakCardSource, /<GradientBackground[\s\S]*gradientOpacity=\{bgOpacity\}/);
+  assert.match(breakCardSource, /<GradientBackground[\s\S]*appearance\.fillGradient/);
   assert.match(taskEditorSource, /<GradientBackground[\s\S]*gradientOpacity=\{0\.1\}/);
   assert.match(mainScreenSource, /<GradientBackground[\s\S]*gradient=\{gradient\}[\s\S]*fallbackColor=\{color\}/);
   assert.doesNotMatch(gridSource, /gradientTile:\s*\{[^}]*borderWidth/);

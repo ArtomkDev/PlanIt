@@ -5,6 +5,8 @@ import {
 } from "./reminderSettings";
 import {
   MAX_SCHEDULE_WEEKS,
+  MAX_LESSON_SLOTS,
+  materializeScheduleLessons,
   normalizeScheduleRepeat,
 } from "./scheduleTime";
 import {
@@ -386,6 +388,12 @@ const sanitizeLesson = (lesson, options) => {
   pushIfDefined(result, "room", cleanOptionalString(lesson.room, LIMITS.room));
   pushIfDefined(result, "building", cleanOptionalString(lesson.building, LIMITS.building));
   pushIfDefined(result, "startTime", cleanTime(lesson.startTime));
+  if (lesson.timeMode === "slot" && Number.isInteger(lesson.slotNumber) && lesson.slotNumber >= 1 && lesson.slotNumber <= MAX_LESSON_SLOTS) {
+    result.timeMode = "slot";
+    result.slotNumber = lesson.slotNumber;
+  } else if (lesson.timeMode === "custom") {
+    result.timeMode = "custom";
+  }
   pushIfDefined(result, "endTime", cleanTime(lesson.endTime));
   pushIfDefined(result, "defaultStartTime", cleanTime(lesson.defaultStartTime));
   pushIfDefined(result, "defaultEndTime", cleanTime(lesson.defaultEndTime));
@@ -412,7 +420,7 @@ const sanitizeLesson = (lesson, options) => {
   return result;
 };
 
-const sanitizeScheduleGrid = (scheduleGrid, options) => {
+const sanitizeScheduleGrid = (scheduleGrid, options, timing) => {
   if (!Array.isArray(scheduleGrid)) return [];
 
   return scheduleGrid.slice(0, LIMITS.days).map((day) => {
@@ -421,8 +429,7 @@ const sanitizeScheduleGrid = (scheduleGrid, options) => {
     return Object.keys(day).reduce((acc, weekKey) => {
       if (!isSupportedWeekKey(weekKey) || !Array.isArray(day[weekKey])) return acc;
 
-      const lessons = day[weekKey]
-        .slice(0, LIMITS.lessonsPerWeek)
+      const lessons = materializeScheduleLessons(timing, day[weekKey].slice(0, LIMITS.lessonsPerWeek))
         .map((lesson) => sanitizeLesson(lesson, options))
         .filter(Boolean);
 
@@ -512,7 +519,12 @@ const sanitizeScheduleCore = (input, options = {}, metadata) => {
     throw new Error("invalid_shared_schedule");
   }
 
-  const scheduleGrid = sanitizeScheduleGrid(input.schedule, options);
+  const timing = {
+    duration: Math.round(clampNumber(input.duration, 1, 600, 45)),
+    breaks: sanitizeBreaks(input.breaks),
+    start_time: cleanTime(input.start_time) || "08:30",
+  };
+  const scheduleGrid = sanitizeScheduleGrid(input.schedule, options, timing);
 
   if (metadata) {
     metadata.lessonRefsBeforeCompact = countLessons(scheduleGrid);
@@ -521,9 +533,7 @@ const sanitizeScheduleCore = (input, options = {}, metadata) => {
   const schedule = {
     name: cleanString(input.name, LIMITS.name, "Imported schedule"),
     repeat: normalizeScheduleRepeat(input.repeat),
-    duration: Math.round(clampNumber(input.duration, 1, 600, 45)),
-    breaks: sanitizeBreaks(input.breaks),
-    start_time: cleanTime(input.start_time) || "08:30",
+    ...timing,
     starting_week: cleanIsoDate(input.starting_week),
     reminder: normalizeScheduleReminder(input.reminder),
     subjects: Array.isArray(input.subjects)

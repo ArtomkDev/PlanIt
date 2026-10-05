@@ -1,5 +1,6 @@
 import {
   buildLessonTimes,
+  materializeScheduleLessons,
   getScheduleWeekNumbers,
   normalizeScheduleRepeat,
 } from "./scheduleTime";
@@ -239,27 +240,8 @@ const remapTasksForDay = (
 };
 
 const materializeLessonTimes = (schedule, lessons, sourceByLesson) => {
-  const times = buildLessonTimes(
-    schedule?.start_time || "08:30",
-    Number(schedule?.duration) || 45,
-    Array.isArray(schedule?.breaks) ? schedule.breaks : [],
-    lessons,
-  );
-
-  return lessons.map((lesson, index) => {
-    if (lesson === undefined || lesson === null) return lesson;
-    const lessonData = typeof lesson === "object"
-      ? lesson
-      : { subjectId: String(lesson) };
-    const time = times[index] || {};
-    const next = {
-      ...lessonData,
-      startTime: lessonData.startTime || time.start,
-      endTime: lessonData.endTime || time.end,
-      defaultStartTime: lessonData.defaultStartTime || time.start,
-      defaultEndTime: lessonData.defaultEndTime || time.end,
-    };
-    sourceByLesson.set(next, lesson);
+  return materializeScheduleLessons(schedule, lessons).map((next, index) => {
+    if (next) sourceByLesson.set(next, lessons[index]);
     return next;
   });
 };
@@ -402,6 +384,24 @@ export const applyLessonRecurrence = (schedule, options) => {
     nextDay = restoreOverridesForWeek(schedule, nextDay, week, recurrence?.overrides);
   });
 
+  const candidateRange = getLessonRange(schedule, [lesson], 0);
+  const swapRange = options.swapTiming ? getLessonRange(schedule, [options.swapTiming], 0) : null;
+  const conflicts = weeks.flatMap((week) => {
+    const lessons = nextDay[`week${week}`] || [];
+    return lessons.flatMap((item, index) => item && rangesOverlap(candidateRange, getLessonRange(schedule, lessons, index))
+      ? [{ week, index, lesson: item }] : []);
+  });
+  const canSwap = conflicts.length > 0 && !!swapRange && !rangesOverlap(candidateRange, swapRange)
+    && weeks.every((week) => {
+      const matches = conflicts.filter((item) => item.week === week);
+      return matches.length === 0 || (matches.length === 1 && (nextDay[`week${week}`] || []).every((item, index) => (
+        !item || matches.some((match) => match.index === index)
+        || !rangesOverlap(swapRange, getLessonRange(schedule, nextDay[`week${week}`], index))
+      )));
+    });
+  if (options.preview) return { conflicts, canSwap };
+  if (options.conflictAction === 'swap' && conflicts.length > 0 && !canSwap) return schedule;
+
   for (const week of weeks) {
     const key = `week${week}`;
     let weekLessons = nextDay[key];
@@ -417,8 +417,30 @@ export const applyLessonRecurrence = (schedule, options) => {
     let suppressCandidate = false;
 
     for (let index = 0; index < weekLessons.length; index += 1) {
+      if (!weekLessons[index]) continue;
       const conflictRange = getLessonRange(schedule, weekLessons, index);
       if (!rangesOverlap(candidateRange, conflictRange)) continue;
+
+      if (options.conflictAction === 'replace') {
+        const replacedSeries = normalizeLessonRecurrence(weekLessons[index].recurrence, schedule);
+        if (replacedSeries?.mode === 'all') {
+          recurrenceOverrides = [...new Set([...recurrenceOverrides, replacedSeries.id])];
+        }
+        weekLessons.splice(index, 1);
+        index -= 1;
+        continue;
+      }
+      if (options.conflictAction === 'swap') {
+        const original = weekLessons[index];
+        const moved = { ...original };
+        for (const field of ['timeMode', 'slotNumber', 'startTime', 'endTime']) {
+          delete moved[field];
+          if (options.swapTiming[field] !== undefined) moved[field] = options.swapTiming[field];
+        }
+        sourceByLesson.set(moved, sourceByLesson.get(original) || original);
+        weekLessons[index] = moved;
+        continue;
+      }
 
       const ensured = ensureLegacyConflictSeries(
         schedule,
@@ -614,10 +636,11 @@ export const deleteLessonRecurrence = (schedule, options) => {
   if (!recurrence) return null;
 
   let nextDay = { ...beforeDay };
+  const sourceByLesson = new Map();
   const overridesByWeek = new Map();
   getAllWeeks(schedule).forEach((week) => {
     const key = `week${week}`;
-    const lessons = Array.isArray(beforeDay[key]) ? beforeDay[key] : [];
+    const lessons = materializeLessonTimes(schedule, Array.isArray(beforeDay[key]) ? beforeDay[key] : [], sourceByLesson);
     const member = lessons.find((lesson) => getLessonSeriesId(lesson) === recurrence.id);
     const memberRecurrence = normalizeLessonRecurrence(member?.recurrence, schedule);
     if (memberRecurrence?.overrides?.length > 0) {
@@ -674,7 +697,7 @@ export const deleteLessonRecurrence = (schedule, options) => {
   nextGrid[dayIndex] = nextDay;
   const nextSchedule = { ...schedule, schedule: nextGrid };
   if (Array.isArray(schedule.tasks)) {
-    nextSchedule.tasks = remapTasksForDay(schedule, beforeDay, nextDay, dayIndex);
+    nextSchedule.tasks = remapTasksForDay(schedule, beforeDay, nextDay, dayIndex, sourceByLesson);
   }
   return nextSchedule;
 };

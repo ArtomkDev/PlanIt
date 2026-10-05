@@ -2,14 +2,13 @@ import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { CaretDown, PencilSimple, Plus, Trash, User } from "phosphor-react-native";
+import { CaretDown, Plus, Trash, User } from "phosphor-react-native";
 import {
   getContactIconComponent,
   getTeacherContactTypeMeta,
@@ -24,6 +23,8 @@ import {
 } from "../../../../../utils/contactData";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
+import { SheetScrollView } from "../../../../../components/ui/BottomSheet";
+import EditorFormActions from "../ui/EditorFormActions";
 import ContactAppearancePicker from "./ContactAppearancePicker";
 
 const createLocalContactId = (seed = "") => `${Date.now().toString(36)}${String(seed)}${Math.random().toString(36).slice(2, 6)}`;
@@ -238,7 +239,6 @@ export default function TeacherEditor({
                 {errorKey ? t(errorKey, lang) : t(meta.labelKey, lang)}
               </Text>
             </View>
-            <PencilSimple size={18} color={themeColors.textColor2} weight="bold" />
             <CaretDown
               size={16}
               color={themeColors.textColor2}
@@ -250,15 +250,9 @@ export default function TeacherEditor({
 
         {expanded ? (
           <View style={styles.contactDetails}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.typeRow}
-              keyboardShouldPersistTaps="handled"
-              accessibilityRole="radiogroup"
-            >
+            <View style={styles.typeRow} accessibilityRole="radiogroup">
               {TEACHER_CONTACT_TYPES.map((type) => renderTypeButton(contact, type))}
-            </ScrollView>
+            </View>
 
             <Text style={[styles.fieldLabel, styles.fieldSpacing, { color: themeColors.textColor2 }]}>
               {t(meta.labelKey, lang)}
@@ -277,7 +271,7 @@ export default function TeacherEditor({
                 accessibilityHint={t(meta.placeholderKey, lang)}
                 accessibilityState={{ invalid: Boolean(errorKey) }}
                 placeholder={t(meta.placeholderKey, lang)}
-                placeholderTextColor={themeColors.textColor2 + "80"}
+                placeholderTextColor={themeColors.textColor2}
                 value={contact.value}
                 onChangeText={(value) => updateContact(contact.id, { value })}
                 keyboardType={getKeyboardType(contact.type)}
@@ -301,7 +295,7 @@ export default function TeacherEditor({
                 style={[styles.input, { color: themeColors.textColor }]}
                 accessibilityLabel={t("schedule.lesson_editor.teacher_contact_label", lang)}
                 placeholder={t("schedule.lesson_editor.teacher_contact_label_placeholder", lang)}
-                placeholderTextColor={themeColors.textColor2 + "80"}
+                placeholderTextColor={themeColors.textColor2}
                 value={contact.label}
                 onChangeText={(label) => updateContact(contact.id, { label })}
               />
@@ -340,9 +334,9 @@ export default function TeacherEditor({
       style={{ flex: 1 }}
       behavior="padding"
       enabled={Platform.OS === "ios"}
-      keyboardVerticalOffset={110}
     >
-      <ScrollView
+      <SheetScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -358,7 +352,7 @@ export default function TeacherEditor({
               style={[styles.input, { color: themeColors.textColor }]}
               accessibilityLabel={t("schedule.lesson_editor.teacher_name_label", lang)}
               placeholder={t("schedule.lesson_editor.teacher_name_placeholder", lang)}
-              placeholderTextColor={themeColors.textColor2 + "80"}
+              placeholderTextColor={themeColors.textColor2}
               value={name}
               onChangeText={setName}
               autoFocus={Platform.OS === "web"}
@@ -366,21 +360,6 @@ export default function TeacherEditor({
               autoComplete="name"
             />
           </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: themeColors.textColor2 }]}>
-            {t("schedule.lesson_editor.teacher_appearance_label", lang)}
-          </Text>
-          <ContactAppearancePicker
-            iconId={icon}
-            color={color}
-            onIconChange={setIcon}
-            onColorChange={setColor}
-            onCustomColorPress={onOpenColorPicker ? () => onOpenColorPicker(color, setColor) : undefined}
-            themeColors={themeColors}
-            lang={lang}
-          />
         </View>
 
         <View style={styles.formGroup}>
@@ -405,7 +384,21 @@ export default function TeacherEditor({
           </TouchableOpacity>
         </View>
 
-        <View style={{ flex: 1, minHeight: 24 }} />
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, { color: themeColors.textColor2 }]}>
+            {t("schedule.lesson_editor.teacher_appearance_label", lang)}
+          </Text>
+          <ContactAppearancePicker
+            iconId={icon}
+            color={color}
+            onIconChange={setIcon}
+            onColorChange={setColor}
+            onCustomColorPress={onOpenColorPicker ? () => onOpenColorPicker(color, setColor) : undefined}
+            themeColors={themeColors}
+            lang={lang}
+          />
+        </View>
+
         {onDelete && (
           <TouchableOpacity
             style={styles.deleteEntityButton}
@@ -417,63 +410,42 @@ export default function TeacherEditor({
             <Text style={styles.deleteEntityText}>{t("schedule.lesson_editor.delete_entity", lang)}</Text>
           </TouchableOpacity>
         )}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: themeColors.backgroundColor2 }]}
-            onPress={onBack}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.cancel", lang)}
-          >
-            <Text style={[styles.buttonText, { color: themeColors.textColor }]}>{t("common.cancel", lang)}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]}
-            onPress={handleSave}
-            accessibilityRole="button"
-            accessibilityLabel={saveLabel || t("common.save", lang)}
-          >
-            <Text style={styles.saveButtonText}>{saveLabel || t("common.save", lang)}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+      </SheetScrollView>
+      <EditorFormActions themeColors={themeColors} onSave={handleSave} onCancel={onBack} saveLabel={saveLabel} />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 30 },
+  container: { padding: 16, paddingTop: 24, paddingBottom: 24 },
   formGroup: { marginBottom: 20 },
-  label: { fontSize: 13, fontWeight: "700", marginBottom: 8, marginLeft: 4, textTransform: "uppercase", letterSpacing: 0.5 },
+  label: { fontSize: 15, lineHeight: 22, fontWeight: "600", marginBottom: 10 },
   privacyHint: { fontSize: 12, lineHeight: 18, marginHorizontal: 4, marginBottom: 10 },
   fieldLabel: { fontSize: 12, fontWeight: "700", marginBottom: 7 },
   fieldSpacing: { marginTop: 12 },
-  inputContainer: { flexDirection: "row", alignItems: "center", borderRadius: 14, paddingHorizontal: 14, height: 52 },
+  inputContainer: { flexDirection: "row", alignItems: "center", borderRadius: 14, paddingHorizontal: 14, minHeight: 56 },
   inputErrorBorder: { borderWidth: 1 },
   inputIcon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 16, height: "100%", minWidth: 0 },
-  compactInput: { height: 46 },
+  input: { flex: 1, fontSize: 16, paddingVertical: 14, minWidth: 0 },
+  compactInput: { minHeight: 52 },
   errorText: { color: "#DC2626", fontSize: 13, fontWeight: "600", marginTop: 7 },
   contactCard: { borderWidth: 1, borderRadius: 14, marginBottom: 8, overflow: "hidden" },
   contactHeader: { minHeight: 58 },
-  contactSummary: { minHeight: 58, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 9 },
+  contactSummary: { minHeight: 58, paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 9 },
   contactIcon: { width: 36, height: 36, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   contactSummaryText: { flex: 1, minWidth: 0 },
-  contactTitle: { fontSize: 14, fontWeight: "700" },
+  contactTitle: { fontSize: 15, lineHeight: 21, fontWeight: "600" },
   contactSubtitle: { fontSize: 12, fontWeight: "500", marginTop: 2 },
   contactDetails: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(128,128,128,0.24)", padding: 12, paddingTop: 10 },
   caretOpen: { transform: [{ rotate: "180deg" }] },
   removeButton: { minHeight: 44, marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   removeButtonText: { color: "#DC2626", fontSize: 13, fontWeight: "700" },
-  typeRow: { gap: 8, paddingRight: 4 },
+  typeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   typeButton: { minHeight: 44, borderRadius: 11, borderWidth: 1, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 },
   typeButtonText: { fontSize: 13, fontWeight: "700" },
-  addContactButton: { minHeight: 48, borderRadius: 12, borderWidth: 1.5, borderStyle: "dashed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  addContactButton: { minHeight: 48, borderRadius: 12, borderWidth: 1.5, borderStyle: "solid", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   addContactText: { fontSize: 14, fontWeight: "700" },
   deleteEntityButton: { minHeight: 48, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   deleteEntityText: { color: "#DC2626", fontSize: 15, fontWeight: "700" },
-  buttonRow: { flexDirection: "row", justifyContent: "space-between", gap: 12, marginTop: 16 },
-  button: { flex: 1, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  saveButton: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  buttonText: { fontSize: 16, fontWeight: "600" },
-  saveButtonText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
 import { triggerHaptic } from "../../utils/haptics";
 import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
@@ -14,37 +14,47 @@ export default function TabSwitcher({
   activeTextColor, 
   withShadow = false,
 }) {
-  const [tabLayouts, setTabLayouts] = useState({});
+  const tabsKey = JSON.stringify(tabs.map(tab => tab.id));
+  const [measurements, setMeasurements] = useState({ key: tabsKey, layouts: {} });
   const containerPadding = 4;
   const reduceMotion = useReducedMotionPreference();
-  
   const indicatorPosition = useRef(new Animated.Value(0)).current;
-  const indicatorWidth = useRef(new Animated.Value(0)).current;
+  const previousLayout = useRef(null);
+  const activeLayout = measurements.key === tabsKey && tabs.some(tab => tab.id === activeTab)
+    ? measurements.layouts[activeTab]
+    : undefined;
 
   const handleTabLayout = (id, event) => {
     const { x, width } = event.nativeEvent.layout;
-    setTabLayouts(prev => ({ ...prev, [id]: { x, width } }));
+    if (width <= 0) return;
+    setMeasurements(prev => {
+      const layouts = prev.key === tabsKey ? prev.layouts : {};
+      if (layouts[id]?.x === x && layouts[id]?.width === width) return prev;
+      return { key: tabsKey, layouts: { ...layouts, [id]: { x, width } } };
+    });
   };
 
-  useEffect(() => {
-    const currentLayout = tabLayouts[activeTab];
-    if (currentLayout) {
-      Animated.parallel([
-        Animated.timing(indicatorPosition, {
-          toValue: currentLayout.x,
-          duration: reduceMotion ? 0 : 200,
-          easing: Easing.out(Easing.exp),
-          useNativeDriver: false,
-        }),
-        Animated.timing(indicatorWidth, {
-          toValue: currentLayout.width,
-          duration: reduceMotion ? 0 : 200,
-          easing: Easing.out(Easing.exp),
-          useNativeDriver: false,
-        }),
-      ]).start();
+  useLayoutEffect(() => {
+    const previous = previousLayout.current;
+    if (!activeLayout) {
+      previousLayout.current = null;
+      return;
     }
-  }, [activeTab, indicatorPosition, indicatorWidth, reduceMotion, tabLayouts]);
+    previousLayout.current = { id: activeTab, key: tabsKey, ...activeLayout };
+    if (reduceMotion || !previous || previous.key !== tabsKey
+      || previous.id === activeTab || previous.width !== activeLayout.width) {
+      indicatorPosition.setValue(activeLayout.x);
+      return;
+    }
+    const animation = Animated.timing(indicatorPosition, {
+      toValue: activeLayout.x,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [activeTab, activeLayout?.x, activeLayout?.width, tabsKey, reduceMotion, indicatorPosition]);
 
   const handlePress = (id) => {
     if (activeTab !== id) {
@@ -67,14 +77,18 @@ export default function TabSwitcher({
         borderColor: containerBorderColor 
       }
     ]}>
-      {tabs.length > 0 && tabLayouts[tabs[0].id] && (
+      {activeLayout && (
         <Animated.View
+          pointerEvents="none"
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
           style={[
             styles.activeIndicator,
             {
               backgroundColor: bgColorActive,
               transform: [{ translateX: indicatorPosition }],
-              width: indicatorWidth,
+              width: activeLayout.width,
               borderRadius: 8,
             },
             withShadow && styles.shadow,
@@ -89,9 +103,9 @@ export default function TabSwitcher({
             accessibilityRole="tab"
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: isActive }}
-            key={tab.id}
+            key={`${tabsKey}:${tab.id}`}
             onLayout={(event) => handleTabLayout(tab.id, event)}
-            style={styles.tab}
+            style={[styles.tab, isActive && !activeLayout && { backgroundColor: bgColorActive }]}
             onPress={() => handlePress(tab.id)}
             activeOpacity={0.9}
           >
@@ -124,11 +138,15 @@ const styles = StyleSheet.create({
   },
   activeIndicator: {
     position: 'absolute',
+    left: 0,
     top: 4, 
     bottom: 4,
   },
   tab: {
     flex: 1,
+    minWidth: 0,
+    borderRadius: 8,
+    paddingHorizontal: 8,
     paddingVertical: 10,
     minHeight: 44,
     alignItems: "center",
@@ -148,6 +166,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   colorDot: {
+    flexShrink: 0,
     width: 14,
     height: 14,
     borderRadius: 7,
@@ -156,6 +175,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0,0,0,0.1)",
   },
   tabText: {
+    flexShrink: 1,
+    textAlign: "center",
     fontSize: 14,
     fontWeight: "600",
   },

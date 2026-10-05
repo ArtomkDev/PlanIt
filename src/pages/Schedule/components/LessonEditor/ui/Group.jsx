@@ -1,159 +1,67 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
-import { Plus, ArrowsCounterClockwise } from "phosphor-react-native";
-import Animated, { FadeIn, LinearTransition, Easing } from "react-native-reanimated";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { Plus, ArrowsCounterClockwise, CaretDown } from "phosphor-react-native";
+import TabSwitcher from "../../../../../components/ui/TabSwitcher";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
-import { triggerHaptic } from "../../../../../utils/haptics";
-import useReducedMotionPreference from "../../../../../hooks/useReducedMotionPreference";
-
-const isWeb = Platform.OS === "web";
 
 export default function Group({ title, children, onAdd, onReset, themeColors, showScopeToggle, scope, onScopeChange }) {
   const { lang } = useScheduleData();
-  const reduceMotion = useReducedMotionPreference();
-  const customLayoutTransition = isWeb || reduceMotion ? undefined : LinearTransition.duration(180).easing(Easing.out(Easing.quad));
-
-  const handleScopeChange = () => {
-    triggerHaptic(scope === "local" ? "toggleOff" : "toggleOn");
-    onScopeChange(scope === "local" ? "global" : "local");
-  };
-
-  const handleAdd = () => {
-    triggerHaptic("open");
-    onAdd?.();
-  };
-
-  const handleReset = () => {
-    triggerHaptic("warning");
-    onReset?.();
-  };
-
+  const [scopeOpen, setScopeOpen] = useState(false);
+  const items = React.Children.toArray(children).filter(Boolean);
   return (
-    <Animated.View 
-      style={styles.container}
-      layout={customLayoutTransition}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: themeColors.textColor }]}>
-          {title.toUpperCase()}
-        </Text>
-        <View style={styles.headerRight}>
-          
-          {showScopeToggle && (
-            <TouchableOpacity
-              style={[
-                styles.actionButton, 
-                { backgroundColor: scope === "local" ? themeColors.accentColor : themeColors.backgroundColor2 }
-              ]}
-              onPress={handleScopeChange}
-              activeOpacity={0.7}
-              accessibilityRole="switch"
-              accessibilityLabel={t('schedule.lesson_editor.selection', lang)}
-              accessibilityState={{ checked: scope === "local" }}
-              hitSlop={6}
-            >
-              <Text style={[styles.scopeText, { color: scope === "local" ? "#fff" : themeColors.textColor }]}>
-                {scope === "local" ? t('schedule.lesson_editor.scope_local', lang) : t('schedule.lesson_editor.scope_global', lang)}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {onAdd ? (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.iconButton, { backgroundColor: themeColors.backgroundColor2 }]}
-              onPress={handleAdd}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.add', lang)}
-              hitSlop={6}
-            >
-              <Plus size={18} color={themeColors.textColor} weight="bold" />
-            </TouchableOpacity>
-          ) : onReset ? (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.iconButton, { backgroundColor: themeColors.backgroundColor2 }]}
-              onPress={handleReset}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.reset', lang)}
-              hitSlop={6}
-            >
-              <ArrowsCounterClockwise size={18} color={themeColors.textColor} weight="bold" />
-            </TouchableOpacity>
-          ) : showScopeToggle ? (
-            <View style={[styles.actionButton, styles.iconButton, { opacity: 0 }]} pointerEvents="none" />
-          ) : null}
-
+        <Text accessibilityRole="header" style={[styles.title, { color: themeColors.textColor }]}>{title}</Text>
+        <View style={styles.actions}>
+          {showScopeToggle && <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${title}: ${t(scope === 'local' ? 'schedule.lesson_editor.scope_local' : 'schedule.lesson_editor.scope_global', lang)}`}
+            accessibilityState={{ expanded: scopeOpen }}
+            onPress={() => setScopeOpen(value => !value)}
+            style={({ pressed }) => [styles.scopeButton, { backgroundColor: pressed || scopeOpen ? themeColors.backgroundColor2 : 'transparent' }]}
+          >
+            <Text style={[styles.scopeText, { color: themeColors.accentColor }]}>{t(scope === 'local' ? 'schedule.lesson_editor.scope_local' : 'schedule.lesson_editor.scope_global', lang)}</Text>
+            <CaretDown size={14} color={themeColors.accentColor} />
+          </Pressable>}
+          {(onAdd || onReset) && <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t(onAdd ? 'common.add' : 'common.reset', lang)}: ${title}`}
+            onPress={onAdd || onReset}
+            style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? themeColors.borderColor : themeColors.backgroundColor2 }]}
+          >
+            {onAdd ? <Plus size={19} color={themeColors.accentColor} /> : <ArrowsCounterClockwise size={19} color={themeColors.textColor2} />}
+          </Pressable>}
         </View>
       </View>
-      
-      <Animated.View 
-        style={[styles.contentContainer, { backgroundColor: themeColors.backgroundColor2 }]}
-        layout={customLayoutTransition}
-      >
-        {React.Children.map(children, (child, index) => {
-          if (!child) return null;
-          
-          const isLast = index === React.Children.count(children) - 1;
-          const itemKey = child.key ? child.key : `group-item-${index}`;
-
-          return (
-            <Animated.View 
-              key={itemKey}
-              entering={isWeb || reduceMotion ? undefined : FadeIn.duration(160).easing(Easing.out(Easing.quad))}
-            >
-              {child}
-              {!isLast && <View style={[styles.separator, { backgroundColor: themeColors.borderColor || "#ccc" }]} />}
-            </Animated.View>
-          );
-        })}
-      </Animated.View>
-    </Animated.View>
+      {showScopeToggle && scopeOpen && <View style={styles.scopePanel}>
+        <TabSwitcher
+          tabs={[{ id: 'global', label: t('schedule.lesson_editor.scope_global', lang) }, { id: 'local', label: t('schedule.lesson_editor.scope_local', lang) }]}
+          activeTab={scope}
+          onTabPress={onScopeChange}
+          themeColors={themeColors}
+        />
+        <Text style={[styles.help, { color: themeColors.textColor2 }]}>{t(scope === 'local' ? 'schedule.lesson_editor.scope_local_help' : 'schedule.lesson_editor.scope_global_help', lang)}</Text>
+      </View>}
+      <View style={[styles.card, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
+        {items.map((child, index) => <View key={child.key || index}>
+          {index > 0 && <View style={[styles.separator, { backgroundColor: themeColors.borderColor }]} />}
+          {child}
+        </View>)}
+      </View>
+    </View>
   );
 }
-
 const styles = StyleSheet.create({
-  container: { marginBottom: 24 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-    paddingHorizontal: 4,
-    minHeight: 30,
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  title: {
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-  },
-  actionButton: {
-    minHeight: 44,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  iconButton: {
-    width: 44,
-    paddingHorizontal: 0,
-  },
-  scopeText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  contentContainer: {
-    borderRadius: 12,
-    overflow: "hidden", 
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: 50,
-  },
+  container: { marginBottom: 14 },
+  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 },
+  title: { fontSize: 16, lineHeight: 22, fontWeight: '600', flexGrow: 1, flexShrink: 1 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  scopeButton: { minHeight: 44, paddingHorizontal: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  scopeText: { fontSize: 12, fontWeight: '600' },
+  iconButton: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  scopePanel: { marginBottom: 12 },
+  help: { fontSize: 13, lineHeight: 19 },
+  card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  separator: { height: StyleSheet.hairlineWidth, marginHorizontal: 16 },
 });

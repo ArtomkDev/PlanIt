@@ -8,18 +8,17 @@ import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import { useNowTick } from "../../../hooks/useNowTick";
 import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
-import themes from "../../../config/themes";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { triggerHaptic } from "../../../utils/haptics";
 import { t } from "../../../utils/i18n";
+import { getLessonColors } from "../../../utils/scheduleColors";
+import useActivityTransition from "./useActivityTransition";
 import {
   colorWithAlpha,
-  getGradientColor,
   getGradientColors,
   getReadableForeground,
   isLightForeground,
-  resolveValidColor,
 } from "../../../utils/gradientColors";
 
 const ICON_SIZE = 18;
@@ -93,23 +92,14 @@ function getTimerState(startStr, endStr, targetDate, nowValue) {
 
 function useLessonData(lesson, schedule, isDark) {
   return useMemo(() => {
-    const { subjects = [], teachers = [], gradients = [] } = schedule || {};
+    const { subjects = [], teachers = [] } = schedule || {};
     const subject = subjects.find((s) => s.id === lesson?.subjectId) || {};
     const instanceData = lesson?.data || {};
 
     const teacherId = instanceData.teachers?.[0] || instanceData.teacher || subject.teachers?.[0] || subject.teacher;
     const teacher = teachers.find((t) => t.id === teacherId) || {};
     
-    let subjectColor = resolveValidColor(
-      themes.accentColors[subject?.color] || subject?.color,
-      themes.accentColors.grey,
-    );
-    let activeGrad = null;
-
-    if (subject?.typeColor === "gradient" && subject?.colorGradient) {
-      activeGrad = gradients.find((g) => g.id === subject.colorGradient);
-      subjectColor = getGradientColor(activeGrad, subjectColor);
-    }
+    const { subjectColor, activeGrad } = getLessonColors(lesson, schedule);
 
     const hasRenderableGradient = getGradientColors(activeGrad).length > 0;
     const contentColor = getReadableForeground(
@@ -132,54 +122,19 @@ function useLessonData(lesson, schedule, isDark) {
   }, [lesson, schedule, isDark]);
 }
 
-const ActiveHighlight = React.memo(({ isActive, isDark }) => {
-  const opacityAnim = useRef(new Animated.Value(0.4)).current;
-  const reduceMotion = useReducedMotionPreference();
-
-  useEffect(() => {
-    let highlightLoop = null;
-
-    if (isActive && !reduceMotion) {
-      highlightLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(opacityAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-          Animated.timing(opacityAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true })
-        ])
-      );
-      highlightLoop.start();
-    } else {
-      opacityAnim.setValue(isActive ? 0.75 : 0);
-    }
-
-    return () => {
-      highlightLoop?.stop();
-    };
-  }, [isActive, opacityAnim, reduceMotion]);
-
-  if (!isActive) return null;
-
-  const highlightColor = isDark ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.6)';
-
-  return (
-    <Animated.View 
-      pointerEvents="none"
-      style={[
-        StyleSheet.absoluteFillObject,
-        { 
-          borderRadius: CARD_BORDER_RADIUS,
-          borderWidth: 3.5, 
-          borderColor: highlightColor,
-          opacity: opacityAnim,
-          zIndex: 10,
-        },
-        Platform.OS === 'web' && {
-          borderWidth: 0,
-          boxShadow: `inset 0px 0px 0px 3.5px ${highlightColor}, inset 0px 0px 24px ${highlightColor}`
-        }
-      ]}
-    />
-  );
-});
+const ActiveHighlight = React.memo(({ opacity, isDark }) => (
+  <Animated.View
+    pointerEvents="none"
+    accessible={false}
+    accessibilityElementsHidden
+    importantForAccessibility="no-hide-descendants"
+    testID="lesson-active-outline"
+    style={[styles.activeOutline, {
+      borderColor: isDark ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.6)',
+      opacity,
+    }]}
+  />
+));
 
 const BackgroundPattern = React.memo(({ MainIcon, color, width, height, order, moving }) => {
   const id = useId();
@@ -277,6 +232,8 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
     [lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow]
   );
 
+  const { activeOpacity, inactiveOpacity } = useActivityTransition(isActive);
+
   const handlePress = () => {
     triggerHaptic("open");
     onPress?.({ ...lesson, subject, teacher, displayType, displayRoom, displayBuilding });
@@ -331,22 +288,32 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
         moving={moving}
       />}
 
-      <ActiveHighlight isActive={isActive} isDark={isDark} />
+      <ActiveHighlight opacity={activeOpacity} isDark={isDark} />
 
       <View style={styles.cardContent}>
         <View style={styles.headerRow}>
-          
-          <View style={[styles.timeContainer, { backgroundColor: chipBackground }, isActive && { backgroundColor: activePillBg }]}>
-            <View style={styles.iconFixedContainer}>
-                {isActive ? (
-                   <Hourglass size={11} color={activePillText} weight="fill" />
-                ) : (
-                   <Clock size={11} color={contentColor} weight="regular" />
-                )}
-            </View>
-            <Text style={[styles.timeText, { color: contentColor }, isActive && { color: activePillText }]}>
-              {isActive ? t("common.remaining_time", lang, { time: timeLeft }) : `${lesson?.timeInfo?.start || "—"} - ${lesson?.timeInfo?.end || "—"}`}
+          {lesson?.slotNumber != null && lesson?.data?.timeMode !== 'custom' && <View testID="lesson-slot-number" style={[styles.timeContainer, styles.numberBadge, { backgroundColor: chipBackground }]}>
+            <Text accessibilityLabel={t('schedule.lesson_editor.slot_number', lang, { number: lesson.slotNumber })} style={[styles.timeText, { color: contentColor }]}>
+              {lesson.slotNumber}
             </Text>
+          </View>}
+
+          <View style={[styles.timeContainer, styles.timePill, { backgroundColor: chipBackground }]}>
+            <Animated.View style={[styles.timeRow, { opacity: inactiveOpacity }]}
+              accessibilityElementsHidden={isActive} importantForAccessibility={isActive ? 'no-hide-descendants' : 'auto'}>
+              <Clock size={11} color={contentColor} weight="regular" />
+              <Text style={[styles.timeText, { color: contentColor }]}>
+                {lesson?.timeInfo?.start || "—"} – {lesson?.timeInfo?.end || "—"}
+              </Text>
+            </Animated.View>
+            <Animated.View pointerEvents="none"
+              accessibilityElementsHidden={!isActive} importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+              style={[styles.activeTimePill, styles.timeRow, { opacity: activeOpacity, backgroundColor: activePillBg }]}>
+              <Hourglass size={11} color={activePillText} weight="fill" />
+              <Text accessibilityLabel={t("common.remaining_time", lang, { time: timeLeft || '0:00' })} style={[styles.timeText, { color: activePillText }]} numberOfLines={1}>
+                {timeLeft || '0:00'}
+              </Text>
+            </Animated.View>
           </View>
 
           {!!displayType && (
@@ -395,6 +362,11 @@ export default function LessonCard(props) {
 }
 
 const styles = StyleSheet.create({
+  activeOutline: { position: 'absolute', top: 1, right: 1, bottom: 1, left: 1, borderRadius: CARD_BORDER_RADIUS - 1, borderWidth: 2, zIndex: 10 },
+  timePill: { marginLeft: 'auto', justifyContent: 'center', overflow: 'hidden' },
+  timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  activeTimePill: { ...StyleSheet.absoluteFill, borderRadius: 6, paddingHorizontal: 6 },
+  numberBadge: { minWidth: 24, justifyContent: 'center' },
   cardContainer: { 
     marginBottom: 8, 
     minHeight: 90, 
@@ -422,6 +394,8 @@ const styles = StyleSheet.create({
   },
   headerRow: { 
     flexDirection: 'row', 
+    flexWrap: 'wrap',
+    gap: 6,
     justifyContent: 'space-between', 
     alignItems: 'center', 
     marginBottom: 2 

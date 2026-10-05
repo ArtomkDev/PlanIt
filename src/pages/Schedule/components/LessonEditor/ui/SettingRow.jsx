@@ -1,91 +1,46 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet, View, Platform } from "react-native";
-import { CaretRight } from "phosphor-react-native";
-import Animated, { FadeIn, Easing } from "react-native-reanimated";
+import { Pressable, Text, StyleSheet, View } from "react-native";
+import { CaretRight, PencilSimple } from "phosphor-react-native";
+import { useScheduleData } from "../../../../../context/ScheduleProvider";
+import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
 
-const isWeb = Platform.OS === "web";
-
-export default function SettingRow({ 
-  label, 
-  value, 
-  onPress, 
-  onLongPress, 
-  themeColors, 
-  icon: Icon,
-  rightContent,
-  accessibilityLabel,
-  accessibilityHint,
-}) {
-  const handlePress = () => {
-    if (!onPress) return;
-    triggerHaptic("selection");
-    onPress?.();
-  };
-
-  const handleLongPress = () => {
-    triggerHaptic("longPress");
-    onLongPress?.();
-  };
-
-  return (
-    <TouchableOpacity 
-      style={styles.row} 
-      onPress={handlePress}
-      onLongPress={onLongPress ? handleLongPress : undefined}
-      delayLongPress={250}
-      activeOpacity={0.7}
-      accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={accessibilityLabel || [label, typeof value === "string" ? value : null].filter(Boolean).join(", ")}
+export default function SettingRow({ label, value, desc, onPress, onLongPress, onEdit, themeColors, icon: Icon, iconColor, rightContent, showCaret = true, accessibilityLabel, accessibilityHint, accessibilityState }) {
+  const { lang } = useScheduleData();
+  const Component = onPress ? Pressable : View;
+  const content = <>
+    {Icon && <View style={styles.icon}><Icon size={22} color={iconColor || themeColors.textColor2} weight="regular" /></View>}
+    <View style={styles.text}>
+      <Text style={[styles.label, { color: themeColors.textColor }]}>{label}</Text>
+      {!!value && <Text style={[styles.value, { color: themeColors.textColor2 }]}>{value}</Text>}
+      {!!desc && <Text style={[styles.description, { color: themeColors.textColor2 }]}>{desc}</Text>}
+    </View>
+    {rightContent && <View style={styles.preview}>{rightContent}</View>}
+    {!!onPress && showCaret && <CaretRight size={18} color={themeColors.textColor2} />}
+  </>;
+  return <View style={styles.container}>
+    <Component
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel || [label, value].filter(Boolean).join(', ')}
       accessibilityHint={accessibilityHint}
-    >
-      <View style={styles.left}>
-        {Icon && (
-          <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '20' }]}>
-            <Icon size={20} color={themeColors.accentColor} weight="fill" />
-          </View>
-        )}
-        <Text style={[styles.label, { color: themeColors.textColor }]}>{label}</Text>
-      </View>
-
-      <View style={styles.right}>
-        {rightContent ? (
-          rightContent
-        ) : (
-          <Animated.Text 
-            key={value}
-            entering={isWeb ? undefined : FadeIn.duration(250).easing(Easing.out(Easing.quad))}
-            style={[styles.value, { color: themeColors.textColor2 }]} 
-            numberOfLines={1}
-          >
-            {value}
-          </Animated.Text>
-        )}
-        <CaretRight size={18} color={themeColors.textColor3 || "#aaa"} weight="bold" style={{marginLeft: 6}}/>
-      </View>
-    </TouchableOpacity>
-  );
+      accessibilityState={accessibilityState}
+      onPress={onPress ? () => { triggerHaptic('selection'); onPress(); } : undefined}
+      onLongPress={onLongPress}
+      style={onPress ? ({ pressed }) => [styles.row, { opacity: pressed ? 0.65 : 1 }] : styles.row}
+    >{content}</Component>
+    {onEdit && <Pressable style={styles.edit} accessibilityRole="button" accessibilityLabel={`${t('common.edit', lang)}: ${value || label}`} onPress={onEdit}>
+      <PencilSimple size={20} color={themeColors.accentColor} />
+    </Pressable>}
+  </View>;
 }
-
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minHeight: 50,
-  },
-  left: { flexDirection: "row", alignItems: "center", flex: 1 },
-  right: { flexDirection: "row", alignItems: "center", justifyContent: 'flex-end', flex: 0.8 },
-  iconContainer: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  label: { fontSize: 16, fontWeight: "500" },
-  value: { fontSize: 16, textAlign: 'right', flexShrink: 1 },
+  container: { flexDirection: 'row', alignItems: 'center' },
+  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingVertical: 10, paddingHorizontal: 14, gap: 10 },
+  icon: { width: 24, alignItems: 'center' },
+  text: { flex: 1, minWidth: 0, gap: 2 },
+  label: { fontSize: 15, lineHeight: 21, fontWeight: '500' },
+  value: { fontSize: 14, lineHeight: 20 },
+  description: { fontSize: 12, lineHeight: 18 },
+  preview: { flexShrink: 1, maxWidth: '45%' },
+  edit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
 });

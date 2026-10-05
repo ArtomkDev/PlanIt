@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,6 +20,8 @@ import {
 } from "../../../../../utils/contactData";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
+import { SheetScrollView } from "../../../../../components/ui/BottomSheet";
+import EditorFormActions from "../ui/EditorFormActions";
 import ContactAppearancePicker from "./ContactAppearancePicker";
 
 export default function LinkEditor({
@@ -98,9 +99,9 @@ export default function LinkEditor({
       style={{ flex: 1 }}
       behavior="padding"
       enabled={Platform.OS === "ios"}
-      keyboardVerticalOffset={110}
     >
-      <ScrollView
+      <SheetScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -116,7 +117,7 @@ export default function LinkEditor({
               style={[styles.input, { color: themeColors.textColor }]}
               accessibilityLabel={t("schedule.lesson_editor.link_name_label", lang)}
               placeholder={t("schedule.lesson_editor.link_name_placeholder", lang)}
-              placeholderTextColor={themeColors.textColor2 + "80"}
+              placeholderTextColor={themeColors.textColor2}
               value={name}
               onChangeText={setName}
               autoFocus={Platform.OS === "web"}
@@ -128,12 +129,7 @@ export default function LinkEditor({
           <Text style={[styles.label, { color: themeColors.textColor2 }]}>
             {t("schedule.lesson_editor.link_type_label", lang)}
           </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.typeRow}
-            keyboardShouldPersistTaps="handled"
-          >
+          <View style={styles.typeRow} accessibilityRole="radiogroup">
             {LINK_TYPES.map((item) => {
               const selected = item.id === selectedType.id;
               const Icon = item.icon;
@@ -163,7 +159,7 @@ export default function LinkEditor({
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
 
         <View style={styles.formGroup}>
@@ -184,7 +180,7 @@ export default function LinkEditor({
               accessibilityHint={t(selectedType.placeholderKey, lang)}
               accessibilityState={{ invalid: Boolean(errorKey) }}
               placeholder={t(selectedType.placeholderKey, lang)}
-              placeholderTextColor={themeColors.textColor2 + "80"}
+              placeholderTextColor={themeColors.textColor2}
               value={url}
               onChangeText={handleUrlChange}
               autoCapitalize="none"
@@ -229,7 +225,6 @@ export default function LinkEditor({
           {t("schedule.lesson_editor.link_rights_hint", lang)}
         </Text>
 
-        <View style={{ flex: 1, minHeight: 32 }} />
         {onDelete && (
           <TouchableOpacity
             style={styles.deleteEntityButton}
@@ -241,47 +236,26 @@ export default function LinkEditor({
             <Text style={styles.deleteEntityText}>{t("schedule.lesson_editor.delete_entity", lang)}</Text>
           </TouchableOpacity>
         )}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: themeColors.backgroundColor2 }]}
-            onPress={onBack}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.cancel", lang)}
-          >
-            <Text style={[styles.buttonText, { color: themeColors.textColor }]}>{t("common.cancel", lang)}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.saveButton, { backgroundColor: themeColors.accentColor }]}
-            onPress={handleSave}
-            accessibilityRole="button"
-            accessibilityLabel={saveLabel || t("common.save", lang)}
-          >
-            <Text style={styles.saveButtonText}>{saveLabel || t("common.save", lang)}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+      </SheetScrollView>
+      <EditorFormActions themeColors={themeColors} onSave={handleSave} onCancel={onBack} saveLabel={saveLabel} />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 30 },
+  container: { padding: 16, paddingTop: 24, paddingBottom: 24 },
   formGroup: { marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: "500", marginBottom: 8, marginLeft: 4, textTransform: "uppercase", letterSpacing: 0.5 },
-  inputContainer: { flexDirection: "row", alignItems: "center", borderRadius: 14, paddingHorizontal: 14, height: 54 },
+  label: { fontSize: 15, lineHeight: 22, fontWeight: "600", marginBottom: 10 },
+  inputContainer: { flexDirection: "row", alignItems: "center", borderRadius: 14, paddingHorizontal: 14, minHeight: 56 },
   inputErrorBorder: { borderWidth: 1 },
   inputIcon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 16, height: "100%" },
+  input: { flex: 1, fontSize: 16, paddingVertical: 14 },
   errorText: { color: "#DC2626", fontSize: 13, fontWeight: "600", marginTop: 7, marginHorizontal: 4 },
-  typeRow: { gap: 8, paddingRight: 4 },
+  typeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   typeButton: { minHeight: 44, borderRadius: 11, borderWidth: 1, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6 },
   typeButtonText: { fontSize: 13, fontWeight: "700" },
   legalHint: { fontSize: 13, lineHeight: 19, marginHorizontal: 4 },
   deleteEntityButton: { minHeight: 48, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   deleteEntityText: { color: "#DC2626", fontSize: 15, fontWeight: "700" },
-  buttonRow: { flexDirection: "row", justifyContent: "space-between", gap: 12, marginTop: 20 },
-  button: { flex: 1, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  saveButton: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  buttonText: { fontSize: 16, fontWeight: "600" },
-  saveButtonText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+
 });

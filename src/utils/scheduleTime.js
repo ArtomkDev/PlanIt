@@ -2,6 +2,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const MAX_SCHEDULE_WEEKS = 12;
+export const MAX_LESSON_SLOTS = 48;
 
 export const normalizeScheduleRepeat = (value) => Math.min(
   MAX_SCHEDULE_WEEKS,
@@ -46,10 +47,23 @@ export const getBreakDuration = (breaksArray, index) => {
   return Number(breaksArray[index % breaksArray.length]) || 0;
 };
 
+export const buildScheduleSlots = (startTime, duration, breaks = []) => {
+  let start = parseTimeToMinutes(startTime);
+  const length = Number(duration);
+  if (start === null || !Number.isFinite(length) || length <= 0) return [];
+  const slots = [];
+  while (slots.length < MAX_LESSON_SLOTS && start + length < 24 * 60) {
+    slots.push({ number: slots.length + 1, start: formatMinutesToTime(start), end: formatMinutesToTime(start + length) });
+    start += length + Math.max(0, getBreakDuration(breaks, slots.length - 1));
+  }
+  return slots;
+};
+
 export const buildLessonTimes = (startTime, duration, breaks, daySchedule) => {
   if (!startTime || !duration || !Array.isArray(daySchedule)) return [];
 
   const times = [];
+  const slots = buildScheduleSlots(startTime, duration, breaks);
   let currentStart = startTime;
 
   for (let index = 0; index < daySchedule.length; index += 1) {
@@ -58,15 +72,95 @@ export const buildLessonTimes = (startTime, duration, breaks, daySchedule) => {
     const customStart = isInstance ? item.startTime : null;
     const customEnd = isInstance ? item.endTime : null;
 
-    const actualStart = customStart || currentStart;
-    const actualEnd = customEnd || addMinutes(actualStart, duration);
+    const slot = item?.timeMode === "slot" ? slots.find((entry) => entry.number === item.slotNumber) : null;
+    const actualStart = slot?.start || customStart || currentStart;
+    const actualEnd = slot?.end || customEnd || addMinutes(actualStart, duration);
 
     times.push({ start: actualStart, end: actualEnd });
 
-    currentStart = addMinutes(actualEnd, getBreakDuration(breaks, index));
+    currentStart = addMinutes(actualEnd, getBreakDuration(breaks, slot ? slot.number - 1 : index));
   }
 
   return times;
+};
+
+export const getLessonSlotNumber = (lesson, time, slots) => {
+  if (lesson?.timeMode === "custom") return null;
+  if (lesson?.timeMode === "slot") return slots.find((slot) => slot.number === lesson.slotNumber)?.number ?? null;
+  return slots.find((slot) => slot.start === time?.start && slot.end === time?.end)?.number ?? null;
+};
+
+// Resolve legacy positions before filtering or reordering so other lessons never move in time.
+export const materializeScheduleLessons = (schedule, lessons) => {
+  const start = schedule?.start_time || "08:30";
+  const duration = Number(schedule?.duration) || 45;
+  const breaks = schedule?.breaks || [];
+  const slots = buildScheduleSlots(start, duration, breaks);
+  const times = buildLessonTimes(start, duration, breaks, lessons);
+  return lessons.map((lesson, index) => {
+    if (!lesson) return lesson;
+    const data = typeof lesson === "object" ? lesson : { subjectId: String(lesson) };
+    const time = times[index];
+    const slotNumber = getLessonSlotNumber(data, time, slots);
+    const next = { ...data, timeMode: slotNumber ? "slot" : "custom" };
+    delete next.defaultStartTime;
+    delete next.defaultEndTime;
+    if (slotNumber) {
+      next.slotNumber = slotNumber;
+      delete next.startTime;
+      delete next.endTime;
+    } else {
+      delete next.slotNumber;
+      next.startTime = time.start;
+      next.endTime = time.end;
+    }
+    return next;
+  });
+};
+
+export const normalizeScheduleTiming = (schedule) => {
+  if (!Array.isArray(schedule?.schedule)) return schedule;
+  return {
+    ...schedule,
+    schedule: schedule.schedule.map((day) => Object.fromEntries(
+      Object.entries(day || {}).map(([key, lessons]) => [key,
+        /^week\d+$/.test(key) && Array.isArray(lessons) ? materializeScheduleLessons(schedule, lessons) : lessons,
+      ]),
+    )),
+  };
+};
+
+export const buildDayTimeline = (schedule, lessons, lessonTimes) => {
+  const start = schedule?.start_time || "08:30";
+  const duration = Number(schedule?.duration) || 45;
+  const breaks = schedule?.breaks || [];
+  const slots = buildScheduleSlots(start, duration, breaks);
+  const times = lessonTimes || buildLessonTimes(start, duration, breaks, lessons);
+  const cards = lessons.flatMap((item, index) => !item ? [] : [{
+    subjectId: getLessonSubjectId(item), index, timeInfo: times[index],
+    slotNumber: getLessonSlotNumber(item, times[index], slots),
+    data: typeof item === "object" ? item : {},
+  }]).sort((left, right) => left.timeInfo.start.localeCompare(right.timeInfo.start) || left.index - right.index);
+  const timeline = [];
+  let cursor = Math.min(parseTimeToMinutes(start), parseTimeToMinutes(cards[0]?.timeInfo.start) ?? Number.POSITIVE_INFINITY);
+  let previousCard = null;
+  for (const card of cards) {
+    const from = parseTimeToMinutes(card.timeInfo.start);
+    const to = parseTimeToMinutes(card.timeInfo.end);
+    if (from > cursor) {
+      const missingSlots = slots.filter((slot) => parseTimeToMinutes(slot.start) >= cursor && parseTimeToMinutes(slot.end) <= from).map((slot) => slot.number);
+      timeline.push({
+        type: !previousCard || missingSlots.length || from - cursor > getBreakDuration(breaks, (previousCard.slotNumber || previousCard.index + 1) - 1) ? "free" : "break",
+        start: formatMinutesToTime(cursor), end: card.timeInfo.start,
+        duration: from - cursor, missingSlots,
+      });
+    }
+    timeline.push({ type: "lesson", lesson: card });
+    const end = to < from ? to + 24 * 60 : to;
+    if (end >= cursor) previousCard = card;
+    cursor = Math.max(cursor, end);
+  }
+  return timeline;
 };
 
 export const normalizeScheduleDate = (dateInput = new Date()) => {
@@ -120,7 +214,7 @@ export const getLessonSubjectId = (lesson) => {
 };
 
 export const prepareScheduleDays = (schedule) => {
-  const emptyDay = { lessons: [], cards: [], lessonTimes: [] };
+  const emptyDay = { lessons: [], cards: [], lessonTimes: [], timeline: [] };
   const prepared = new Map();
   for (const day of schedule?.schedule ?? []) {
     for (const week of getScheduleWeekNumbers(schedule?.repeat)) {
@@ -129,13 +223,12 @@ export const prepareScheduleDays = (schedule) => {
       const lessonTimes = buildLessonTimes(
         schedule.start_time || "08:30", schedule.duration || 45, schedule.breaks || [], lessons,
       );
-      const cards = lessons.map((item, index) => !item ? null : ({
-        subjectId: typeof item === "object" ? item.subjectId : item,
-        index,
-        timeInfo: lessonTimes[index],
-        data: typeof item === "object" ? item : {},
-      }));
-      prepared.set(lessons, { lessons, cards, lessonTimes });
+      const cards = lessons.map(() => null);
+      const timeline = buildDayTimeline(schedule, lessons, lessonTimes);
+      for (const entry of timeline) {
+        if (entry.type === "lesson") cards[entry.lesson.index] = entry.lesson;
+      }
+      prepared.set(lessons, { lessons, cards, lessonTimes, timeline });
     }
   }
   return (date) => prepared.get(getScheduleDayLessons(schedule, date)) ?? emptyDay;
@@ -184,8 +277,12 @@ export const buildLessonOccurrences = (schedule, options = {}) => {
       ? schedule.schedule[dayIndex][weekKey]
       : [];
     const lessonTimes = buildLessonTimes(startTime, duration, breaks, lessons);
+    const orderedIndices = lessons.map((_, index) => index).sort((left, right) => (
+      lessonTimes[left].start.localeCompare(lessonTimes[right].start) || left - right
+    ));
 
-    for (let index = 0; index < lessons.length && result.length < maxOccurrences; index += 1) {
+    for (const index of orderedIndices) {
+      if (result.length >= maxOccurrences) break;
       const lesson = lessons[index];
       const subjectId = getLessonSubjectId(lesson);
       const timeInfo = lessonTimes[index];

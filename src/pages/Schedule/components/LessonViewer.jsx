@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   Platform,
   Linking,
-  Alert
+  Alert,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -43,7 +44,7 @@ import {
   getTeacherContactOpenUrl,
   normalizeTeacherContacts,
 } from "../../../utils/contactData";
-import { calculateScheduleWeek, getScheduleDayIndex } from "../../../utils/scheduleTime";
+import { buildScheduleSlots, getLessonSlotNumber, calculateScheduleWeek, getScheduleDayIndex } from "../../../utils/scheduleTime";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 import { useAttachmentImagePreview } from "../../../context/AttachmentImagePreviewContext";
 import { triggerHaptic } from "../../../utils/haptics";
@@ -57,6 +58,7 @@ import {
   resolveAttachmentList,
   shareAttachment,
 } from "../../../services/attachmentService";
+import { colorWithAlpha, getReadableForeground } from "../../../utils/gradientColors";
 import { deleteScheduleLesson } from "../../../utils/scheduleDeletion";
 
 export default function LessonViewer({
@@ -77,6 +79,10 @@ export default function LessonViewer({
   const insets = useSafeAreaInsets();
   const { openImagePreview } = useAttachmentImagePreview();
   const suppressedContactPressRef = useRef(null);
+  const { height } = useWindowDimensions();
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [footerHeight, setFooterHeight] = useState(0);
 
   if (!lesson) return null;
 
@@ -98,10 +104,15 @@ export default function LessonViewer({
 
   const instanceData = lesson.data || {};
 
-  const displayType = instanceData.type || fullSubject.type;
+  const displayType = String(instanceData.type ?? fullSubject.type ?? "").trim();
 
-  const displayRoom = instanceData.room || fullSubject.room;
-  const displayBuilding = instanceData.building || fullSubject.building;
+  const displayRoom = String(instanceData.room ?? fullSubject.room ?? "").trim();
+  const displayBuilding = String(instanceData.building ?? fullSubject.building ?? "").trim();
+  const location = [displayBuilding, displayRoom].filter(Boolean).join(", ");
+  const slotNumber = getLessonSlotNumber(instanceData, lesson.timeInfo, buildScheduleSlots(viewerSchedule?.start_time || "08:30", Number(viewerSchedule?.duration) || 45, viewerSchedule?.breaks || []));
+  const time = [slotNumber ? t('schedule.lesson_editor.slot_number', lang, { number: slotNumber }) : null,
+    [lesson.timeInfo?.start, lesson.timeInfo?.end].filter(Boolean).join(" – "),
+  ].filter(Boolean).join(' · ');
 
   const hasLocalTeachers = instanceData.teachers !== undefined;
   const rawTeacherIds = hasLocalTeachers
@@ -127,6 +138,17 @@ export default function LessonViewer({
   const headerColor = themes.accentColors[fullSubject.color]
     || fullSubject.color
     || themeColors.accentColor;
+
+  const headerForeground = getReadableForeground(headerGradient || headerColor);
+  const actionForeground = getReadableForeground(themeColors.accentColor);
+  const headerControlColor = colorWithAlpha(headerForeground, 0.14);
+  const hasPrimaryAction = !!(onAddTask || onGoToLesson);
+  const hasFooter = hasPrimaryAction || !readOnly;
+  const maxSheetHeight = Math.max(240, Math.min(height * 0.85, height - insets.top - 20));
+  const measuredHeight = 44 + headerHeight + contentHeight + (hasFooter ? footerHeight : 0);
+  const sheetHeight = headerHeight && contentHeight && (!hasFooter || footerHeight)
+    ? Math.min(maxSheetHeight, Math.max(240, measuredHeight))
+    : Math.min(maxSheetHeight, height * 0.72);
 
   const MainIcon = getIconComponent(fullSubject.icon);
 
@@ -275,95 +297,99 @@ export default function LessonViewer({
   const visibleRelatedTasks = Array.isArray(relatedTasks) ? relatedTasks.slice(0, 3) : [];
 
   return (
-    <>
     <BottomSheet
       visible={visible}
       onClose={handleClose}
-      snapPoints={["50%", "78%"]}
-      initialSnapIndex={1}
-      maxWidth={700}
+      snapPoints={[sheetHeight]}
+      initialSnapIndex={0}
+      maxWidth={640}
       backgroundColor={themeColors.backgroundColor}
-      handleColor={themeColors.textColor3}
+      handleColor={headerForeground}
+      headerBackground={(
+        <GradientBackground
+          gradient={headerGradient}
+          fallbackColor={headerColor}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      header={(
+        <View
+          style={styles.headerContent}
+          onLayout={(event) => setHeaderHeight(Math.ceil(event.nativeEvent.layout.height))}
+        >
+          {MainIcon && (
+            <View style={[styles.subjectIcon, { backgroundColor: headerControlColor }]}>
+              <MainIcon size={26} color={headerForeground} weight="regular" />
+            </View>
+          )}
+          <View style={styles.headerTitle}>
+            {!!displayType && (
+              <Text style={[styles.typeText, { color: headerForeground }]}>{displayType}</Text>
+            )}
+            <Text
+              accessibilityRole="header"
+              style={[styles.subjectName, { color: headerForeground }]}
+              numberOfLines={3}
+            >
+              {fullSubject.name || t('common.untitled', lang)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close', lang)}
+            style={[styles.closeBtn, { backgroundColor: headerControlColor }]}
+            onPress={handleClose}
+            activeOpacity={0.7}
+          >
+            <X size={22} color={headerForeground} weight="bold" />
+          </TouchableOpacity>
+        </View>
+      )}
       accessibilityLabel={fullSubject.name || t('common.untitled', lang)}
       closeAccessibilityLabel={t('common.close', lang)}
       testID="lesson-viewer-sheet"
     >
-          <GradientBackground
-            gradient={headerGradient}
-            fallbackColor={headerColor}
-            style={styles.headerContainer}
-          >
-            <View style={styles.headerContent}>
-              {MainIcon ? (
-                <View style={styles.iconCircle}>
-                   <MainIcon size={32} color={themeColors.backgroundColor} weight="fill" />
-                </View>
-              ) : (
-                <View />
-              )}
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t('common.close', lang)}
-                style={styles.closeBtn}
-                onPress={handleClose}
-              >
-                <X size={24} color="#fff" weight="bold" />
-              </TouchableOpacity>
-            </View>
-          </GradientBackground>
-
           <SheetScrollView
             style={styles.contentScroll}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              !hasFooter && { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+            onContentSizeChange={(_, nextHeight) => setContentHeight(Math.ceil(nextHeight))}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-
-            <View style={styles.titleSection}>
-              {!!displayType && (
-                <View style={[styles.typeBadge, { borderColor: themeColors.accentColor }]}>
-                  <Text style={[styles.typeText, { color: themeColors.accentColor }]}>
-                    {displayType.toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <Text style={[styles.subjectName, { color: themeColors.textColor }]}>
-                {fullSubject.name || t('common.untitled', lang)}
+            {!!fullSubject.fullName && fullSubject.fullName !== fullSubject.name && (
+              <Text style={[styles.subjectFullName, { color: themeColors.textColor2 }]}>
+                {fullSubject.fullName}
               </Text>
-              {!!fullSubject.fullName && (
-                <Text style={[styles.subjectFullName, { color: themeColors.textColor2 }]}>
-                  {fullSubject.fullName}
-                </Text>
-              )}
-            </View>
-
-            <View style={[styles.separator, { backgroundColor: themeColors.borderColor }]} />
-
-            <View style={styles.gridRow}>
-              <View style={[styles.gridItem, { backgroundColor: themeColors.backgroundColor2 }]}>
-                <Clock size={22} color={themeColors.accentColor} weight="regular" />
-                <View style={styles.gridTextContainer}>
-                  <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>
-                    {t('schedule.lesson_viewer.time', lang)}
-                  </Text>
-                  <Text style={[styles.gridValue, { color: themeColors.textColor }]}>
-                    {lesson.timeInfo?.start} - {lesson.timeInfo?.end}
-                  </Text>
-                </View>
+            )}
+            {!!(time || location) && (
+              <View style={[styles.details, { borderBottomColor: themeColors.borderColor }]}>
+                {!!time && (
+                  <View style={styles.detailRow}>
+                    <Clock size={19} color={themeColors.textColor2} />
+                    <Text
+                      accessibilityLabel={`${t('schedule.lesson_viewer.time', lang)}: ${time}`}
+                      style={[styles.detailText, { color: themeColors.textColor }]}
+                    >
+                      {time}
+                    </Text>
+                  </View>
+                )}
+                {!!location && (
+                  <View style={styles.detailRow}>
+                    <MapPin size={19} color={themeColors.textColor2} />
+                    <Text
+                      accessibilityLabel={`${t('common.room', lang)}: ${location}`}
+                      style={[styles.detailText, { color: themeColors.textColor }]}
+                    >
+                      {location}
+                    </Text>
+                  </View>
+                )}
               </View>
-
-              <View style={[styles.gridItem, { backgroundColor: themeColors.backgroundColor2 }]}>
-                <MapPin size={22} color={themeColors.accentColor} weight="regular" />
-                <View style={styles.gridTextContainer}>
-                  <Text style={[styles.gridLabel, { color: themeColors.textColor2 }]}>
-                    {t('common.room', lang)}
-                  </Text>
-                  <Text style={[styles.gridValue, { color: themeColors.textColor }]} numberOfLines={1}>
-                    {displayBuilding ? `${displayBuilding}, ` : ""}{displayRoom || "—"}
-                  </Text>
-                </View>
-              </View>
-            </View>
+            )}
 
             {displayTeachers.length > 0 && (
               <View style={styles.section}>
@@ -452,7 +478,7 @@ export default function LessonViewer({
                   const openUrl = getLinkOpenUrl(link);
                   return (
                     <TouchableOpacity
-                      key={index}
+                      key={link.id || index}
                       accessibilityRole="link"
                       accessibilityLabel={`${link.name || t('common.link', lang)} ${openUrl}`}
                       style={[styles.rowCard, { backgroundColor: themeColors.backgroundColor2 }]}
@@ -462,7 +488,7 @@ export default function LessonViewer({
                         <Icon size={18} color={color} weight="bold" />
                       </View>
                       <View style={styles.rowContent}>
-                        <Text style={[styles.rowTitle, { color, textDecorationLine: 'underline' }]}>
+                        <Text style={[styles.rowTitle, { color: themeColors.textColor }]}>
                           {link.name || t('common.link', lang)}
                         </Text>
                         <Text style={[styles.rowSubtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
@@ -479,7 +505,7 @@ export default function LessonViewer({
             {displayAttachments.length > 0 && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: themeColors.textColor2 }]}>
-                  {t('attachments.title', lang).toUpperCase()}
+                  {t('attachments.title', lang)}
                 </Text>
                 {displayAttachments.map((attachment) => (
                   <TouchableOpacity
@@ -569,7 +595,9 @@ export default function LessonViewer({
 
           </SheetScrollView>
 
+          {hasFooter && (
           <View
+            onLayout={(event) => setFooterHeight(Math.ceil(event.nativeEvent.layout.height))}
             style={[
               styles.footer,
               {
@@ -583,14 +611,14 @@ export default function LessonViewer({
               <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={t('tasks.add_task', lang)}
-                  style={[styles.actionButton, styles.primaryButton, styles.addTaskButton, { backgroundColor: themeColors.accentColor }]}
+                  style={[styles.actionButton, styles.addTaskButton, { backgroundColor: themeColors.accentColor }]}
                   onPress={() => {
                     triggerHaptic("success");
                     onAddTask(lesson);
                   }}
               >
-                  <Plus size={20} color="#fff" style={{marginRight: 8}} weight="bold" />
-                  <Text style={[styles.actionButtonText, { color: '#fff' }]} numberOfLines={1}>
+                  <Plus size={20} color={actionForeground} style={{marginRight: 8}} weight="bold" />
+                  <Text style={[styles.actionButtonText, { color: actionForeground }]}>
                     {t('tasks.add_task', lang)}
                   </Text>
               </TouchableOpacity>
@@ -598,7 +626,7 @@ export default function LessonViewer({
 
             {!!onGoToLesson && (
               <TouchableOpacity
-                  style={[styles.actionButton, styles.primaryButton, styles.goToLessonButton, { backgroundColor: themeColors.accentColor }]}
+                  style={[styles.actionButton, styles.goToLessonButton, { backgroundColor: themeColors.accentColor }]}
                   onPress={() => {
                     triggerHaptic("open");
                     onGoToLesson(lesson);
@@ -606,8 +634,8 @@ export default function LessonViewer({
                   accessibilityRole="button"
                   accessibilityLabel={t('schedule.lesson_viewer.go_to_lesson', lang)}
               >
-                  <CalendarDots size={20} color="#fff" style={{marginRight: 8}} weight="bold" />
-                  <Text style={[styles.actionButtonText, { color: '#fff' }]} numberOfLines={1}>
+                  <CalendarDots size={20} color={actionForeground} style={{marginRight: 8}} weight="bold" />
+                  <Text style={[styles.actionButtonText, { color: actionForeground }]}>
                     {t('schedule.lesson_viewer.go_to_lesson', lang)}
                   </Text>
               </TouchableOpacity>
@@ -617,15 +645,15 @@ export default function LessonViewer({
             <TouchableOpacity
                 style={[
                   styles.actionButton,
-                  onAddTask ? styles.secondaryActionButton : null,
+                  hasPrimaryAction ? styles.secondaryActionButton : null,
                   { backgroundColor: 'rgba(255, 68, 68, 0.1)' },
                 ]}
                 onPress={handleDelete}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.delete', lang)}
             >
-                <Trash size={20} color="#ff4444" style={onAddTask ? null : {marginRight: 8}} weight="bold" />
-                {!onAddTask && (
+                <Trash size={20} color="#ff4444" style={hasPrimaryAction ? null : {marginRight: 8}} weight="bold" />
+                {!hasPrimaryAction && (
                   <Text style={[styles.actionButtonText, { color: '#ff4444' }]}>{t('common.delete', lang)}</Text>
                 )}
             </TouchableOpacity>
@@ -635,10 +663,10 @@ export default function LessonViewer({
             <TouchableOpacity
                 style={[
                   styles.actionButton,
-                  onAddTask ? styles.secondaryActionButton : styles.primaryButton,
+                  hasPrimaryAction ? styles.secondaryActionButton : null,
                   {
-                    backgroundColor: onAddTask ? themeColors.backgroundColor2 : themeColors.accentColor,
-                    borderColor: onAddTask ? themeColors.borderColor : "transparent",
+                    backgroundColor: hasPrimaryAction ? themeColors.backgroundColor2 : themeColors.accentColor,
+                    borderColor: hasPrimaryAction ? themeColors.borderColor : "transparent",
                   },
                 ]}
                 onPress={() => {
@@ -651,144 +679,87 @@ export default function LessonViewer({
             >
                 <PencilSimple
                   size={20}
-                  color={onAddTask ? themeColors.accentColor : "#fff"}
-                  style={onAddTask ? null : {marginRight: 8}}
+                  color={hasPrimaryAction ? themeColors.accentColor : actionForeground}
+                  style={hasPrimaryAction ? null : {marginRight: 8}}
                   weight="bold"
                 />
-                {!onAddTask && (
-                  <Text style={[styles.actionButtonText, { color: '#fff' }]}>{t('common.edit', lang)}</Text>
+                {!hasPrimaryAction && (
+                  <Text style={[styles.actionButtonText, { color: actionForeground }]}>{t('common.edit', lang)}</Text>
                 )}
             </TouchableOpacity>
             )}
           </View>
-
+          )}
     </BottomSheet>
-    </>
   );
 }
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    height: 100,
-    position: 'relative',
-    justifyContent: 'flex-end',
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    position: 'absolute',
-    bottom: -25,
-    left: 20,
-    right: 20,
-    zIndex: 2,
-  },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: {width: 0, height: 2},
-    shadowRadius: 4,
-  },
-  closeBtn: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    padding: 8,
-    borderRadius: 20,
-    marginBottom: 35,
-  },
-  contentScroll: {
-    flex: 1,
-    paddingTop: 40,
+    alignItems: 'flex-start',
+    gap: 12,
     paddingHorizontal: 20,
+    paddingBottom: 24,
   },
+  subjectIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: { flex: 1, minWidth: 0, paddingTop: 2 },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+  },
+  contentScroll: { flex: 1 },
   scrollContent: {
-    paddingBottom: 28,
-  },
-  titleSection: {
-    marginBottom: 20,
-  },
-  typeBadge: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
   },
   typeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 5,
   },
   subjectName: {
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 4,
-    lineHeight: 32,
+    fontSize: 23,
+    fontWeight: '700',
+    lineHeight: 29,
   },
   subjectFullName: {
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 21,
+    marginBottom: 16,
   },
-  separator: {
-    height: 1,
-    width: '100%',
-    marginBottom: 20,
-    opacity: 0.5,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  gridItem: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+  details: {
     gap: 10,
+    paddingBottom: 16,
+    marginBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  gridTextContainer: {
-    flex: 1,
-  },
-  gridLabel: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  gridValue: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  detailText: { flex: 1, minWidth: 0, fontSize: 15, lineHeight: 21, fontWeight: '500' },
   section: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 10,
-    letterSpacing: 1,
-    marginLeft: 4,
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginLeft: 2,
   },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     marginBottom: 8,
     gap: 12,
   },
@@ -801,14 +772,15 @@ const styles = StyleSheet.create({
   },
   rowContent: { flex: 1, minWidth: 0 },
   rowTitle: {
-    fontSize: 16,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: '600',
   },
   rowSubtitle: {
     fontSize: 13,
     marginTop: 2,
   },
-  teacherCard: { alignItems: "flex-start" },
+  teacherCard: { alignItems: "center" },
   contactChipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   contactChip: { maxWidth: "100%", minHeight: 44, borderRadius: 10, borderWidth: 1, flexDirection: "row", alignItems: "stretch", overflow: "hidden" },
   contactOpenButton: { minHeight: 44, minWidth: 0, flexShrink: 1, paddingLeft: 11, paddingRight: 9, flexDirection: "row", alignItems: "center", gap: 7 },
@@ -824,10 +796,11 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     marginTop: 'auto',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    borderTopWidth: 1,
-    gap: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+    flexWrap: 'wrap',
   },
   actionButton: {
     flex: 1,
@@ -835,8 +808,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 48,
-    paddingVertical: 13,
-    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "transparent",
   },
@@ -853,15 +827,10 @@ const styles = StyleSheet.create({
     width: 52,
     paddingHorizontal: 0,
   },
-  primaryButton: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
-  },
   actionButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    flexShrink: 1,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
   }
 });

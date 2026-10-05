@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import ColorGrid from "../ui/ColorGrid";
 import GradientGrid from "../ui/GradientGrid";
 import TabSwitcher from "../../../../../components/ui/TabSwitcher";
@@ -14,7 +14,7 @@ export default function LessonEditorSubjectColorScreen({
   onEditGradient,
   onAddGradient,
 }) {
-  const { global , lang} = useScheduleData();
+  const { lang} = useScheduleData();
 
   const [activeTab, setActiveTab] = useState(
     currentSubject?.typeColor === "gradient" ? "gradient" : "color"
@@ -36,6 +36,7 @@ export default function LessonEditorSubjectColorScreen({
   return (
     <View style={styles.container}>
       <View style={styles.switcherWrapper}>
+        <Text style={[styles.hint, { color: themeColors.textColor2 }]}>{t("schedule.lesson_editor.appearance_hint", lang)}</Text>
         <TabSwitcher
           tabs={tabs}
           activeTab={activeTab}
@@ -71,7 +72,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   switcherWrapper: {
     marginHorizontal: 16,
-    marginTop: 10,
+    marginTop: 20,
   },
-  content: { flex: 1, paddingHorizontal: 16 },
+  content: { flex: 1, paddingHorizontal: 12 },
+  hint: { fontSize: 14, lineHeight: 21, marginBottom: 16 },
 });

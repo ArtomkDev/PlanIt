@@ -4,11 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScheduleData, useScheduleLayout } from "../../../context/ScheduleProvider";
 import LessonCard from "./LessonCard";
 import BreakCard from "./BreakCard";
+import { buildDayTimeline } from "../../../utils/scheduleTime";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { APP_HEADER_CONTENT_GAP, getScheduleHeaderHeight } from "../../../config/layoutMetrics";
 import { triggerHaptic } from "../../../utils/haptics";
-import { getGradientColor, resolveValidColor } from "../../../utils/gradientColors";
 
 export default function DaySchedule({ 
   targetDate, 
@@ -32,7 +32,7 @@ export default function DaySchedule({
   const BOTTOM_SPACER_HEIGHT = safeTabBarHeight + 65; 
   const resolvedHeaderHeight = headerHeight ?? getScheduleHeaderHeight(insets.top);
 
-  const { cards, lessonTimes } = dayData;
+  const timeline = dayData.timeline || buildDayTimeline(schedule, dayData.lessons || []);
 
   const handleEmptyLongPress = () => {
     triggerHaptic("longPress");
@@ -51,52 +51,19 @@ export default function DaySchedule({
         onLongPress={handleEmptyLongPress}
         delayLongPress={500}
       >
-        {cards.length > 0 ? (
-          cards.map((lesson, index) => {
-            if (!lesson) return null;
-            const { subjectId } = lesson;
-            const timeInfo = lessonTimes?.[index] || {};
-            const nextTimeInfo = lessonTimes?.[index + 1];
-
-            const uniqueKey = `lesson-${index}-${subjectId}`;
-
-            const subject = schedule?.subjects?.find(s => s.id === subjectId) || {};
-            let subjectColor = resolveValidColor(
-              themes.accentColors[subject?.color] || subject?.color,
-              themeColors.accentColor,
-            );
-            let activeGrad = null;
-
-            if (subject?.typeColor === "gradient" && subject?.colorGradient) {
-              activeGrad = schedule?.gradients?.find(g => g.id === subject.colorGradient);
-              subjectColor = getGradientColor(activeGrad, subjectColor);
-            }
-
-            return (
-              <View key={uniqueKey}>
-                <LessonCard
-                  lesson={lesson}
-                  decorationsReady={decorationsReady}
-                  moving={moving}
-                  onPress={onLessonPress}
-                  onLongPress={onLessonLongPress}
-                />
-                
-                {index < cards.length - 1 && nextTimeInfo && (
-                   <BreakCard
-                     lessonStart={timeInfo.start}
-                     breakStart={timeInfo.end}
-                     breakEnd={nextTimeInfo.start}
-                     targetDate={targetDate} 
-                     themeColors={themeColors}
-                     lang={lang}
-                     subjectColor={subjectColor}
-                     activeGrad={activeGrad}
-                   />
-                )}
-              </View>
-            );
-          })
+        {timeline.length > 0 ? (
+          timeline.map((entry, index) => entry.type === "lesson" ? (
+            <LessonCard
+              key={'lesson-' + entry.lesson.index}
+              lesson={entry.lesson}
+              decorationsReady={decorationsReady}
+              moving={moving}
+              onPress={onLessonPress}
+              onLongPress={onLessonLongPress}
+            />
+          ) : (
+            <BreakCard key={'gap-' + index} interval={entry} previousLesson={timeline[index - 1]?.lesson} schedule={schedule} targetDate={targetDate} themeColors={themeColors} lang={lang} />
+          ))
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={[styles.noData, {color: themeColors.textColor2}]}>

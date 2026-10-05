@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { Trash, XCircle } from "phosphor-react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { Trash, XCircle, ArrowsCounterClockwise } from "phosphor-react-native";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
+
+import { SheetScrollView } from "../../../../../components/ui/BottomSheet";
+import EditorFormActions from "../ui/EditorFormActions";
 
 export default function LessonEditorInputScreen({
   title,
@@ -11,6 +14,7 @@ export default function LessonEditorInputScreen({
   placeholder,
   onSave,
   onDelete,
+  onReset,
   themeColors,
   saveLabel,
   autoFocusDelayMs = 0,
@@ -43,11 +47,12 @@ export default function LessonEditorInputScreen({
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <SheetScrollView style={{ flex: 1 }} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={[styles.label, { color: themeColors.textColor2 }]}>
         {title}
       </Text>
-      
+
       <View style={[styles.inputWrapper, { backgroundColor: themeColors.backgroundColor2 }]}>
         <TextInput
           ref={inputRef}
@@ -83,49 +88,42 @@ export default function LessonEditorInputScreen({
             </Text>
           </TouchableOpacity>
         )}
-        {onSave && (
-          <TouchableOpacity 
-            style={[styles.saveBtn, { backgroundColor: themeColors.accentColor }]} 
-            onPress={handleSave}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={saveLabel || t('common.save', lang)}
-          >
-            <Text style={[styles.saveBtnText, { color: "#fff" }]}>
-              {saveLabel || t('common.save', lang)}
-            </Text>
-          </TouchableOpacity>
-        )}
+        {onReset && <TouchableOpacity style={styles.deleteBtn} onPress={onReset} accessibilityRole="button">
+          <ArrowsCounterClockwise size={19} color={themeColors.accentColor} />
+          <Text style={{ color: themeColors.accentColor }}>{t('schedule.lesson_editor.restore_subject', lang)}</Text>
+        </TouchableOpacity>}
       </View>
-    </View>
+      </SheetScrollView>
+      {onSave && <EditorFormActions themeColors={themeColors} onSave={handleSave} saveLabel={saveLabel} />}
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    paddingHorizontal: 20, 
-    paddingTop: 10,
-    paddingBottom: 30, 
+  container: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 30,
   },
-  label: { 
-    fontSize: 13, 
-    textTransform: 'uppercase', 
-    fontWeight: "600", 
-    marginBottom: 8, 
-    marginLeft: 4, 
-    letterSpacing: 0.5 
+  label: {
+    fontSize: 15,
+
+    fontWeight: "600",
+    marginBottom: 8,
+    marginLeft: 4,
+    lineHeight: 22
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
     paddingHorizontal: 14,
-    marginBottom: 24, 
+    marginBottom: 24,
   },
-  input: { 
+  input: {
     flex: 1,
-    paddingVertical: 14, 
-    fontSize: 17, 
+    paddingVertical: 14,
+    fontSize: 17,
     fontWeight: '500'
   },
   clearButton: {
@@ -134,25 +132,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  footerContainer: { 
-    gap: 12 
+  footerContainer: {
+    gap: 12
   },
   deleteBtn: { minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   deleteBtnText: { color: '#DC2626', fontWeight: '700', fontSize: 15 },
-  saveBtn: { 
-    width: '100%', 
-    paddingVertical: 14, 
-    borderRadius: 14, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  saveBtnText: { 
-    fontWeight: '700', 
-    fontSize: 16 
-  },
+
 });

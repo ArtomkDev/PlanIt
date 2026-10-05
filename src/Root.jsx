@@ -6,7 +6,7 @@ import { onIdTokenChanged, signOut } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { BottomSheetPresentationProvider } from "./context/BottomSheetPresentationContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as LinkingExpo from 'expo-linking';
 
@@ -190,7 +190,7 @@ export default function RootApp() {
               guest={guest}
               user={user}
             >
-              <BottomSheetModalProvider>
+              <BottomSheetPresentationProvider>
                 <NavigationContainer
                 ref={navigationRef}
                 linking={linking}
@@ -245,7 +245,7 @@ export default function RootApp() {
                   <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
                   </Stack.Navigator>
                 </NavigationContainer>
-              </BottomSheetModalProvider>
+              </BottomSheetPresentationProvider>
             </ScheduleProvider>
           </AdsProvider>
           <CookieConsentBanner lang={lang} />

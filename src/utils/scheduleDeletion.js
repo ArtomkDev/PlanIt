@@ -1,4 +1,5 @@
 import { deleteLessonRecurrence } from "./lessonRecurrence";
+import { materializeScheduleLessons } from "./scheduleTime";
 
 const removeIdFromList = (value, id) => {
   if (!Array.isArray(value)) return value;
@@ -197,7 +198,7 @@ export const deleteScheduleLesson = (schedule, dayIndex, weekKey, lessonIndex, s
     return schedule;
   }
 
-  const nextLessons = lessons.filter((_, index) => index !== lessonIndex);
+  const nextLessons = materializeScheduleLessons(schedule, lessons).filter((_, index) => index !== lessonIndex);
   const nextGrid = [...schedule.schedule];
   nextGrid[dayIndex] = {
     ...nextGrid[dayIndex],

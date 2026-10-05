@@ -4,12 +4,13 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  LayoutAnimation,
+  Keyboard,
+  Easing,
   Platform,
   Animated,
   Alert,
 } from "react-native";
-import { CaretLeft, PencilSimple, CheckCircle, XCircle } from "phosphor-react-native";
+import { CaretLeft, X, PencilSimple, CheckCircle, XCircle } from "phosphor-react-native";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
 import themes from "../../../config/themes";
@@ -48,9 +49,11 @@ import {
 import {
   addMinutes,
   buildLessonTimes,
-  getBreakDuration,
+  buildScheduleSlots,
+  materializeScheduleLessons,
   getDurationMinutes,
   normalizeScheduleRepeat,
+  parseTimeToMinutes,
 } from "../../../utils/scheduleTime";
 import { removeScheduleEntity } from "../../../utils/scheduleDeletion";
 import {
@@ -62,11 +65,9 @@ const deepClone = (data) => JSON.parse(JSON.stringify(data || []));
 const generateLocalId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 
 
-const canUseLayoutAnimation = () => (
-  Platform.OS !== "android" || global._IS_FABRIC !== true
-);
+const EMPTY_ENTITY = Object.freeze({});
 
-const getInitialEditorRoute = (initialEditTarget, dataSource) => {
+const getInitialEditorRoute = (initialEditTarget, dataSource, subjectId) => {
   const requestedTeacherId = initialEditTarget?.type === "teacher"
     ? initialEditTarget.teacherId
     : null;
@@ -82,7 +83,7 @@ const getInitialEditorRoute = (initialEditTarget, dataSource) => {
     };
   }
 
-  if (initialEditTarget?.type === "subject") {
+  if (initialEditTarget?.type === "subject" || !subjectId) {
     const hasSubjects = (dataSource?.subjects || []).length > 0;
     return {
       currentScreen: hasSubjects ? "picker" : "input",
@@ -125,14 +126,22 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   };
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(lesson?.subjectId || null);
-  const [instanceData, setInstanceData] = useState(
-    lesson?.data ? getCleanInstanceData(lesson.data) : {}
-  );
+  const initialTimingData = () => {
+    const day = dataSource?.schedule?.[getDayIndex(currentDate)]?.[`week${calculateCurrentWeek(currentDate)}`] || [];
+    const resolved = materializeScheduleLessons(dataSource, day);
+    if (Number.isInteger(lesson?.index) && resolved[lesson.index]) return getCleanInstanceData(resolved[lesson.index]);
+    const slots = buildScheduleSlots(dataSource?.start_time || "08:30", Number(dataSource?.duration) || 45, dataSource?.breaks || []);
+    const times = buildLessonTimes(dataSource?.start_time || "08:30", Number(dataSource?.duration) || 45, dataSource?.breaks || [], day);
+    const available = slots.find((slot) => !times.some((time, index) => day[index] && time.start < slot.end && slot.start < time.end));
+    return available ? { timeMode: "slot", slotNumber: available.number } : { timeMode: "custom", startTime: "08:30", endTime: "09:15" };
+  };
+  const [instanceData, setInstanceData] = useState(initialTimingData);
+  const [swapTiming] = useState(initialTimingData);
+  const [slotConflict, setSlotConflict] = useState(null);
+  const [conflictResolution, setConflictResolution] = useState(null);
 
   const dayIndex = getDayIndex(currentDate);
   const currentWeekNumber = calculateCurrentWeek(currentDate);
-  const weekKey = `week${currentWeekNumber}`;
-  const currentDaySchedule = dataSource?.schedule?.[dayIndex]?.[weekKey] || [];
   const resolveInitialRecurrence = () => (
     getLessonRecurrenceSelection(dataSource, dayIndex, currentWeekNumber, lesson)
   );
@@ -143,34 +152,50 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   const duration_global = Number(dataSource?.duration) || 45;
   const breaks_global = dataSource?.breaks || [];
 
-  const computedLessonTimes = useMemo(() => {
-      return buildLessonTimes(start_time_global, duration_global, breaks_global, currentDaySchedule);
-  }, [start_time_global, duration_global, breaks_global, currentDaySchedule]);
-
-  const autoTimeForThisSlot = useMemo(() => {
-    const targetIdx = Number.isInteger(lesson?.index) ? lesson.index : currentDaySchedule.length;
-
-    if (targetIdx === 0) {
-        return { start: start_time_global, end: addMinutes(start_time_global, duration_global) };
+  const placementOptions = {
+    dayIndex, weekNumber: currentWeekNumber,
+    lessonIndex: Number.isInteger(lesson?.index) ? lesson.index : null,
+    selection: recurrenceSelection, previousSelection: initialRecurrenceSelection, swapTiming,
+  };
+  const getSlotConflict = (slotNumber, source = schedule) => {
+    const result = applyLessonRecurrence(source, {
+      ...placementOptions, lesson: { timeMode: 'slot', slotNumber }, preview: true,
+    });
+    return { ...result, slotNumber, signature: JSON.stringify([slotNumber, recurrenceSelection, result.conflicts]) };
+  };
+  const timeSlots = useMemo(() => buildScheduleSlots(start_time_global, duration_global, breaks_global).map(slot => ({
+    ...slot, occupied: getSlotConflict(slot.number).conflicts.length > 0,
+  })), [start_time_global, duration_global, breaks_global, schedule, dayIndex, currentWeekNumber, lesson?.index, recurrenceSelection, initialRecurrenceSelection, swapTiming]);
+  const storedDefaultTime = timeSlots.find((slot) => slot.number === instanceData.slotNumber) || timeSlots[0] || {};
+  const selectSlot = (slotNumber) => setInstanceData((prev) => {
+    const next = { ...prev, timeMode: "slot", slotNumber };
+    delete next.startTime;
+    delete next.endTime;
+    return next;
+  });
+  const handleSlotChange = (slotNumber) => {
+    const conflict = getSlotConflict(slotNumber);
+    if (conflict.conflicts.length) {
+      setSlotConflict(conflict);
+      return;
     }
-
-    if (targetIdx > 0 && computedLessonTimes[targetIdx - 1]) {
-        const prevTime = computedLessonTimes[targetIdx - 1];
-        const currentBreak = getBreakDuration(breaks_global, targetIdx - 1);
-        const newStart = addMinutes(prevTime.end, currentBreak);
-        const newEnd = addMinutes(newStart, duration_global);
-        return { start: newStart, end: newEnd };
+    setSlotConflict(null);
+    setConflictResolution(null);
+    selectSlot(slotNumber);
+  };
+  const handleConflictResolution = (action) => {
+    if (action !== 'cancel') {
+      setConflictResolution({ action, signature: slotConflict.signature });
+      selectSlot(slotConflict.slotNumber);
     }
-
-    return { start: start_time_global, end: addMinutes(start_time_global, duration_global) };
-  }, [lesson, computedLessonTimes, currentDaySchedule, start_time_global, duration_global, breaks_global]);
-
-  const storedDefaultTime = useMemo(() => {
-      if (instanceData.defaultStartTime && instanceData.defaultEndTime) {
-          return { start: instanceData.defaultStartTime, end: instanceData.defaultEndTime };
-      }
-      return autoTimeForThisSlot;
-  }, [instanceData.defaultStartTime, instanceData.defaultEndTime, autoTimeForThisSlot]);
+    setSlotConflict(null);
+  };
+  const handleTimeModeChange = (mode) => {
+    setSlotConflict(null);
+    setConflictResolution(null);
+    if (mode === "slot") handleSlotChange(instanceData.slotNumber || timeSlots[0]?.number);
+    else setInstanceData((prev) => ({ ...prev, timeMode: "custom", startTime: prev.startTime || storedDefaultTime.start, endTime: prev.endTime || storedDefaultTime.end }));
+  };
 
   const [scopes, setScopes] = useState({
     people: 'global',
@@ -182,11 +207,24 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
   const initialEditorRouteRef = useRef(null);
   if (!initialEditorRouteRef.current) {
-    initialEditorRouteRef.current = getInitialEditorRoute(initialEditTarget, dataSource);
+    initialEditorRouteRef.current = getInitialEditorRoute(initialEditTarget, dataSource, lesson?.subjectId);
   }
   const didSyncInitialRouteRef = useRef(false);
 
   const [currentScreen, setCurrentScreen] = useState(initialEditorRouteRef.current.currentScreen);
+  const mainScrollOffset = useRef(0);
+  const screenOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    screenOpacity.stopAnimation();
+    screenOpacity.setValue(reduceMotion ? 1 : 0.7);
+    if (reduceMotion) return;
+    const animation = Animated.timing(screenOpacity, {
+      toValue: 1, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [currentScreen, reduceMotion, screenOpacity]);
+
   const [pickerType, setPickerType] = useState(initialEditorRouteRef.current.pickerType);
   const [inputType, setInputType] = useState(initialEditorRouteRef.current.inputType);
   const [editingItemData, setEditingItemData] = useState(initialEditorRouteRef.current.editingItemData);
@@ -206,9 +244,10 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   const sheetRef = useRef(null);
 
   useEffect(() => {
+    mainScrollOffset.current = 0;
     setSelectedSubjectId(lesson?.subjectId || null);
 
-    const initialInstanceData = lesson?.data ? getCleanInstanceData(lesson.data) : {};
+    const initialInstanceData = initialTimingData();
     setInstanceData(initialInstanceData);
     const nextRecurrence = resolveInitialRecurrence();
     setRecurrenceSelection(nextRecurrence);
@@ -232,7 +271,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     setAttachmentUploadState({ uploading: false });
 
     const nextRoute = didSyncInitialRouteRef.current
-      ? getInitialEditorRoute(initialEditTarget, dataSource)
+      ? getInitialEditorRoute(initialEditTarget, dataSource, lesson?.subjectId)
       : initialEditorRouteRef.current;
     didSyncInitialRouteRef.current = true;
 
@@ -256,12 +295,14 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
         return;
       }
 
-      Animated.spring(minimizeAnim, {
+      const animation = Animated.timing(minimizeAnim, {
         toValue: 1,
-        stiffness: 300,
-        damping: 20,
+        duration: 160,
+        easing: Easing.out(Easing.quad),
         useNativeDriver: Platform.OS !== "web",
-      }).start();
+      });
+      animation.start();
+      return () => animation.stop();
     } else {
       minimizeAnim.setValue(0);
     }
@@ -279,7 +320,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
       toValue: 0,
       duration: 120,
       useNativeDriver: Platform.OS !== "web",
-    }).start(() => setIsMinimized(false));
+    }).start(({ finished }) => { if (finished) setIsMinimized(false); });
   };
 
   const closeEditor = () => {
@@ -316,12 +357,12 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   };
 
   const goToScreen = (screenName, data = null) => {
-    if (!reduceMotion && canUseLayoutAnimation()) {
-      try {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      } catch {
-        // Layout changes still apply when animation is unavailable on the runtime.
-      }
+    Keyboard.dismiss();
+    if (screenName === "main" && !selectedSubjectId) {
+      setPickerType("subject");
+      setInputType(null);
+      setCurrentScreen("picker");
+      return;
     }
     if (data !== null) setEditingItemData(data);
     setCurrentScreen(screenName);
@@ -334,11 +375,8 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     setAttachAfterEdit(false);
     goToScreen("input", newId);
   };
-  const getRelatedEditReturnScreen = (type) => {
-    if (relatedEditReturnScreen !== "picker") return "main";
-    if (type === "teacher") return localData.teachers.length > 0 ? "picker" : "main";
-    if (type === "link") return localData.links.length > 0 ? "picker" : "main";
-    return "main";
+  const getRelatedEditReturnScreen = () => {
+    return relatedEditReturnScreen === "picker" ? "picker" : "main";
   };
 
   const openNewRelatedItemEditor = (type, index = editingSlotIndex, returnScreen = "main") => {
@@ -353,6 +391,10 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
   const handleBack = () => {
     triggerHaptic("navigateBack");
+    if (!selectedSubjectId && (currentScreen === "picker" || (currentScreen === "input" && localData.subjects.length === 0))) {
+      sheetRef.current?.close();
+      return;
+    }
     if (currentScreen === "gradientEdit") return goToScreen("subjectColor");
     if (currentScreen === "teacherEditor") {
       setAttachAfterEdit(false);
@@ -406,6 +448,21 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   };
 
   const handleSave = async () => {
+    if (slotConflict) return;
+    if (instanceData.timeMode === 'slot') {
+      const conflict = getSlotConflict(instanceData.slotNumber);
+      if (conflict.conflicts.length && conflictResolution?.signature !== conflict.signature) {
+        setSlotConflict(conflict);
+        setCurrentScreen('main');
+        return;
+      }
+    }
+    const start = parseTimeToMinutes(instanceData.timeMode === "slot" ? storedDefaultTime.start : instanceData.startTime);
+    const end = parseTimeToMinutes(instanceData.timeMode === "slot" ? storedDefaultTime.end : instanceData.endTime);
+    if (start === null || end === null || end <= start) {
+      Alert.alert(t('schedule.main_screen.time', lang), t('schedule.lesson_editor.invalid_time', lang));
+      return;
+    }
     const draftAttachments = normalizeAttachmentDraftList(effectiveAttachmentRefs);
     const resolvedDraftAttachments = resolveAttachmentList(draftAttachments, fileLibrary);
     const hasPendingAttachments = resolvedDraftAttachments.some((attachment) => (
@@ -486,14 +543,14 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
           }
       });
 
-      const defStart = instanceData.defaultStartTime || autoTimeForThisSlot.start;
-      const defEnd = instanceData.defaultEndTime || autoTimeForThisSlot.end;
-
-      lessonObject.defaultStartTime = defStart;
-      lessonObject.defaultEndTime = defEnd;
-
-      lessonObject.startTime = lessonObject.startTime || defStart;
-      lessonObject.endTime = lessonObject.endTime || defEnd;
+      delete lessonObject.defaultStartTime;
+      delete lessonObject.defaultEndTime;
+      if (lessonObject.timeMode === "slot") {
+        delete lessonObject.startTime;
+        delete lessonObject.endTime;
+      } else {
+        delete lessonObject.slotNumber;
+      }
 
       const withRecurrence = applyLessonRecurrence(next, {
         dayIndex,
@@ -502,6 +559,8 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
         lesson: lessonObject,
         selection: recurrenceSelection,
         previousSelection: initialRecurrenceSelection,
+        conflictAction: instanceData.timeMode === 'slot' ? conflictResolution?.action : undefined,
+        swapTiming,
       });
 
       return finishDeletionCleanup(withRecurrence);
@@ -663,7 +722,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
       const isNew = !localData.subjects.some((s) => s.id === editingItemData);
       if (isNew) {
           setSelectedSubjectId(editingItemData);
-          goToScreen("main");
+          setCurrentScreen("main");
       } else {
           goToScreen("picker");
       }
@@ -730,14 +789,19 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
               setSelectedSubjectId(null);
             }
             setAttachAfterEdit(false);
-            goToScreen("main");
+            if (collection === "subjects" && selectedSubjectId === id) {
+              setPickerType("subject");
+              goToScreen("picker");
+            } else {
+              goToScreen("main");
+            }
           },
         },
       ],
     );
   };
 
-  const handleOpenPicker = (type, index = null, createNew = false) => {
+  const handleOpenPicker = (type, index = null) => {
     if (["building", "room", "type"].includes(type)) {
         setInputType(type);
         setPickerType(null);
@@ -751,14 +815,6 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
         setEditingSlotIndex(null);
         openNewSubjectInput();
         return;
-    }
-
-    if (["teacher", "link"].includes(type)) {
-        const hasOptions = type === "teacher" ? localData.teachers.length > 0 : localData.links.length > 0;
-        if (createNew || !hasOptions) {
-            openNewRelatedItemEditor(type, index, "main");
-            return;
-        }
     }
 
     setPickerType(type);
@@ -848,7 +904,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                 iconColor: appearance.color,
             };
         });
-        options.unshift({ key: 'none', label: t('schedule.lesson_editor.delete_slot', lang) });
+        if (currentSelectedId) options.unshift({ key: 'none', label: t('schedule.lesson_editor.delete_slot', lang) });
 
         return {
             options,
@@ -887,7 +943,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                 iconColor: link.color || meta.color,
             };
         });
-        options.unshift({ key: 'none', label: t('schedule.lesson_editor.delete_slot', lang) });
+        if (currentSelectedId) options.unshift({ key: 'none', label: t('schedule.lesson_editor.delete_slot', lang) });
 
         return {
             options,
@@ -918,7 +974,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             multi: false,
             onAdd: openNewSubjectInput,
             onEdit: (id) => { setPickerType("subject"); setInputType("subject_rename"); goToScreen("input", id); },
-            onSave: (key) => { setSelectedSubjectId(key); goToScreen("main"); }
+            onSave: (key) => { setSelectedSubjectId(key); setCurrentScreen("main"); }
         };
     }
 
@@ -1039,34 +1095,24 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
   const renderHeader = () => (
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
-      {currentScreen === "main" ? (
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic("sheetClose");
-            sheetRef.current?.close();
-          }}
-          hitSlop={15}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.cancel', lang)}
-        >
-          <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t('common.cancel', lang)}</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={15} accessibilityRole="button" accessibilityLabel={t('common.back', lang)}>
-          <CaretLeft size={24} color={themeColors.accentColor} weight="bold" />
-          <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t('common.back', lang)}</Text>
-        </TouchableOpacity>
-      )}
-      <Text style={[styles.headerTitle, { color: themeColors.textColor }]}>{getHeaderTitle()}</Text>
-      <View style={{ minWidth: 60, alignItems: "flex-end" }}>
-        {currentScreen === "main" && (
-          <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15} accessibilityRole="button" accessibilityLabel={attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.save', lang)} accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}>
-            <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
-              {attachmentUploadState.uploading ? t('attachments.uploading', lang) : t('common.save', lang)}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <TouchableOpacity
+        style={styles.headerIcon}
+        onPress={currentScreen === 'main' ? () => sheetRef.current?.close() : handleBack}
+        accessibilityRole="button"
+        accessibilityLabel={t(currentScreen === 'main' ? 'common.cancel' : 'common.back', lang)}
+      >
+        {currentScreen === 'main' ? <X size={22} color={themeColors.textColor2} /> : <CaretLeft size={24} color={themeColors.textColor} />}
+      </TouchableOpacity>
+      <Text accessibilityRole="header" style={[styles.headerTitle, { color: themeColors.textColor }]}>{getHeaderTitle()}</Text>
+      {currentScreen === 'main' && <TouchableOpacity
+        onPress={handleSave}
+        disabled={!canSave}
+        style={[styles.headerSave, { backgroundColor: themeColors.backgroundColor2, opacity: canSave ? 1 : 0.5 }]}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}
+      >
+        <Text style={[styles.headerSaveText, { color: themeColors.accentColor }]}>{t(attachmentUploadState.uploading ? 'attachments.uploading' : 'common.save', lang)}</Text>
+      </TouchableOpacity>}
     </View>
   );
 
@@ -1090,7 +1136,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                   {
                     scale: minimizeAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [0.85, 1]
+                      outputRange: [0.98, 1]
                     })
                   }
                 ]
@@ -1154,9 +1200,10 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
         closeAccessibilityLabel={t('common.close', lang)}
         testID="lesson-editor-sheet"
       >
-          <View style={{ flex: 1 }}>
+          <Animated.View style={{ flex: 1, opacity: screenOpacity }}>
             {currentScreen === "main" && (
               <LessonEditorMainScreen
+                scrollOffsetRef={mainScrollOffset}
                 themeColors={themeColors}
                 selectedSubjectId={selectedSubjectId}
                 currentSubject={currentSubject}
@@ -1172,11 +1219,16 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                 instanceData={instanceData}
                 defaultTime={storedDefaultTime}
                 onTimeChange={handleTimeChange}
+                timeSlots={timeSlots}
+                onSlotChange={handleSlotChange}
+                slotConflict={slotConflict}
+                onConflictResolution={handleConflictResolution}
+                onTimeModeChange={handleTimeModeChange}
                 recurrenceSelection={recurrenceSelection}
                 onRecurrenceChange={setRecurrenceSelection}
                 scheduleRepeat={normalizeScheduleRepeat(schedule?.repeat)}
                 currentWeekNumber={currentWeekNumber}
-                onClearSubject={() => setSelectedSubjectId(null)}
+                onClearSubject={() => { setSelectedSubjectId(null); setPickerType("subject"); goToScreen("picker"); }}
                 scheduleReminder={schedule?.reminder}
                 onSubjectReminderChange={handleUpdateSubjectReminder}
                 attachments={effectiveAttachmentRefs}
@@ -1258,7 +1310,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             {currentScreen === "teacherEditor" && (
                 <TeacherEditor
                   teacherId={editingItemData}
-                  localTeacherData={localData.teachers.find(t => t.id === editingItemData) || {}}
+                  localTeacherData={localData.teachers.find(t => t.id === editingItemData) || EMPTY_ENTITY}
                   initialContactId={
                     initialEditTarget?.type === "teacher" && initialEditTarget.teacherId === editingItemData
                       ? initialEditTarget.contactId
@@ -1304,7 +1356,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             {currentScreen === "linkEditor" && (
                 <LinkEditor
                   linkId={editingItemData}
-                  localLinkData={localData.links.find(l => l.id === editingItemData) || {}}
+                  localLinkData={localData.links.find(l => l.id === editingItemData) || EMPTY_ENTITY}
                   onSaveLocal={(updated) => {
                       triggerHaptic("success");
                       setLocalData(prev => {
@@ -1336,7 +1388,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                   themeColors={themeColors}
                 />
             )}
-          </View>
+          </Animated.View>
       </BottomSheet>
 
       {advancedPickerTarget && (
@@ -1357,25 +1409,11 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 15,
-    borderBottomWidth: StyleSheet.hairlineWidth
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "center"
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: -8
-  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  headerIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { flex: 1, minWidth: 0, fontSize: 18, lineHeight: 24, fontWeight: '600' },
+  headerSave: { minHeight: 44, maxWidth: '40%', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, justifyContent: 'center' },
+  headerSaveText: { fontSize: 15, lineHeight: 21, fontWeight: '600', textAlign: 'center' },
   minimizedOverlay: {
     position: 'absolute',
     bottom: 16,

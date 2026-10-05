@@ -223,7 +223,7 @@ export function ScheduleWidget({ model }) {
                         }}
                       >
                         <TextWidget
-                          text={`${item.lessonIndex + 1}. ${item.subject}`}
+                          text={`${item.slotNumber ? item.slotNumber + ". " : ""}${item.subject}`}
                           style={{ color: '#FFFFFF', fontSize: lessonFontTitle, fontWeight: '700', marginBottom: lessonTitleMarginB }}
                           maxLines={1}
                         />
@@ -311,7 +311,7 @@ export function ScheduleWidget({ model }) {
                           style={{ width: breakIconSize, height: breakIconSize, marginRight: breakIconMarginR }}
                         />
                         <TextWidget
-                          text={t("widget.break_minutes", lang, { minutes: item.duration })}
+                            text={item.isFree ? `${t('schedule.day_schedule.free_time', lang)} · ${item.duration} ${t('schedule.main_screen.minutes', lang)}` : t("widget.break_minutes", lang, { minutes: item.duration })}
                           style={{ color: breakTextColor, fontSize: breakFontTitle, fontWeight: '600' }}
                           maxLines={1}
                         />

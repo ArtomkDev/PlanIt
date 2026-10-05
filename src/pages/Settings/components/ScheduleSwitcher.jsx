@@ -3,7 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
+  Animated,
+  Easing,
+  Platform,
   Alert
 } from "react-native";
 import {
@@ -11,13 +14,16 @@ import {
   CloudArrowUp,
   CloudArrowDown,
   PencilSimple,
+  Copy,
   Trash,
-  PlusCircle,
+  Plus,
+  DotsThree,
+  CalendarBlank,
   ShareNetwork,
   DownloadSimple
 } from "phosphor-react-native";
 import { useNavigation } from "@react-navigation/native";
-import Animated, { FadeInDown, ZoomOut } from "react-native-reanimated";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
@@ -26,6 +32,7 @@ import ScheduleIcon from "../../../components/ScheduleIcon";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
+import { createScheduleCopy } from "../../../utils/scheduleCopy";
 import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
 import { triggerHaptic } from "../../../utils/haptics";
 import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
@@ -39,7 +46,7 @@ import {
 } from "../../../utils/scheduleColors";
 
 import TabSwitcher from "../../../components/ui/TabSwitcher";
-import SettingsActionRow from "../../../components/ui/SettingsKit/SettingsActionRow";
+import SettingsRow from "../../../components/ui/SettingsKit/SettingsRow";
 
 import ShareScheduleModal from "../../../components/modals/ShareScheduleModal";
 import ImportScheduleModal from "../../../components/modals/ImportScheduleModal";
@@ -67,6 +74,30 @@ const ScheduleSwitcher = () => {
   const [activeTab, setActiveTab] = useState('account');
   const [guestSchedulesList, setGuestSchedulesList] = useState([]);
   const [processingIds, setProcessingIds] = useState(new Set());
+  const [expandedId, setExpandedId] = useState(null);
+  const [localLoading, setLocalLoading] = useState(!guest);
+  const [localError, setLocalError] = useState(false);
+  const [operationError, setOperationError] = useState(false);
+  const processingRef = useRef(new Set());
+  const reduceMotion = useReducedMotionPreference();
+  const listOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    listOpacity.stopAnimation();
+    if (reduceMotion) {
+      listOpacity.setValue(1);
+      return;
+    }
+    listOpacity.setValue(0.65);
+    const animation = Animated.timing(listOpacity, {
+      toValue: 1,
+      duration: 140,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [activeTab, reduceMotion, listOpacity]);
 
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [scheduleToShare, setScheduleToShare] = useState(null);
@@ -77,11 +108,6 @@ const ScheduleSwitcher = () => {
     schedulesRef.current = schedules;
   }, [schedules]);
 
-  const guestSchedulesRef = useRef(guestSchedulesList);
-  useEffect(() => {
-    guestSchedulesRef.current = guestSchedulesList;
-  }, [guestSchedulesList]);
-
   useEffect(() => {
     if (!guest) {
       loadGuestSchedules();
@@ -89,14 +115,15 @@ const ScheduleSwitcher = () => {
   }, [guest]);
 
   const loadGuestSchedules = async () => {
+    setLocalLoading(true);
+    setLocalError(false);
     try {
       const data = await getLocalSchedule(null);
-      if (data) {
-        const filtered = (data.schedules || []).filter(s => !s.isDeleted);
-        setGuestSchedulesList(filtered);
-      }
-    } catch (e) {
-      console.error(e);
+      setGuestSchedulesList((data?.schedules || []).filter(s => !s.isDeleted));
+    } catch {
+      setLocalError(true);
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -115,10 +142,23 @@ const ScheduleSwitcher = () => {
     navigation.navigate("ScheduleEditorScreen", { isNew: true });
   };
 
+  const showScheduleAlert = (title, message, buttons) => {
+    if (Platform.OS === 'web') {
+      const confirmation = buttons?.find(button => button.style === 'destructive');
+      if (confirmation) {
+        if (window.confirm(message)) confirmation.onPress();
+      } else {
+        window.alert(message);
+      }
+      return;
+    }
+    Alert.alert(title, message, buttons);
+  };
+
   const handleShare = (scheduleData) => {
     if (!user) {
       triggerHaptic("warning");
-      Alert.alert(t('common.warning', lang), t('share.req_auth', lang));
+      showScheduleAlert(t('common.warning', lang), t('share.req_auth', lang));
       return;
     }
     triggerHaptic("open");
@@ -127,23 +167,25 @@ const ScheduleSwitcher = () => {
   };
 
   const handleDelete = (scheduleId, scheduleName) => {
-    if (schedules.length <= 1) {
+    if (schedules.filter(schedule => !schedule.isDeleted).length <= 1) {
       triggerHaptic("warning");
-      Alert.alert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
+      showScheduleAlert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
       return;
     }
 
     triggerHaptic("warning");
     const message = t('settings.schedule_switcher.delete_confirm_msg', lang, { name: scheduleName || t('common.untitled', lang) });
 
-    Alert.alert(
+    showScheduleAlert(
       t('settings.schedule_switcher.delete_title', lang),
       message,
       [
         { text: t('common.cancel', lang), style: "cancel" },
         { text: t('common.delete', lang), style: "destructive", onPress: () => {
-          triggerHaptic("success");
-          removeSchedule(scheduleId);
+          enqueueOperation(scheduleId, async () => {
+            await removeSchedule(scheduleId);
+            triggerHaptic("success");
+          });
         } }
       ]
     );
@@ -156,23 +198,41 @@ const ScheduleSwitcher = () => {
     return next;
   });
 
-  const enqueueOperation = (operation) => {
-    storageOperationQueue = storageOperationQueue
-      .then(async () => {
-        try {
-          await operation();
-        } catch (error) {
-          console.error(error);
-        }
-        await new Promise(resolve => setTimeout(resolve, 150));
-      })
-      .catch(console.error);
+  const enqueueOperation = (id, operation) => {
+    if (processingRef.current.size) return;
+    processingRef.current.add(id);
+    startProcessing(id);
+    setOperationError(false);
+    storageOperationQueue = storageOperationQueue.then(operation).catch(() => {
+      triggerHaptic("error");
+      setOperationError(true);
+    }).finally(() => {
+      processingRef.current.delete(id);
+      stopProcessing(id);
+    });
+  };
+
+  const handleCopy = (schedule, localOnly) => {
+    enqueueOperation(schedule.id, async () => {
+      if (localOnly) {
+        const data = await getLocalSchedule(null) || { global: {}, schedules: [] };
+        const copy = markScheduleAsDeviceLocal(
+          createScheduleCopy(schedule, data.schedules || [], lang),
+          { offerCloudMigration: false },
+        );
+        const nextSchedules = [...(data.schedules || []), copy];
+        await saveLocalSchedule({ ...data, schedules: nextSchedules }, null);
+        setGuestSchedulesList(nextSchedules.filter(item => !item.isDeleted));
+      } else {
+        await addSchedule(createScheduleCopy(schedule, schedulesRef.current, lang));
+      }
+      triggerHaptic("success");
+    });
   };
 
   const handleMoveToCloud = (guestSchedule) => {
     triggerHaptic("selection");
-    enqueueOperation(async () => {
-      startProcessing(guestSchedule.id);
+    enqueueOperation(guestSchedule.id, async () => {
       try {
         const scheduleCopy = markScheduleAsAccountOwned(
           JSON.parse(JSON.stringify(guestSchedule)),
@@ -207,23 +267,20 @@ const ScheduleSwitcher = () => {
           setGuestSchedulesList(filtered);
           triggerHaptic("success");
         }
-      } catch (error) {
+      } catch {
         triggerHaptic("error");
-        console.error(error);
-      } finally {
-        stopProcessing(guestSchedule.id);
+        setOperationError(true);
       }
     });
   };
 
   const handleMoveToLocal = (accountSchedule) => {
     triggerHaptic("selection");
-    enqueueOperation(async () => {
-      startProcessing(accountSchedule.id);
+    enqueueOperation(accountSchedule.id, async () => {
       try {
-        if (schedulesRef.current.length <= 1) {
+        if (schedulesRef.current.filter(schedule => !schedule.isDeleted).length <= 1) {
           triggerHaptic("warning");
-          Alert.alert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
+          showScheduleAlert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
           return;
         }
 
@@ -249,11 +306,9 @@ const ScheduleSwitcher = () => {
 
         await removeSchedule(oldId);
         triggerHaptic("success");
-      } catch (error) {
+      } catch {
         triggerHaptic("error");
-        console.error(error);
-      } finally {
-        stopProcessing(accountSchedule.id);
+        setOperationError(true);
       }
     });
   };
@@ -264,7 +319,7 @@ const ScheduleSwitcher = () => {
     const name = scheduleName || untitledName;
     const message = t('settings.schedule_switcher.delete_guest_msg', lang, { name: name });
 
-    Alert.alert(
+    showScheduleAlert(
       t('common.delete', lang),
       message,
       [
@@ -273,7 +328,7 @@ const ScheduleSwitcher = () => {
           text: t('common.delete', lang),
           style: "destructive",
           onPress: () => {
-            enqueueOperation(async () => {
+            enqueueOperation(scheduleId, async () => {
               const guestData = await getLocalSchedule(null);
               if (guestData) {
                 guestData.schedules = guestData.schedules.map(s => {
@@ -299,298 +354,200 @@ const ScheduleSwitcher = () => {
     );
   };
 
-  const displaySchedules = guest ? schedules : (activeTab === 'account' ? schedules : guestSchedulesList);
+  const displaySchedules = (guest ? schedules : (activeTab === 'account' ? schedules : guestSchedulesList))
+    .filter(schedule => !schedule.isDeleted);
   const isAccountTab = guest || activeTab === 'account';
-
+  const busy = processingIds.size > 0;
+  const label = (key, params) => t(`settings.schedule_switcher.${key}`, lang, params);
   const tabs = [
-    { id: 'account', label: t('settings.schedule_switcher.tab_account', lang) },
-    { id: 'guest', label: t('settings.schedule_switcher.tab_guest', lang) }
+    { id: 'account', label: label('tab_account') },
+    { id: 'guest', label: label('on_device') },
   ];
+
+  const changeTab = (id) => {
+    setExpandedId(null);
+    setActiveTab(id);
+  };
+
+  const runAction = (action) => {
+    if (busy) return;
+    setExpandedId(null);
+    action();
+  };
 
   return (
     <>
       <SettingsScreenLayout>
         <View style={styles.container}>
-          <View style={styles.headerContainer}>
-            <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-              {t('settings.schedule_switcher.your_schedules', lang)}
-            </Text>
-            <Text style={[styles.sectionDescription, { color: themeColors.textColor2 }]}>
-              {guest
-                ? t('settings.schedule_switcher.description_guest', lang)
-                : isAccountTab
-                  ? t('settings.schedule_switcher.description_account', lang)
-                  : t('settings.schedule_switcher.description_guest', lang)
-              }
-            </Text>
+          <Text style={[styles.intro, { color: themeColors.textColor2 }]}>{label('selection_hint')}</Text>
+          <View style={styles.toolbar}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => { changeTab('account'); handleAddNew(); }}
+                style={({ pressed }) => [styles.createButton, { backgroundColor: themeColors.accentColor, opacity: pressed ? 0.8 : 1 }]}
+              >
+                <Plus size={20} color="#fff" weight="bold" />
+                <Text style={styles.createLabel}>{label('create_schedule')}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => { changeTab('account'); setImportModalVisible(true); }}
+                style={({ pressed }) => [styles.importButton, { backgroundColor: pressed ? themeColors.borderColor : themeColors.backgroundColor2 }]}
+              >
+                <DownloadSimple size={20} color={themeColors.textColor} />
+                <Text style={[styles.buttonLabel, { color: themeColors.textColor }]}>{label('import_schedule')}</Text>
+              </Pressable>
           </View>
-
           {!guest && (
-            <View style={styles.tabContainer}>
-              <TabSwitcher
-                tabs={tabs}
-                activeTab={activeTab}
-                onTabPress={setActiveTab}
-                themeColors={themeColors}
-                withShadow={false}
-              />
-            </View>
+            <TabSwitcher
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabPress={changeTab}
+              themeColors={themeColors}
+              activeTabBackgroundColor={themeColors.backgroundColor}
+              activeTextColor={themeColors.textColor}
+              containerBorderColor={themeColors.borderColor}
+            />
           )}
-
-          <View style={styles.listContent}>
-            {displaySchedules.length === 0 && !isAccountTab && (
-              <Text style={{ textAlign: 'center', marginTop: 20, color: themeColors.textColor2 }}>
-                {t('settings.schedule_switcher.no_local', lang)}
-              </Text>
+          <View style={styles.listHeader}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: themeColors.textColor }]}>
+              {guest ? label('on_device') : isAccountTab ? label('your_schedules') : label('on_device')}
+            </Text>
+            <Text style={[styles.count, { color: themeColors.textColor2, backgroundColor: themeColors.backgroundColor2 }]}>{displaySchedules.length}</Text>
+          </View>
+          <Text style={[styles.description, { color: themeColors.textColor2 }]}>
+            {guest ? label('description_guest') : isAccountTab ? label('description_account') : label('local_hint')}
+          </Text>
+          {operationError && <Text accessibilityRole="alert" style={[styles.description, { color: themeColors.textColor }]}>{label('operation_error')}</Text>}
+          <Animated.View style={{ opacity: listOpacity }}>
+            {!isAccountTab && localLoading ? (
+              <View style={styles.emptyState}><MorphingLoader size={36} /></View>
+            ) : !isAccountTab && localError ? (
+              <View style={styles.emptyState}>
+                <Text accessibilityRole="alert" style={[styles.emptyDescription, { color: themeColors.textColor }]}>{label('load_error')}</Text>
+                <Pressable accessibilityRole="button" onPress={loadGuestSchedules} style={styles.retryButton}>
+                  <Text style={{ color: themeColors.accentColor }}>{label('retry')}</Text>
+                </Pressable>
+              </View>
+            ) : displaySchedules.length === 0 && (
+              <View style={[styles.emptyState, { backgroundColor: themeColors.backgroundColor2 }]}>
+                <CalendarBlank size={36} color={themeColors.textColor2} />
+                <Text style={[styles.emptyTitle, { color: themeColors.textColor }]}>{isAccountTab ? label('no_schedules') : label('no_local')}</Text>
+                <Text style={[styles.emptyDescription, { color: themeColors.textColor2 }]}>{isAccountTab ? label('empty_hint') : label('local_empty_hint')}</Text>
+              </View>
             )}
-
-            {displaySchedules.map((s, index) => {
-              const isSelected = isAccountTab && s.id === global.currentScheduleId;
-              const delay = Math.min(index * 40, 200);
-              const scheduleName = getScheduleDisplayName(s, lang);
-              const itemColor = resolveScheduleColor(s, themeColors.accentColor);
-              const isItemProcessing = processingIds.has(s.id);
-
+            {displaySchedules.map((schedule) => {
+              const selected = isAccountTab && schedule.id === global.currentScheduleId;
+              const expanded = expandedId === schedule.id;
+              const processing = processingIds.has(schedule.id);
+              const name = getScheduleDisplayName(schedule, lang);
+              const color = resolveScheduleColor(schedule, themeColors.accentColor);
+              const subjectCount = (schedule.subjects || []).filter(subject => !subject.isDeleted).length;
+              const Selection = isAccountTab ? Pressable : View;
               return (
-                <Animated.View
-                  key={s.id}
-                  entering={FadeInDown.delay(delay).duration(250)}
-                  exiting={ZoomOut.duration(150)}
-                  style={{ marginBottom: 10 }}
-                >
-                  <View
-                    style={{ opacity: isItemProcessing ? 0.4 : 1 }}
-                    pointerEvents={isItemProcessing ? "none" : "auto"}
-                  >
-                    <TouchableOpacity
-                      accessibilityRole={isAccountTab ? "radio" : "button"}
-                      accessibilityState={isAccountTab ? { checked: isSelected } : undefined}
-                      onPress={() => {
-                        if (isAccountTab) {
-                          !isSelected && handleChange(s.id);
-                        } else {
-                          Alert.alert(
-                            t('common.warning', lang),
-                            t('settings.schedule_switcher.move_alert_msg', lang)
-                          );
-                        }
-                      }}
-                      onLongPress={() => isAccountTab ? handleEdit(s.id, false) : null}
-                      delayLongPress={300}
-                      activeOpacity={0.75}
-                      style={[
-                        styles.scheduleRow,
-                        {
-                          backgroundColor: isSelected
-                            ? scheduleColorWithAlpha(itemColor, 0.14)
-                            : themeColors.backgroundColor2,
-                          borderColor: isSelected
-                            ? itemColor
-                            : scheduleColorWithAlpha(itemColor, 0.22),
+                <View key={schedule.id} style={[styles.card, {
+                  backgroundColor: themeColors.backgroundColor2,
+                  borderColor: selected ? color : themeColors.borderColor,
+                }]}>
+                  <View style={styles.cardTop}>
+                    <Selection
+                      {...(isAccountTab ? {
+                        accessibilityRole: 'radio',
+                        accessibilityLabel: name,
+                        accessibilityState: { checked: selected, disabled: busy },
+                        disabled: busy,
+                        onPress: () => {
+                          if (!selected) {
+                            triggerHaptic('selection');
+                            handleChange(schedule.id);
+                          }
                         },
-                      ]}
+                        style: ({ pressed }) => [styles.selection, { opacity: pressed ? 0.7 : 1 }],
+                      } : { style: styles.selection })}
                     >
-                      <ScheduleIcon
-                        icon={s.icon}
-                        name={scheduleName}
-                        backgroundColor={isSelected
-                          ? itemColor
-                          : scheduleColorWithAlpha(itemColor, 0.16)}
-                        color={isSelected ? "#fff" : itemColor}
-                        style={styles.monogram}
-                      />
-
+                      <ScheduleIcon icon={schedule.icon} name={name} size={46} color={color} backgroundColor={scheduleColorWithAlpha(color, 0.13)} />
                       <View style={styles.scheduleText}>
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.scheduleName,
-                            { color: isSelected ? itemColor : themeColors.textColor },
-                          ]}
-                        >
-                          {scheduleName}
-                        </Text>
+                        <Text style={[styles.scheduleName, { color: themeColors.textColor }]}>{name}</Text>
+                        <Text style={[styles.metadata, { color: themeColors.textColor2 }]}>{label('subject_count', { count: subjectCount })}</Text>
+                        <View style={styles.currentLabel}>
+                          {selected && <Check size={14} color={themeColors.accentColor} weight="bold" />}
+                          <Text style={[styles.currentText, { color: selected ? themeColors.accentColor : themeColors.textColor2 }]}>{selected ? label('current_schedule') : isAccountTab ? label('select_schedule') : label('on_device')}</Text>
+                        </View>
                       </View>
-
-                      <View style={styles.scheduleRight}>
-                        {isSelected && (
-                          <View style={[styles.selectedBadge, { backgroundColor: itemColor }]}>
-                            <Check size={13} color="#fff" weight="bold" />
-                          </View>
-                        )}
-
-                        {isItemProcessing ? (
-                          <MorphingLoader size={24} style={{ marginRight: 8 }} />
-                        ) : (
-                          <View style={styles.actionButtons}>
-                            {!guest && isAccountTab && (
-                              <TouchableOpacity
-                                hitSlop={15}
-                                onPress={() => handleMoveToLocal(s)}
-                                style={styles.iconButton}
-                              >
-                                <CloudArrowDown size={20} color={themeColors.textColor2} weight="regular" />
-                              </TouchableOpacity>
-                            )}
-
-                            {!guest && !isAccountTab && (
-                              <TouchableOpacity
-                                hitSlop={15}
-                                onPress={() => handleMoveToCloud(s)}
-                                style={styles.iconButton}
-                              >
-                                <CloudArrowUp size={20} color={themeColors.accentColor} weight="bold" />
-                              </TouchableOpacity>
-                            )}
-
-                            {isAccountTab && (
-                              <TouchableOpacity
-                                hitSlop={15}
-                                onPress={() => handleShare(s)}
-                                style={styles.iconButton}
-                              >
-                                <ShareNetwork size={20} color={themeColors.textColor2} weight="bold" />
-                              </TouchableOpacity>
-                            )}
-
-                            {isAccountTab && (
-                              <TouchableOpacity
-                                hitSlop={15}
-                                onPress={() => handleEdit(s.id)}
-                                style={styles.iconButton}
-                              >
-                                <PencilSimple size={20} color={themeColors.textColor2} weight="bold" />
-                              </TouchableOpacity>
-                            )}
-
-                            <TouchableOpacity
-                              hitSlop={15}
-                              onPress={() => isAccountTab ? handleDelete(s.id, scheduleName) : handleDeleteGuest(s.id, scheduleName)}
-                              style={styles.iconButton}
-                            >
-                              <Trash size={20} color={themes.accentColors.red} weight="bold" />
-                            </TouchableOpacity>
-                          </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
+                    </Selection>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={label('manage_schedule', { name })}
+                      accessibilityState={{ expanded, disabled: busy, busy: processing }}
+                      disabled={busy}
+                      onPress={() => {
+                        triggerHaptic('selection');
+                        setExpandedId(expanded ? null : schedule.id);
+                      }}
+                      style={({ pressed }) => [styles.menuButton, { backgroundColor: expanded || pressed ? themeColors.borderColor : 'transparent' }]}
+                    >
+                      {processing ? <MorphingLoader size={22} /> : <DotsThree size={26} color={themeColors.textColor2} weight="bold" />}
+                    </Pressable>
                   </View>
-                </Animated.View>
+                  {expanded && (
+                    <View style={[styles.actionPanel, { borderTopColor: themeColors.borderColor }]}>
+                      <SettingsRow
+                        icon={Copy}
+                        label={label('create_copy')}
+                        onPress={() => runAction(() => handleCopy(schedule, !isAccountTab))}
+                        themeColors={themeColors}
+                        showCaret={false}
+                        disabled={busy}
+                      />
+                      {isAccountTab && <SettingsRow icon={PencilSimple} label={t('common.edit', lang)} onPress={() => runAction(() => handleEdit(schedule.id, false))} themeColors={themeColors} showCaret={false} disabled={busy} />}
+                      {isAccountTab && <SettingsRow icon={ShareNetwork} label={t('common.share', lang)} onPress={() => runAction(() => handleShare(schedule))} themeColors={themeColors} showCaret={false} disabled={busy} />}
+                      {!guest && <SettingsRow
+                        icon={isAccountTab ? CloudArrowDown : CloudArrowUp}
+                        label={isAccountTab ? label('move_to_device') : label('move_to_account')}
+                        onPress={() => runAction(() => isAccountTab ? handleMoveToLocal(schedule) : handleMoveToCloud(schedule))}
+                        themeColors={themeColors} showCaret={false} disabled={busy}
+                      />}
+                      <SettingsRow icon={Trash} label={t('common.delete', lang)} danger onPress={() => runAction(() => isAccountTab ? handleDelete(schedule.id, name) : handleDeleteGuest(schedule.id, name))} themeColors={themeColors} showCaret={false} disabled={busy} />
+                    </View>
+                  )}
+                </View>
               );
             })}
-
-            {isAccountTab && (
-              <Animated.View entering={FadeInDown.delay(displaySchedules.length * 40).duration(250)}>
-                <SettingsActionRow
-                  icon={PlusCircle}
-                  label={t('settings.schedule_switcher.add_new', lang)}
-                  onPress={handleAddNew}
-                  themeColors={themeColors}
-                />
-              </Animated.View>
-            )}
-
-            {isAccountTab && (
-              <Animated.View entering={FadeInDown.delay((displaySchedules.length + 1) * 40).duration(250)}>
-                <View style={{ marginTop: 8 }}>
-                  <SettingsActionRow
-                    icon={DownloadSimple}
-                    label={t('share.import_new', lang)}
-                    onPress={() => setImportModalVisible(true)}
-                    themeColors={themeColors}
-                  />
-                </View>
-              </Animated.View>
-            )}
-
-          </View>
+          </Animated.View>
         </View>
       </SettingsScreenLayout>
-
-      <ShareScheduleModal
-        visible={shareModalVisible}
-        onClose={() => setShareModalVisible(false)}
-        scheduleToShare={scheduleToShare}
-      />
-
-      <ImportScheduleModal
-        visible={importModalVisible}
-        onClose={() => setImportModalVisible(false)}
-      />
+      <ShareScheduleModal visible={shareModalVisible} onClose={() => setShareModalVisible(false)} scheduleToShare={scheduleToShare} />
+      <ImportScheduleModal visible={importModalVisible} onClose={() => setImportModalVisible(false)} />
     </>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 10,
-  },
-  headerContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 6,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  tabContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  scheduleRow: {
-    minHeight: 62,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  monogram: {
-    marginRight: 12,
-  },
-  scheduleText: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  scheduleName: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  scheduleRight: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  selectedBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 2,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  iconButton: {
-    padding: 4,
-  },
+  container: { width: '100%', maxWidth: 720, alignSelf: 'center', paddingHorizontal: 16 },
+  intro: { fontSize: 15, lineHeight: 22, marginBottom: 20 },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  createButton: { flexGrow: 1, flexBasis: 170, minHeight: 50, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  importButton: { flexGrow: 1, flexBasis: 110, minHeight: 50, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  createLabel: { color: '#fff', fontSize: 15, lineHeight: 21, fontWeight: '600', flexShrink: 1 },
+  buttonLabel: { fontSize: 15, lineHeight: 21, fontWeight: '600', flexShrink: 1 },
+  listHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, marginBottom: 8 },
+  sectionTitle: { fontSize: 19, fontWeight: '700', flexShrink: 1 },
+  count: { fontSize: 13, fontWeight: '600', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' },
+  description: { fontSize: 13, lineHeight: 20, marginBottom: 18 },
+  card: { borderWidth: 1.5, borderRadius: 18, marginBottom: 12, overflow: 'hidden' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', paddingRight: 8 },
+  selection: { flex: 1, minWidth: 0, minHeight: 100, flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
+  scheduleText: { flex: 1, minWidth: 0, gap: 4 },
+  scheduleName: { fontSize: 17, lineHeight: 23, fontWeight: '600' },
+  metadata: { fontSize: 13, lineHeight: 19 },
+  currentLabel: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  currentText: { fontSize: 12, lineHeight: 18, fontWeight: '600', flexShrink: 1 },
+  menuButton: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  actionPanel: { borderTopWidth: StyleSheet.hairlineWidth, padding: 6 },
+  retryButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
+  emptyState: { borderRadius: 18, paddingHorizontal: 24, paddingVertical: 32, alignItems: 'center', gap: 12 },
+  emptyTitle: { fontSize: 17, lineHeight: 24, fontWeight: '600', textAlign: 'center' },
+  emptyDescription: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
 });
 
 export default ScheduleSwitcher;

@@ -1,5 +1,5 @@
 import { t } from '../utils/i18n';
-import { normalizeScheduleRepeat } from '../utils/scheduleTime';
+import { normalizeScheduleRepeat, buildLessonTimes, buildScheduleSlots, getLessonSlotNumber, buildDayTimeline } from '../utils/scheduleTime';
 
 export const formatTime = (mins) =>
   `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
@@ -88,37 +88,21 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput
       + now.getMilliseconds() / 60000;
 
     const timeline = [];
-    let currentMins = baseMins;
+    const lessonTimes = buildLessonTimes(formatTime(baseMins), duration, breaks, rawLessons);
+    const slots = buildScheduleSlots(formatTime(baseMins), duration, breaks);
 
     for (let i = 0; i < rawLessons.length; i++) {
       const item = rawLessons[i];
-      const bDuration = breaks.length > 0 ? (Number(breaks[i % breaks.length]) || 0) : 10;
-
-      let actualStart = currentMins;
-      let actualEnd = currentMins + duration;
-
-      if (item) {
-        const isInstance = typeof item === 'object' && item !== null;
-        const lessonData = isInstance ? item : {};
-        const subjectId = isInstance ? (item.subjectId || item.subject || item.id) : item;
-
-        actualStart = parseTime(lessonData.startTime, actualStart);
-
-        if (lessonData.endTime) {
-          actualEnd = parseTime(lessonData.endTime, actualEnd);
-        } else if (lessonData.startTime) {
-          actualEnd = actualStart + duration;
-        }
-
-        if (actualEnd <= actualStart) actualEnd = actualStart + duration;
-
-        timeline.push({ item, isLesson: true, actualStart, actualEnd, subjectId, lessonData });
-      } else {
-        timeline.push({ item: null, isLesson: false, actualStart, actualEnd });
-      }
-
-      currentMins = actualEnd + bDuration;
+      const time = lessonTimes[i];
+      const actualStart = parseTime(time?.start, baseMins);
+      let actualEnd = parseTime(time?.end, actualStart + duration);
+      if (actualEnd < actualStart) actualEnd += 24 * 60;
+      const lessonData = item && typeof item === 'object' ? item : {};
+      const subjectId = item && typeof item === 'object' ? (item.subjectId || item.subject || item.id) : item;
+      timeline.push({ item, isLesson: !!item, actualStart, actualEnd, subjectId, lessonData,
+        lessonIndex: i, slotNumber: getLessonSlotNumber(item, time, slots) });
     }
+    timeline.sort((left, right) => left.actualStart - right.actualStart || left.lessonIndex - right.lessonIndex);
 
     let targetBreakIndex = -1;
     if (isToday) {
@@ -144,6 +128,13 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput
     }
 
     const items = [];
+    const intervals = buildDayTimeline(scheduleData, rawLessons, lessonTimes).filter((entry) => entry.type !== 'lesson');
+    const firstLesson = timeline.find((entry) => entry.isLesson);
+    const leading = firstLesson && intervals.find((entry) => entry.end === formatTime(firstLesson.actualStart));
+    if (leading && (!isToday || nowMins < parseTime(leading.end, 0))) {
+      items.push({ type: 'break', isFree: true, startTime: leading.start, endTime: leading.end,
+        duration: leading.duration, color: '#0A84FF', isCurrent: isToday && nowMins >= parseTime(leading.start, 0) });
+    }
 
     for (let i = 0; i < timeline.length; i++) {
       const tInfo = timeline[i];
@@ -190,7 +181,8 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput
         type: 'lesson',
         id: lessonData.id || subjectId || `slot-${dayIndex}-${i}`,
         dayIndex,
-        lessonIndex: i,
+        lessonIndex: tInfo.lessonIndex,
+        slotNumber: tInfo.slotNumber,
         subject: lessonData.name || subjectObj.name || t('common.class', lang),
         details: detailsArray.join(' • ') || t('widget.no_details', lang),
         color,
@@ -214,6 +206,7 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput
           if (realBreakDuration > 0) {
             items.push({
               type: 'break',
+              isFree: intervals.some((entry) => entry.type === 'free' && entry.start === formatTime(realBreakStart) && entry.end === formatTime(realBreakEnd)),
               startTime: formatTime(realBreakStart),
               endTime: formatTime(realBreakEnd),
               duration: realBreakDuration,

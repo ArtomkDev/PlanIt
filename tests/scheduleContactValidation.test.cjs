@@ -114,8 +114,8 @@ test('shared schedules preserve lesson slots whose subject was deleted', () => {
 
   assert.deepEqual(result.schedule[0].week1, [{
     subjectDeleted: true,
-    startTime: '08:30',
-    endTime: '09:15',
+    timeMode: 'slot',
+    slotNumber: 1,
   }]);
 });
 
@@ -134,7 +134,8 @@ test('shared schedules detach missing subjects without deleting lesson slots', (
   assert.equal(result.schedule[0].week1.length, 2);
   assert.deepEqual(result.schedule[0].week1[0], {
     subjectDeleted: true,
-    startTime: '08:30',
+    timeMode: 'slot',
+    slotNumber: 1,
   });
   assert.equal(result.schedule[0].week1[1].subjectId, 'physics');
 });
@@ -164,4 +165,15 @@ test('shared schedules preserve safe lesson recurrence metadata', () => {
     weeks: [1, 2],
     overrides: ['series-base'],
   });
+});
+
+test('sharing and reimporting sparse schedules preserves slot numbers and custom times', () => {
+  const result = sanitizeSharedSchedule({ ...baseSchedule, schedule: [{ week1: [null, null, 'math',
+    { subjectId: 'math', timeMode: 'custom', startTime: '15:10', endTime: '15:50' },
+  ] }] });
+  assert.equal(result.schedule[0].week1[0].slotNumber, 3);
+  assert.equal(result.schedule[0].week1[0].timeMode, 'slot');
+  assert.equal(result.schedule[0].week1[1].startTime, '15:10');
+  assert.equal(result.schedule[0].week1[1].timeMode, 'custom');
+  assert.deepEqual(sanitizeSharedSchedule(result).schedule, result.schedule);
 });

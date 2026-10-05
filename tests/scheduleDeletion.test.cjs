@@ -68,7 +68,11 @@ test("deletes one lesson immutably at the requested schedule position", () => {
   assert.notEqual(result.schedule, originalGrid);
   assert.notEqual(result.schedule[0], originalDay);
   assert.notEqual(result.schedule[0].week1, originalLessons);
-  assert.deepEqual(result.schedule[0].week1, [originalLessons[0], originalLessons[2]]);
+  assert.deepEqual(result.schedule[0].week1.map((item) => item.subjectId), ['math', 'physics']);
+  assert.deepEqual(scheduleTime.buildLessonTimes('08:30', 45, [], result.schedule[0].week1), [
+    { start: '08:30', end: '09:15' }, { start: '10:30', end: '11:15' },
+  ]);
+  assert.deepEqual(result.schedule[0].week1[0].teachers, originalLessons[0].teachers);
   assert.equal(schedule.schedule[0].week1.length, 3);
 });
 

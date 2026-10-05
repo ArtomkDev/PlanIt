@@ -36,6 +36,7 @@ import {
 import { setHapticsEnabled } from "../utils/haptics";
 import { getDefaultNavigationStyle, resolveNavigationStyle } from '../navigation/navigationMetrics';
 import { generateId } from "../utils/idGenerator";
+import { normalizeScheduleTiming } from "../utils/scheduleTime";
 import {
   getCloudSubscriptionUserId,
   isSyncEntityDirty,
@@ -776,10 +777,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       let changed = false;
       const nextSchedules = prev.schedules.map((s) => {
         if (s.id === currentId) {
-          const updated = typeof updater === "function" ? updater(s) : updater;
-          if (updated === s) return s;
+          const normalized = normalizeScheduleTiming(s);
+          const updated = typeof updater === "function" ? updater(normalized) : updater;
+          if (updated === normalized || updated === s) return s;
           changed = true;
-          return updated;
+          return normalizeScheduleTiming(updated);
         }
         return s;
       });

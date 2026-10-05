@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { CaretDown, Palette } from "phosphor-react-native";
 import {
   CONTACT_COLOR_OPTIONS,
@@ -71,11 +71,8 @@ export default function ContactAppearancePicker({
       </View>
 
       {activePanel === "icon" ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.optionRow}
-          keyboardShouldPersistTaps="handled"
+        <View
+          style={styles.optionRow}
           accessibilityRole="radiogroup"
         >
           {CONTACT_ICON_OPTIONS.map((option) => {
@@ -101,15 +98,12 @@ export default function ContactAppearancePicker({
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </View>
       ) : null}
 
       {activePanel === "color" ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.optionRow}
-          keyboardShouldPersistTaps="handled"
+        <View
+          style={styles.optionRow}
         >
           {CONTACT_COLOR_OPTIONS.map((option) => {
             const selected = option.color.toLowerCase() === String(color).toLowerCase();
@@ -144,17 +138,18 @@ export default function ContactAppearancePicker({
               </Text>
             </TouchableOpacity>
           ) : null}
-        </ScrollView>
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { marginTop: 12 },
-  actionRow: { flexDirection: "row", gap: 8 },
+  container: { marginTop: 4 },
+  actionRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   actionButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 140,
     minWidth: 0,
     minHeight: 46,
     borderRadius: 12,
@@ -168,7 +163,7 @@ const styles = StyleSheet.create({
   iconPreview: { width: 30, height: 30, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, alignItems: "center", justifyContent: "center" },
   colorPreview: { width: 30, height: 30, borderRadius: 15, borderWidth: 2 },
   caretOpen: { transform: [{ rotate: "180deg" }] },
-  optionRow: { gap: 8, paddingTop: 10, paddingRight: 4 },
+  optionRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingTop: 14 },
   iconButton: {
     width: 44,
     height: 44,

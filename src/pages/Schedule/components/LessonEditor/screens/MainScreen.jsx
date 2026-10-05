@@ -1,5 +1,8 @@
+import TabSwitcher from "../../../../../components/ui/TabSwitcher";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View, Text, Platform, TouchableOpacity, TextInput, Alert } from "react-native";
+import { StyleSheet, View, Text, Platform, TouchableOpacity, TextInput, Alert, Modal } from "react-native";
+import { SheetScrollView } from "../../../../../components/ui/BottomSheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   BookOpen,
@@ -13,12 +16,11 @@ import {
   Clock,
   Bell,
   Plus,
-  CalendarDots,
-  ArrowsCounterClockwise
+  CalendarDots
 } from "phosphor-react-native";
 
-import SettingsGroup from "../../../../../components/ui/SettingsKit/SettingsGroup";
-import SettingsRow from "../../../../../components/ui/SettingsKit/SettingsRow";
+import SettingsGroup from "../ui/Group";
+import SettingsRow from "../ui/SettingRow";
 import AttachmentManager from "../../../../../components/attachments/AttachmentManager";
 
 import GradientBackground from "../../../../../components/ui/GradientBackground";
@@ -46,6 +48,7 @@ import {
 
 export default function LessonEditorMainScreen({
   themeColors,
+  scrollOffsetRef,
   selectedSubjectId,
   currentSubject,
   gradients,
@@ -60,6 +63,11 @@ export default function LessonEditorMainScreen({
   instanceData,
   defaultTime,
   onTimeChange,
+  timeSlots = [],
+  onSlotChange,
+  slotConflict,
+  onConflictResolution,
+  onTimeModeChange,
   recurrenceSelection,
   onRecurrenceChange,
   scheduleRepeat,
@@ -81,7 +89,9 @@ export default function LessonEditorMainScreen({
   attachmentStorageLimitBytes
 }) {
   const { global, lang } = useScheduleData();
+  const insets = useSafeAreaInsets();
   const [expandedField, setExpandedField] = useState(null);
+  const customTime = instanceData?.timeMode === "custom";
   const [customSubjectReminderMinutes, setCustomSubjectReminderMinutes] = useState(String(CUSTOM_REMINDER_FALLBACK_MINUTES));
 
   const safeGetLabel = getLabel || ((type, val) => t('schedule.main_screen.not_defined', lang));
@@ -298,6 +308,7 @@ export default function LessonEditorMainScreen({
                 <View style={{ padding: 20 }}>
                     {React.createElement('input', {
                         type: 'time',
+                        'aria-label': t(field === 'startTime' ? 'schedule.main_screen.start_time' : 'schedule.main_screen.end_time', lang),
                         value: timeValue,
                         onChange: (e) => onTimeChange(field, e.target.value),
                         style: { fontSize: 18, padding: 8, borderRadius: 8, border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor }
@@ -320,98 +331,26 @@ export default function LessonEditorMainScreen({
     );
   };
 
-  const renderColorPreview = () => {
-    const gradient = currentSubject?.typeColor === "gradient" && currentSubject?.colorGradient
-      ? gradients.find((item) => item.id === currentSubject.colorGradient) || null
-      : null;
-    const color = themes.accentColors[currentSubject?.color] || currentSubject?.color || themes.accentColors.grey;
-    return (
-      <GradientBackground
-        gradient={gradient}
-        fallbackColor={color}
-        style={styles.colorPreview}
-      />
-    );
-  };
-
-  const renderHeaderRight = (showScopeToggle, scope, onScopeChangeHandler, onAdd, onReset) => {
-    const hasButtons = showScopeToggle || onAdd || onReset;
-    if (!hasButtons) return null;
-
-    return (
-      <>
-        {showScopeToggle && onScopeChangeHandler && (
-          <TouchableOpacity
-            style={[
-              styles.headerActionButton,
-              {
-                backgroundColor: scope === "local" ? themeColors.accentColor : themeColors.backgroundColor2,
-                paddingHorizontal: 10,
-                width: 'auto'
-              }
-            ]}
-            onPress={() => {
-              triggerHaptic(scope === "local" ? "toggleOff" : "toggleOn");
-              onScopeChangeHandler(scope === "local" ? "global" : "local");
-            }}
-            activeOpacity={0.7}
-            accessibilityRole="switch"
-            accessibilityLabel={t('schedule.lesson_editor.selection', lang)}
-            accessibilityState={{ checked: scope === "local" }}
-            hitSlop={6}
-          >
-            <Text style={{ fontSize: 12, fontWeight: "600", color: scope === "local" ? "#fff" : themeColors.textColor }}>
-              {scope === "local" ? t('schedule.lesson_editor.scope_local', lang) : t('schedule.lesson_editor.scope_global', lang)}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {onAdd && (
-          <TouchableOpacity
-            style={[styles.headerActionButton, { backgroundColor: themeColors.backgroundColor2 }]}
-            onPress={() => {
-              triggerHaptic("open");
-              onAdd();
-            }}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.add', lang)}
-            hitSlop={6}
-          >
-            <Plus size={18} color={themeColors.textColor} weight="bold" />
-          </TouchableOpacity>
-        )}
-
-        {onReset && (
-          <TouchableOpacity
-            style={[styles.headerActionButton, { backgroundColor: themeColors.backgroundColor2 }]}
-            onPress={() => {
-              triggerHaptic("warning");
-              onReset();
-            }}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.reset', lang)}
-            hitSlop={6}
-          >
-            <ArrowsCounterClockwise size={18} color={themeColors.textColor} weight="bold" />
-          </TouchableOpacity>
-        )}
-      </>
-    );
-  };
+  const cardGradient = currentSubject?.typeColor === "gradient"
+    ? gradients.find(item => item.id === currentSubject?.colorGradient) : null;
+  const cardColor = themes.accentColors[currentSubject?.color] || currentSubject?.color || themes.accentColors.grey;
 
   if (!selectedSubjectId) {
     return (
-      <ScrollView
+      <SheetScrollView
         style={styles.content}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(24, insets.bottom + 16) }]}
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
         bounces={false}
         overScrollMode="never"
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.introduction}>
+          <BookOpen size={36} color={themeColors.accentColor} />
+          <Text style={[styles.introTitle, { color: themeColors.textColor }]}>{t('schedule.lesson_editor.start_with_subject', lang)}</Text>
+          <Text style={[styles.introText, { color: themeColors.textColor2 }]}>{t('schedule.lesson_editor.start_with_subject_hint', lang)}</Text>
+        </View>
         <SettingsGroup
           themeColors={themeColors}
           title={t('common.subject', lang)}
@@ -424,7 +363,7 @@ export default function LessonEditorMainScreen({
             icon={BookOpen}
           />
         </SettingsGroup>
-      </ScrollView>
+      </SheetScrollView>
     );
   }
 
@@ -432,21 +371,24 @@ export default function LessonEditorMainScreen({
   const { array: linksArr } = getArrayData("links", "materials");
 
   return (
-    <ScrollView
+    <SheetScrollView
       style={styles.content}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(24, insets.bottom + 16) }]}
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       bounces={false}
       overScrollMode="never"
       showsVerticalScrollIndicator={false}
       automaticallyAdjustKeyboardInsets
+      contentOffset={{ x: 0, y: scrollOffsetRef?.current || 0 }}
+      onScroll={(event) => { if (scrollOffsetRef) scrollOffsetRef.current = event.nativeEvent.contentOffset.y; }}
+      scrollEventThrottle={32}
     >
 
       <SettingsGroup
         themeColors={themeColors}
         title={t('common.subject', lang)}
-        headerRight={renderHeaderRight(false, null, null, null, onClearSubject)}
+        onReset={onClearSubject}
       >
         <SettingsRow
           label={t('common.subject_name', lang)}
@@ -455,6 +397,88 @@ export default function LessonEditorMainScreen({
           themeColors={themeColors}
           icon={BookOpen}
         />
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('schedule.main_screen.time', lang)}
+        onReset={isTimeModified ? () => {
+            setExpandedField(null);
+            onTimeModeChange("slot");
+        } : null}
+      >
+        <View style={{ paddingHorizontal: 12, paddingTop: 8 }}>
+          <TabSwitcher themeColors={themeColors} activeTab={customTime ? 'custom' : 'default'}
+            tabs={[{ id: 'default', label: t('schedule.lesson_editor.time_default', lang) }, { id: 'custom', label: t('schedule.lesson_editor.time_custom', lang) }]}
+            onTabPress={mode => {
+              onTimeModeChange(mode === 'custom' ? 'custom' : 'slot');
+              setExpandedField(null);
+            }} />
+        </View>
+        {!!slotConflict && <Modal transparent visible onRequestClose={() => onConflictResolution('cancel')}>
+          <View style={styles.conflictBackdrop}>
+          <View accessibilityViewIsModal style={[styles.slotConflict, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
+          <Text accessibilityRole="header" style={{ color: themeColors.textColor, fontWeight: '700' }}>{t('schedule.lesson_editor.slot_occupied_title', lang, { number: slotConflict.slotNumber })}</Text>
+          <Text style={{ color: themeColors.textColor }}>{[...new Set((slotConflict.conflicts || []).map(item => safeGetLabel('subject', item.lesson.subjectId)))].filter(Boolean).join(', ')}</Text>
+          <Text style={{ color: themeColors.textColor2 }}>{t('schedule.lesson_editor.slot_occupied_hint', lang)}</Text>
+          {!slotConflict.canSwap && <Text style={{ color: themeColors.textColor2 }}>{t('schedule.lesson_editor.slot_swap_unavailable', lang)}</Text>}
+          <View style={styles.slotActions}>
+            {['replace', 'swap', 'cancel'].map(action => (
+              <TouchableOpacity key={action} accessibilityRole="button"
+                disabled={action === 'swap' && !slotConflict.canSwap}
+                accessibilityState={{ disabled: action === 'swap' && !slotConflict.canSwap }}
+                onPress={() => onConflictResolution(action)}
+                style={[styles.slotAction, { borderColor: themeColors.borderColor, opacity: action === 'swap' && !slotConflict.canSwap ? 0.4 : 1 }]}>
+                <Text style={{ color: themeColors.textColor, fontWeight: '600' }}>{t(`schedule.lesson_editor.slot_${action}`, lang)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          </View>
+          </View>
+        </Modal>}
+        {customTime ? <View>
+        <SettingsRow
+          label={t('schedule.main_screen.start_time', lang)}
+          rightContent={renderTimeValue(currentStart, isTimeModified)}
+          onPress={() => toggleExpand("startTime")}
+          themeColors={themeColors}
+          icon={Clock}
+        />
+        {expandedField === "startTime" && renderTimePicker("startTime", currentStart)}
+
+        <SettingsRow
+          label={t('schedule.main_screen.end_time', lang)}
+          rightContent={renderTimeValue(currentEnd, isTimeModified)}
+          onPress={() => toggleExpand("endTime")}
+          themeColors={themeColors}
+          icon={Clock}
+        />
+        {expandedField === "endTime" && renderTimePicker("endTime", currentEnd)}
+
+        <View style={styles.durationContainer}>
+          <Text style={[styles.durationText, { color: themeColors.textColor }]}>
+            {duration ? `${duration} ${t('schedule.main_screen.minutes', lang)}` : "—"}
+          </Text>
+        </View>
+        </View> : <View style={{ paddingHorizontal: 16, paddingBottom: 12, gap: 4 }}>
+          <View style={styles.slotGrid}>
+            {timeSlots.map((slot) => (
+              <TouchableOpacity key={slot.number}
+                accessibilityRole="button"
+                accessibilityLabel={`${t('schedule.lesson_editor.slot_number', lang, { number: slot.number })}, ${slot.start} – ${slot.end}${slot.occupied ? ', ' + t('schedule.lesson_editor.slot_occupied', lang) : ''}`}
+                accessibilityState={{ selected: instanceData.slotNumber === slot.number }}
+                onPress={() => onSlotChange(slot.number)}
+                style={[styles.slotOption, { borderColor: instanceData.slotNumber === slot.number ? themeColors.accentColor : themeColors.borderColor, backgroundColor: slot.occupied ? themeColors.borderColor : themeColors.backgroundColor2 }]}
+              >
+                <Text style={{ color: instanceData.slotNumber === slot.number ? themeColors.accentColor : themeColors.textColor, fontWeight: '600' }}>{t('schedule.lesson_editor.slot_number', lang, { number: slot.number })}</Text>
+                <Text style={{ color: themeColors.textColor2, fontSize: 12 }}>{slot.start} – {slot.end}</Text>
+                {slot.occupied && <Text style={{ color: themeColors.textColor2, fontSize: 12 }}>{t('schedule.lesson_editor.slot_occupied', lang)}</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={{ color: themeColors.textColor, fontSize: 15, fontWeight: '600' }}>{currentStart || '—'} – {currentEnd || '—'}{duration ? ' · ' + duration + ' ' + t('schedule.main_screen.minutes', lang) : ''}</Text>
+          <Text style={{ color: themeColors.textColor2, fontSize: 12, lineHeight: 17 }}>{t('schedule.lesson_editor.time_default_hint', lang)}</Text>
+        </View>}
       </SettingsGroup>
 
       <SettingsGroup
@@ -549,6 +573,152 @@ export default function LessonEditorMainScreen({
 
       <SettingsGroup
         themeColors={themeColors}
+        title={t('common.class_type', lang)}
+        showScopeToggle scope={scopes.type} onScopeChange={(scope) => onScopeChange('type', scope)}
+      >
+        <SettingsRow
+          label={t('common.class_type', lang)}
+          value={getValueLabel("type", "type", "type")}
+          onPress={() => setActivePicker("type")}
+          themeColors={themeColors}
+          icon={Tag}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('schedule.main_screen.location', lang)}
+        showScopeToggle scope={scopes.location} onScopeChange={(scope) => onScopeChange('location', scope)}
+      >
+        <SettingsRow
+          label={t('common.building', lang)}
+          value={getValueLabel("building", "text", "location")}
+          onPress={() => setActivePicker("building")}
+          themeColors={themeColors}
+          icon={Buildings}
+        />
+        <SettingsRow
+          label={t('common.room', lang)}
+          value={getValueLabel("room", "text", "location")}
+          onPress={() => setActivePicker("room")}
+          themeColors={themeColors}
+          icon={MapPin}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('schedule.main_screen.people', lang)}
+        showScopeToggle scope={scopes.people} onScopeChange={(scope) => onScopeChange('people', scope)} onAdd={() => setActivePicker('teacher', teachersArr.length)}
+      >
+        {teachersArr.length === 0 ? (
+           <TouchableOpacity
+             style={styles.emptyContainer}
+             onPress={() => {
+               triggerHaptic("open");
+               setActivePicker('teacher', teachersArr.length);
+             }}
+             activeOpacity={0.72}
+             accessibilityRole="button"
+             accessibilityLabel={t('schedule.lesson_editor.add_teacher', lang)}
+           >
+               <View style={[styles.emptyAddIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
+                   <Plus size={18} color={themeColors.accentColor} weight="bold" />
+               </View>
+               <Text style={[styles.emptyText, { color: themeColors.accentColor }]}>
+                   {t('schedule.lesson_editor.add_teacher', lang)}
+               </Text>
+           </TouchableOpacity>
+        ) : (
+            teachersArr.map((id, index) => {
+                const visual = getItemVisual?.("teacher", id);
+                return (
+                  <SettingsRow
+                      key={`teacher-${id}`}
+                      label={`${t('schedule.main_screen.teacher', lang)} ${index + 1}`}
+                      value={safeGetLabel("teacher", id)}
+                      onPress={() => setActivePicker("teacher", index)}
+                      onEdit={() => onDirectEdit("teacher", id, index)}
+                      themeColors={themeColors}
+                      icon={visual?.icon || User}
+                      iconColor={visual?.color || themeColors.accentColor}
+                      iconBgColor={visual?.color ? visual.color + "15" : undefined}
+                      iconWeight="bold"
+                  />
+                );
+            })
+        )}
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('schedule.main_screen.materials', lang)}
+        showScopeToggle scope={scopes.materials} onScopeChange={(scope) => onScopeChange('materials', scope)} onAdd={() => setActivePicker('link', linksArr.length)}
+      >
+        {linksArr.length === 0 ? (
+           <TouchableOpacity
+             style={styles.emptyContainer}
+             onPress={() => {
+               triggerHaptic("open");
+               setActivePicker('link', linksArr.length);
+             }}
+             activeOpacity={0.72}
+             accessibilityRole="button"
+             accessibilityLabel={t('schedule.lesson_editor.add_link', lang)}
+           >
+               <View style={[styles.emptyAddIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
+                   <Plus size={18} color={themeColors.accentColor} weight="bold" />
+               </View>
+               <Text style={[styles.emptyText, { color: themeColors.accentColor }]}>
+                   {t('schedule.lesson_editor.add_link', lang)}
+               </Text>
+           </TouchableOpacity>
+        ) : (
+            linksArr.map((id, index) => {
+                const visual = getItemVisual?.("link", id);
+                return (
+                  <SettingsRow
+                      key={`link-${id}`}
+                      label={`${t('common.link', lang)} ${index + 1}`}
+                      value={safeGetLabel("link", id)}
+                      onPress={() => setActivePicker("link", index)}
+                      onEdit={() => onDirectEdit("link", id, index)}
+                      themeColors={themeColors}
+                      icon={visual?.icon || LinkIcon}
+                      iconColor={visual?.color || themeColors.accentColor}
+                      iconBgColor={visual?.color ? visual.color + "15" : undefined}
+                      iconWeight="bold"
+                  />
+                );
+            })
+        )}
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
+        title={t('attachments.title', lang)}
+        showScopeToggle scope={scopes.attachments} onScopeChange={(scope) => onScopeChange('attachments', scope)}
+      >
+        <AttachmentManager
+          attachments={attachments}
+          onChange={onAttachmentsChange}
+          onRemoveStoredAttachment={onRemoveStoredAttachment}
+          onUploadedAttachments={onUploadedAttachments}
+          onUploadStateChange={onAttachmentUploadStateChange}
+          userId={attachmentUserId}
+          ownerAvailable={attachmentOwnerAvailable}
+          disabled={attachmentUploadState?.uploading}
+          uploadState={attachmentUploadState}
+          fileLibrary={fileLibrary}
+          onFileLibraryChange={onFileLibraryChange}
+          storageLimitBytes={attachmentStorageLimitBytes}
+          themeColors={themeColors}
+          lang={lang}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup
+        themeColors={themeColors}
         title={t('schedule.reminders.title', lang)}
       >
         <SettingsRow
@@ -567,7 +737,7 @@ export default function LessonEditorMainScreen({
                 { id: "off", label: t('schedule.reminders.off', lang) },
                 ...REMINDER_PRESET_MINUTES.map((minutesBefore) => ({
                   id: String(minutesBefore),
-                  label: String(minutesBefore),
+                  label: `${minutesBefore} ${t('schedule.main_screen.minutes', lang)}`,
                 })),
                 { id: "custom", label: t('common.custom', lang) },
               ].map((option) => {
@@ -620,161 +790,16 @@ export default function LessonEditorMainScreen({
 
       <SettingsGroup
         themeColors={themeColors}
-        title={t('common.class_type', lang)}
-        headerRight={renderHeaderRight(true, scopes.type, (s) => onScopeChange('type', s), null, null)}
-      >
-        <SettingsRow
-          label={t('common.class_type', lang)}
-          value={getValueLabel("type", "type", "type")}
-          onPress={() => setActivePicker("type")}
-          themeColors={themeColors}
-          icon={Tag}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup
-        themeColors={themeColors}
-        title={t('schedule.main_screen.location', lang)}
-        headerRight={renderHeaderRight(true, scopes.location, (s) => onScopeChange('location', s), null, null)}
-      >
-        <SettingsRow
-          label={t('common.building', lang)}
-          value={getValueLabel("building", "text", "location")}
-          onPress={() => setActivePicker("building")}
-          themeColors={themeColors}
-          icon={Buildings}
-        />
-        <SettingsRow
-          label={t('common.room', lang)}
-          value={getValueLabel("room", "text", "location")}
-          onPress={() => setActivePicker("room")}
-          themeColors={themeColors}
-          icon={MapPin}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup
-        themeColors={themeColors}
-        title={t('schedule.main_screen.people', lang)}
-        headerRight={renderHeaderRight(true, scopes.people, (s) => onScopeChange('people', s), () => setActivePicker('teacher', teachersArr.length, true), null)}
-      >
-        {teachersArr.length === 0 ? (
-           <TouchableOpacity
-             style={styles.emptyContainer}
-             onPress={() => {
-               triggerHaptic("open");
-               setActivePicker('teacher', teachersArr.length, true);
-             }}
-             activeOpacity={0.72}
-             accessibilityRole="button"
-             accessibilityLabel={t('schedule.lesson_editor.add_teacher', lang)}
-           >
-               <View style={[styles.emptyAddIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
-                   <Plus size={18} color={themeColors.accentColor} weight="bold" />
-               </View>
-               <Text style={[styles.emptyText, { color: themeColors.accentColor }]}>
-                   {t('schedule.lesson_editor.add_teacher', lang)}
-               </Text>
-           </TouchableOpacity>
-        ) : (
-            teachersArr.map((id, index) => {
-                const visual = getItemVisual?.("teacher", id);
-                return (
-                  <SettingsRow
-                      key={`teacher-${id}`}
-                      label={`${t('schedule.main_screen.teacher', lang)} ${index + 1}`}
-                      value={safeGetLabel("teacher", id)}
-                      onPress={() => setActivePicker("teacher", index)}
-                      onLongPress={() => onDirectEdit("teacher", id, index)}
-                      themeColors={themeColors}
-                      icon={visual?.icon || User}
-                      iconColor={visual?.color || themeColors.accentColor}
-                      iconBgColor={visual?.color ? visual.color + "15" : undefined}
-                      iconWeight="bold"
-                  />
-                );
-            })
-        )}
-      </SettingsGroup>
-
-      <SettingsGroup
-        themeColors={themeColors}
-        title={t('schedule.main_screen.materials', lang)}
-        headerRight={renderHeaderRight(true, scopes.materials, (s) => onScopeChange('materials', s), () => setActivePicker('link', linksArr.length, true), null)}
-      >
-        {linksArr.length === 0 ? (
-           <TouchableOpacity
-             style={styles.emptyContainer}
-             onPress={() => {
-               triggerHaptic("open");
-               setActivePicker('link', linksArr.length, true);
-             }}
-             activeOpacity={0.72}
-             accessibilityRole="button"
-             accessibilityLabel={t('schedule.lesson_editor.add_link', lang)}
-           >
-               <View style={[styles.emptyAddIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
-                   <Plus size={18} color={themeColors.accentColor} weight="bold" />
-               </View>
-               <Text style={[styles.emptyText, { color: themeColors.accentColor }]}>
-                   {t('schedule.lesson_editor.add_link', lang)}
-               </Text>
-           </TouchableOpacity>
-        ) : (
-            linksArr.map((id, index) => {
-                const visual = getItemVisual?.("link", id);
-                return (
-                  <SettingsRow
-                      key={`link-${id}`}
-                      label={`${t('common.link', lang)} ${index + 1}`}
-                      value={safeGetLabel("link", id)}
-                      onPress={() => setActivePicker("link", index)}
-                      onLongPress={() => onDirectEdit("link", id, index)}
-                      themeColors={themeColors}
-                      icon={visual?.icon || LinkIcon}
-                      iconColor={visual?.color || themeColors.accentColor}
-                      iconBgColor={visual?.color ? visual.color + "15" : undefined}
-                      iconWeight="bold"
-                  />
-                );
-            })
-        )}
-      </SettingsGroup>
-
-      <SettingsGroup
-        themeColors={themeColors}
-        title={t('attachments.title', lang)}
-        headerRight={renderHeaderRight(true, scopes.attachments, (s) => onScopeChange('attachments', s), null, null)}
-      >
-        <AttachmentManager
-          attachments={attachments}
-          onChange={onAttachmentsChange}
-          onRemoveStoredAttachment={onRemoveStoredAttachment}
-          onUploadedAttachments={onUploadedAttachments}
-          onUploadStateChange={onAttachmentUploadStateChange}
-          userId={attachmentUserId}
-          ownerAvailable={attachmentOwnerAvailable}
-          disabled={attachmentUploadState?.uploading}
-          uploadState={attachmentUploadState}
-          fileLibrary={fileLibrary}
-          onFileLibraryChange={onFileLibraryChange}
-          storageLimitBytes={attachmentStorageLimitBytes}
-          themeColors={themeColors}
-          lang={lang}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup
-        themeColors={themeColors}
         title={t("settings.sections.appearance", lang)}
       >
-        <SettingsRow
-          label={t('common.card_color', lang)}
-          rightContent={renderColorPreview()}
-          onPress={onEditSubjectColor}
-          themeColors={themeColors}
-          icon={Palette}
-        />
+        <TouchableOpacity onPress={onEditSubjectColor} accessibilityRole="button" accessibilityLabel={t('common.card_color', lang)} activeOpacity={0.8} style={{ margin: 8, borderRadius: 12, overflow: 'hidden' }}>
+          <GradientBackground gradient={cardGradient} fallbackColor={cardColor} style={{ minHeight: 48, padding: 12 }}>
+            <View style={{ backgroundColor: 'rgba(0,0,0,0.65)', alignSelf: 'flex-start', borderRadius: 8, padding: 6, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Palette size={20} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>{t('common.card_color', lang)}</Text>
+            </View>
+          </GradientBackground>
+        </TouchableOpacity>
         <SettingsRow
           label={t('schedule.main_screen.subject_icon', lang)}
           rightContent={renderIconValue()}
@@ -784,49 +809,27 @@ export default function LessonEditorMainScreen({
         />
       </SettingsGroup>
 
-      <SettingsGroup
-        themeColors={themeColors}
-        title={t('schedule.main_screen.time', lang)}
-        headerRight={renderHeaderRight(false, null, null, null, isTimeModified ? () => {
-            onTimeChange("startTime", null);
-            onTimeChange("endTime", null);
-        } : null)}
-      >
-        <SettingsRow
-          label={t('schedule.main_screen.start_time', lang)}
-          rightContent={renderTimeValue(currentStart, isTimeModified)}
-          onPress={() => toggleExpand("startTime")}
-          themeColors={themeColors}
-          icon={Clock}
-        />
-        {expandedField === "startTime" && renderTimePicker("startTime", currentStart)}
-
-        <SettingsRow
-          label={t('schedule.main_screen.end_time', lang)}
-          rightContent={renderTimeValue(currentEnd, isTimeModified)}
-          onPress={() => toggleExpand("endTime")}
-          themeColors={themeColors}
-          icon={Clock}
-        />
-        {expandedField === "endTime" && renderTimePicker("endTime", currentEnd)}
-
-        <View style={styles.durationContainer}>
-          <Text style={[styles.durationText, { color: themeColors.textColor }]}>
-            {duration ? `${duration} ${t('schedule.main_screen.minutes', lang)}` : "—"}
-          </Text>
-        </View>
-      </SettingsGroup>
-
-    </ScrollView>
+    </SheetScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  conflictBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.5)' },
+  slotConflict: { width: '100%', maxWidth: 460, padding: 20, borderRadius: 16, borderWidth: 1, gap: 12 },
+  slotActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  slotAction: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderWidth: 1, borderRadius: 10 },
+  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 12 },
+  slotOption: { minHeight: 52, minWidth: 112, padding: 10, borderWidth: 1, borderRadius: 12, gap: 4 },
   content: { flex: 1 },
+  introduction: { alignItems: 'center', padding: 24, gap: 12, marginBottom: 16 },
+  introTitle: { fontSize: 21, lineHeight: 28, fontWeight: '600', textAlign: 'center' },
+  introText: { fontSize: 15, lineHeight: 22, textAlign: 'center' },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 120,
+    paddingTop: 12,
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
   },
   recurrenceHelp: {
     fontSize: 13,
@@ -835,13 +838,6 @@ const styles = StyleSheet.create({
   },
   recurrenceWeekChoice: {
     minWidth: 52,
-  },
-  headerActionButton: {
-    width: 44,
-    minHeight: 44,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
   },
   timePickerContainer: {
     overflow: 'hidden',

@@ -1,72 +1,30 @@
-import React from "react";
-import { View, TouchableOpacity, StyleSheet, FlatList, Platform } from "react-native";
-import themes from "../../../../../config/themes";
-import { triggerHaptic } from "../../../../../utils/haptics";
+import React from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Check } from 'phosphor-react-native';
+import { SheetFlatList } from '../../../../../components/ui/BottomSheet';
+import themes from '../../../../../config/themes';
+import { useScheduleData } from '../../../../../context/ScheduleProvider';
+import { t } from '../../../../../utils/i18n';
+import { triggerHaptic } from '../../../../../utils/haptics';
 
-export default function ColorPicker({ selected, onSelect }) {
-  const colors = Object.entries(themes.accentColors);
-
-  return (
-    <FlatList
-      data={colors}
-      numColumns={5}
-      keyExtractor={([key]) => key}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-      renderItem={({ item }) => {
-        const [key, color] = item;
-        const isSelected = selected === key;
-
-        return (
-          <TouchableOpacity
-            style={[styles.colorTile, { backgroundColor: color }]}
-            accessibilityRole="radio"
-            accessibilityLabel={key}
-            accessibilityState={{ selected: isSelected, checked: isSelected }}
-            onPress={() => {
-              triggerHaptic(isSelected ? "selection" : "success");
-              onSelect(key);
-            }}
-            activeOpacity={0.8}
-          >
-            {isSelected && <View style={styles.selectedMark} />}
-          </TouchableOpacity>
-        );
-      }}
-    />
-  );
+export default function ColorPicker({ selected, onSelect, themeColors }) {
+  const { lang } = useScheduleData();
+  return <SheetFlatList data={Object.entries(themes.accentColors)} numColumns={4} keyExtractor={([key]) => key}
+    contentContainerStyle={styles.list} renderItem={({ item: [key, color] }) => {
+      const checked = selected === key || selected?.toLowerCase() === color.toLowerCase();
+      return <Pressable style={({ pressed }) => [styles.tile, { opacity: pressed ? 0.7 : 1 }]} accessibilityRole="radio"
+        accessibilityLabel={t(`schedule.lesson_editor.colors.${key}`, lang)} accessibilityState={{ checked }}
+        onPress={() => { triggerHaptic('selection'); onSelect(key); }}>
+        <View style={[styles.swatch, { backgroundColor: color }]}>
+          {checked && <View style={styles.mark}><Check size={18} color="#111827" weight="bold" /></View>}
+        </View>
+        <Text style={[styles.label, { color: themeColors.textColor }]}>{t(`schedule.lesson_editor.colors.${key}`, lang)}</Text>
+      </Pressable>;
+    }} />;
 }
-
 const styles = StyleSheet.create({
-  container: {
-    paddingBottom: 40,
-  },
-  colorTile: {
-    width: "16%",
-    minHeight: 44,
-    aspectRatio: 1,
-    borderRadius: 14,
-    margin: "2%",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  selectedMark: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#ffffff",
-    elevation: 3,
-    ...Platform.select({
-      web: {
-        boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.3)",
-      },
-      default: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.3,
-        shadowRadius: 2,
-      },
-    }),
-  },
+  list: { paddingBottom: 32 }, tile: { width: '25%', padding: 6, alignItems: 'center', gap: 8, marginBottom: 8 },
+  swatch: { width: '100%', aspectRatio: 1, minHeight: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  mark: { backgroundColor: '#fff', borderRadius: 14, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: 12, lineHeight: 17, textAlign: 'center' },
 });
