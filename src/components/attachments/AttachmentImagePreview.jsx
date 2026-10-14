@@ -1579,7 +1579,9 @@ export default function AttachmentImagePreview({
     return (
       <TouchableOpacity
         activeOpacity={0.78}
-        onPressIn={() => handleThumbnailPress(index)}
+        onPress={() => handleThumbnailPress(index)}
+        accessibilityLabel={`${t('attachments.open', lang)}: ${item.name || index + 1}`}
+        accessibilityState={{ selected: isActive }}
         style={[
           styles.thumbnailButton,
           isActive ? styles.thumbnailButtonActive : null,
@@ -1596,7 +1598,7 @@ export default function AttachmentImagePreview({
         />
       </TouchableOpacity>
     );
-  }, [activeIndex, getDisplayUri, handleThumbnailPress]);
+  }, [activeIndex, getDisplayUri, handleThumbnailPress, lang]);
 
   const handleScrollToIndexFailed = useCallback((info) => {
     const fallbackOffset = Math.max(0, info.index * Math.max(width, 1));
@@ -1694,6 +1696,7 @@ export default function AttachmentImagePreview({
           <TouchableOpacity
             activeOpacity={0.72}
             onPress={() => goToOffset(-1)}
+            accessibilityLabel={t('common.previous', lang)}
             style={[styles.navButton, styles.navButtonLeft]}
             accessibilityRole="button"
           >
@@ -1702,6 +1705,7 @@ export default function AttachmentImagePreview({
           <TouchableOpacity
             activeOpacity={0.72}
             onPress={() => goToOffset(1)}
+            accessibilityLabel={t('common.next', lang)}
             style={[styles.navButton, styles.navButtonRight]}
             accessibilityRole="button"
           >

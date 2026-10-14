@@ -383,6 +383,8 @@ export default function TabNavigator({ screenProps }) {
         {notificationsOpen && (
           <TouchableOpacity
             activeOpacity={1}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close', lang)}
             onPress={closeNotifications}
             style={[styles.closeTapTarget, { width: drawerInset }]}
           />

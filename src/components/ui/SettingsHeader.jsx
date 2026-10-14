@@ -9,6 +9,7 @@ import { useScheduleData } from '../../context/ScheduleProvider';
 import { triggerHaptic } from '../../utils/haptics';
 import { t } from '../../utils/i18n';
 import useReducedMotionPreference from '../../hooks/useReducedMotionPreference';
+import { getSettingsHeaderHeight, SETTINGS_HEADER_BODY_HEIGHT } from '../../config/layoutMetrics';
 
 export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY, showBackButton = true, rightButton }) {
   const navigation = useNavigation();
@@ -19,8 +20,9 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
 
-  const CONTENT_HEIGHT = 60;
-  const HEADER_HEIGHT = CONTENT_HEIGHT + insets.top;
+  const CONTENT_HEIGHT = SETTINGS_HEADER_BODY_HEIGHT;
+  const HEADER_HEIGHT = getSettingsHeaderHeight(insets.top);
+  const [rightActionWidth, setRightActionWidth] = useState(44);
 
   const bgOpacity = scrollY ? scrollY.interpolate({
     inputRange: [0, 25],
@@ -68,7 +70,8 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
       Animated.parallel([
         Animated.timing(textFade, { toValue: 0, duration: 100, useNativeDriver: true }),
         Animated.timing(textTranslate, { toValue: exitTo, duration: 100, useNativeDriver: true }),
-      ]).start(() => {
+      ]).start(({ finished }) => {
+        if (!finished) return;
         setDisplayedSubTitle(subTitle || "");
         textTranslate.setValue(enterFrom); 
         Animated.parallel([
@@ -110,13 +113,13 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
               onPress={handleGoBack}
               style={styles.backButton}
             >
-              <CaretLeft size={28} color={themeColors.accentColor} weight="bold" />
+              <CaretLeft size={28} color={themeColors.accentTextColor} weight="bold" />
             </TouchableOpacity>
           )}
         </View>
 
-        <View style={[styles.titleContainer, !subTitle && { paddingBottom: 0, paddingTop: 0 }]}>
-          <Text style={[styles.mainTitle, { color: themeColors.textColor, marginBottom: subTitle ? 2 : 0 }]} numberOfLines={1}>
+        <View style={[styles.titleContainer, { paddingHorizontal: Math.max(60, rightActionWidth + 16) }, !subTitle && { paddingBottom: 0, paddingTop: 0 }]}>
+          <Text accessibilityRole="header" style={[styles.mainTitle, { color: themeColors.textColor, marginBottom: subTitle ? 2 : 0 }]} numberOfLines={1}>
             {title}
           </Text>
 
@@ -125,7 +128,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
               style={[
                 styles.subTitle,
                 { 
-                  color: themeColors.accentColor,
+                  color: themeColors.accentTextColor,
                   opacity: combinedOpacity,
                   transform: [{ translateY: combinedTranslateY }]
                 }
@@ -137,7 +140,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
           )}
         </View>
 
-        <View style={styles.rightContainer}>
+        <View style={styles.rightContainer} onLayout={event => setRightActionWidth(event.nativeEvent.layout.width)}>
           {rightButton}
         </View>
         
@@ -176,6 +179,8 @@ const styles = StyleSheet.create({
     zIndex: 2 
   },
   titleContainer: {
+    flex: 1,
+    minWidth: 0,
     paddingHorizontal: 60,
     alignItems: 'center',
     justifyContent: 'center',

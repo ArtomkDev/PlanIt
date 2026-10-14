@@ -201,9 +201,9 @@ export default function SchedulePickerSheet({
                     { backgroundColor: scheduleColorWithAlpha(themeColors.accentColor, 0.16) },
                   ]}
                 >
-                  <PlusCircle size={22} color={themeColors.accentColor} weight="bold" />
+                  <PlusCircle size={22} color={themeColors.accentTextColor} weight="bold" />
                 </View>
-                <Text style={[styles.addText, { color: themeColors.accentColor }]}>
+                <Text style={[styles.addText, { color: themeColors.accentTextColor }]}>
                   {t("settings.schedule_switcher.add_new", lang)}
                 </Text>
               </TouchableOpacity>

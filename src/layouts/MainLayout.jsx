@@ -22,11 +22,13 @@ import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
 import OnboardingWizard from '../pages/Onboarding/OnboardingWizard';
 import ImportScheduleModal from '../components/modals/ImportScheduleModal';
 import SchedulePickerSheet from '../pages/Schedule/components/SchedulePickerSheet';
+import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 
 const MainStack = createNativeStackNavigator();
 
 export default function MainLayout({ guest, onExitGuest }) {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotionPreference();
   const { canShowAds, isLoading: adsLoading } = useAds();
   const {
     user,
@@ -44,7 +46,7 @@ export default function MainLayout({ guest, onExitGuest }) {
     handleResolveConflict,
   } = useScheduleSync();
   const {
-    resetApplication,
+    retryInitialization,
     selectWidgetSchedule,
   } = useScheduleActions();
 
@@ -52,6 +54,7 @@ export default function MainLayout({ guest, onExitGuest }) {
   const url = Linking.useURL();
 
   const [isFatalTimeout, setIsFatalTimeout] = useState(false);
+  const [retrySequence, setRetrySequence] = useState(0);
   const [confirmedEmptyScope, setConfirmedEmptyScope] = useState(null);
   const [showWidgetConfig, setShowWidgetConfig] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
@@ -145,34 +148,40 @@ export default function MainLayout({ guest, onExitGuest }) {
     if (isBlocking) {
       timer = setTimeout(() => {
         setIsFatalTimeout(true);
-      }, 5000);
+      }, 12000);
       
       setShowOverlay(true);
       Animated.timing(overlayOpacity, {
         toValue: 1,
-        duration: 160,
+        duration: reduceMotion ? 0 : 160,
         useNativeDriver: true,
       }).start();
     } else {
       setIsFatalTimeout(false);
       Animated.timing(overlayOpacity, {
         toValue: 0,
-        duration: 180,
+        duration: reduceMotion ? 0 : 180,
         useNativeDriver: true,
-      }).start(() => setShowOverlay(false));
+      }).start(({ finished }) => {
+        if (finished) setShowOverlay(false);
+      });
     }
 
-    return () => clearTimeout(timer);
-  }, [isBlocking, overlayOpacity]);
+    return () => {
+      clearTimeout(timer);
+      overlayOpacity.stopAnimation();
+    };
+  }, [isBlocking, overlayOpacity, reduceMotion, retrySequence]);
 
-  const handleForceCreate = async () => {
+  const handleRetry = () => {
     setIsFatalTimeout(false);
-    await resetApplication(); 
+    setRetrySequence(sequence => sequence + 1);
+    retryInitialization();
   };
 
   const handleCloseImportModal = () => {
     setImportModalVisible(false);
-    setTimeout(() => setImportCode(""), 500);
+    setImportCode("");
   };
 
   const handleAddScheduleFromWidgetPicker = () => {
@@ -209,9 +218,10 @@ export default function MainLayout({ guest, onExitGuest }) {
         </View>
       ) : null}
 
-      <View style={styles.container}>
+      <View style={styles.container} accessibilityElementsHidden={showOverlay || conflictQueue.length > 0}
+        importantForAccessibility={showOverlay || conflictQueue.length > 0 ? 'no-hide-descendants' : 'auto'}>
         <View style={{ flex: 1 }}>
-          <MainStack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
+          <MainStack.Navigator screenOptions={{ headerShown: false, animation: reduceMotion ? 'none' : 'fade', animationDuration: 220 }}>
             {showOnboarding ? (
               <MainStack.Screen name="Onboarding">
                 {() => (
@@ -246,40 +256,32 @@ export default function MainLayout({ guest, onExitGuest }) {
         <Animated.View
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
-          accessibilityLabel={isErrorState ? (error ? `${t('common.error', lang)}: ${error}` : t('common.error', lang)) : t('schedule.loading', lang)}
+          accessibilityLabel={isErrorState ? t('main_layout.fatal_title', lang) : t('schedule.loading', lang)}
+          accessibilityViewIsModal
           style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: themeColors.backgroundColor, opacity: overlayOpacity }]}>
           {isErrorState ? (
             <>
               <AppBlur style={StyleSheet.absoluteFill} intensity={25} tint={isLightMode ? 'light' : 'dark'} />
               <View style={[styles.overlayContent, { backgroundColor: isLightMode ? 'rgba(255,255,255,0.85)' : 'rgba(30,30,30,0.85)' }]}>
-                
-                {!isFatalTimeout ? (
-                  <>
-                    <MorphingLoader size={50} style={{ marginBottom: 16 }} />
-                    <Text style={[styles.statusText, { color: themeColors.textColor }]}>
-                      {`${t('common.error', lang)}: ${error}`}
+                <View style={styles.fatalBox}>
+                  <Text style={[styles.fatalTitle, { color: themeColors.textColor }]}>
+                    {t('main_layout.fatal_title', lang)}
+                  </Text>
+                  <Text style={[styles.fatalDesc, { color: themeColors.textColor2 }]}>
+                    {t('main_layout.fatal_desc', lang)}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.retryButton, { backgroundColor: themeColors.accentColor }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.retry', lang)}
+                    onPress={handleRetry}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.retryButtonText, { color: themeColors.textOnAccent }]}>
+                      {t('common.retry', lang)}
                     </Text>
-                  </>
-                ) : (
-                  <View style={styles.fatalBox}>
-                    <Text style={[styles.fatalTitle, { color: themeColors.textColor }]}>
-                      {t('main_layout.fatal_title', lang)}
-                    </Text>
-                    <Text style={[styles.fatalDesc, { color: themeColors.textMuted || '#8E8E93' }]}>
-                      {error ? error : t('main_layout.fatal_desc', lang)}
-                    </Text>
-                    <TouchableOpacity 
-                      style={[styles.forceButton, { backgroundColor: themeColors.accentColor }]}
-                      onPress={handleForceCreate}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.forceButtonText}>
-                        {t('main_layout.force_create_btn', lang)}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
+                  </TouchableOpacity>
+                </View>
               </View>
             </>
           ) : (
@@ -314,10 +316,9 @@ const styles = StyleSheet.create({
   adSafeArea: { width: '100%' },
   overlay: { zIndex: 1000, justifyContent: 'center', alignItems: 'center' },
   overlayContent: { padding: 24, borderRadius: 20, alignItems: 'center', justifyContent: 'center', width: '85%', maxWidth: 400, elevation: 10 },
-  statusText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
   fatalBox: { alignItems: 'center', width: '100%' },
   fatalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
   fatalDesc: { fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
-  forceButton: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, width: '100%', alignItems: 'center' },
-  forceButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' }
+  retryButton: { paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, width: '100%', alignItems: 'center' },
+  retryButtonText: { fontSize: 16, fontWeight: '700' }
 });

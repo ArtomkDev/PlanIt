@@ -1,11 +1,12 @@
 import React, { useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScheduleData, useScheduleLayout } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import SettingsHeader from '../components/ui/SettingsHeader';
 import { t } from '../utils/i18n';
+import { getSettingsHeaderHeight } from '../config/layoutMetrics';
 
 export default function SettingsScreenLayout({ children, contentContainerStyle, title: titleOverride }) {
   const { global , lang } = useScheduleData();
@@ -30,38 +31,42 @@ export default function SettingsScreenLayout({ children, contentContainerStyle, 
     'NotificationsScreen': t('settings.notifications.settings_title', lang),
     'AccountSettings': t('settings.menu.account_settings.title', lang),
     'ChangeEmail': t('settings.account_settings.change_email_screen.title', lang),
+    'ChangeName': t('settings.account_settings.change_name.title', lang),
+    'ChangePassword': t('settings.account_settings.change_password.title', lang),
     'DeleteAccount': t('settings.account_settings.delete_screen.title', lang),
   };
   
   const title = titleOverride || routeTitles[route.name] || route.name;
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const headerHeight = 50 + insets.top;
+  const headerHeight = getSettingsHeaderHeight(insets.top);
   
   const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
   const bottomPadding = safeTabBarHeight + 16;
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
-      <SettingsHeader title={title} scrollY={scrollY} />
-
-      <Animated.ScrollView
-        contentContainerStyle={[
-          contentContainerStyle,
-          { 
-            paddingTop: headerHeight + 20,
-            paddingBottom: bottomPadding
-          }
-        ]}
-        keyboardShouldPersistTaps="handled"
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-      >
-        {children}
-      </Animated.ScrollView>
+    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor, paddingLeft: insets.left, paddingRight: insets.right }]}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <SettingsHeader title={title} scrollY={scrollY} />
+        <Animated.ScrollView
+          contentContainerStyle={[
+            contentContainerStyle,
+            {
+              paddingTop: headerHeight + 20,
+              paddingBottom: bottomPadding
+            }
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+        >
+          {children}
+        </Animated.ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

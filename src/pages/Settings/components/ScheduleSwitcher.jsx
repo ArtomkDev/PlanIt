@@ -383,14 +383,16 @@ const ScheduleSwitcher = () => {
           <View style={styles.toolbar}>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={label('create_schedule')}
                 onPress={() => { changeTab('account'); handleAddNew(); }}
                 style={({ pressed }) => [styles.createButton, { backgroundColor: themeColors.accentColor, opacity: pressed ? 0.8 : 1 }]}
               >
-                <Plus size={20} color="#fff" weight="bold" />
-                <Text style={styles.createLabel}>{label('create_schedule')}</Text>
+                <Plus size={20} color={themeColors.textOnAccent} weight="bold" />
+                <Text style={[styles.createLabel, { color: themeColors.textOnAccent }]}>{label('create_schedule')}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={label('import_schedule')}
                 onPress={() => { changeTab('account'); setImportModalVisible(true); }}
                 style={({ pressed }) => [styles.importButton, { backgroundColor: pressed ? themeColors.borderColor : themeColors.backgroundColor2 }]}
               >
@@ -425,8 +427,8 @@ const ScheduleSwitcher = () => {
             ) : !isAccountTab && localError ? (
               <View style={styles.emptyState}>
                 <Text accessibilityRole="alert" style={[styles.emptyDescription, { color: themeColors.textColor }]}>{label('load_error')}</Text>
-                <Pressable accessibilityRole="button" onPress={loadGuestSchedules} style={styles.retryButton}>
-                  <Text style={{ color: themeColors.accentColor }}>{label('retry')}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('common.retry', lang)} onPress={loadGuestSchedules} style={styles.retryButton}>
+                  <Text style={{ color: themeColors.accentTextColor }}>{label('retry')}</Text>
                 </Pressable>
               </View>
             ) : displaySchedules.length === 0 && (
@@ -470,8 +472,8 @@ const ScheduleSwitcher = () => {
                         <Text style={[styles.scheduleName, { color: themeColors.textColor }]}>{name}</Text>
                         <Text style={[styles.metadata, { color: themeColors.textColor2 }]}>{label('subject_count', { count: subjectCount })}</Text>
                         <View style={styles.currentLabel}>
-                          {selected && <Check size={14} color={themeColors.accentColor} weight="bold" />}
-                          <Text style={[styles.currentText, { color: selected ? themeColors.accentColor : themeColors.textColor2 }]}>{selected ? label('current_schedule') : isAccountTab ? label('select_schedule') : label('on_device')}</Text>
+                          {selected && <Check size={14} color={themeColors.accentTextColor} weight="bold" />}
+                          <Text style={[styles.currentText, { color: selected ? themeColors.accentTextColor : themeColors.textColor2 }]}>{selected ? label('current_schedule') : isAccountTab ? label('select_schedule') : label('on_device')}</Text>
                         </View>
                       </View>
                     </Selection>

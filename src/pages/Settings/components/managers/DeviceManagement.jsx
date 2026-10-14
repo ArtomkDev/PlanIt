@@ -158,7 +158,7 @@ export default function DeviceManager() {
             {error && (
               <View style={styles.section}>
                 <Text accessibilityRole="alert" style={[styles.metadata, { color: colors.textColor }]}>{label(error)}</Text>
-                {error === "load_error" && <Pressable accessibilityRole="button" onPress={() => setRetry((value) => value + 1)} style={styles.retryButton}>
+                {error === "load_error" && <Pressable accessibilityRole="button" accessibilityLabel={label('retry')} onPress={() => setRetry((value) => value + 1)} style={styles.retryButton}>
                   <Text style={{ color: colors.accentColor }}>{label("retry")}</Text>
                 </Pressable>}
               </View>
@@ -169,6 +169,7 @@ export default function DeviceManager() {
             {others.length > 0 && (
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={label('logout_all_others')}
                 accessibilityState={{ disabled: !!pending, busy: pending === "all" }}
                 disabled={!!pending}
                 onPress={() => confirmSignOut(null)}

@@ -212,6 +212,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadedScopeKey, setLoadedScopeKey] = useState(null);
   const [error, setError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const retryInitialization = useCallback(() => setLoadAttempt(attempt => attempt + 1), []);
   const [widgetScheduleId, setWidgetScheduleId] = useState(undefined);
 
   const [isDirty, setIsDirty] = useState(false);
@@ -285,12 +287,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setDevicePrefs(prefs);
 
       if (guest) {
-        let local = null;
-        try {
-          local = await getLocalSchedule(null);
-        } catch (localError) {
-          setError(localError?.message || 'Unable to read local data');
-        }
+        const local = await getLocalSchedule(null);
         if (cancelled) return;
         if (local) lastLocalSaveFingerprintRef.current = `guest:${getScheduleDataFingerprint(local)}`;
         const initialData = local || createDefaultData();
@@ -300,12 +297,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         setIsLoading(false);
         setCloudSyncState('synced');
       } else if (user) {
-        let local = null;
-        try {
-          local = await getLocalSchedule(user.uid);
-        } catch (localError) {
-          setError(localError?.message || 'Unable to read local data');
-        }
+        const local = await getLocalSchedule(user.uid);
         if (cancelled) return;
 
         if (local) {
@@ -346,16 +338,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             }
           } catch (e) {
             if (cancelled) return;
-            const defaultData = createDefaultData();
-            dataRef.current = defaultData;
-            setData(defaultData);
-            updateIsDirty(true);
             setError(e?.message || 'Cloud data is temporarily unavailable');
-            try {
-              await saveLocalScheduleIfChanged(defaultData, user.uid);
-            } catch (localError) {
-              setError(localError?.message || 'Unable to save local data');
-            }
           } finally {
             if (cancelled) return;
             setLoadedScopeKey(user.uid);
@@ -384,7 +367,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         saveLocalSchedule(latestData, scopeUserId).catch(() => {});
       }
     };
-  }, [guest, user, saveLocalScheduleIfChanged, updateIsDirty]);
+  }, [guest, user, loadAttempt, saveLocalScheduleIfChanged, updateIsDirty]);
 
   useEffect(() => {
     if (!data || isLoading) return;
@@ -1238,6 +1221,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         }
       }
       setCloudSyncState('synced');
+      setError(null);
     } catch (e) {
       setCloudSyncState(prevOnlineRef.current ? 'syncing' : 'offline');
       setError(e?.message || "Error");
@@ -1500,6 +1484,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     saveNow,
     safeLogout,
     reloadAllSchedules,
+    retryInitialization,
     resetApplication,
     deleteGuestSchedules,
   }), [
@@ -1512,6 +1497,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     saveNow,
     safeLogout,
     reloadAllSchedules,
+    retryInitialization,
     resetApplication,
     deleteGuestSchedules,
   ]);

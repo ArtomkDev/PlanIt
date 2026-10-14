@@ -31,7 +31,7 @@ export default function ExpandableCard({
         <View style={styles.rowLeft}>
           {Icon && (
             <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '15' }]}>
-              <Icon size={20} color={themeColors.accentColor} weight="fill" />
+              <Icon size={20} color={themeColors.accentTextColor} weight="fill" />
             </View>
           )}
           <Text style={[styles.rowLabel, { color: themeColors.textColor }]}>
@@ -42,7 +42,7 @@ export default function ExpandableCard({
           <Text style={[
             styles.rowValue, 
             { 
-              color: isExpanded ? themeColors.accentColor : themeColors.textColor2, 
+              color: isExpanded ? themeColors.accentTextColor : themeColors.textColor2,
               fontWeight: isExpanded ? 'bold' : 'normal' 
             }
           ]}>
@@ -77,10 +77,14 @@ const styles = StyleSheet.create({
     padding: 14 
   },
   rowLeft: { 
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row', 
     alignItems: 'center' 
   },
   rowRight: { 
+    maxWidth: '45%',
+    marginLeft: 12,
     flexDirection: 'row', 
     alignItems: 'center' 
   },
@@ -93,10 +97,13 @@ const styles = StyleSheet.create({
     marginRight: 12 
   },
   rowLabel: { 
+    flexShrink: 1,
     fontSize: 16, 
     fontWeight: '500' 
   },
   rowValue: { 
+    flexShrink: 1,
+    textAlign: 'right',
     fontSize: 15, 
     marginRight: 8 
   },

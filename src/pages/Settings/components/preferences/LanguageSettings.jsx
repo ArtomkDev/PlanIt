@@ -60,7 +60,7 @@ const LanguageSettings = () => {
                   rightContent={
                     Platform.OS === 'web' ? (
                       <View style={[styles.webFlagCircle, { backgroundColor: isSelected ? themeColors.accentColor : themeColors.borderColor }]}>
-                         <Text style={[styles.webFlagText, { color: isSelected ? '#fff' : themeColors.textColor }]}>
+                         <Text style={[styles.webFlagText, { color: isSelected ? themeColors.textOnAccent : themeColors.textColor }]}>
                            {item.code.toUpperCase()}
                          </Text>
                       </View>

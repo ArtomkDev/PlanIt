@@ -551,13 +551,13 @@ export default function FileLibraryScreen() {
       >
         <Icon
           size={18}
-          color={isAdding ? "#fff" : themeColors.accentColor}
+          color={isAdding ? themeColors.textOnAccent : themeColors.accentTextColor}
           weight="bold"
         />
         <Text
           style={[
             styles.addLibraryButtonText,
-            { color: isAdding ? "#fff" : themeColors.textColor },
+            { color: isAdding ? themeColors.textOnAccent : themeColors.textColor },
           ]}
           numberOfLines={1}
         >
@@ -780,7 +780,7 @@ export default function FileLibraryScreen() {
         ]}
       >
         <View style={[styles.fileIcon, { backgroundColor: themeColors.accentColor + "18" }]}>
-          <Icon size={20} color={themeColors.accentColor} weight="bold" />
+          <Icon size={20} color={themeColors.accentTextColor} weight="bold" />
         </View>
 
         {isRenaming ? (
@@ -837,7 +837,7 @@ export default function FileLibraryScreen() {
             <>
               {renderIconButton({
                 icon: Check,
-                color: themeColors.accentColor,
+                color: themeColors.accentTextColor,
                 disabled: isBusy,
                 label: t("attachments.rename_save", lang),
                 onPress: () => saveRename(file),
@@ -871,7 +871,7 @@ export default function FileLibraryScreen() {
               })}
               {renderIconButton({
                 icon: file.storageMode === "local" ? CloudArrowUp : CloudSlash,
-                color: file.storageMode === "local" ? themeColors.accentColor : themeColors.textColor2,
+                color: file.storageMode === "local" ? themeColors.accentTextColor : themeColors.textColor2,
                 disabled: isBusy || (file.storageMode === "local" && !user?.uid),
                 label: file.storageMode === "local"
                   ? t("settings.files.make_cloud", lang)
@@ -946,6 +946,7 @@ export default function FileLibraryScreen() {
             <View style={styles.fileBody}>
               <TextInput
                 value={renameValue}
+                accessibilityLabel={t('attachments.rename_placeholder', lang)}
                 onChangeText={setRenameValue}
                 onSubmitEditing={() => saveRename(file)}
                 placeholder={t("attachments.rename_placeholder", lang)}
@@ -994,7 +995,7 @@ export default function FileLibraryScreen() {
               <>
                 {renderIconButton({
                   icon: Check,
-                  color: themeColors.accentColor,
+                  color: themeColors.accentTextColor,
                   disabled: isBusy,
                   label: t("attachments.rename_save", lang),
                   onPress: () => saveRename(file),
@@ -1028,7 +1029,7 @@ export default function FileLibraryScreen() {
                 })}
                 {renderIconButton({
                   icon: file.storageMode === "local" ? CloudArrowUp : CloudSlash,
-                  color: file.storageMode === "local" ? themeColors.accentColor : themeColors.textColor2,
+                  color: file.storageMode === "local" ? themeColors.accentTextColor : themeColors.textColor2,
                   disabled: isBusy || (file.storageMode === "local" && !user?.uid),
                   label: file.storageMode === "local"
                     ? t("settings.files.make_cloud", lang)
@@ -1088,7 +1089,7 @@ export default function FileLibraryScreen() {
         <View style={styles.storagePanel}>
           <View style={styles.storageHeader}>
             <View style={[styles.storageIcon, { backgroundColor: themeColors.accentColor + "18" }]}>
-              <Cloud size={22} color={themeColors.accentColor} weight="bold" />
+              <Cloud size={22} color={themeColors.accentTextColor} weight="bold" />
             </View>
             <View style={styles.storageTextBlock}>
               <Text style={[styles.storageValue, { color: themeColors.textColor }]}>
@@ -1108,7 +1109,7 @@ export default function FileLibraryScreen() {
               style={[
                 styles.storagePercent,
                 {
-                  color: usageRatio >= 0.92 ? "#FF3B30" : themeColors.accentColor,
+                  color: usageRatio >= 0.92 ? "#FF3B30" : themeColors.accentTextColor,
                   backgroundColor: usageRatio >= 0.92 ? "#FF3B3014" : themeColors.accentColor + "14",
                 },
               ]}
@@ -1152,7 +1153,7 @@ export default function FileLibraryScreen() {
               { backgroundColor: webDropActive ? themeColors.accentColor : themeColors.accentColor + "18" },
             ]}
           >
-            <CloudArrowUp size={24} color={webDropActive ? "#fff" : themeColors.accentColor} weight="bold" />
+            <CloudArrowUp size={24} color={webDropActive ? themeColors.textOnAccent : themeColors.accentTextColor} weight="bold" />
           </View>
           <View style={styles.webUploadTextBlock}>
             <Text style={[styles.webUploadTitle, { color: themeColors.textColor }]} numberOfLines={1}>

@@ -49,8 +49,8 @@ export default function AppSwitch({
     return {
       inactiveTrack,
       activeTrack,
-      inactiveBorder: themeColors?.borderColor || inactiveTrack,
-      activeBorder: activeTrack,
+      inactiveBorder: themeColors?.textColor3 || themeColors?.borderColor || inactiveTrack,
+      activeBorder: themeColors?.accentTextColor || activeTrack,
       thumb,
     };
   }, [themeColors]);

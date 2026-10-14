@@ -194,7 +194,7 @@ export default function NotificationInboxPanel({ backgroundColor }) {
         )}
 
         <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + "15" }]}>
-          <SignIn size={19} color={themeColors.accentColor} weight={isUnread ? "fill" : "regular"} />
+          <SignIn size={19} color={themeColors.accentTextColor} weight={isUnread ? "fill" : "regular"} />
         </View>
 
         <View style={[styles.notificationContent, isUnread && styles.notificationContentUnread]}>
@@ -255,7 +255,7 @@ export default function NotificationInboxPanel({ backgroundColor }) {
           <View style={styles.readIcon}>
             <CheckCircle
               size={22}
-              color={readingId === notification.id ? themeColors.textColor3 : themeColors.accentColor}
+              color={readingId === notification.id ? themeColors.textColor3 : themeColors.accentTextColor}
               weight="bold"
             />
           </View>
@@ -281,7 +281,7 @@ export default function NotificationInboxPanel({ backgroundColor }) {
           </Text>
           {unreadCount > 0 && (
             <View style={[styles.unreadCountBadge, { backgroundColor: themeColors.accentColor }]}>
-              <Text style={styles.unreadCountText}>
+              <Text style={[styles.unreadCountText, { color: themeColors.textOnAccent }]}>
                 {unreadCount > 99 ? "99+" : unreadCount}
               </Text>
             </View>
@@ -298,7 +298,7 @@ export default function NotificationInboxPanel({ backgroundColor }) {
           >
             <CheckCircle
               size={21}
-              color={markingAll ? themeColors.textColor3 : themeColors.accentColor}
+              color={markingAll ? themeColors.textColor3 : themeColors.accentTextColor}
               weight="bold"
             />
           </TouchableOpacity>

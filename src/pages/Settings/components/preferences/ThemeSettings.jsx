@@ -7,7 +7,6 @@ import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import AdvancedColorPicker from "../../../../components/ui/AdvancedColorPicker";
 import AppSwitch from "../../../../components/ui/AppSwitch";
 import { t } from "../../../../utils/i18n";
-import { saveDevicePrefs, getDevicePrefs } from "../../../../utils/storage";
 import { triggerHaptic } from "../../../../utils/haptics";
 
 const ThemeSettings = () => {
@@ -38,14 +37,6 @@ const ThemeSettings = () => {
         theme: [selectedMode, selectedColor],
         blur: isBlurEnabled,
       }));
-
-      getDevicePrefs().then((prefs) => {
-        saveDevicePrefs({
-          ...prefs,
-          theme: [selectedMode, selectedColor],
-          blur: isBlurEnabled,
-        });
-      });
     }
   }, [selectedMode, selectedColor, isBlurEnabled]);
 
@@ -96,7 +87,7 @@ const ThemeSettings = () => {
         activeOpacity={0.7}
       >
         {isSelected && (
-          <Check size={20} color="#fff" weight="bold" style={styles.checkmarkIcon} />
+          <Check size={20} color={themes.getColors(selectedMode, colorKey).textOnAccent} weight="bold" style={styles.checkmarkIcon} />
         )}
       </TouchableOpacity>
     );
@@ -186,7 +177,7 @@ const ThemeSettings = () => {
           >
             <PencilSimple
               size={20}
-              color={isCustomColor ? '#fff' : themeColors.textColor}
+              color={isCustomColor ? themeColors.textOnAccent : themeColors.textColor}
               weight="bold"
             />
           </TouchableOpacity>
@@ -202,7 +193,7 @@ const ThemeSettings = () => {
             { backgroundColor: themeColors.backgroundColor2, borderLeftColor: themeColors.accentColor },
           ]}
         >
-          <Text style={[styles.previewHeader, { color: themeColors.accentColor }]}>
+          <Text style={[styles.previewHeader, { color: themeColors.accentTextColor }]}>
             {t('settings.theme_screen.preview.header', lang)}
           </Text>
           <Text style={[styles.previewText, { color: themeColors.textColor }]}>
@@ -215,7 +206,7 @@ const ThemeSettings = () => {
           </Text>
           
           <View style={[styles.dummyButton, { backgroundColor: themeColors.accentColor }]}>
-             <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t('settings.theme_screen.preview.button', lang)}</Text>
+             <Text style={{ color: themeColors.textOnAccent, fontWeight: 'bold' }}>{t('settings.theme_screen.preview.button', lang)}</Text>
           </View>
         </View>
       </View>

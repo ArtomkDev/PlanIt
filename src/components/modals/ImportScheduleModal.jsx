@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Platform, Keyboard
+  Keyboard
 } from "react-native";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { DownloadSimple, X } from "phosphor-react-native";
@@ -24,8 +24,21 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState(null);
-  const [placeholderText, setPlaceholderText] = useState("");
   const lastAutoFetchedCodeRef = useRef("");
+  const requestIdRef = useRef(0);
+  const importedRef = useRef(false);
+
+  useEffect(() => {
+    importedRef.current = false;
+    if (!visible) {
+      requestIdRef.current += 1;
+      setLoading(false);
+      setCode('');
+      setError(null);
+      setPreviewData(null);
+    }
+    return () => { requestIdRef.current += 1; };
+  }, [visible]);
 
   const fetchSchedulePreview = useCallback(async (rawCode, options = {}) => {
     if (options.dismissKeyboard !== false) {
@@ -37,29 +50,32 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
       return;
     }
     setLoading(true);
+    const requestId = ++requestIdRef.current;
     setError(null);
     try {
       const data = await fetchSharedSchedule(nextCode);
+      if (requestId !== requestIdRef.current) return;
       setPreviewData(data);
       triggerHaptic("success");
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       triggerHaptic("error");
       if (err.message === "not_found") setError(t("share.error_not_found", lang));
       else if (err.message === "invalid_code") setError(t("share.error_not_found", lang));
       else if (err.message === "inactive") setError(t("share.error_inactive", lang));
       else if (err.message === "expired") setError(t("share.error_expired", lang));
-      else setError(t("common.error", lang));
+      else setError(t("common.action_failed", lang));
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, [lang]);
   useEffect(() => {
     if (visible && initialCode) {
       const normalizedInitialCode = initialCode.toUpperCase();
       setCode(normalizedInitialCode);
-      setError(null);
-      setPreviewData(null);
       if (lastAutoFetchedCodeRef.current !== normalizedInitialCode) {
+        setError(null);
+        setPreviewData(null);
         lastAutoFetchedCodeRef.current = normalizedInitialCode;
         fetchSchedulePreview(normalizedInitialCode, { dismissKeyboard: false });
       }
@@ -68,50 +84,15 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
     }
   }, [visible, initialCode, fetchSchedulePreview]);
 
-  useEffect(() => {
-    let interval;
-    if (visible && !previewData && !initialCode) {
-      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      const targetLength = 5;
-      let finalCode = "";
-      
-      for (let i = 0; i < targetLength; i++) {
-        finalCode += chars[Math.floor(Math.random() * chars.length)];
-      }
-
-      let iteration = 0;
-      
-      interval = setInterval(() => {
-        setPlaceholderText(() => {
-          return finalCode
-            .split("")
-            .map((char, index) => {
-              if (index < iteration / 3) {
-                return finalCode[index];
-              }
-              return chars[Math.floor(Math.random() * chars.length)];
-            })
-            .join("");
-        });
-
-        if (iteration >= targetLength * 3) {
-          clearInterval(interval);
-        }
-        iteration += 1;
-      }, 40); 
-    } else if (!visible) {
-      setPlaceholderText("");
-    }
-
-    return () => clearInterval(interval);
-  }, [visible, previewData, initialCode]);
-
-  const handleFetch = () => fetchSchedulePreview(code);
+  const handleFetch = () => {
+    if (!loading && code.trim().length >= 5) fetchSchedulePreview(code);
+  };
 
   const handleImport = () => {
-    if (!previewData) return;
+    if (!previewData || importedRef.current) return;
     try {
       const newSchedule = sanitizeImportedSchedule(previewData.scheduleData);
+      importedRef.current = true;
       addSchedule(newSchedule);
       setGlobalDraft(prev => ({ ...prev, currentScheduleId: newSchedule.id }));
       triggerHaptic("success");
@@ -127,6 +108,8 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
   };
 
   const resetAndClose = (withHaptic = true) => {
+    requestIdRef.current += 1;
+    setLoading(false);
     Keyboard.dismiss();
     if (withHaptic) triggerHaptic("sheetClose");
     setCode("");
@@ -153,7 +136,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
               <Text style={[styles.title, { color: themeColors.textColor }]}>
                 {initialCode ? t("share.open_title", lang) : t("share.import_title", lang)}
               </Text>
-              <TouchableOpacity onPress={resetAndClose} hitSlop={15}>
+              <TouchableOpacity onPress={resetAndClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel={t('common.close', lang)}>
                 <X size={24} color={themeColors.textColor} weight="bold" />
               </TouchableOpacity>
             </View>
@@ -171,32 +154,34 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                   </Text>
                   
                   <View style={styles.inputWrapper}>
-                    {/* Independent text layer handles high-frequency updates without native TextInput drops */}
-                    {!code && placeholderText ? (
-                      <Text style={[styles.placeholderOverlay, { color: themeColors.textColor3 }]} pointerEvents="none">
-                        {placeholderText}
-                      </Text>
-                    ) : null}
-                    
                     <BottomSheetTextInput
+                      accessibilityLabel={t('share.enter_code', lang)}
+                      placeholder="ABCDE"
+                      placeholderTextColor={themeColors.textColor2}
+                      editable={!loading}
                       style={[styles.input, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: error ? "#FF3B30" : themeColors.borderColor }]}
                       value={code}
                       onChangeText={(text) => { setCode(text); setError(null); }}
                       autoCapitalize="characters"
                       maxLength={256}
                       autoCorrect={false}
-                      autoFocus={Platform.OS === "ios"}
+                      returnKeyType="search"
+                      onSubmitEditing={handleFetch}
                     />
                   </View>
                   
-                  {error && <Text style={styles.errorText}>{error}</Text>}
+                  {error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.errorText}>{error}</Text>}
 
                   <TouchableOpacity
-                    style={[styles.primaryBtn, { backgroundColor: themeColors.accentColor }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('share.find_btn', lang)}
+                    accessibilityState={{ disabled: loading || code.trim().length < 5, busy: loading }}
+                    style={[styles.primaryBtn, { backgroundColor: themeColors.accentColor, opacity: loading || code.trim().length < 5 ? 0.5 : 1 }]}
                     onPress={handleFetch}
-                    disabled={loading || code.length < 5}
+                    disabled={loading || code.trim().length < 5}
                   >
-                    {loading ? <MorphingLoader size={28} /> : <Text style={styles.primaryBtnText}>{t("share.find_btn", lang)}</Text>}
+                    {loading && <MorphingLoader size={24} />}
+                    <Text style={[styles.primaryBtnText, { color: themeColors.textOnAccent }]}>{t("share.find_btn", lang)}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -210,11 +195,13 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                   </View>
 
                   <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={t('share.add_to_account_btn', lang)}
                     style={[styles.primaryBtn, { backgroundColor: themeColors.accentColor, flexDirection: "row", gap: 10 }]}
                     onPress={handleImport}
                   >
-                    <DownloadSimple size={22} color="#fff" weight="bold" />
-                    <Text style={styles.primaryBtnText}>{t("share.add_to_account_btn", lang)}</Text>
+                    <DownloadSimple size={22} color={themeColors.textOnAccent} weight="bold" />
+                    <Text style={[styles.primaryBtnText, { color: themeColors.textOnAccent }]}>{t("share.add_to_account_btn", lang)}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -226,12 +213,12 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
 const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth },
-  title: { fontSize: 20, fontWeight: "700" },
+  title: { flex: 1, fontSize: 20, fontWeight: "700" },
+  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20, paddingBottom: 40 },
   label: { fontSize: 14, fontWeight: "600", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 },
   inputWrapper: { position: "relative", justifyContent: "center", marginBottom: 8 },
   input: { height: 64, borderRadius: 16, borderWidth: 1, paddingHorizontal: 20, fontSize: 22, fontWeight: "800", letterSpacing: 3, textAlign: "center" },
-  placeholderOverlay: { position: "absolute", width: "100%", textAlign: "center", fontSize: 22, fontWeight: "800", letterSpacing: 3, zIndex: 2 },
   errorText: { color: "#FF3B30", fontSize: 14, textAlign: "center", marginTop: 4, fontWeight: "600" },
   primaryBtn: { width: "100%", paddingVertical: 16, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 24 },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },

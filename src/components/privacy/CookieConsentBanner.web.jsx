@@ -85,6 +85,7 @@ export default function CookieConsentBanner({ lang = 'en' }) {
         <TouchableOpacity
           onPress={() => Linking.openURL(getLegalDocumentBrowserUrl('cookies', lang))}
           accessibilityRole="link"
+          accessibilityLabel={t('cookie_consent.read_policy', lang)}
         >
           <Text style={styles.policyLink}>
             {t('cookie_consent.read_policy', lang)}
@@ -97,6 +98,7 @@ export default function CookieConsentBanner({ lang = 'en' }) {
           style={styles.choiceButton}
           onPress={() => chooseAnalytics('denied')}
           accessibilityRole="button"
+          accessibilityLabel={t('cookie_consent.reject', lang)}
         >
           <Text style={styles.choiceButtonText}>
             {t('cookie_consent.reject', lang)}
@@ -106,6 +108,7 @@ export default function CookieConsentBanner({ lang = 'en' }) {
           style={styles.choiceButton}
           onPress={() => chooseAnalytics('granted')}
           accessibilityRole="button"
+          accessibilityLabel={t('cookie_consent.accept', lang)}
         >
           <Text style={styles.choiceButtonText}>
             {t('cookie_consent.accept', lang)}
@@ -116,6 +119,7 @@ export default function CookieConsentBanner({ lang = 'en' }) {
             style={styles.closeButton}
             onPress={() => setIsPreferenceEditorOpen(false)}
             accessibilityRole="button"
+            accessibilityLabel={t('cookie_consent.close', lang)}
           >
             <Text style={styles.closeButtonText}>
               {t('cookie_consent.close', lang)}

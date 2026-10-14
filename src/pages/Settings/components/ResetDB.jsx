@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, ScrollView } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform } from 'react-native';
 import { Warning } from 'phosphor-react-native';
 import { useScheduleActions, useScheduleData } from '../../../context/ScheduleProvider';
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
@@ -15,6 +15,9 @@ const DangerActionCard = ({ title, description, buttonText, onPress, isLoading, 
       <Text style={[styles.cardDescription, { color: themeColors.textColor2 }]}>{description}</Text>
     </View>
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={buttonText}
+      accessibilityState={{ disabled: isLoading || disabled, busy: isLoading }}
       style={[
         styles.actionButton,
         { backgroundColor: isExtreme ? '#dc2626' : '#ef4444' },
@@ -24,7 +27,10 @@ const DangerActionCard = ({ title, description, buttonText, onPress, isLoading, 
       disabled={isLoading || disabled}
     >
       {isLoading ? (
-        <MorphingLoader size={24} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <MorphingLoader size={24} />
+          <Text style={styles.actionButtonText}>{buttonText}</Text>
+        </View>
       ) : (
         <Text style={styles.actionButtonText}>{buttonText}</Text>
       )}
@@ -45,24 +51,35 @@ export default function ResetDB() {
   } = useScheduleActions();
 
   const [isResetting, setIsResetting] = useState(false);
+  const resettingRef = useRef(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
   const handleAction = (actionFn, confirmText) => {
+    if (isResetting || isLoading) return;
     triggerHaptic("warning");
     const title = t('settings.reset_db_screen.alert_title', lang);
     const msg = t('settings.reset_db_screen.alert_msg', lang);
 
     const onConfirm = async () => {
+      if (resettingRef.current) return;
+      resettingRef.current = true;
       setIsResetting(true);
+      setErrorMsg('');
       try {
-        await actionFn();
+        if (await actionFn() === false) {
+          triggerHaptic('error');
+          setErrorMsg(t('common.action_failed', lang));
+          return;
+        }
         triggerHaptic("success");
       } catch (error) {
         triggerHaptic("error");
-        console.error(error);
+        setErrorMsg(t('common.action_failed', lang));
       } finally {
+        resettingRef.current = false;
         setIsResetting(false);
       }
     };
@@ -79,13 +96,14 @@ export default function ResetDB() {
   };
 
   const handleResetBoth = async () => {
-    await resetApplication();
+    if (await resetApplication() === false) return false;
     await deleteGuestSchedules();
+    return true;
   };
 
   return (
     <SettingsScreenLayout>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.scrollContainer}>
 
         <View style={[styles.warningBanner, { backgroundColor: mode === 'dark' || mode === 'oled' ? '#451a1a' : '#fef2f2', borderColor: '#f87171' }]}>
           <Warning size={32} color="#ef4444" weight="fill" style={styles.warningIcon} />
@@ -104,6 +122,7 @@ export default function ResetDB() {
         </Text>
 
         <View style={styles.actionsContainer}>
+          {!!errorMsg && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: '#dc2626' }}>{errorMsg}</Text>}
           {guest ? (
             <DangerActionCard
               title={t('settings.reset_db_screen.button_text', lang)}
@@ -140,7 +159,7 @@ export default function ResetDB() {
           )}
         </View>
 
-      </ScrollView>
+      </View>
     </SettingsScreenLayout>
   );
 }

@@ -2,15 +2,14 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Animated, KeyboardAvoidingView, Platform,
-  PanResponder, useColorScheme, useWindowDimensions, Alert
+  PanResponder, useColorScheme, useWindowDimensions, Alert, BackHandler, Keyboard
 } from 'react-native';
 import GradientBackground from '../../components/ui/GradientBackground';
 import {
-  CalendarDots, Clock, CalendarBlank, CaretDown, Trash, Plus,
-  Hourglass, Coffee, HandWaving, PencilSimple, CaretLeft,
+  CalendarDots, Clock, CalendarBlank, CaretDown,
+  HandWaving, PencilSimple, CaretLeft,
   CaretRight, Check, Eye, EyeSlash, Bell, CheckSquare, Palette, DownloadSimple
 } from 'phosphor-react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
 import { t, formatText as interpolateText } from '../../utils/i18n';
@@ -23,7 +22,7 @@ import AppSwitch from '../../components/ui/AppSwitch';
 
 import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
-import SettingsActionRow from '../../components/ui/SettingsKit/SettingsActionRow';
+import ScheduleTimeEditor from '../../components/ScheduleTimeEditor';
 import { triggerHaptic } from '../../utils/haptics';
 import {
   CUSTOM_REMINDER_FALLBACK_MINUTES,
@@ -43,8 +42,12 @@ import {
 import {
   getLastMondayISODate,
   normalizeScheduleRepeat,
+  buildScheduleSlots,
+  createScheduleTimingDraft,
 } from '../../utils/scheduleTime';
 import { generateId } from '../../utils/idGenerator';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useReducedMotionPreference from '../../hooks/useReducedMotionPreference';
 
 const TOTAL_STEPS = 5;
 const STEP_INDICES = Array.from({ length: TOTAL_STEPS }, (_, index) => index);
@@ -64,7 +67,10 @@ const expandFirstOutputRange = (firstValue, restValue) => [
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function OnboardingWizard({ onImportSchedule }) {
-  const { width } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const width = windowWidth - insets.left - insets.right;
+  const reduceMotion = useReducedMotionPreference();
   const colorScheme = useColorScheme();
   const { lang, global } = useScheduleData();
   const { addSchedule, setGlobalDraft } = useScheduleActions();
@@ -77,12 +83,21 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
   const [step, setStep] = useState(0);
   const [stepHeights, setStepHeights] = useState(INITIAL_STEP_HEIGHTS);
-  const [showNavButtons, setShowNavButtons] = useState(Platform.OS === 'web');
+  const [showNavButtons, setShowNavButtons] = useState(true);
+  const [isFinishing, setIsFinishing] = useState(false);
+  const finishStartedRef = useRef(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef(null);
   const position = useRef(new Animated.Value(0)).current;
   const currentPosRef = useRef(0);
   const swipeStartPos = useRef(0);
+
+  useEffect(() => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    scrollY.setValue(0);
+    Keyboard.dismiss();
+  }, [step, scrollY]);
 
   const exitAnim = useRef(new Animated.Value(1)).current;
 
@@ -98,11 +113,18 @@ export default function OnboardingWizard({ onImportSchedule }) {
     extrapolate: 'clamp'
   });
 
-  const navAnim = useRef(new Animated.Value(Platform.OS === 'web' ? 1 : 0)).current;
+  const navAnim = useRef(new Animated.Value(1)).current;
   const toggleBtnScale = useRef(new Animated.Value(1)).current;
-  const toggleIconRotate = useRef(new Animated.Value(Platform.OS === 'web' ? 1 : 0)).current;
+  const toggleIconRotate = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      navAnim.stopAnimation();
+      toggleIconRotate.stopAnimation();
+      navAnim.setValue(showNavButtons ? 1 : 0);
+      toggleIconRotate.setValue(showNavButtons ? 1 : 0);
+      return;
+    }
     Animated.parallel([
       Animated.spring(navAnim, {
         toValue: showNavButtons ? 1 : 0,
@@ -116,7 +138,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
         useNativeDriver: true
       })
     ]).start();
-  }, [showNavButtons, navAnim, toggleIconRotate]);
+  }, [showNavButtons, navAnim, toggleIconRotate, reduceMotion]);
 
   const navTranslateY = navAnim.interpolate({ inputRange: [0, 1], outputRange: [150, 0] });
   const navOpacity = navAnim.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 0, 1] });
@@ -124,10 +146,12 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
   const handleToggleNav = () => {
     triggerHaptic(showNavButtons ? "toggleOff" : "toggleOn");
-    Animated.sequence([
-      Animated.timing(toggleBtnScale, { toValue: 0.85, duration: 100, useNativeDriver: true }),
-      Animated.timing(toggleBtnScale, { toValue: 1, duration: 150, useNativeDriver: true })
-    ]).start();
+    if (!reduceMotion) {
+      Animated.sequence([
+        Animated.timing(toggleBtnScale, { toValue: 0.85, duration: 100, useNativeDriver: true }),
+        Animated.timing(toggleBtnScale, { toValue: 1, duration: 150, useNativeDriver: true })
+      ]).start();
+    }
     setShowNavButtons(prev => !prev);
   };
 
@@ -148,52 +172,22 @@ export default function OnboardingWizard({ onImportSchedule }) {
   const [weeksCount, setWeeksCount] = useState('1');
   const [startingWeek, setStartingWeek] = useState(getLastMondayISODate);
   const [isCalendarVisible, setCalendarVisible] = useState(false);
-  const [firstLessonTime, setFirstLessonTime] = useState('08:30');
-  const [lessonDuration, setLessonDuration] = useState('80');
-  const [breaks, setBreaks] = useState(["10", "10", "10", "10"]);
+  const [timing, setTiming] = useState(() => createScheduleTimingDraft({ start_time: '08:30', duration: 80, breaks: Array(5).fill(10), slotDurations: Array(6).fill(80) }));
   const [scheduleReminder, setScheduleReminder] = useState(() => normalizeScheduleReminder(defaultSchedule.reminder));
   const [customReminderMinutes, setCustomReminderMinutes] = useState(String(CUSTOM_REMINDER_FALLBACK_MINUTES));
   const [taskAutoLinkMode, setTaskAutoLinkMode] = useState(() => getTaskAutoLinkMode(defaultSchedule));
 
-  const [isTimeExpanded, setIsTimeExpanded] = useState(false);
-  const [isDurationExpanded, setIsDurationExpanded] = useState(false);
-  const [isBreaksExpanded, setIsBreaksExpanded] = useState(false);
   const [isReminderExpanded, setIsReminderExpanded] = useState(false);
   const scheduleColorOptions = useMemo(
     () => SCHEDULE_COLOR_KEYS.map((key) => themes.accentColors[key]).filter(Boolean),
     []
   );
 
-  const closeTimePanels = useCallback(() => {
-    setIsTimeExpanded(false);
-    setIsDurationExpanded(false);
-    setIsBreaksExpanded(false);
-  }, []);
-
-  const toggleTimeExpand = () => {
-    setIsTimeExpanded(prev => !prev);
-    setIsDurationExpanded(false);
-    setIsBreaksExpanded(false);
-  };
-
   const handleImportSchedule = useCallback(() => {
     triggerHaptic("open");
     onImportSchedule?.();
   }, [onImportSchedule]);
-  const toggleDurationExpand = () => {
-    setIsDurationExpanded(prev => !prev);
-    setIsTimeExpanded(false);
-    setIsBreaksExpanded(false);
-  };
-  const toggleBreaksExpand = () => {
-    setIsBreaksExpanded(prev => !prev);
-    setIsTimeExpanded(false);
-    setIsDurationExpanded(false);
-  };
-  const toggleReminderExpand = () => {
-    setIsReminderExpanded(prev => !prev);
-    closeTimePanels();
-  };
+  const toggleReminderExpand = () => setIsReminderExpanded(prev => !prev);
 
   const formatReminderValue = useCallback((reminder) => {
     const normalized = normalizeScheduleReminder(reminder);
@@ -276,9 +270,10 @@ export default function OnboardingWizard({ onImportSchedule }) {
       id: scheduleId,
       name: scheduleName.trim() || t('common.untitled', lang),
       repeat: finalRepeat,
-      duration: Number(lessonDuration) || 80,
-      breaks: breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b)),
-      start_time: firstLessonTime,
+      ...timing,
+      duration: Number(timing.slotDurations[0]),
+      slotDurations: timing.slotDurations.map(Number),
+      breaks: timing.breaks.map(Number),
       starting_week: startingWeek,
       reminder: normalizeScheduleReminder(scheduleReminder),
       taskAutoLinkMode: getTaskAutoLinkMode({ taskAutoLinkMode }),
@@ -289,9 +284,20 @@ export default function OnboardingWizard({ onImportSchedule }) {
   handleFinishRef.current = handleFinish;
 
   const navigateToStep = (newStep) => {
-    if (newStep < 0) return;
+    if (newStep < 0 || finishStartedRef.current) return;
     
     if (newStep >= TOTAL_STEPS) {
+      if (buildScheduleSlots(timing.start_time, timing.duration, timing.breaks, timing.slotDurations).length === 0) {
+        Alert.alert(t('schedule.main_screen.time', lang), t('settings.schedule_editor.timing.invalid', lang));
+        navigateToStepRef.current(3);
+        return;
+      }
+      finishStartedRef.current = true;
+      setIsFinishing(true);
+      if (reduceMotion) {
+        handleFinishRef.current();
+        return;
+      }
       Animated.parallel([
         Animated.spring(position, {
           toValue: TOTAL_STEPS,
@@ -301,11 +307,11 @@ export default function OnboardingWizard({ onImportSchedule }) {
         }),
         Animated.timing(exitAnim, {
           toValue: 0,
-          duration: 400,
+          duration: 200,
           useNativeDriver: true
         })
-      ]).start(() => {
-        handleFinishRef.current();
+      ]).start(({ finished }) => {
+        if (finished) handleFinishRef.current();
       });
       return;
     }
@@ -314,6 +320,11 @@ export default function OnboardingWizard({ onImportSchedule }) {
       setScheduleName(t('common.untitled', lang));
     }
     
+    if (reduceMotion) {
+      position.stopAnimation();
+      position.setValue(newStep);
+      return;
+    }
     Animated.spring(position, {
       toValue: newStep,
       useNativeDriver: false,
@@ -323,9 +334,20 @@ export default function OnboardingWizard({ onImportSchedule }) {
   };
   navigateToStepRef.current = navigateToStep;
 
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (finishStartedRef.current) return true;
+      if (currentPosRef.current < 0.5) return false;
+      navigateToStepRef.current(Math.max(0, Math.round(currentPosRef.current) - 1));
+      return true;
+    });
+    return () => subscription.remove();
+  }, []);
+
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponderCapture: (evt, gestureState) => {
+        if (finishStartedRef.current) return false;
         return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2;
       },
       onPanResponderGrant: () => {
@@ -346,33 +368,35 @@ export default function OnboardingWizard({ onImportSchedule }) {
         if (dx > 50 || vx > 0.5) targetStep = Math.floor(currentPosRef.current);
         else if (dx < -50 || vx < -0.5) targetStep = Math.ceil(currentPosRef.current);
 
-        targetStep = Math.max(0, Math.min(TOTAL_STEPS, targetStep));
+        targetStep = Math.max(0, Math.min(TOTAL_STEPS - 1, targetStep));
         navigateToStepRef.current(targetStep);
+      },
+      onPanResponderTerminate: () => {
+        navigateToStepRef.current(Math.max(0, Math.min(TOTAL_STEPS - 1, Math.round(currentPosRef.current))));
       }
     })
   ).current;
 
-  const dynamicContainerHeight = Platform.OS === 'android'
-    ? Math.max(...stepHeights)
-    : position.interpolate({
+  const dynamicContainerHeight = position.interpolate({
       inputRange: STEP_INDICES,
       outputRange: stepHeights,
       extrapolate: 'clamp'
     });
 
-  const compactH = Platform.OS === 'ios' ? 100 : 80;
-  const compactIconTop = Platform.OS === 'ios' ? 35 : 15;
-  const compactDotsTop = Platform.OS === 'ios' ? 71 : 51;
+  const firstHeaderHeight = 200 + insets.top;
+  const compactH = 64 + insets.top;
+  const compactIconTop = insets.top - 12;
+  const compactDotsTop = insets.top + 25;
   const dotsLiftTop = compactH + 42;
   const compactContentSpacerHeight = compactH + (Platform.OS === 'ios' ? 14 : 18);
   const compactInputRange = [0, 0.4, ...STEP_INDICES.slice(1)];
   const compactDotInputRange = [0, 0.6, ...STEP_INDICES.slice(1)];
-  const headerHeight = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(240, compactH), extrapolate: 'clamp' });
+  const headerHeight = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(firstHeaderHeight, compactH), extrapolate: 'clamp' });
   const contentTopSpacerHeight = position.interpolate({
     inputRange: [0, 0.35, 1, ...STEP_INDICES.slice(2)],
     outputRange: [
-      240,
-      240,
+      firstHeaderHeight,
+      firstHeaderHeight,
       compactContentSpacerHeight,
       ...Array.from({ length: TOTAL_STEPS - 2 }, () => compactContentSpacerHeight),
     ],
@@ -380,15 +404,14 @@ export default function OnboardingWizard({ onImportSchedule }) {
   });
   const dynamicBorderColor = scrollY.interpolate({ inputRange: [0, 20], outputRange: ['transparent', themeColors.borderColor], extrapolate: 'clamp' });
 
-  const iconTop = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(80, compactIconTop), extrapolate: 'clamp' });
+  const iconTop = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(40 + insets.top, compactIconTop), extrapolate: 'clamp' });
   const iconLeft = position.interpolate({ inputRange: compactInputRange, outputRange: [width / 2 - 40, ...Array.from({ length: TOTAL_STEPS }, () => 4)], extrapolate: 'clamp' });
   const iconScale = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(1, 0.5), extrapolate: 'clamp' });
 
-  const dotsTop = position.interpolate({ inputRange: compactDotInputRange, outputRange: [180, dotsLiftTop, ...Array.from({ length: TOTAL_STEPS - 1 }, () => compactDotsTop)], extrapolate: 'clamp' });
+  const dotsTop = position.interpolate({ inputRange: compactDotInputRange, outputRange: [140 + insets.top, dotsLiftTop, ...Array.from({ length: TOTAL_STEPS - 1 }, () => compactDotsTop)], extrapolate: 'clamp' });
   const dotsLeft = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(width / 2 - 40, 84), extrapolate: 'clamp' });
 
   const isCustomRepeat = !['1', '2', '3', '4'].includes(String(weeksCount));
-  const isCustomDuration = !['45', '60', '80', '90'].includes(String(lessonDuration));
   const reminderSelectionId = getScheduleReminderSelectionId(scheduleReminder);
   const taskAutoLinkNextLesson = getTaskAutoLinkMode({ taskAutoLinkMode }) === TASK_AUTO_LINK_MODES.NEXT_SAME;
   const isSingleWeek = Number(weeksCount) <= 1;
@@ -398,22 +421,11 @@ export default function OnboardingWizard({ onImportSchedule }) {
   const dayOfWeek = startDateObj.toLocaleDateString(lang, { weekday: 'long' });
   const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
 
-  const [hours, minutes] = (firstLessonTime || "08:30").split(":").map(Number);
-  const timeDate = new Date();
-  timeDate.setHours(isNaN(hours) ? 8 : hours, isNaN(minutes) ? 30 : minutes, 0, 0);
-
-  const handleBreakChange = (text, index) => setBreaks(prev => { const n = [...prev]; n[index] = text.replace(/[^0-9]/g, ''); return n; });
-  const handleAddBreak = () => setBreaks(prev => [...prev, "10"]);
-  const handleRemoveBreak = (index) => {
-    triggerHaptic("warning");
-    setBreaks(prev => prev.filter((_, i) => i !== index));
-  };
-
   const renderStep0 = () => (
     <View style={styles.stepContent}>
       <View style={[styles.welcomeBadge, { backgroundColor: themeColors.accentColor + '15', borderColor: themeColors.accentColor + '35' }]}>
-        <CalendarDots size={18} color={themeColors.accentColor} weight="fill" />
-        <Text style={[styles.welcomeBadgeText, { color: themeColors.accentColor }]}>{t('onboarding.welcome_badge', lang)}</Text>
+        <CalendarDots size={18} color={themeColors.accentTextColor} weight="fill" />
+        <Text style={[styles.welcomeBadgeText, { color: themeColors.accentTextColor }]}>{t('onboarding.welcome_badge', lang)}</Text>
       </View>
       <Text style={[styles.title, styles.welcomeTitle, { color: themeColors.textColor }]}>{t('onboarding.welcome_main_title', lang)}</Text>
       <Text style={[styles.subtitle, styles.welcomeSubtitle, { color: themeColors.textColor2 }]}>{t('onboarding.welcome_main_desc', lang)}</Text>
@@ -432,7 +444,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
         testID="onboarding-import-schedule"
       >
         <View style={[styles.importScheduleIcon, { backgroundColor: themeColors.accentColor + '20' }]}>
-          <DownloadSimple size={25} color={themeColors.accentColor} weight="bold" />
+          <DownloadSimple size={25} color={themeColors.accentTextColor} weight="bold" />
         </View>
         <View style={styles.importScheduleText}>
           <Text style={[styles.importScheduleTitle, { color: themeColors.textColor }]}>
@@ -442,7 +454,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
             {t('onboarding.import_friend_desc', lang)}
           </Text>
         </View>
-        <CaretRight size={20} color={themeColors.accentColor} weight="bold" />
+        <CaretRight size={20} color={themeColors.accentTextColor} weight="bold" />
       </TouchableOpacity>
       <Text style={[styles.swipeHint, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_to_continue', lang)} -&gt;</Text>
       <Text style={[styles.swipeHintSub, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_hint_sub', lang)}</Text>
@@ -461,7 +473,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
       <View style={styles.inputGroup}>
         <View style={styles.colorLabelRow}>
-          <Palette size={18} color={themeColors.accentColor} weight="regular" />
+          <Palette size={18} color={themeColors.accentTextColor} weight="regular" />
           <Text style={[styles.label, styles.colorLabel, { color: themeColors.textColor }]}>{t('settings.schedule_editor.color', lang)}</Text>
         </View>
         <View style={styles.colorSwatches}>
@@ -485,7 +497,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
                 onPress={() => handleScheduleColorPress(color)}
                 activeOpacity={0.78}
               >
-                {selected && <Check size={18} color="#fff" weight="bold" />}
+                {selected && <Check size={18} color={themes.getColors(mode, color).textOnAccent} weight="bold" />}
               </TouchableOpacity>
             );
           })}
@@ -512,7 +524,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
         <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.starting_week_desc', lang)}</Text>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('onboarding.starting_week', lang)} style={[styles.dateCard, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]} onPress={() => { triggerHaptic("open"); setCalendarVisible(true); }} activeOpacity={0.7}>
           <View style={[styles.dateCardIcon, { backgroundColor: themeColors.accentColor + '15' }]}>
-            <CalendarBlank size={26} color={themeColors.accentColor} weight="fill" />
+            <CalendarBlank size={26} color={themeColors.accentTextColor} weight="fill" />
           </View>
           <View style={styles.dateCardTextContainer}>
             <Text style={[styles.dateCardDay, { color: themeColors.textColor }]}>{capitalizedDay}</Text>
@@ -529,80 +541,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
       <Text style={[styles.title, { color: themeColors.textColor, textAlign: 'center' }]}>{t('onboarding.step3_title', lang)}</Text>
       <Text style={[styles.subtitle, { color: themeColors.textColor2, textAlign: 'center', marginBottom: 20 }]}>{t('onboarding.step3_desc', lang)}</Text>
       
-      <View style={{ width: '100%' }}>
-        <SettingsGroup themeColors={themeColors}>
-          <SettingsRow
-            label={t('settings.menu.start_time.title', lang)}
-            value={firstLessonTime}
-            icon={Clock}
-            themeColors={themeColors}
-            onPress={toggleTimeExpand}
-          />
-          {isTimeExpanded && (
-            <View style={styles.expandedContentPicker}>
-              {Platform.OS === 'android' ? (
-                <DateTimePicker value={timeDate} mode="time" is24Hour design="material" positiveButton={{ textColor: themeColors.accentColor }} negativeButton={{ textColor: themeColors.textColor2 }} onChange={(e, d) => { setIsTimeExpanded(false); if (e.type === 'set' && d) { triggerHaptic("success"); setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); } }} />
-              ) : (
-                <View style={styles.timePickerContainer}>
-                  {Platform.OS !== 'web' ? <DateTimePicker value={timeDate} mode="time" is24Hour display="spinner" themeVariant={mode === 'light' ? 'light' : 'dark'} onChange={(e, d) => { if (d) setFirstLessonTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`); }} textColor={themeColors.textColor} style={{ height: 120, width: '100%' }} /> : <View style={{ padding: 20, width: '100%', alignItems: 'center' }}><input type="time" value={firstLessonTime} onChange={(e) => setFirstLessonTime(e.target.value)} style={{ fontSize: 24, padding: 12, borderRadius: 12, width: '100%', textAlign: 'center', border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor }} /></View>}
-                </View>
-              )}
-            </View>
-          )}
-
-          <SettingsRow
-            label={t('settings.menu.duration.title', lang)}
-            value={`${lessonDuration} ${t('schedule.main_screen.minutes', lang)}`}
-            icon={Hourglass}
-            themeColors={themeColors}
-            onPress={toggleDurationExpand}
-            showCaret={false}
-          />
-          {isDurationExpanded && (
-            <View style={styles.expandedContent}>
-              <TabSwitcher tabs={[{ id: '45', label: '45' }, { id: '60', label: '60' }, { id: '80', label: '80' }, { id: '90', label: '90' }]} activeTab={String(lessonDuration)} onTabPress={setLessonDuration} themeColors={themeColors} activeTabBackgroundColor={isCustomDuration ? 'transparent' : themeColors.accentColor} containerBackgroundColor={themeColors.backgroundColor} containerBorderColor={themeColors.borderColor} />
-              <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor, borderColor: (isCustomDuration && lessonDuration !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
-                <TextInput accessibilityLabel={t('schedule.main_screen.duration', lang)} style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomDuration ? String(lessonDuration) : ""} onChangeText={(t) => setLessonDuration(t.replace(/[^0-9]/g, ''))} placeholder={t('schedule.main_screen.duration', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={3} />
-              </View>
-            </View>
-          )}
-
-          <SettingsRow
-            label={t('settings.menu.breaks.title', lang)}
-            value={`${breaks.length}`}
-            icon={Coffee}
-            themeColors={themeColors}
-            onPress={toggleBreaksExpand}
-            showCaret={false}
-          />
-          {isBreaksExpanded && (
-            <View style={styles.expandedContentBreaks}>
-              {breaks.map((brk, idx) => (
-                <View key={`break-${idx}`} style={[styles.breakRow, { borderBottomColor: themeColors.borderColor }]}>
-                  <Text style={[styles.breakRowLabel, { color: themeColors.textColor }]}>{t('schedule.day_schedule.break', lang)} {idx + 1}</Text>
-                  <View style={styles.breakActions}>
-                    <View style={[styles.breakInputWrapper, { backgroundColor: themeColors.accentColor + '15' }]}>
-                      <TextInput accessibilityLabel={`${t('schedule.day_schedule.break', lang)} ${idx + 1}`} style={[styles.breakRowInput, { color: themeColors.accentColor }]} value={String(brk)} onChangeText={(t) => handleBreakChange(t, idx)} keyboardType="number-pad" maxLength={3} selectTextOnFocus />
-                      <Text style={[styles.breakRowMin, { color: themeColors.accentColor }]}>{t('schedule.main_screen.minutes', lang)}</Text>
-                    </View>
-                    <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${t('common.delete', lang)}: ${t('schedule.day_schedule.break', lang)} ${idx + 1}`} hitSlop={4} onPress={() => handleRemoveBreak(idx)} style={styles.trashBtn} activeOpacity={0.7}>
-                      <Trash size={18} color="#FF3B30" weight="bold" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-              <View style={{ marginTop: 12 }}>
-                <SettingsActionRow 
-                  icon={Plus}
-                  label={t('settings.breaks_manager.add_btn', lang)}
-                  onPress={handleAddBreak}
-                  themeColors={themeColors}
-                />
-              </View>
-            </View>
-          )}
-        </SettingsGroup>
-      </View>
+      <ScheduleTimeEditor value={timing} onChange={setTiming} themeColors={themeColors} lang={lang} mode={mode} active={step === 3} />
     </View>
   );
 
@@ -634,6 +573,9 @@ export default function OnboardingWizard({ onImportSchedule }) {
                   const selected = reminderSelectionId === option.id;
                   return (
                     <TouchableOpacity
+                      accessibilityRole="radio"
+                      accessibilityLabel={option.id === 'off' || option.id === 'custom' ? option.label : t('schedule.reminders.before_minutes', lang, { minutes: option.label })}
+                      accessibilityState={{ checked: selected }}
                       key={option.id}
                       style={[
                         styles.reminderChoice,
@@ -645,7 +587,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
                       onPress={() => handleReminderSelection(option.id)}
                       activeOpacity={0.75}
                     >
-                      <Text style={[styles.reminderChoiceText, { color: selected ? '#fff' : themeColors.textColor }]}>
+                      <Text style={[styles.reminderChoiceText, { color: selected ? themeColors.textOnAccent : themeColors.textColor }]}>
                         {option.label}
                       </Text>
                     </TouchableOpacity>
@@ -656,6 +598,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
               {reminderSelectionId === 'custom' && (
                 <View style={[styles.reminderInputWrapper, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.accentColor }]}>
                   <TextInput
+                    accessibilityLabel={t('schedule.reminders.custom_placeholder', lang)}
                     style={[styles.reminderInput, { color: themeColors.textColor }]}
                     value={customReminderMinutes}
                     onChangeText={handleCustomReminderChange}
@@ -699,7 +642,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
       </View>
 
       <View style={[styles.finishSummary, { backgroundColor: themeColors.accentColor + '12', borderColor: themeColors.accentColor + '30' }]}>
-        <Check size={18} color={themeColors.accentColor} weight="bold" />
+        <Check size={18} color={themeColors.accentTextColor} weight="bold" />
         <Text style={[styles.finishSummaryText, { color: themeColors.textColor }]}>{t('onboarding.step4_finish_hint', lang)}</Text>
       </View>
     </View>
@@ -709,7 +652,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}
+      style={[styles.container, { backgroundColor: themeColors.backgroundColor, paddingLeft: insets.left, paddingRight: insets.right }]}
       behavior="padding"
       enabled={Platform.OS === 'ios'}
       {...panResponder.panHandlers}
@@ -717,9 +660,11 @@ export default function OnboardingWizard({ onImportSchedule }) {
       <Animated.View style={[{ flex: 1, opacity: exitOpacity, transform: [{ scale: exitScale }, { translateY: exitTranslateY }] }]}>
         
         <Animated.ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: showNavButtons ? (Platform.OS === 'ios' ? 140 : 110) : 60 }]}
+          ref={scrollViewRef}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: (showNavButtons ? 110 : 24) + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           scrollEventThrottle={Platform.OS === 'android' ? 32 : 16}
           removeClippedSubviews={Platform.OS === 'android'}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
@@ -761,6 +706,8 @@ export default function OnboardingWizard({ onImportSchedule }) {
                   style={[styles.stepWrapper, { width, opacity, transform: [{ translateX }, { scale }], zIndex: isActive ? 10 : 0 }]}
                   renderToHardwareTextureAndroid={Platform.OS === 'android' && isActive}
                   pointerEvents={isActive ? 'auto' : 'none'}
+                  accessibilityElementsHidden={!isActive}
+                  importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
                 >
                   {renderItem()}
                 </Animated.View>
@@ -771,10 +718,13 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
         <Animated.View style={[styles.header, { height: headerHeight, borderBottomColor: dynamicBorderColor }]}>
           <AnimatedTouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('onboarding.navigation', lang)}
+            accessibilityState={{ expanded: showNavButtons }}
             style={[
               styles.toggleNavBtn,
               {
-                top: Platform.OS === 'ios' ? 58 : 38,
+                top: insets.top + 10,
                 backgroundColor: themeColors.backgroundColor,
                 borderColor: themeColors.borderColor,
                 transform: [{ scale: toggleBtnScale }]
@@ -815,7 +765,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
               const bounce = position.interpolate({ inputRange: [idx - 1, idx, idx + 1], outputRange: [0.5, 1, 0.5], extrapolate: 'clamp' });
               return (
                 <Animated.View key={idx} style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', opacity, transform: [{ scale: bounce }] }]} pointerEvents="none">
-                  <Icon size={40} color={themeColors.accentColor} weight="fill" />
+                  <Icon size={40} color={themeColors.accentTextColor} weight="fill" />
                 </Animated.View>
               );
             })}
@@ -827,11 +777,14 @@ export default function OnboardingWizard({ onImportSchedule }) {
             styles.bottomNavContainer,
             { 
               borderTopColor: themeColors.borderColor,
+              paddingBottom: Math.max(insets.bottom, 16),
               opacity: navOpacity,
               transform: [{ translateY: navTranslateY }]
             }
           ]}
           pointerEvents={showNavButtons ? 'auto' : 'none'}
+          accessibilityElementsHidden={!showNavButtons}
+          importantForAccessibility={showNavButtons ? 'auto' : 'no-hide-descendants'}
         >
           <View style={StyleSheet.absoluteFill}>
             <AppBlur style={StyleSheet.absoluteFill} />
@@ -839,9 +792,9 @@ export default function OnboardingWizard({ onImportSchedule }) {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t('common.back', lang)}
-            accessibilityState={{ disabled: step === 0 }}
+            accessibilityState={{ disabled: step === 0 || isFinishing }}
             style={[styles.navBtn, { backgroundColor: themeColors.backgroundColor2, opacity: step === 0 ? 0.4 : 1 }]}
-            disabled={step === 0}
+            disabled={step === 0 || isFinishing}
             onPress={() => navigateToStep(step - 1)}
             activeOpacity={0.7}
           >
@@ -851,17 +804,19 @@ export default function OnboardingWizard({ onImportSchedule }) {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={step === TOTAL_STEPS - 1 ? t('common.done', lang) : t('onboarding.next', lang)}
+            accessibilityState={{ disabled: isFinishing, busy: isFinishing }}
+            disabled={isFinishing}
             style={[styles.navBtnMain, { backgroundColor: themeColors.accentColor }]}
             onPress={() => navigateToStep(step + 1)}
             activeOpacity={0.8}
           >
-            <Text style={styles.navBtnMainText}>
+            <Text style={[styles.navBtnMainText, { color: themeColors.textOnAccent }]}>
               {step === TOTAL_STEPS - 1 ? t('common.done', lang) : t('onboarding.next', lang)}
             </Text>
             {step === TOTAL_STEPS - 1 ? (
-              <Check size={20} color="#FFF" weight="bold" style={{ marginLeft: 8 }} />
+              <Check size={20} color={themeColors.textOnAccent} weight="bold" style={{ marginLeft: 8 }} />
             ) : (
-              <CaretRight size={20} color="#FFF" weight="bold" style={{ marginLeft: 8 }} />
+              <CaretRight size={20} color={themeColors.textOnAccent} weight="bold" style={{ marginLeft: 8 }} />
             )}
           </TouchableOpacity>
         </Animated.View>
@@ -915,9 +870,6 @@ const styles = StyleSheet.create({
   dateCardDate: { fontSize: 14 },
   
   expandedContent: { paddingHorizontal: 16, paddingVertical: 16 },
-  expandedContentPicker: { paddingBottom: 8 },
-  expandedContentBreaks: { paddingHorizontal: 16, paddingBottom: 16 },
-  timePickerContainer: { alignItems: 'center', overflow: 'hidden' },
   reminderChoiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   reminderChoice: { minWidth: 58, height: 40, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
   reminderChoiceText: { fontSize: 14, fontWeight: '700' },
@@ -926,14 +878,6 @@ const styles = StyleSheet.create({
   inputSuffix: { fontSize: 14, fontWeight: '600', marginLeft: 8 },
   finishSummary: { width: '100%', minHeight: 54, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 12, marginTop: 18, flexDirection: 'row', alignItems: 'center' },
   finishSummaryText: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '600', marginLeft: 10 },
-  breakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  breakRowLabel: { fontSize: 16, fontWeight: '500' },
-  breakActions: { flexDirection: 'row', alignItems: 'center' },
-  breakInputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 36, borderRadius: 10, marginRight: 8 },
-  breakRowInput: { fontSize: 16, fontWeight: '700', textAlign: 'center', minWidth: 30 },
-  breakRowMin: { fontSize: 14, fontWeight: '600', marginLeft: 2, opacity: 0.8 },
-  trashBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FF3B3015', justifyContent: 'center', alignItems: 'center' },
-  
   bottomNavContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 36 : 20, borderTopWidth: StyleSheet.hairlineWidth, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'transparent', overflow: 'hidden' },
   navBtn: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   navBtnMain: { flex: 1, height: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 16 },

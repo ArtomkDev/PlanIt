@@ -30,7 +30,7 @@ export default function SettingsRow({
   const Component = onPress ? TouchableOpacity : View;
 
   const mainColor = danger ? '#FF3B30' : themeColors.textColor;
-  const calculatedIconColor = iconColor || (danger ? '#FF3B30' : themeColors.accentColor);
+  const calculatedIconColor = iconColor || (danger ? '#FF3B30' : themeColors.accentTextColor);
   const calculatedIconBgColor = iconBgColor || (danger ? '#FF3B3015' : themeColors.accentColor + '15');
   const resolvedAccessibilityLabel = accessibilityLabel || [label, typeof value === "string" ? value : null].filter(Boolean).join(", ");
   const resolvedAccessibilityRole = accessibilityRole || (onPress ? "button" : undefined);

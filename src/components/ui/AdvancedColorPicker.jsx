@@ -96,7 +96,7 @@ function AdvancedColorPickerContent({
     >
       <View style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: themeColors.accentColorLight }]}>
-          <Palette size={23} color={themeColors.accentColor} weight="bold" />
+          <Palette size={23} color={themeColors.accentTextColor} weight="bold" />
         </View>
         <View style={styles.headerCopy}>
           <Text style={[styles.title, { color: themeColors.textColor }]}>{title}</Text>

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from "react-native";
 import { Trash, Clock } from "phosphor-react-native";
 import { useScheduleData } from "../../../context/ScheduleProvider";
 import { getUserSharedSchedules, deleteSharedSchedule } from "../../../services/shareService";
@@ -15,24 +15,57 @@ export default function SharedSchedulesManager() {
 
   const [sharedList, setSharedList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [pendingCode, setPendingCode] = useState(null);
+  const requestIdRef = useRef(0);
+  const deletionBusyRef = useRef(false);
 
-  useEffect(() => {
-    fetchSchedules();
-  }, [user]);
-
-  const fetchSchedules = async () => {
-    if (!user) return;
+  const fetchSchedules = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    setLoading(true);
+    setError(false);
+    if (!user?.uid) {
+      setSharedList([]);
+      setLoading(false);
+      return;
+    }
     try {
       const data = await getUserSharedSchedules(user.uid);
-      setSharedList(data);
+      if (requestId === requestIdRef.current) setSharedList(data);
     } catch (error) {
-      console.error(error);
+      if (requestId === requestIdRef.current) setError(true);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  };
+  }, [user?.uid]);
+
+  useEffect(() => {
+    setSharedList([]);
+    fetchSchedules();
+    return () => { requestIdRef.current += 1; };
+  }, [fetchSchedules]);
 
   const handleDelete = (shareCode) => {
+    if (deletionBusyRef.current) return;
+    const deactivate = async () => {
+      if (deletionBusyRef.current) return;
+      deletionBusyRef.current = true;
+      setPendingCode(shareCode);
+      setError(false);
+      try {
+        await deleteSharedSchedule(shareCode);
+        setSharedList(prev => prev.filter(item => item.id !== shareCode));
+      } catch {
+        setError(true);
+      } finally {
+        deletionBusyRef.current = false;
+        setPendingCode(null);
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('share.deactivate_desc', lang))) deactivate();
+      return;
+    }
     Alert.alert(
       t("share.deactivate_title", lang),
       t("share.deactivate_desc", lang),
@@ -41,14 +74,7 @@ export default function SharedSchedulesManager() {
         {
           text: t("share.deactivate_btn", lang),
           style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteSharedSchedule(shareCode);
-              setSharedList((prev) => prev.filter((item) => item.id !== shareCode));
-            } catch (error) {
-              console.error(error);
-            }
-          },
+          onPress: deactivate,
         },
       ]
     );
@@ -81,7 +107,7 @@ export default function SharedSchedulesManager() {
               { backgroundColor: isDead ? themeColors.backgroundColor3 : themeColors.accentColor + "20" },
             ]}
           >
-            <Text style={[styles.statusText, { color: isDead ? themeColors.textColor2 : themeColors.accentColor }]}>
+            <Text style={[styles.statusText, { color: isDead ? themeColors.textColor2 : themeColors.accentTextColor }]}>
               {isInactive ? t("share.status_inactive", lang) : isExpired ? t("share.status_expired", lang) : t("share.status_active", lang)}
             </Text>
           </View>
@@ -89,7 +115,7 @@ export default function SharedSchedulesManager() {
 
         <View style={styles.detailsRow}>
           <Text style={[styles.codeText, { color: themeColors.textColor }]}>
-            {t("share.code_label", lang)}: <Text style={{ fontWeight: "800", color: themeColors.accentColor }}>{item.id}</Text>
+            {t("share.code_label", lang)}: <Text style={{ fontWeight: "800", color: themeColors.accentTextColor }}>{item.id}</Text>
           </Text>
           <View style={styles.timeWrapper}>
             <Clock size={14} color={themeColors.textColor2} />
@@ -101,6 +127,10 @@ export default function SharedSchedulesManager() {
 
         {!isDead && (
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${t('share.deactivate_btn', lang)}: ${item.scheduleName}`}
+            accessibilityState={{ disabled: pendingCode !== null, busy: pendingCode === item.id }}
+            disabled={pendingCode !== null}
             style={[styles.deactivateBtn, { borderTopColor: themeColors.borderColor }]}
             onPress={() => handleDelete(item.id)}
           >
@@ -114,11 +144,17 @@ export default function SharedSchedulesManager() {
 
   return (
     <SettingsScreenLayout title={t("settings.menu.shared_schedules.title", lang)}>
+      {error && <View style={styles.errorBox}>
+        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.emptyText, { color: themeColors.textColor }]}>{t('common.action_failed', lang)}</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('common.retry', lang)} onPress={fetchSchedules} style={styles.retryButton}>
+          <Text style={{ color: themeColors.accentTextColor }}>{t('common.retry', lang)}</Text>
+        </TouchableOpacity>
+      </View>}
       {loading ? (
         <View style={styles.center}>
           <MorphingLoader size={58} />
         </View>
-      ) : sharedList.length === 0 ? (
+      ) : sharedList.length === 0 && !error ? (
         <View style={styles.center}>
           <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
             {t("share.manager_empty", lang)}
@@ -134,6 +170,8 @@ export default function SharedSchedulesManager() {
 }
 
 const styles = StyleSheet.create({
+  errorBox: { padding: 16, gap: 8 },
+  retryButton: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   center: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 100 },
   emptyText: { fontSize: 16, fontWeight: "500" },
   listContent: { padding: 16, paddingBottom: 40 },

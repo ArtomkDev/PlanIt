@@ -1,3 +1,5 @@
+import tinycolor from 'tinycolor2';
+
 const themes = {
   light: {
     backgroundColor: '#F2F4F7',
@@ -7,8 +9,8 @@ const themes = {
     backgroundColorTabNavigator: '#FFFFFF',
     
     textColor: '#1A202C',
-    textColor2: '#64748B',
-    textColor3: '#94A3B8',
+    textColor2: '#58677D',
+    textColor3: '#646B77',
     textColorScheduleCard: '#1A202C',
     
     borderColor: '#E2E8F0',
@@ -23,7 +25,7 @@ const themes = {
     
     textColor: '#FFFFFF',
     textColor2: '#A1A1AA',
-    textColor3: '#52525B',
+    textColor3: '#8A8A94',
     textColorScheduleCard: '#FFFFFF',
     
     borderColor: '#2D2D33',
@@ -38,7 +40,7 @@ const themes = {
     
     textColor: '#FFFFFF',
     textColor2: '#B0B0B0',
-    textColor3: '#333333',
+    textColor3: '#8E8E93',
     textColorScheduleCard: '#E0E0E0',
     
     borderColor: '#333333',
@@ -87,11 +89,20 @@ const themes = {
         : this.accentColors.blue;
     }
 
-    const textOnAccent = "#FFFFFF"; 
+    const textOnAccent = tinycolor.mostReadable(accentColor, ['#FFFFFF', '#111827'], { includeFallbackColors: true }).toHexString();
+    let accentTextColor = accentColor;
+    for (let amount = 0; amount <= 100; amount += 10) {
+      const candidate = tinycolor.mix(accentColor, baseTheme.textColor, amount).toHexString();
+      if ([baseTheme.backgroundColor, baseTheme.backgroundColor2].every(background => tinycolor.readability(candidate, background) >= 4.5)) {
+        accentTextColor = candidate;
+        break;
+      }
+    }
 
     return {
       ...baseTheme,
       accentColor,
+      accentTextColor,
       textOnAccent,
       accentColorLight: accentColor + '20',
     };

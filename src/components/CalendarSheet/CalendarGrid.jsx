@@ -79,11 +79,11 @@ const DayCell = React.memo(({ day, today, currentSelectedDate, themeColors, onSe
             { opacity: selectionOpacity },
           ]}
         >
-          <Text style={[styles.dayText, { color: "#fff", fontWeight: "800" }]}>
+          <Text style={[styles.dayText, { color: themeColors.textOnAccent, fontWeight: "800" }]}>
             {day.date.getDate()}
           </Text>
           {isToday && (
-            <View style={[styles.todayDot, { backgroundColor: "#fff" }]} />
+            <View style={[styles.todayDot, { backgroundColor: themeColors.textOnAccent }]} />
           )}
         </Animated.View>
       </TouchableOpacity>
@@ -143,7 +143,7 @@ export default function CalendarGrid({
             {showWeekNumbers && (
               <View style={styles.weekNumberColumn}>
                 <View style={[styles.weekBadge, { backgroundColor: themeColors.accentColorLight }]}>
-                  <Text style={[styles.weekNumber, { color: themeColors.accentColor }]}>
+                  <Text style={[styles.weekNumber, { color: themeColors.accentTextColor }]}>
                     {weekNumber}
                   </Text>
                 </View>

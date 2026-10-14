@@ -249,7 +249,7 @@ export default function CalendarSheet({
             activeOpacity={0.7}
             style={[styles.todayButton, { backgroundColor: themeColors.accentColorLight }]}
           >
-            <Text style={[styles.todayText, { color: themeColors.accentColor }]}>
+            <Text style={[styles.todayText, { color: themeColors.accentTextColor }]}>
               {skipLabel || t("common.skip", lang)}
             </Text>
           </TouchableOpacity>
@@ -272,13 +272,13 @@ export default function CalendarSheet({
           >
             <ArrowCounterClockwise
               size={17}
-              color={isTodaySelected ? themeColors.textColor3 : themeColors.accentColor}
+              color={isTodaySelected ? themeColors.textColor3 : themeColors.accentTextColor}
               weight="bold"
             />
             <Text
               style={[
                 styles.todayText,
-                { color: isTodaySelected ? themeColors.textColor3 : themeColors.accentColor },
+                { color: isTodaySelected ? themeColors.textColor3 : themeColors.accentTextColor },
               ]}
             >
               {t("common.today", lang)}
@@ -320,9 +320,9 @@ export default function CalendarSheet({
             {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
           </Text>
           {isMonthPickerOpen ? (
-            <CaretUp size={17} color={themeColors.accentColor} weight="bold" />
+            <CaretUp size={17} color={themeColors.accentTextColor} weight="bold" />
           ) : (
-            <CaretDown size={17} color={themeColors.accentColor} weight="bold" />
+            <CaretDown size={17} color={themeColors.accentTextColor} weight="bold" />
           )}
         </TouchableOpacity>
 
@@ -404,7 +404,7 @@ export default function CalendarSheet({
                       adjustsFontSizeToFit
                       style={[
                         styles.monthItemText,
-                        { color: isSelected ? "#fff" : themeColors.textColor },
+                        { color: isSelected ? themeColors.textOnAccent : themeColors.textColor },
                       ]}
                     >
                       {name}

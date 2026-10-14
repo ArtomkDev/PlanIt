@@ -25,7 +25,7 @@ export default function SettingsGroup({
           {title ? (
             <Text style={[
               styles.title, 
-              { color: isAndroid ? themeColors.accentColor : themeColors.textColor2 }
+              { color: isAndroid ? themeColors.accentTextColor : themeColors.textColor2 }
             ]}>
               {isAndroid ? title : title.toUpperCase()}
             </Text>

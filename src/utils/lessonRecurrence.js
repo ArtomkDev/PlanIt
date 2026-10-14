@@ -146,6 +146,7 @@ const getLessonRange = (schedule, lessons, index) => {
     Number(schedule?.duration) || 45,
     Array.isArray(schedule?.breaks) ? schedule.breaks : [],
     lessons,
+    schedule?.slotDurations,
   );
   const time = lessonTimes[index];
   if (!time?.start || !time?.end) return null;

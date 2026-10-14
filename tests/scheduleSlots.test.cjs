@@ -29,7 +29,7 @@ const schedule = lessons => ({
   starting_week: '2026-09-21T00:00:00', subjects: [{ id: 'math', name: 'Math' }],
   schedule: [{ week1: lessons, week2: lessons }],
 });
-const times = (s, lessons = s.schedule[0].week1) => time.buildLessonTimes(s.start_time, s.duration, s.breaks, lessons);
+const times = (s, lessons = s.schedule[0].week1) => time.buildLessonTimes(s.start_time, s.duration, s.breaks, lessons, s.slotDurations);
 
 test('occupied slot preview excludes the edited series and detects custom overlaps in selected weeks', () => {
   const s = schedule([slot(1), { subjectId: 'other', timeMode: 'custom', startTime: '10:05', endTime: '10:40' }]);
@@ -175,4 +175,90 @@ test('widget shows free morning before the third period and hides it after it en
   assert.equal(free.startTime, '08:30');
   assert.equal(free.endTime, '11:40');
   assert.equal(parseRealSchedule(s, during, 0, during).items[0].slotNumber, 3);
+});
+
+const flexibleSchedule = lessons => ({ ...schedule(lessons), duration: 45, slotDurations: [45, 60, 80], breaks: [0, 20] });
+const slotsFor = s => time.buildScheduleSlots(s.start_time, s.duration, s.breaks, s.slotDurations);
+
+test('individual durations resolve numbered and legacy positional lessons without cycling the template', () => {
+  const s = flexibleSchedule([slot(3), slot(1), slot(2)]);
+  assert.deepEqual(slotsFor(s), [
+    { number: 1, start: '08:30', end: '09:15' },
+    { number: 2, start: '09:15', end: '10:15' },
+    { number: 3, start: '10:35', end: '11:55' },
+  ]);
+  const legacy = time.materializeScheduleLessons(s, [null, 'math', 'math']);
+  assert.deepEqual(legacy.slice(1).map(lesson => lesson.slotNumber), [2, 3]);
+  assert.deepEqual(times(s), [{ start: '10:35', end: '11:55' }, { start: '08:30', end: '09:15' }, { start: '09:15', end: '10:15' }]);
+});
+
+test('changing a lesson end adjusts its duration and moves later lessons while retaining their breaks', () => {
+  const s = flexibleSchedule([slot(1), slot(2), slot(3)]);
+  const before = JSON.stringify(s);
+  const changed = time.updateScheduleSlotTime(s, 1, 'end', '10:30');
+  assert.deepEqual(changed.slotDurations, [45, 75, 80]);
+  assert.deepEqual(changed.breaks, [0, 20]);
+  assert.deepEqual(times(changed), [{ start: '08:30', end: '09:15' }, { start: '09:15', end: '10:30' }, { start: '10:50', end: '12:10' }]);
+  assert.equal(JSON.stringify(s), before);
+});
+
+test('changing an intermediate start derives the preceding break and preserves lesson lengths', () => {
+  const s = flexibleSchedule([slot(1), slot(2), slot(3)]);
+  const changed = time.updateScheduleSlotTime(s, 1, 'start', '09:25');
+  assert.deepEqual(changed.breaks, [10, 20]);
+  assert.deepEqual(changed.slotDurations, [45, 60, 80]);
+  assert.deepEqual(times(changed).slice(1), [{ start: '09:25', end: '10:25' }, { start: '10:45', end: '12:05' }]);
+  const shifted = time.updateScheduleSlotTime(changed, 0, 'start', '09:00');
+  assert.equal(times(shifted).at(-1).end, '12:35');
+  assert.deepEqual(shifted.breaks, changed.breaks);
+});
+
+test('overlapping, backwards and overnight edits are rejected without truncating slots', () => {
+  const s = flexibleSchedule([]);
+  for (const [index, field, value] of [[1, 'start', '09:14'], [1, 'end', '09:15'], [0, 'start', '23:00'], [0, 'end', '08:29'], [1, 'start', 'bad']]) {
+    assert.equal(time.updateScheduleSlotTime(s, index, field, value), null);
+  }
+  for (const durations of [[], [0, 60], [45, ''], [601], Array(49).fill(1), [45, 600, 600]]) {
+    assert.deepEqual(slotsFor({ ...s, slotDurations: durations }), []);
+  }
+  assert.deepEqual(slotsFor({ ...s, breaks: ['', 20] }), []);
+  assert.deepEqual(time.buildScheduleSlots('23:58', 1, [], [1]), [{ number: 1, start: '23:58', end: '23:59' }]);
+});
+
+test('opening legacy timing in the editor preserves every generated slot and its nonuniform gaps', () => {
+  const legacy = schedule([slot(3)]);
+  const draft = time.createScheduleTimingDraft(legacy);
+  assert.deepEqual(slotsFor(draft), slotsFor(legacy));
+  assert.deepEqual(draft.breaks.slice(0, 4), [10, 20, 10, 20]);
+  assert.deepEqual(time.createScheduleTimingDraft({ ...flexibleSchedule([]), breaks: [] }).breaks, [0, 0]);
+  const noBreaks = { ...legacy, breaks: undefined };
+  assert.deepEqual(slotsFor(time.createScheduleTimingDraft(noBreaks)), slotsFor(noBreaks));
+  assert.equal(time.createScheduleTimingDraft().slotDurations.length, 6);
+});
+
+test('an overflowing timetable can be repaired by moving the first start earlier', () => {
+  const s = { ...flexibleSchedule([]), start_time: '21:00' };
+  assert.deepEqual(slotsFor(s), []);
+  const repaired = time.updateScheduleSlotTime(s, 0, 'start', '20:00');
+  assert.equal(slotsFor(repaired).at(-1).end, '23:25');
+  assert.deepEqual(repaired.slotDurations, [45, 60, 80]);
+});
+
+test('notifications, widgets, prepared days and recurrence conflicts use the same flexible times', () => {
+  const s = flexibleSchedule([slot(3), slot(2)]);
+  const date = new Date(2026, 8, 21, 7);
+  const expected = [{ start: '09:15', end: '10:15' }, { start: '10:35', end: '11:55' }];
+  assert.deepEqual(time.buildLessonOccurrences(s, { from: date, horizonDays: 1 }).map(item => item.timeInfo), expected);
+  assert.deepEqual(time.prepareScheduleDays(s)(date).timeline.filter(item => item.type === 'lesson').map(item => item.lesson.timeInfo), expected);
+  assert.deepEqual(parseRealSchedule(s, date, 0, date).items.filter(item => item.type === 'lesson').map(item => ({ start: item.startTime, end: item.endTime })), expected);
+  const conflict = applyLessonRecurrence(s, { dayIndex: 0, weekNumber: 1, lessonIndex: null, lesson: { subjectId: 'other', timeMode: 'custom', startTime: '10:00', endTime: '10:10' }, selection: { mode: 'all' }, preview: true });
+  assert.deepEqual(conflict.conflicts.map(item => item.week), [1, 2]);
+});
+
+test('custom lesson times remain fixed when the numbered timetable changes', () => {
+  const s = flexibleSchedule([slot(3), { subjectId: 'math', timeMode: 'custom', startTime: '16:00', endTime: '16:30' }]);
+  const changed = time.updateScheduleSlotTime(s, 0, 'end', '09:30');
+  assert.deepEqual(times(changed), [{ start: '10:50', end: '12:10' }, { start: '16:00', end: '16:30' }]);
+  const normalized = time.normalizeScheduleTiming(changed);
+  assert.deepEqual(time.normalizeScheduleTiming(normalized), normalized);
 });

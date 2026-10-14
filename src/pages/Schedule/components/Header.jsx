@@ -372,7 +372,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
             >
               <CalendarBlank
                 size={17}
-                color={themeColors.accentColor}
+                color={themeColors.accentTextColor}
                 weight="bold"
               />
             </ScaleTouchable>
@@ -398,7 +398,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
                 <Animated.View style={{ transform: [{ scale: bellIconScale }] }}>
                   <Bell
                     size={17}
-                    color={themeColors.accentColor}
+                    color={themeColors.accentTextColor}
                     weight={unreadCount > 0 ? "fill" : "bold"}
                   />
                 </Animated.View>
@@ -444,7 +444,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
                 <ArrowCounterClockwise
                   size={17}
                   color={
-                    isToday ? themeColors.textColor2 : themeColors.accentColor
+                    isToday ? themeColors.textColor2 : themeColors.accentTextColor
                   }
                   weight="bold"
                 />

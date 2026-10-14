@@ -19,6 +19,7 @@ import { useScheduleData } from "../../../context/ScheduleProvider";
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
 import { getLegalDocumentBrowserUrl } from "../../../utils/legalDocumentLinks";
+import { getSettingsHeaderHeight } from '../../../config/layoutMetrics';
 
 export default function LegalDocumentScreen() {
   const route = useRoute();
@@ -28,7 +29,7 @@ export default function LegalDocumentScreen() {
   const themeColors = themes.getColors(mode, accent);
   const document = getLegalDocument(route.params?.documentType, lang);
   const scrollY = React.useRef(new Animated.Value(0)).current;
-  const headerHeight = 60 + insets.top;
+  const headerHeight = getSettingsHeaderHeight(insets.top);
   const browserUrl = getLegalDocumentBrowserUrl(route.params?.documentType, lang);
 
   const openInBrowser = () => {
@@ -56,7 +57,7 @@ export default function LegalDocumentScreen() {
     if (block.type === "bullet") {
       return (
         <View key={key} style={styles.bulletRow}>
-          <Text style={[styles.bulletMark, { color: themeColors.accentColor }]}>
+          <Text style={[styles.bulletMark, { color: themeColors.accentTextColor }]}>
             {"\u2022"}
           </Text>
           <Text style={[styles.bulletText, { color: themeColors.textColor2 }]}>
@@ -117,7 +118,8 @@ export default function LegalDocumentScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: themeColors.backgroundColor }]}>
+    <View style={[styles.screen, { backgroundColor: themeColors.backgroundColor, paddingLeft: insets.left, paddingRight: insets.right }]}>
+      <View style={{ flex: 1 }}>
       <SettingsHeader
         title={document.title}
         scrollY={scrollY}
@@ -129,7 +131,7 @@ export default function LegalDocumentScreen() {
             activeOpacity={0.7}
             style={styles.headerAction}
           >
-            <Globe size={24} color={themeColors.accentColor} weight="bold" />
+            <Globe size={24} color={themeColors.accentTextColor} weight="bold" />
           </TouchableOpacity>
         )}
       />
@@ -173,10 +175,10 @@ export default function LegalDocumentScreen() {
             },
           ]}
         >
-          <Globe size={18} color={themeColors.accentColor} weight="bold" />
+          <Globe size={18} color={themeColors.accentTextColor} weight="bold" />
           <Text
             numberOfLines={1}
-            style={[styles.browserButtonText, { color: themeColors.accentColor }]}
+            style={[styles.browserButtonText, { color: themeColors.accentTextColor }]}
           >
             {t("settings.about_screen.open_in_browser", lang)}
           </Text>
@@ -191,6 +193,7 @@ export default function LegalDocumentScreen() {
           </View>
         ))}
       </Animated.ScrollView>
+      </View>
     </View>
   );
 }

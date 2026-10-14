@@ -130,8 +130,8 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     const day = dataSource?.schedule?.[getDayIndex(currentDate)]?.[`week${calculateCurrentWeek(currentDate)}`] || [];
     const resolved = materializeScheduleLessons(dataSource, day);
     if (Number.isInteger(lesson?.index) && resolved[lesson.index]) return getCleanInstanceData(resolved[lesson.index]);
-    const slots = buildScheduleSlots(dataSource?.start_time || "08:30", Number(dataSource?.duration) || 45, dataSource?.breaks || []);
-    const times = buildLessonTimes(dataSource?.start_time || "08:30", Number(dataSource?.duration) || 45, dataSource?.breaks || [], day);
+    const slots = buildScheduleSlots(dataSource?.start_time || "08:30", Number(dataSource?.duration) || 45, dataSource?.breaks || [], dataSource?.slotDurations);
+    const times = buildLessonTimes(dataSource?.start_time || "08:30", Number(dataSource?.duration) || 45, dataSource?.breaks || [], day, dataSource?.slotDurations);
     const available = slots.find((slot) => !times.some((time, index) => day[index] && time.start < slot.end && slot.start < time.end));
     return available ? { timeMode: "slot", slotNumber: available.number } : { timeMode: "custom", startTime: "08:30", endTime: "09:15" };
   };
@@ -163,9 +163,9 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     });
     return { ...result, slotNumber, signature: JSON.stringify([slotNumber, recurrenceSelection, result.conflicts]) };
   };
-  const timeSlots = useMemo(() => buildScheduleSlots(start_time_global, duration_global, breaks_global).map(slot => ({
+  const timeSlots = useMemo(() => buildScheduleSlots(start_time_global, duration_global, breaks_global, dataSource?.slotDurations).map(slot => ({
     ...slot, occupied: getSlotConflict(slot.number).conflicts.length > 0,
-  })), [start_time_global, duration_global, breaks_global, schedule, dayIndex, currentWeekNumber, lesson?.index, recurrenceSelection, initialRecurrenceSelection, swapTiming]);
+  })), [start_time_global, duration_global, breaks_global, dataSource?.slotDurations, schedule, dayIndex, currentWeekNumber, lesson?.index, recurrenceSelection, initialRecurrenceSelection, swapTiming]);
   const storedDefaultTime = timeSlots.find((slot) => slot.number === instanceData.slotNumber) || timeSlots[0] || {};
   const selectSlot = (slotNumber) => setInstanceData((prev) => {
     const next = { ...prev, timeMode: "slot", slotNumber };
@@ -1105,13 +1105,14 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
       </TouchableOpacity>
       <Text accessibilityRole="header" style={[styles.headerTitle, { color: themeColors.textColor }]}>{getHeaderTitle()}</Text>
       {currentScreen === 'main' && <TouchableOpacity
+        accessibilityLabel={t('common.save', lang)}
         onPress={handleSave}
         disabled={!canSave}
         style={[styles.headerSave, { backgroundColor: themeColors.backgroundColor2, opacity: canSave ? 1 : 0.5 }]}
         accessibilityRole="button"
         accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}
       >
-        <Text style={[styles.headerSaveText, { color: themeColors.accentColor }]}>{t(attachmentUploadState.uploading ? 'attachments.uploading' : 'common.save', lang)}</Text>
+        <Text style={[styles.headerSaveText, { color: themeColors.accentTextColor }]}>{t(attachmentUploadState.uploading ? 'attachments.uploading' : 'common.save', lang)}</Text>
       </TouchableOpacity>}
     </View>
   );
@@ -1155,7 +1156,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
               accessibilityLabel={(Number.isInteger(lesson?.index) ? t('schedule.lesson_editor.editing', lang) : t('schedule.lesson_editor.new_lesson_ellipsis', lang)) + ': ' + (currentSubject.name || t('schedule.lesson_editor.subject_not_selected', lang))}
             >
               <View style={[styles.minimizedIcon, { backgroundColor: themeColors.accentColor + '20' }]}>
-                <PencilSimple size={18} color={themeColors.accentColor} weight="bold" />
+                <PencilSimple size={18} color={themeColors.accentTextColor} weight="bold" />
               </View>
               <View style={{ flex: 1, paddingRight: 5 }}>
                 <Text style={[styles.minimizedTitle, { color: themeColors.textColor }]} numberOfLines={1}>
@@ -1170,11 +1171,11 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
             <View style={styles.minimizedActions}>
               {canSave && (
                 <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn} accessibilityRole="button" accessibilityLabel={t('common.save', lang)}>
-                  <CheckCircle size={30} color={themeColors.accentColor} weight="fill" />
+                  <CheckCircle size={30} color={themeColors.accentTextColor} weight="fill" />
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]} accessibilityRole="button" accessibilityLabel={t('common.close', lang)}>
-                <XCircle size={30} color={themeColors.accentColor || "#ff4444"} weight="fill" />
+                <XCircle size={30} color={themeColors.accentTextColor} weight="fill" />
               </TouchableOpacity>
             </View>
           </Animated.View>

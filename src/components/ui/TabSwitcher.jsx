@@ -65,7 +65,7 @@ export default function TabSwitcher({
 
   const bgColorContainer = containerBackgroundColor || themeColors.backgroundColor2;
   const bgColorActive = activeTabBackgroundColor || themeColors.accentColor;
-  const finalActiveTextColor = activeTextColor || (activeTabBackgroundColor ? themeColors.textColor : "#fff");
+  const finalActiveTextColor = activeTextColor || (bgColorActive === themeColors.accentColor ? themeColors.textOnAccent : themeColors.textColor);
 
   return (
     <View accessibilityRole="tablist" style={[

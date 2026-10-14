@@ -152,7 +152,7 @@ export default function AccountSettings() {
 
     if (isLinked) {
       return (
-        <TouchableOpacity onPress={() => handleUnlink(providerId)} style={styles.unlinkButton}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${t('settings.account_settings.unlink_btn', lang)} ${providerId === 'apple.com' ? 'Apple' : 'Google'}`} onPress={() => handleUnlink(providerId)} style={styles.unlinkButton}>
           <Text style={styles.unlinkButtonText}>{t('settings.account_settings.unlink_btn', lang)}</Text>
         </TouchableOpacity>
       );
@@ -161,6 +161,8 @@ export default function AccountSettings() {
     return (
       <TouchableOpacity
         onPress={onLink}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('settings.account_settings.link_btn', lang)} ${providerId === 'apple.com' ? 'Apple' : 'Google'}`}
         style={[styles.linkButton, isNativeDisabled && { opacity: 0.5 }]}
         activeOpacity={isNativeDisabled ? 1 : 0.7}
       >

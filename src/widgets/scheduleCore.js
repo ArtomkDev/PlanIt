@@ -88,8 +88,8 @@ export function parseRealSchedule(scheduleData, targetDate, dateOffset, nowInput
       + now.getMilliseconds() / 60000;
 
     const timeline = [];
-    const lessonTimes = buildLessonTimes(formatTime(baseMins), duration, breaks, rawLessons);
-    const slots = buildScheduleSlots(formatTime(baseMins), duration, breaks);
+    const lessonTimes = buildLessonTimes(formatTime(baseMins), duration, breaks, rawLessons, scheduleData.slotDurations);
+    const slots = buildScheduleSlots(formatTime(baseMins), duration, breaks, scheduleData.slotDurations);
 
     for (let i = 0; i < rawLessons.length; i++) {
       const item = rawLessons[i];

@@ -109,7 +109,7 @@ export default function LessonViewer({
   const displayRoom = String(instanceData.room ?? fullSubject.room ?? "").trim();
   const displayBuilding = String(instanceData.building ?? fullSubject.building ?? "").trim();
   const location = [displayBuilding, displayRoom].filter(Boolean).join(", ");
-  const slotNumber = getLessonSlotNumber(instanceData, lesson.timeInfo, buildScheduleSlots(viewerSchedule?.start_time || "08:30", Number(viewerSchedule?.duration) || 45, viewerSchedule?.breaks || []));
+  const slotNumber = getLessonSlotNumber(instanceData, lesson.timeInfo, buildScheduleSlots(viewerSchedule?.start_time || "08:30", Number(viewerSchedule?.duration) || 45, viewerSchedule?.breaks || [], viewerSchedule?.slotDurations));
   const time = [slotNumber ? t('schedule.lesson_editor.slot_number', lang, { number: slotNumber }) : null,
     [lesson.timeInfo?.start, lesson.timeInfo?.end].filter(Boolean).join(" – "),
   ].filter(Boolean).join(' · ');
@@ -154,13 +154,14 @@ export default function LessonViewer({
 
   const handleLinkPress = async (url) => {
     if (!url) return;
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
+    try {
       triggerHaptic("open");
-      Linking.openURL(url);
-    } else {
+      await Linking.openURL(url);
+    } catch {
       triggerHaptic("error");
-      alert(`${t('schedule.lesson_viewer.link_error', lang)}${url}`);
+      const message = `${t('schedule.lesson_viewer.link_error', lang)}${url}`;
+      if (Platform.OS === 'web') window.alert(message);
+      else Alert.alert(t('common.error', lang), message);
     }
   };
 
@@ -457,7 +458,7 @@ export default function LessonViewer({
                           accessibilityRole="button"
                           accessibilityLabel={`${t("common.edit", lang)}: ${teacher.name}`}
                         >
-                          <PencilSimple size={19} color={themeColors.accentColor} weight="bold" />
+                          <PencilSimple size={19} color={themeColors.accentTextColor} weight="bold" />
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -517,7 +518,7 @@ export default function LessonViewer({
                     activeOpacity={0.76}
                   >
                     <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
-                      <Paperclip size={18} color={themeColors.accentColor} weight="bold" />
+                      <Paperclip size={18} color={themeColors.accentTextColor} weight="bold" />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={[styles.rowTitle, { color: themeColors.textColor }]} numberOfLines={1}>
@@ -570,7 +571,7 @@ export default function LessonViewer({
                     <View style={[styles.rowIcon, { backgroundColor: themeColors.backgroundColor3 }]}>
                       <CheckSquare
                         size={18}
-                        color={task?.completed ? themeColors.accentColor : themeColors.textColor}
+                        color={task?.completed ? themeColors.accentTextColor : themeColors.textColor}
                         weight={task?.completed ? "fill" : "regular"}
                       />
                     </View>
@@ -679,7 +680,7 @@ export default function LessonViewer({
             >
                 <PencilSimple
                   size={20}
-                  color={hasPrimaryAction ? themeColors.accentColor : actionForeground}
+                  color={hasPrimaryAction ? themeColors.accentTextColor : actionForeground}
                   style={hasPrimaryAction ? null : {marginRight: 8}}
                   weight="bold"
                 />

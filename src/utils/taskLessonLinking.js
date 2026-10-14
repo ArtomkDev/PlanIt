@@ -319,7 +319,7 @@ export const buildScheduleLessonGroups = (schedule) => {
 
     Object.keys(day).forEach((weekKey) => {
       const lessons = Array.isArray(day[weekKey]) ? day[weekKey] : [];
-      const lessonTimes = buildLessonTimes(startTime, duration, breaks, lessons);
+      const lessonTimes = buildLessonTimes(startTime, duration, breaks, lessons, schedule.slotDurations);
 
       lessons.forEach((lesson, lessonIndex) => {
         const subjectId = getLessonSubjectId(lesson);

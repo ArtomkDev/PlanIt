@@ -45,8 +45,9 @@ export default function DaySchedule({
       showsVerticalScrollIndicator={false}
       overScrollMode="always"
     >
-      <TouchableOpacity 
-        activeOpacity={1} 
+      <TouchableOpacity
+        accessible={false}
+        activeOpacity={1}
         style={{ minHeight: screenHeight * 0.6 }}
         onLongPress={handleEmptyLongPress}
         delayLongPress={500}
@@ -69,9 +70,10 @@ export default function DaySchedule({
             <Text style={[styles.noData, {color: themeColors.textColor2}]}>
               {t('schedule.day_schedule.no_classes', lang)}
             </Text>
-            <Text style={[styles.hint, {color: themeColors.textColor3}]}>
-              {t('schedule.day_schedule.add_hint', lang)}
-            </Text>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('schedule.lesson_editor.new_lesson', lang)} onPress={handleEmptyLongPress}
+              style={[styles.addButton, { backgroundColor: themeColors.accentColor }]}>
+              <Text style={[styles.hint, { color: themeColors.textOnAccent }]}>{t('schedule.lesson_editor.new_lesson', lang)}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -97,5 +99,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 14,
-  }
+    textAlign: 'center',
+  },
+  addButton: { minHeight: 44, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, marginTop: 8 },
 });

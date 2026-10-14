@@ -82,6 +82,7 @@ export default function PasswordResetScreen({ fallbackRoute = 'Auth' }) {
   };
 
   const handleSavePassword = async () => {
+    if (status !== 'ready') return;
     if (!isPasswordAllowed(newPassword)) {
       setErrorMsg(getPasswordPolicyMessage(lang));
       return;
@@ -296,5 +297,5 @@ const getStyles = (themeColors) => StyleSheet.create({
     marginTop: 8,
   },
   actionButtonDisabled: { opacity: 0.6 },
-  actionButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  actionButtonText: { color: themeColors.textOnAccent, fontSize: 16, fontWeight: 'bold' },
 });

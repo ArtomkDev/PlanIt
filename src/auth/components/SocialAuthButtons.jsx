@@ -30,7 +30,7 @@ if (Platform.OS !== 'web' && !isExpoGo) {
   });
 }
 
-const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) => {
+const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled = false, isLinking = false }) => {
   const { colors, isDark } = useSystemThemeColors('blue');
   const { lang } = useAppLanguage();
   const [loadingProvider, setLoadingProvider] = useState(null);
@@ -39,6 +39,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
   const appleAccessibilityLabel = `${providerPrefix} Apple`;
 
   const handleGoogleAuth = async () => {
+    if (disabled || loadingProvider || onBeforeAuth?.() === false) return;
     if (isExpoGo && Platform.OS !== 'web') {
       triggerHaptic("warning");
       Alert.alert(
@@ -94,6 +95,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
   };
 
   const handleAppleAuth = async () => {
+    if (disabled || loadingProvider || onBeforeAuth?.() === false) return;
     if (isExpoGo && Platform.OS !== 'web') {
       triggerHaptic("warning");
       Alert.alert(
@@ -177,10 +179,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
             isNativeDisabled && { opacity: 0.5 }
           ]}
           onPress={handleGoogleAuth}
-          disabled={!!loadingProvider}
+          disabled={disabled || !!loadingProvider}
           accessibilityRole="button"
           accessibilityLabel={googleAccessibilityLabel}
-          accessibilityState={{ disabled: !!loadingProvider, busy: loadingProvider === 'google' }}
+          accessibilityState={{ disabled: disabled || !!loadingProvider, busy: loadingProvider === 'google' }}
           activeOpacity={isNativeDisabled ? 1 : 0.7}
         >
           {loadingProvider === 'google' ? (
@@ -198,7 +200,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
 
         {Platform.OS === 'ios' && AppleAuthentication ? (
           <View
-            pointerEvents={loadingProvider || isNativeDisabled ? 'none' : 'auto'}
+            pointerEvents={disabled || loadingProvider || isNativeDisabled ? 'none' : 'auto'}
             style={[
               styles.nativeAppleButtonWrapper,
               isNativeDisabled && { opacity: 0.5 },
@@ -240,10 +242,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, isLinking = false }) =>
               isNativeDisabled && { opacity: 0.5 }
             ]}
             onPress={handleAppleAuth}
-            disabled={!!loadingProvider}
+            disabled={disabled || !!loadingProvider}
             accessibilityRole="button"
             accessibilityLabel={appleAccessibilityLabel}
-            accessibilityState={{ disabled: !!loadingProvider, busy: loadingProvider === 'apple' }}
+            accessibilityState={{ disabled: disabled || !!loadingProvider, busy: loadingProvider === 'apple' }}
             activeOpacity={isNativeDisabled ? 1 : 0.7}
           >
             {loadingProvider === 'apple' ? (

@@ -15,11 +15,18 @@ export default {
     skip: "Skip",
     cancel: "Cancel",
     back: "Back",
+    previous: "Previous",
+    next: "Next",
     close: "Close",
     clear: "Clear",
     enabled: "Enabled",
     disabled: "Disabled",
     error: "Error",
+    retry: "Try again",
+    action_failed: "The action could not be completed. Check your connection and try again.",
+    discard_title: "Discard changes?",
+    discard_desc: "Your unsaved changes will be lost.",
+    discard: "Discard",
     success: "Success",
     warning: "Warning",
     delete: "Delete",
@@ -218,9 +225,8 @@ export default {
   },
 
   main_layout: {
-    fatal_title: "Oops, something went wrong",
-    fatal_desc: "The schedule could not be loaded or is missing. We can create a new default schedule for you.",
-    force_create_btn: "Create a new schedule"
+    fatal_title: "Unable to load your schedule",
+    fatal_desc: "Loading is taking longer than expected. Check your connection and try again. Your schedules will be kept."
   },
 
   onboarding: {
@@ -230,7 +236,7 @@ export default {
     import_friend_title: "Import a friend’s schedule",
     import_friend_desc: "Enter the access code to add a ready-made schedule.",
     swipe_to_continue: "Swipe to continue",
-    swipe_hint_sub: "Swipe between screens, or use the bottom bar (you can enable it via the 'Navigation' button above).",
+    swipe_hint_sub: "Use Next or swipe between screens. Tap Done on the final step.",
     welcome_title: "Create your first schedule",
     welcome_subtitle: "Set up your schedule. You can change these settings later.",
     step1_title: "What should we call it?",
@@ -241,7 +247,7 @@ export default {
     starting_week: "Which week should we start counting from?",
     starting_week_desc: "Choose the date of the first day to start counting weeks.",
     step3_title: "Schedule settings",
-    step3_desc: "Set the start time of your first class, its duration, and breaks.",
+    step3_desc: "Create lesson slots and adjust their times. You can assign subjects later.",
     step4_title: "Smart defaults",
     step4_desc: "Set up reminders and automatic task linking.",
     step4_finish_hint: "All of this can be changed later in schedule settings.",
@@ -279,7 +285,6 @@ export default {
     day_schedule: {
       free_time: "Free time",
       no_classes: "No classes",
-      add_hint: "Long press to add",
       break: "Break",
     },
     header: {
@@ -819,6 +824,26 @@ export default {
     },
 
     schedule_editor: {
+      timing: {
+        bulk_hint: "Quickly apply one duration to every lesson or break.",
+        different: "Different durations",
+        all_durations: "Duration of all lessons",
+        all_breaks: "Duration of all breaks",
+        hint: "Changing a start keeps the lesson’s duration; changing an end adjusts it. Later lessons shift automatically.",
+        slot_count: "Lesson slots: {count}",
+        lesson: "Lesson {number}",
+        lesson_duration: "Duration of lesson {number}",
+        lesson_time: "Lesson {number}: {field}, {time}",
+        start: "Start",
+        end: "End",
+        break_after: "Break after lesson {number}",
+        show_all: "Show all {count} lessons",
+        show_less: "Show fewer lessons",
+        add: "Add lesson",
+        remove: "Remove last",
+        used_slots: "Lessons use slots up to {count}. Remove their assignments before deleting these slots.",
+        invalid: "Use durations of 1–600 min and breaks of 0–600 min. Lessons must not overlap or extend past 23:59.",
+      },
       edit_schedule: "Edit",
       enter_name: "Enter name…",
       color: "Schedule color",

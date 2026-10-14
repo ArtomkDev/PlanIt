@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useScheduleData } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import AppBlur from '../components/ui/AppBlur';
@@ -57,7 +57,7 @@ const TAB_BAR_VARIANTS = {
       styles.attachedSurfaceClip,
       { borderColor: themeColors.borderColor },
     ],
-    getActiveColor: ({ themeColors }) => themeColors.accentColor,
+    getActiveColor: ({ themeColors }) => themeColors.accentTextColor,
     getIndicatorSlotStyle: () => styles.classicIndicatorSlot,
     getIndicatorStyle: ({ metrics, themeColors }) => ({
       width: metrics.indicator.width,
@@ -83,7 +83,7 @@ const TAB_BAR_VARIANTS = {
       styles.floatingSurfaceClip,
       { borderColor: hexToRgba(themeColors.borderColor, 0.8) },
     ],
-    getActiveColor: ({ themeColors }) => themeColors.accentColor,
+    getActiveColor: ({ themeColors }) => themeColors.accentTextColor,
     getIndicatorSlotStyle: () => styles.floatingIndicatorSlot,
     getIndicatorStyle: ({ metrics, showLabels, themeColors }) => ({
       width: metrics.indicator.width,
@@ -106,7 +106,7 @@ const TAB_BAR_VARIANTS = {
       styles.attachedSurfaceClip,
       { borderColor: themeColors.borderColor },
     ],
-    getActiveColor: ({ themeColors }) => themeColors.accentColor,
+    getActiveColor: ({ themeColors }) => themeColors.accentTextColor,
     getIndicatorSlotStyle: ({ metrics, showLabels }) => [
       styles.dotIndicatorSlot,
       { top: showLabels ? metrics.indicator.topWithLabels : metrics.indicator.topIconsOnly },
@@ -230,7 +230,7 @@ function TabItem({
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole="tab"
       accessibilityState={focused ? { selected: true } : {}}
       accessibilityLabel={options.tabBarAccessibilityLabel || label}
       hitSlop={6}
@@ -286,6 +286,12 @@ function TabItem({
 }
 
 export default function PlanItTabBar({ state, descriptors, navigation, insets, onLayout }) {
+  const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const { global } = useScheduleData();
   const reduceMotion = useReducedMotionPreference();
   const [mode, accent] = global?.theme || ['light', 'blue'];
@@ -304,8 +310,10 @@ export default function PlanItTabBar({ state, descriptors, navigation, insets, o
   const rowPadding = metrics.rowPaddingHorizontal || 0;
   const configKey = `${styleVariant}-${showLabels ? 'labels' : 'icons'}-${animationsEnabled ? 'motion' : 'still'}-${bottomInset}`;
 
+  if (keyboardVisible) return null;
+
   return (
-    <View key={`tabbar-${configKey}`} style={styles.root} onLayout={onLayout}>
+    <View key={`tabbar-${configKey}`} style={[styles.root, { paddingLeft: insets?.left || 0, paddingRight: insets?.right || 0 }]} onLayout={onLayout}>
       <View
         key={`surface-${configKey}`}
         collapsable={false}

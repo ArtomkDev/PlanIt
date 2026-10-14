@@ -2,6 +2,11 @@ export const APP_HEADER_SAFE_TOP_MIN = 8;
 export const APP_HEADER_BODY_HEIGHT = 92;
 export const SCHEDULE_HEADER_BODY_HEIGHT = 104;
 export const APP_HEADER_CONTENT_GAP = 10;
+export const SETTINGS_HEADER_BODY_HEIGHT = 60;
+
+export const getSettingsHeaderHeight = (topInset = 0) => (
+  Math.max(0, topInset || 0) + SETTINGS_HEADER_BODY_HEIGHT
+);
 
 export const getAppHeaderTopInset = (topInset = 0) => (
   Math.max(topInset || 0, APP_HEADER_SAFE_TOP_MIN)

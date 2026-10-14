@@ -88,9 +88,9 @@ export default function LessonEditorInputScreen({
             </Text>
           </TouchableOpacity>
         )}
-        {onReset && <TouchableOpacity style={styles.deleteBtn} onPress={onReset} accessibilityRole="button">
-          <ArrowsCounterClockwise size={19} color={themeColors.accentColor} />
-          <Text style={{ color: themeColors.accentColor }}>{t('schedule.lesson_editor.restore_subject', lang)}</Text>
+        {onReset && <TouchableOpacity style={styles.deleteBtn} onPress={onReset} accessibilityRole="button" accessibilityLabel={t('schedule.lesson_editor.restore_subject', lang)}>
+          <ArrowsCounterClockwise size={19} color={themeColors.accentTextColor} />
+          <Text style={{ color: themeColors.accentTextColor }}>{t('schedule.lesson_editor.restore_subject', lang)}</Text>
         </TouchableOpacity>}
       </View>
       </SheetScrollView>

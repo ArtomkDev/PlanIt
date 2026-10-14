@@ -74,7 +74,7 @@ export default function AppIconPickerGrid({
           Icon && (
             <Icon
               size={26}
-              color={isSelected ? themeColors.accentColor : themeColors.textColor}
+              color={isSelected ? themeColors.accentTextColor : themeColors.textColor}
               weight={isSelected ? "fill" : "regular"}
             />
           )

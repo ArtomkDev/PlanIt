@@ -347,7 +347,7 @@ export default function LessonEditorMainScreen({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.introduction}>
-          <BookOpen size={36} color={themeColors.accentColor} />
+          <BookOpen size={36} color={themeColors.accentTextColor} />
           <Text style={[styles.introTitle, { color: themeColors.textColor }]}>{t('schedule.lesson_editor.start_with_subject', lang)}</Text>
           <Text style={[styles.introText, { color: themeColors.textColor2 }]}>{t('schedule.lesson_editor.start_with_subject_hint', lang)}</Text>
         </View>
@@ -425,6 +425,7 @@ export default function LessonEditorMainScreen({
           <View style={styles.slotActions}>
             {['replace', 'swap', 'cancel'].map(action => (
               <TouchableOpacity key={action} accessibilityRole="button"
+                accessibilityLabel={t(`schedule.lesson_editor.slot_${action}`, lang)}
                 disabled={action === 'swap' && !slotConflict.canSwap}
                 accessibilityState={{ disabled: action === 'swap' && !slotConflict.canSwap }}
                 onPress={() => onConflictResolution(action)}
@@ -470,7 +471,7 @@ export default function LessonEditorMainScreen({
                 onPress={() => onSlotChange(slot.number)}
                 style={[styles.slotOption, { borderColor: instanceData.slotNumber === slot.number ? themeColors.accentColor : themeColors.borderColor, backgroundColor: slot.occupied ? themeColors.borderColor : themeColors.backgroundColor2 }]}
               >
-                <Text style={{ color: instanceData.slotNumber === slot.number ? themeColors.accentColor : themeColors.textColor, fontWeight: '600' }}>{t('schedule.lesson_editor.slot_number', lang, { number: slot.number })}</Text>
+                <Text style={{ color: instanceData.slotNumber === slot.number ? themeColors.accentTextColor : themeColors.textColor, fontWeight: '600' }}>{t('schedule.lesson_editor.slot_number', lang, { number: slot.number })}</Text>
                 <Text style={{ color: themeColors.textColor2, fontSize: 12 }}>{slot.start} – {slot.end}</Text>
                 {slot.occupied && <Text style={{ color: themeColors.textColor2, fontSize: 12 }}>{t('schedule.lesson_editor.slot_occupied', lang)}</Text>}
               </TouchableOpacity>
@@ -623,9 +624,9 @@ export default function LessonEditorMainScreen({
              accessibilityLabel={t('schedule.lesson_editor.add_teacher', lang)}
            >
                <View style={[styles.emptyAddIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
-                   <Plus size={18} color={themeColors.accentColor} weight="bold" />
+                   <Plus size={18} color={themeColors.accentTextColor} weight="bold" />
                </View>
-               <Text style={[styles.emptyText, { color: themeColors.accentColor }]}>
+               <Text style={[styles.emptyText, { color: themeColors.accentTextColor }]}>
                    {t('schedule.lesson_editor.add_teacher', lang)}
                </Text>
            </TouchableOpacity>
@@ -667,9 +668,9 @@ export default function LessonEditorMainScreen({
              accessibilityLabel={t('schedule.lesson_editor.add_link', lang)}
            >
                <View style={[styles.emptyAddIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
-                   <Plus size={18} color={themeColors.accentColor} weight="bold" />
+                   <Plus size={18} color={themeColors.accentTextColor} weight="bold" />
                </View>
-               <Text style={[styles.emptyText, { color: themeColors.accentColor }]}>
+               <Text style={[styles.emptyText, { color: themeColors.accentTextColor }]}>
                    {t('schedule.lesson_editor.add_link', lang)}
                </Text>
            </TouchableOpacity>

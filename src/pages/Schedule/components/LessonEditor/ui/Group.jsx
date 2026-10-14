@@ -21,8 +21,8 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
             onPress={() => setScopeOpen(value => !value)}
             style={({ pressed }) => [styles.scopeButton, { backgroundColor: pressed || scopeOpen ? themeColors.backgroundColor2 : 'transparent' }]}
           >
-            <Text style={[styles.scopeText, { color: themeColors.accentColor }]}>{t(scope === 'local' ? 'schedule.lesson_editor.scope_local' : 'schedule.lesson_editor.scope_global', lang)}</Text>
-            <CaretDown size={14} color={themeColors.accentColor} />
+            <Text style={[styles.scopeText, { color: themeColors.accentTextColor }]}>{t(scope === 'local' ? 'schedule.lesson_editor.scope_local' : 'schedule.lesson_editor.scope_global', lang)}</Text>
+            <CaretDown size={14} color={themeColors.accentTextColor} />
           </Pressable>}
           {(onAdd || onReset) && <Pressable
             accessibilityRole="button"
@@ -30,7 +30,7 @@ export default function Group({ title, children, onAdd, onReset, themeColors, sh
             onPress={onAdd || onReset}
             style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? themeColors.borderColor : themeColors.backgroundColor2 }]}
           >
-            {onAdd ? <Plus size={19} color={themeColors.accentColor} /> : <ArrowsCounterClockwise size={19} color={themeColors.textColor2} />}
+            {onAdd ? <Plus size={19} color={themeColors.accentTextColor} /> : <ArrowsCounterClockwise size={19} color={themeColors.textColor2} />}
           </Pressable>}
         </View>
       </View>

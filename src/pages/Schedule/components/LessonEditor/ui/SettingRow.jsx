@@ -29,7 +29,7 @@ export default function SettingRow({ label, value, desc, onPress, onLongPress, o
       style={onPress ? ({ pressed }) => [styles.row, { opacity: pressed ? 0.65 : 1 }] : styles.row}
     >{content}</Component>
     {onEdit && <Pressable style={styles.edit} accessibilityRole="button" accessibilityLabel={`${t('common.edit', lang)}: ${value || label}`} onPress={onEdit}>
-      <PencilSimple size={20} color={themeColors.accentColor} />
+      <PencilSimple size={20} color={themeColors.accentTextColor} />
     </Pressable>}
   </View>;
 }

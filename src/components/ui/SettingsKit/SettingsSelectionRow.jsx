@@ -60,7 +60,7 @@ export default function SettingsSelectionRow({
       <View style={styles.leftContainer}>
         <Text style={[
           styles.label, 
-          { color: isSelected ? themeColors.accentColor : themeColors.textColor },
+          { color: isSelected ? themeColors.accentTextColor : themeColors.textColor },
           isSelected && { fontWeight: "bold" }
         ]}>
           {label}
@@ -68,7 +68,7 @@ export default function SettingsSelectionRow({
         {hint && (
           <Text style={[
             styles.hint, 
-            { color: isSelected ? themeColors.accentColor : themeColors.textColor2 }
+            { color: isSelected ? themeColors.accentTextColor : themeColors.textColor2 }
           ]}>
             {hint}
           </Text>
@@ -83,7 +83,7 @@ export default function SettingsSelectionRow({
             accessibilityRole="button"
             accessibilityLabel={editAccessibilityLabel || label}
             accessibilityHint={hint}
-            hitSlop={15}
+            hitSlop={4}
             onPress={handleEdit} style={styles.editButton}>
             <PencilSimple size={20} color={themeColors.textColor2} weight="bold" />
           </TouchableOpacity>
@@ -107,9 +107,12 @@ const styles = StyleSheet.create({
   },
   leftContainer: { 
     flex: 1, 
+    minWidth: 0,
     justifyContent: 'center' 
   },
   rightContainer: { 
+    flexShrink: 0,
+    marginLeft: 12,
     flexDirection: 'row', 
     alignItems: 'center', 
     gap: 12 
@@ -125,6 +128,10 @@ const styles = StyleSheet.create({
     fontWeight: "500"
   },
   editButton: { 
-    padding: 4 
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4
   },
 });

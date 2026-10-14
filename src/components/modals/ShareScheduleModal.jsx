@@ -263,7 +263,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                     disabled={loading}
                   >
                     {loading && <MorphingLoader size={24} />}
-                    <Text style={styles.primaryBtnText}>{t("share.generate_btn", lang)}</Text>
+                    <Text style={[styles.primaryBtnText, { color: themeColors.textOnAccent }]}>{t("share.generate_btn", lang)}</Text>
                   </TouchableOpacity>
 
                   {errorMessage ? (
@@ -277,7 +277,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                   </Text>
                   
                   <View style={[styles.codeBox, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
-                    <Text style={[styles.codeText, { color: themeColors.accentColor }]}>
+                    <Text style={[styles.codeText, { color: themeColors.accentTextColor }]}>
                       {generatedCode}
                     </Text>
                   </View>
@@ -310,8 +310,8 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
                       style={[styles.actionBtn, { backgroundColor: themeColors.accentColor }]}
                       onPress={handleShareSystem}
                     >
-                      <ShareNetwork size={24} color="#fff" weight="bold" />
-                      <Text style={[styles.actionBtnText, { color: "#fff" }]}>
+                      <ShareNetwork size={24} color={themeColors.textOnAccent} weight="bold" />
+                      <Text style={[styles.actionBtnText, { color: themeColors.textOnAccent }]}>
                         {t("common.share", lang)}
                       </Text>
                     </TouchableOpacity>

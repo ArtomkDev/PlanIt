@@ -342,7 +342,7 @@ function LessonCatalogueScreen({
             },
           ]}
         >
-          <XCircle size={20} color={themeColors.accentColor} weight="bold" />
+          <XCircle size={20} color={themeColors.accentTextColor} weight="bold" />
           <View style={styles.lessonActionText}>
             <Text style={[styles.lessonActionTitle, { color: themeColors.textColor }]}>
               {t("tasks.editor.detach_lesson_occurrence", lang)}
@@ -1304,12 +1304,12 @@ export default function TaskEditor({
     <View style={[styles.header, { borderBottomColor: themeColors.borderColor }]}>
       {currentScreen === "main" || isInitialLessonPicker ? (
         <TouchableOpacity onPress={handleCancel} hitSlop={15} accessibilityRole="button" accessibilityLabel={t("common.cancel", lang)}>
-          <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t("common.cancel", lang)}</Text>
+          <Text style={{ color: themeColors.accentTextColor, fontSize: 17 }}>{t("common.cancel", lang)}</Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={15} accessibilityRole="button" accessibilityLabel={t("common.back", lang)}>
-          <CaretLeft size={24} color={themeColors.accentColor} weight="bold" />
-          <Text style={{ color: themeColors.accentColor, fontSize: 17 }}>{t("common.back", lang)}</Text>
+          <CaretLeft size={24} color={themeColors.accentTextColor} weight="bold" />
+          <Text style={{ color: themeColors.accentTextColor, fontSize: 17 }}>{t("common.back", lang)}</Text>
         </TouchableOpacity>
       )}
 
@@ -1320,7 +1320,7 @@ export default function TaskEditor({
       <View style={styles.headerRight}>
         {currentScreen === "main" && (
           <TouchableOpacity onPress={handleSave} disabled={!canSave} hitSlop={15} accessibilityRole="button" accessibilityLabel={attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.save", lang)} accessibilityState={{ disabled: !canSave, busy: attachmentUploadState.uploading }}>
-            <Text style={{ color: canSave ? themeColors.accentColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
+            <Text style={{ color: canSave ? themeColors.accentTextColor : themeColors.textColor2, fontSize: 17, fontWeight: "600" }}>
               {attachmentUploadState.uploading ? t("attachments.uploading", lang) : t("common.save", lang)}
             </Text>
           </TouchableOpacity>
@@ -1342,6 +1342,7 @@ export default function TaskEditor({
     style,
   }) => {
     const actionAccent = linkedLessonInfo ? linkedLessonPalette.accentColor : themeColors.accentColor;
+    const actionForeground = tinycolor.mostReadable(actionAccent, ['#FFFFFF', '#111827'], { includeFallbackColors: true }).toHexString();
 
     return (
       <TouchableOpacity
@@ -1369,13 +1370,13 @@ export default function TaskEditor({
       >
         <Icon
           size={18}
-          color={primary ? "#fff" : actionAccent}
+          color={primary ? actionForeground : actionAccent}
           weight="bold"
         />
         <Text
           style={[
             styles.lessonQuickButtonText,
-            { color: primary ? "#fff" : themeColors.textColor },
+            { color: primary ? actionForeground : themeColors.textColor },
           ]}
           numberOfLines={2}
         >
@@ -1653,7 +1654,7 @@ export default function TaskEditor({
               accessibilityLabel={minimizedTitle + ": " + minimizedSubtitle}
             >
               <View style={[styles.minimizedIcon, { backgroundColor: themeColors.accentColor + "20" }]}>
-                <NotePencil size={18} color={themeColors.accentColor} weight="bold" />
+                <NotePencil size={18} color={themeColors.accentTextColor} weight="bold" />
               </View>
               <View style={styles.minimizedText}>
                 <Text style={[styles.minimizedTitle, { color: themeColors.textColor }]} numberOfLines={1}>
@@ -1668,11 +1669,11 @@ export default function TaskEditor({
             <View style={styles.minimizedActions}>
               {canSave && (
                 <TouchableOpacity onPress={handleSave} style={styles.minimizedActionBtn} accessibilityRole="button" accessibilityLabel={t("common.save", lang)}>
-                  <CheckCircle size={30} color={themeColors.accentColor} weight="fill" />
+                  <CheckCircle size={30} color={themeColors.accentTextColor} weight="fill" />
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={handleCloseMinimized} style={[styles.minimizedActionBtn, { marginLeft: 2 }]} accessibilityRole="button" accessibilityLabel={t("common.close", lang)}>
-                <XCircle size={30} color={themeColors.accentColor} weight="fill" />
+                <XCircle size={30} color={themeColors.accentTextColor} weight="fill" />
               </TouchableOpacity>
             </View>
           </Animated.View>

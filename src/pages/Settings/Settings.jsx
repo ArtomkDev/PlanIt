@@ -18,6 +18,7 @@ import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
 import AppSwitch from '../../components/ui/AppSwitch';
 import { triggerHaptic } from '../../utils/haptics';
 import { useAds } from '../../context/AdsContext';
+import { getSettingsHeaderHeight } from '../../config/layoutMetrics';
 import { requestCookiePreferences } from '../../services/cookieConsentService';
 
 export default function Settings({ guest, onExitGuest }) {
@@ -33,7 +34,7 @@ export default function Settings({ guest, onExitGuest }) {
   const insets = useSafeAreaInsets();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const headerHeight = 50 + insets.top;
+  const headerHeight = getSettingsHeaderHeight(insets.top);
   const safeTabBarHeight = tabBarHeight || (110 + insets.bottom);
   const bottomPadding = safeTabBarHeight + 32;
 
@@ -244,7 +245,8 @@ export default function Settings({ guest, onExitGuest }) {
   }, [headerHeight, sections]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
+    <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor, paddingLeft: insets.left, paddingRight: insets.right }}>
+      <View style={{ flex: 1 }}>
       {isLoggingOut && (
         <View style={[StyleSheet.absoluteFill, styles.loadingOverlay]}>
           <MorphingLoader size={60} />
@@ -318,6 +320,7 @@ export default function Settings({ guest, onExitGuest }) {
         </View>
 
       </Animated.ScrollView>
+      </View>
     </View>
   );
 }

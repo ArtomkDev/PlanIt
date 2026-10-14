@@ -5,7 +5,7 @@ import { triggerHaptic } from "../../../utils/haptics";
 const isAndroid = Platform.OS === "android";
 
 export default function SettingsActionRow({ icon: Icon, label, onPress, danger = false, themeColors }) {
-  const color = danger ? '#FF3B30' : themeColors.accentColor;
+  const color = danger ? '#FF3B30' : themeColors.accentTextColor;
   const bg = danger ? '#FF3B3015' : (isAndroid ? themeColors.accentColor + '08' : 'transparent');
   const borderStyle = isAndroid ? 'solid' : (danger ? 'solid' : 'dashed');
 
@@ -65,6 +65,7 @@ const styles = StyleSheet.create({
     marginRight: 12 
   },
   label: { 
+    flex: 1,
     fontWeight: "700", 
     fontSize: 16 
   }

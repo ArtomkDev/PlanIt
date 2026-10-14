@@ -231,6 +231,7 @@ service cloud.firestore {
           "name",
           "repeat",
           "duration",
+          "slotDurations",
           "breaks",
           "start_time",
           "starting_week",
@@ -241,7 +242,8 @@ service cloud.firestore {
           "gradients",
           "tasks",
           "schedule",
-          "color"
+          "color",
+          "icon"
         ])
         && stringWithMax(data.name, 80)
         && intInRange(data.repeat, 1, 12)
@@ -249,8 +251,10 @@ service cloud.firestore {
         && stringWithMax(data.start_time, 5)
         && optionalStringWithMax(data, "starting_week", 40)
         && optionalStringWithMax(data, "color", 32)
+        && optionalStringWithMax(data, "icon", 48)
         && optionalReminder(data, "reminder")
-        && optionalListWithMax(data, "breaks", 40)
+        && optionalListWithMax(data, "breaks", 47)
+        && optionalListWithMax(data, "slotDurations", 48)
         && listWithMax(data.subjects, 250)
         && optionalListWithMax(data, "teachers", 250)
         && optionalListWithMax(data, "links", 250)

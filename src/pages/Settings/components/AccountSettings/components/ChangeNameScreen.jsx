@@ -25,6 +25,7 @@ export default function ChangeNameScreen() {
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleChangeName = async () => {
+    if (loading || !user) return;
     const trimmedName = newName.trim();
     
     if (!trimmedName) {
@@ -127,5 +128,5 @@ const getStyles = (themeColors) => StyleSheet.create({
   actionButton: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   actionButtonDisabled: { opacity: 0.6 },
   loadingButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  actionButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  actionButtonText: { color: themeColors.textOnAccent, fontSize: 16, fontWeight: 'bold' },
 });

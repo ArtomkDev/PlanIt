@@ -45,7 +45,7 @@ if (
 }
 
 const AUTH_LAYOUT_ANIMATION = {
-  duration: 520,
+  duration: 240,
   create: {
     type: LayoutAnimation.Types.easeInEaseOut,
     property: LayoutAnimation.Properties.opacity,
@@ -59,8 +59,8 @@ const AUTH_LAYOUT_ANIMATION = {
   },
 };
 
-const configureAuthLayoutAnimation = () => {
-  LayoutAnimation.configureNext(AUTH_LAYOUT_ANIMATION);
+const configureAuthLayoutAnimation = (reduceMotion = false) => {
+  if (!reduceMotion) LayoutAnimation.configureNext(AUTH_LAYOUT_ANIMATION);
 };
 
 const getIconConfig = (vw, vh) => {
@@ -318,11 +318,11 @@ const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormE
       </TouchableOpacity>
       <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
         <Text onPress={toggleTerms}>{t('auth.terms.agree_prefix', lang)}</Text>
-        <Text style={{ color: colors.accentColor }} onPress={() => openDocument('privacy')}>
+        <Text style={{ color: colors.accentTextColor }} onPress={() => openDocument('privacy')}>
           {t('auth.terms.privacy_policy', lang)}
         </Text>
         <Text onPress={toggleTerms}>{t('auth.terms.and', lang)}</Text>
-        <Text style={{ color: colors.accentColor }} onPress={() => openDocument('terms')}>
+        <Text style={{ color: colors.accentTextColor }} onPress={() => openDocument('terms')}>
           {t('auth.terms.terms_conditions', lang)}
         </Text>
       </Text>
@@ -389,14 +389,14 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
           </View>
         ) : null}
 
-        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signin'))}>
-          <Text style={styles.primaryButtonText}>{t('auth.signin.submit', lang)}</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.signin.submit', lang)} style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signin'))}>
+          <Text style={[styles.primaryButtonText, { color: colors.textOnAccent }]}>{t('auth.signin.submit', lang)}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.signup.title', lang)} style={[styles.secondaryButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
           <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>{t("auth.signup.title", lang)}</Text>
         </TouchableOpacity>
         {onGuestLogin && (
-          <TouchableOpacity style={styles.guestButton} onPress={() => checkTerms(onGuestLogin)}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.welcome.guest_btn', lang)} style={styles.guestButton} onPress={() => checkTerms(onGuestLogin)}>
             <Text style={[styles.guestButtonText, { color: acceptedTerms ? colors.textColor2 : colors.textColor2 + '80' }]}>{t('auth.welcome.guest_btn', lang)}</Text>
           </TouchableOpacity>
         )}
@@ -410,6 +410,7 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
 
 const AuthScreen = ({ onGuestLogin, navigation }) => {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotionPreference();
   const { width: vw, height: vh } = useWindowDimensions(); 
   const { lang, isLangLoading } = useAppLanguage();
   const { colors, isDark } = useSystemThemeColors('blue');
@@ -430,6 +431,8 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
   
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const currentViewRef = useRef(currentView);
+  currentViewRef.current = currentView;
 
   const validateEmail = (emailText) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailText);
@@ -445,11 +448,13 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
 
   const handleNavigate = (view) => {
     triggerHaptic(view === 'welcome' ? "navigateBack" : "navigation");
-    configureAuthLayoutAnimation();
+    configureAuthLayoutAnimation(reduceMotion);
     setFormError('');
     setSuccessMessage('');
     setCurrentView(view);
   };
+  const navigateRef = useRef(handleNavigate);
+  navigateRef.current = handleNavigate;
 
   const openLegalDocument = (documentType) => {
     if (Platform.OS === 'web') {
@@ -477,20 +482,34 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
 
   useEffect(() => {
     let interval;
+    let active = true;
+    let checking = false;
     if (currentView === 'verify') {
       interval = setInterval(async () => {
-        if (auth.currentUser) {
-          await auth.currentUser.reload();
-          if (auth.currentUser.emailVerified) {
-            clearInterval(interval);
+        const verifyingUser = auth.currentUser;
+        if (!active || checking || !verifyingUser) return;
+        checking = true;
+        try {
+          await verifyingUser.reload();
+          if (!active || auth.currentUser?.uid !== verifyingUser.uid) return;
+          setFormError('');
+          if (verifyingUser.emailVerified) {
             setManualLogin(true);
-            await auth.currentUser.getIdToken(true);
+            await verifyingUser.getIdToken(true);
+            clearInterval(interval);
           }
+        } catch {
+          if (active) {
+            setManualLogin(false);
+            setFormError(t('common.action_failed', lang));
+          }
+        } finally {
+          checking = false;
         }
       }, 4000);
     }
-    return () => clearInterval(interval);
-  }, [currentView]);
+    return () => { active = false; clearInterval(interval); };
+  }, [currentView, lang]);
 
   useEffect(() => {
     let timer;
@@ -517,18 +536,19 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderRelease: (evt, gestureState) => {
         if (gestureState.dx > 45 || gestureState.vx > 0.5) {
-          if (currentView !== 'verify') handleNavigate('welcome');
+          if (currentViewRef.current !== 'verify') navigateRef.current('welcome');
         }
       },
       onPanResponderTerminate: (evt, gestureState) => {
         if (gestureState.dx > 45 || gestureState.vx > 0.5) {
-          if (currentView !== 'verify') handleNavigate('welcome');
+          if (currentViewRef.current !== 'verify') navigateRef.current('welcome');
         }
       }
     })
   ).current;
 
   const handleSignIn = async () => {
+    if (isLoading) return;
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
       triggerHaptic("warning");
@@ -543,7 +563,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       return setFormError(t('auth.errors.accept_terms_strict', lang));
     }
     
-    configureAuthLayoutAnimation();
+    configureAuthLayoutAnimation(reduceMotion);
     setIsLoading(true);
     try { 
       setManualLogin(true);
@@ -559,12 +579,13 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       if (error.code === 'auth/too-many-requests') msg = t('auth.errors.too_many_requests', lang);
       setFormError(msg);
     } finally { 
-      configureAuthLayoutAnimation();
+      configureAuthLayoutAnimation(reduceMotion);
       setIsLoading(false); 
     }
   };
 
   const handleSignUp = async () => {
+    if (isLoading) return;
     const trimmedEmail = email.trim();
     const trimmedName = name.trim();
     
@@ -585,7 +606,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       return setFormError(t('auth.errors.accept_terms', lang));
     }
     
-    configureAuthLayoutAnimation();
+    configureAuthLayoutAnimation(reduceMotion);
     setIsLoading(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
@@ -601,7 +622,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       if (error.code === 'auth/weak-password') msg = getPasswordPolicyMessage(lang);
       setFormError(msg);
     } finally { 
-      configureAuthLayoutAnimation();
+      configureAuthLayoutAnimation(reduceMotion);
       setIsLoading(false); 
     }
   };
@@ -649,29 +670,34 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     }
   };
   const handleCancelVerification = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
     triggerHaptic("warning");
     try {
       if (auth.currentUser) {
         await signOut(auth);
       }
-    } catch (error) {
-      console.error(error);
-    } finally {
       handleNavigate('welcome');
       setEmail('');
       setPassword('');
       setName('');
       setFormError('');
       setSuccessMessage('');
+    } catch {
+      setFormError(t('common.action_failed', lang));
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleResendEmail = async () => {
-    if (resendCooldown > 0) {
+    if (resendCooldown > 0 || isLoading) {
       triggerHaptic("warning");
       return;
     }
     if (auth.currentUser) {
+      setIsLoading(true);
+      setFormError('');
       try {
         await sendEmailVerification(auth.currentUser);
         triggerHaptic("success");
@@ -681,6 +707,9 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
         if (error.code === 'auth/too-many-requests') {
           setResendCooldown(60);
         }
+        setFormError(t('common.action_failed', lang));
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -714,15 +743,23 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
 
           <TouchableOpacity 
             style={[styles.primaryButton, { backgroundColor: colors.accentColor, marginTop: 40, opacity: resendCooldown > 0 ? 0.6 : 1 }]} 
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.verify.resend_btn', lang)}
+            accessibilityState={{ disabled: isLoading || resendCooldown > 0, busy: isLoading }}
             onPress={handleResendEmail}
-            disabled={resendCooldown > 0}
+            disabled={isLoading || resendCooldown > 0}
           >
-            <Text style={styles.primaryButtonText}>
+            <Text style={[styles.primaryButtonText, { color: colors.textOnAccent }]}>
               {resendCooldown > 0 ? t('auth.verify.resend_wait', lang, { time: resendCooldown }) : t('auth.verify.resend_btn', lang)}
             </Text>
           </TouchableOpacity>
+          {!!formError && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.errorText}>{formError}</Text>}
           <TouchableOpacity 
             style={{ marginTop: 20, padding: 10 }} 
+            accessibilityRole="button"
+            accessibilityLabel={t('common.cancel', lang)}
+            accessibilityState={{ disabled: isLoading }}
+            disabled={isLoading}
             onPress={handleCancelVerification}
           >
             <Text style={{ color: colors.textColor2, fontSize: 16, fontWeight: '600' }}>
@@ -806,10 +843,13 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
           {currentView === 'signin' && (
             <TouchableOpacity
               style={styles.forgotPassword}
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.signin.forgot_password', lang)}
+              accessibilityState={{ disabled: isLoading || passwordResetCooldown > 0 }}
               onPress={handleForgotPassword}
               disabled={isLoading || passwordResetCooldown > 0}
             >
-              <Text style={[styles.forgotPasswordText, { color: colors.accentColor }]}>
+              <Text style={[styles.forgotPasswordText, { color: colors.accentTextColor }]}>
                 {passwordResetCooldown > 0
                   ? `${t('auth.signin.forgot_password', lang)} (${passwordResetCooldown})`
                   : t('auth.signin.forgot_password', lang)}
@@ -830,7 +870,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
             accessibilityState={{ disabled: isLoading, busy: isLoading }}
           >
             {isLoading ? <MorphingLoader size={24} /> : null}
-            <Text style={styles.primaryButtonText}>
+            <Text style={[styles.primaryButtonText, { color: colors.textOnAccent }]}>
               {currentView === 'signin' ? t('auth.signin.submit', lang) : t("auth.signup.title", lang)}
             </Text>
           </TouchableOpacity>
@@ -839,25 +879,20 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
 
       elements.push(
         <View key="social" style={styles.socialGroup}>
-          <TouchableOpacity 
-            activeOpacity={1} 
-            onPress={() => {
-              if (!acceptedTerms) {
-                triggerHaptic("warning");
-                setFormError(t('auth.errors.accept_terms_strict', lang));
-              }
-            }}
-          >
-            <View pointerEvents={acceptedTerms ? 'auto' : 'none'} style={{ opacity: acceptedTerms ? 1 : 0.6 }}>
-              <SocialAuthButtons onAuthError={(err) => setFormError(err.message)} />
-            </View>
-          </TouchableOpacity>
+          <View style={{ opacity: acceptedTerms ? 1 : 0.6 }}>
+            <SocialAuthButtons disabled={isLoading} onBeforeAuth={() => {
+              if (acceptedTerms) return true;
+              triggerHaptic('warning');
+              setFormError(t('auth.errors.accept_terms_strict', lang));
+              return false;
+            }} onAuthError={() => setFormError(t('common.action_failed', lang))} />
+          </View>
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.textColor2 }]}>
               {currentView === 'signin' ? t('auth.signin.no_account', lang) : t('auth.signup.already_have_account', lang)}
             </Text>
-            <TouchableOpacity onPress={() => handleNavigate(currentView === 'signin' ? 'signup' : 'signin')}>
-              <Text style={[styles.footerLink, { color: colors.accentColor }]}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={currentView === 'signin' ? t('auth.signin.signup_link', lang) : t('auth.signin.submit', lang)} onPress={() => handleNavigate(currentView === 'signin' ? 'signup' : 'signin')}>
+              <Text style={[styles.footerLink, { color: colors.accentTextColor }]}>
                 {' '}{currentView === 'signin' ? t('auth.signin.signup_link', lang) : t("auth.signin.submit", lang)}
               </Text>
             </TouchableOpacity>
@@ -878,7 +913,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingLeft: insets.left, paddingRight: insets.right }]}>
       <KeyboardAvoidingView behavior="padding" enabled={Platform.OS === 'ios'} style={styles.container}>
         
         <AnimatedGradientBackground currentView={currentView} colors={colors} isDark={isDark} />

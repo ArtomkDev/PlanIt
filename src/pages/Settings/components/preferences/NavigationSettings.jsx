@@ -46,8 +46,8 @@ const PREVIEW_VARIANTS = {
       backgroundColor: themeColors.accentColor,
       top: 0,
     }),
-    activeIconColor: ({ themeColors }) => themeColors.accentColor,
-    activeLabelColor: ({ themeColors }) => themeColors.accentColor,
+    activeIconColor: ({ themeColors }) => themeColors.accentTextColor,
+    activeLabelColor: ({ themeColors }) => themeColors.accentTextColor,
   },
   floating: {
     barSide: 16,
@@ -67,8 +67,8 @@ const PREVIEW_VARIANTS = {
         transform: [{ translateY: -height / 2 }],
       };
     },
-    activeIconColor: ({ themeColors }) => themeColors.accentColor,
-    activeLabelColor: ({ themeColors }) => themeColors.accentColor,
+    activeIconColor: ({ themeColors }) => themeColors.accentTextColor,
+    activeLabelColor: ({ themeColors }) => themeColors.accentTextColor,
   },
   dot: {
     barSide: 0,
@@ -81,8 +81,8 @@ const PREVIEW_VARIANTS = {
       backgroundColor: themeColors.accentColor,
       top: Math.round((showLabels ? metrics.indicator.topWithLabels : metrics.indicator.topIconsOnly) * scale),
     }),
-    activeIconColor: ({ themeColors }) => themeColors.accentColor,
-    activeLabelColor: ({ themeColors }) => themeColors.accentColor,
+    activeIconColor: ({ themeColors }) => themeColors.accentTextColor,
+    activeLabelColor: ({ themeColors }) => themeColors.accentTextColor,
   },
   liquidGlass: {
     barSide: 16,
@@ -102,8 +102,8 @@ const PREVIEW_VARIANTS = {
         transform: [{ translateY: -height / 2 }],
       };
     },
-    activeIconColor: ({ themeColors }) => themeColors.accentColor,
-    activeLabelColor: ({ themeColors }) => themeColors.accentColor,
+    activeIconColor: ({ themeColors }) => themeColors.accentTextColor,
+    activeLabelColor: ({ themeColors }) => themeColors.accentTextColor,
   },
 };
 
@@ -188,7 +188,7 @@ function NavigationPreview({ variant, selected, showLabels, themeColors, lang })
 
       {selected && (
         <View style={[styles.selectedBadge, { backgroundColor: themeColors.accentColor }]}>
-          <Check size={13} color="#fff" weight="bold" />
+          <Check size={13} color={themeColors.textOnAccent} weight="bold" />
         </View>
       )}
     </View>

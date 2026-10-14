@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Linking, Share, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Linking, Share, Alert, Platform } from 'react-native';
 import { 
   Cookie, EnvelopeSimple, FileText, Globe, ShareNetwork,
   Package, ShieldCheck, Trash,
@@ -56,7 +56,7 @@ export default function AboutApp() {
 
   return (
     <SettingsScreenLayout title={t('settings.sections.about', lang)}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.container}>
         
         <View style={styles.header}>
           <Text style={[styles.appName, { color: themeColors.textColor }]}>{appName}</Text>
@@ -136,7 +136,7 @@ export default function AboutApp() {
           />
         </SettingsGroup>
 
-      </ScrollView>
+      </View>
     </SettingsScreenLayout>
   );
 }

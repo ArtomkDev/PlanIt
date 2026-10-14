@@ -397,7 +397,7 @@ function EmptyState({ icon: Icon = ClipboardText, title, description, themeColor
   return (
     <View style={[styles.emptyContainer, { paddingTop: topInset }]}>
       <View style={[styles.emptyIcon, { backgroundColor: themeColors.accentColor + "18" }]}>
-        <Icon size={34} color={themeColors.accentColor} weight="duotone" />
+        <Icon size={34} color={themeColors.accentTextColor} weight="duotone" />
       </View>
       <Text style={[styles.emptyTitle, { color: themeColors.textColor }]}>{title}</Text>
       <Text style={[styles.emptyDescription, { color: themeColors.textColor2 }]}>{description}</Text>
@@ -455,8 +455,8 @@ function TaskTodayMarker({ label, themeColors }) {
           },
         ]}
       >
-        <CalendarDots size={15} color={themeColors.accentColor} weight="bold" />
-        <Text style={[styles.todayMarkerText, { color: themeColors.accentColor }]} numberOfLines={1}>
+        <CalendarDots size={15} color={themeColors.accentTextColor} weight="bold" />
+        <Text style={[styles.todayMarkerText, { color: themeColors.accentTextColor }]} numberOfLines={1}>
           {label}
         </Text>
       </View>
@@ -885,6 +885,9 @@ function TaskCard({
           {!!lessonTimeLabel && (
             <TouchableOpacity
               activeOpacity={0.72}
+              accessibilityRole="button"
+              accessibilityLabel={lessonTimeLabel}
+              accessibilityState={{ disabled: !canOpenLinkedLesson }}
               disabled={!canOpenLinkedLesson}
               onPress={(event) => {
                 handleLinkedLessonPress(event);
@@ -923,6 +926,8 @@ function TaskCard({
               {links.map((link) => (
                 <TouchableOpacity
                   key={link.id}
+                  accessibilityRole="link"
+                  accessibilityLabel={link.name || t('common.link', lang)}
                   activeOpacity={0.75}
                   onPress={(event) => {
                     event?.stopPropagation?.();
@@ -945,6 +950,8 @@ function TaskCard({
               {attachments.map((attachment) => (
                 <TouchableOpacity
                   key={attachment.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('attachments.open', lang)}: ${attachment.name || t('attachments.file', lang)}`}
                   activeOpacity={0.75}
                   onPress={(event) => {
                     event?.stopPropagation?.();
@@ -1443,7 +1450,8 @@ export default function Tasks({ route, navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
+    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }, { paddingLeft: insets.left, paddingRight: insets.right }]}>
+      <View style={{ flex: 1 }}>
       <View style={[styles.headerContainer, { height: headerHeight, borderBottomColor: themeColors.borderColor }]}>
         <AppBlur style={StyleSheet.absoluteFill} intensity={50} />
         <View style={[styles.header, { paddingTop: headerTopInset + TASKS_HEADER_TOP_PADDING }]}>
@@ -1506,7 +1514,7 @@ export default function Tasks({ route, navigation }) {
           accessibilityRole="button"
           accessibilityLabel={t("tasks.add_task", lang)}
         >
-          <Plus size={32} color="#fff" weight="bold" />
+          <Plus size={32} color={themeColors.textOnAccent} weight="bold" />
         </TouchableOpacity>
       )}
 
@@ -1541,6 +1549,7 @@ export default function Tasks({ route, navigation }) {
         onChange={setSelectedSchedules}
         activeScheduleId={activeScheduleId}
       />
+      </View>
     </View>
   );
 }
@@ -1804,7 +1813,7 @@ const styles = StyleSheet.create({
   },
   lessonTimeButton: {
     marginLeft: "auto",
-    minHeight: 27,
+    minHeight: 28,
     maxWidth: 126,
     borderRadius: 9,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1842,7 +1851,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   linkChip: {
-    minHeight: 32,
+    minHeight: 44,
     maxWidth: "100%",
     borderRadius: 10,
     paddingHorizontal: 10,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -13,15 +13,10 @@ import {
   useWindowDimensions,
   Alert
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, usePreventRemove, useRoute } from '@react-navigation/native';
 import { 
   Stack, 
   CalendarBlank, 
-  Hourglass, 
-  Clock, 
-  Coffee, 
-  Trash, 
-  Plus,
   Palette,
   Bell,
   CheckSquare,
@@ -29,7 +24,6 @@ import {
   Shapes
 } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../../context/ScheduleProvider';
 import themes from '../../../config/themes';
@@ -60,17 +54,19 @@ import {
   normalizeScheduleRepeat,
   normalizeScheduleTiming,
   buildScheduleSlots,
+  createScheduleTimingDraft,
 } from '../../../utils/scheduleTime';
 import { reconcileScheduleRepeat } from '../../../utils/lessonRecurrence';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
-import SettingsActionRow from '../../../components/ui/SettingsKit/SettingsActionRow';
+import ScheduleTimeEditor from '../../../components/ScheduleTimeEditor';
 import AppSwitch from '../../../components/ui/AppSwitch';
 import { triggerHaptic } from '../../../utils/haptics';
 import useReducedMotionPreference from '../../../hooks/useReducedMotionPreference';
 import ScheduleIcon from '../../../components/ScheduleIcon';
 import ScheduleIconPickerSheet from './ScheduleIconPickerSheet';
+import { getSettingsHeaderHeight } from '../../../config/layoutMetrics';
 
 if (
   Platform.OS === 'android' && 
@@ -109,9 +105,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     icon: targetSchedule?.icon || null,
     color: resolveScheduleColor(targetSchedule, themeColors.accentColor),
     repeat: String(normalizeScheduleRepeat(targetSchedule?.repeat)),
-    start_time: targetSchedule?.start_time || "08:30",
-    duration: String(targetSchedule?.duration || "45"),
-    breaks: targetSchedule?.breaks?.map(String) || ["10", "10", "10", "10", "10"],
+    ...createScheduleTimingDraft(targetSchedule),
     starting_week: targetSchedule?.starting_week || getLastMondayISODate(),
     reminder: initialReminder,
     taskAutoLinkMode: getTaskAutoLinkMode(targetSchedule),
@@ -121,11 +115,29 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
       ? String(initialReminder.minutesBefore)
       : String(CUSTOM_REMINDER_FALLBACK_MINUTES)
   );
+  const initialDraft = useRef(JSON.stringify(localData));
+  const [isSaved, setIsSaved] = useState(false);
+  const hasUnsavedChanges = JSON.stringify(localData) !== initialDraft.current;
+  usePreventRemove(hasUnsavedChanges && !isSaved, ({ data }) => {
+    const discard = () => navigation.dispatch(data.action);
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${t('common.discard_title', lang)}\n\n${t('common.discard_desc', lang)}`)) discard();
+      return;
+    }
+    Alert.alert(t('common.discard_title', lang), t('common.discard_desc', lang), [
+      { text: t('common.cancel', lang), style: 'cancel' },
+      { text: t('common.discard', lang), style: 'destructive', onPress: discard },
+    ]);
+  });
+  useEffect(() => {
+    if (!isSaved) return;
+    if (isInitialSetup && onFinish) onFinish();
+    else if (navigation.canGoBack()) navigation.goBack();
+  }, [isSaved, isInitialSetup, onFinish, navigation]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const currentScrollY = useRef(0);
   const scrollViewRef = useRef(null);
-  const headerHeight = 60 + insets.top;
+  const headerHeight = getSettingsHeaderHeight(insets.top);
   const baseBottomPadding = (tabBarHeight || 80) + insets.bottom + 16;
 
   const sectionYs = useRef({});
@@ -136,12 +148,9 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const [isIconPickerVisible, setIconPickerVisible] = useState(false);
   
   const [isWeeksExpanded, setIsWeeksExpanded] = useState(false);
-  const [isDurationExpanded, setIsDurationExpanded] = useState(false);
-  const [isTimeExpanded, setIsTimeExpanded] = useState(false);
-  const [isBreaksExpanded, setIsBreaksExpanded] = useState(false);
   const [isReminderExpanded, setIsReminderExpanded] = useState(false);
 
-  const isAnyExpanded = isWeeksExpanded || isDurationExpanded || isTimeExpanded || isBreaksExpanded || isReminderExpanded;
+  const isAnyExpanded = isWeeksExpanded || isReminderExpanded;
   const finalBottomPadding = baseBottomPadding + (isAnyExpanded ? screenHeight * 0.5 : 0);
 
   const configureEditorLayoutAnimation = () => {
@@ -167,38 +176,8 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isWeeksExpanded;
     setIsWeeksExpanded(willExpand);
     if (willExpand) {
-      setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
+      setIsReminderExpanded(false);
       scrollToElement('general', 'weeks', 0, 150);
-    }
-  };
-
-  const toggleDurationExpand = () => {
-    configureEditorLayoutAnimation();
-    const willExpand = !isDurationExpanded;
-    setIsDurationExpanded(willExpand);
-    if (willExpand) {
-      setIsWeeksExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
-      scrollToElement('time', 'duration', 0, 150);
-    }
-  };
-
-  const toggleTimeExpand = () => {
-    configureEditorLayoutAnimation();
-    const willExpand = !isTimeExpanded;
-    setIsTimeExpanded(willExpand);
-    if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsBreaksExpanded(false); setIsReminderExpanded(false);
-      scrollToElement('time', 'startTime', 0, 150);
-    }
-  };
-
-  const toggleBreaksExpand = () => {
-    configureEditorLayoutAnimation();
-    const willExpand = !isBreaksExpanded;
-    setIsBreaksExpanded(willExpand);
-    if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsReminderExpanded(false);
-      scrollToElement('time', 'breaks', 0, 150);
     }
   };
 
@@ -207,7 +186,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     const willExpand = !isReminderExpanded;
     setIsReminderExpanded(willExpand);
     if (willExpand) {
-      setIsWeeksExpanded(false); setIsDurationExpanded(false); setIsTimeExpanded(false); setIsBreaksExpanded(false);
+      setIsWeeksExpanded(false);
       scrollToElement('general', 'reminder', 0, 150);
     }
   };
@@ -272,56 +251,27 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     }));
   };
 
-  const handleBreakChange = (text, index) => {
-    const numeric = text.replace(/[^0-9]/g, '');
-    setLocalData(prev => {
-      const newBreaks = [...prev.breaks];
-      newBreaks[index] = numeric;
-      return { ...prev, breaks: newBreaks };
-    });
-  };
-
-  const handleAddBreak = () => {
-    configureEditorLayoutAnimation();
-    setLocalData(prev => {
-      const nextBreaks = [...prev.breaks, "10"];
-      
-      setTimeout(() => {
-        const sY = sectionYs.current['time'] || 0;
-        const cY = cardYs.current['breaks'] || 0;
-        const buttonBottomY = sY + cY + 60 + (nextBreaks.length * 60) + 80; 
-        const visibleBottom = currentScrollY.current + screenHeight - baseBottomPadding;
-        
-        if (buttonBottomY > visibleBottom) {
-          const scrollNode = scrollViewRef.current?.scrollTo ? scrollViewRef.current : scrollViewRef.current?.getNode?.();
-          scrollNode?.scrollTo({ y: currentScrollY.current + 80, animated: true });
-        }
-      }, 50);
-
-      return { ...prev, breaks: nextBreaks };
-    });
-  };
-
-  const handleRemoveBreak = (index) => {
-    configureEditorLayoutAnimation();
-    setLocalData(prev => ({ ...prev, breaks: prev.breaks.filter((_, i) => i !== index) }));
-  };
-
   const handleFinalSave = () => {
+    if (isSaved) return;
     const finalName = localData.name?.trim() || t("common.schedule_name", lang);
     const finalRepeat = normalizeScheduleRepeat(localData.repeat);
-    const finalBreaks = localData.breaks.map(b => (isNaN(Number(b)) || Number(b) <= 0) ? 10 : Number(b));
+    const finalBreaks = localData.breaks.map(Number);
 
     const scheduleData = { 
       ...normalizeScheduleTiming(targetSchedule),
       ...localData, 
       name: finalName, 
       repeat: finalRepeat,
-      duration: Number(localData.duration) || 45,
+      duration: Number(localData.slotDurations[0]),
+      slotDurations: localData.slotDurations.map(Number),
       breaks: finalBreaks
     };
     if (!localData.icon) delete scheduleData.icon;
-    const slots = buildScheduleSlots(scheduleData.start_time, scheduleData.duration, finalBreaks);
+    const slots = buildScheduleSlots(localData.start_time, localData.duration, localData.breaks, localData.slotDurations);
+    if (slots.length === 0) {
+      Alert.alert(t('schedule.main_screen.time', lang), t('settings.schedule_editor.timing.invalid', lang));
+      return;
+    }
     const exceedsDay = (scheduleData.schedule || []).some((day) => Object.values(day || {}).some((lessons) =>
       Array.isArray(lessons) && lessons.some((lesson) => lesson?.timeMode === 'slot' && !slots.some((slot) => slot.number === lesson.slotNumber))));
     if (exceedsDay) {
@@ -349,18 +299,14 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
       setGlobalDraft(prev => prev);
     }
     
-    if (isInitialSetup && onFinish) onFinish();
-    else if (navigation.canGoBack()) navigation.goBack();
+    setIsSaved(true);
   };
 
-  const timeValue = localData.start_time || "08:30";
-  const [hours, minutes] = timeValue.split(":").map(Number);
-  const timeDate = new Date();
-  timeDate.setHours(isNaN(hours) ? 8 : hours, isNaN(minutes) ? 30 : minutes, 0, 0);
+  const minimumSlots = useMemo(() => Math.max(1, ...(normalizeScheduleTiming(targetSchedule)?.schedule || []).flatMap(day =>
+    Object.values(day || {}).flatMap(lessons => Array.isArray(lessons) ? lessons.map(lesson => lesson?.timeMode === 'slot' ? lesson.slotNumber : 0) : []))), [targetSchedule]);
 
   const displayTitle = isNew ? t('settings.schedule_switcher.add_new', lang) : (targetSchedule?.name || t('settings.schedule_editor.edit_schedule', lang));
   const isCustomRepeat = !['1', '2', '3', '4'].includes(String(localData.repeat));
-  const isCustomDuration = !['45', '60', '80', '90'].includes(String(localData.duration));
   const reminderSelectionId = getScheduleReminderSelectionId(localData.reminder);
   const isSingleWeek = Number(localData.repeat) <= 1;
   const taskAutoLinkNextLesson = getTaskAutoLinkMode(localData) === TASK_AUTO_LINK_MODES.NEXT_SAME;
@@ -372,14 +318,14 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
 
   const saveButtonElement = (
     <TouchableOpacity accessibilityRole="button" accessibilityLabel={isInitialSetup ? t('common.done', lang) : t('common.save', lang)} onPress={handleFinalSave} style={{ minHeight: 44, paddingHorizontal: 12, paddingVertical: 6, justifyContent: 'center' }}>
-      <Text style={{ color: themeColors.accentColor, fontSize: 17, fontWeight: '600' }}>
+      <Text style={{ color: themeColors.accentTextColor, fontSize: 17, fontWeight: '600' }}>
         {isInitialSetup ? t('common.done', lang) : t('common.save', lang)}
       </Text>
     </TouchableOpacity>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }]}>
+    <View style={[styles.container, { backgroundColor: themeColors.backgroundColor, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior="padding"
@@ -392,15 +338,11 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
           contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 10, paddingBottom: finalBottomPadding }]} 
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }], 
-            { 
-              useNativeDriver: true,
-              listener: (event) => {
-                currentScrollY.current = event.nativeEvent.contentOffset.y;
-              }
-            }
+            { useNativeDriver: true }
           )} 
           scrollEventThrottle={16}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View onLayout={e => sectionYs.current['general'] = e.nativeEvent.layout.y}>
             <SettingsGroup title={t('settings.sections.general', lang)} themeColors={themeColors}>
@@ -502,7 +444,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                         <TouchableOpacity
                           key={option.id}
                           accessibilityRole="radio"
-                          accessibilityLabel={option.label}
+                          accessibilityLabel={option.id === 'off' || option.id === 'custom' ? option.label : t('schedule.reminders.before_minutes', lang, { minutes: option.label })}
                           accessibilityState={{ selected, checked: selected }}
                           style={[
                             styles.reminderChoice,
@@ -514,7 +456,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
                           onPress={() => handleReminderSelection(option.id)}
                           activeOpacity={0.75}
                         >
-                          <Text style={[styles.reminderChoiceText, { color: selected ? '#fff' : themeColors.textColor }]}>
+                          <Text style={[styles.reminderChoiceText, { color: selected ? themeColors.textOnAccent : themeColors.textColor }]}>
                             {option.label}
                           </Text>
                         </TouchableOpacity>
@@ -633,137 +575,10 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
             </SettingsGroup>
           </View>
 
-          <View onLayout={e => sectionYs.current['time'] = e.nativeEvent.layout.y}>
-            <SettingsGroup title={t('settings.sections.time_management', lang)} themeColors={themeColors}>
-              
-              <View onLayout={e => cardYs.current['duration'] = e.nativeEvent.layout.y}>
-                <SettingsRow
-                  label={t('settings.menu.duration.title', lang)}
-                  value={`${localData.duration} ${t('schedule.main_screen.minutes', lang)}`}
-                  icon={Hourglass}
-                  themeColors={themeColors}
-                  onPress={toggleDurationExpand}
-                />
-              </View>
-
-              {isDurationExpanded && (
-                <View style={styles.expandedContent}>
-                  <TabSwitcher 
-                    tabs={[
-                      { id: '45', label: '45' }, 
-                      { id: '60', label: '60' }, 
-                      { id: '80', label: '80' }, 
-                      { id: '90', label: '90' }
-                    ]} 
-                    activeTab={String(localData.duration)} 
-                    onTabPress={(id) => setLocalData(prev => ({ ...prev, duration: id }))} 
-                    themeColors={themeColors} 
-                    activeTabBackgroundColor={isCustomDuration ? 'transparent' : themeColors.accentColor} 
-                    containerBackgroundColor={themeColors.backgroundColor}
-                    containerBorderColor={themeColors.borderColor}
-                  />
-                  <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor, borderColor: (isCustomDuration && localData.duration !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
-                    <TextInput 
-                      style={[styles.nameInput, { color: themeColors.textColor }]} 
-                      value={isCustomDuration ? String(localData.duration) : ""} 
-                      onChangeText={(text) => setLocalData(prev => ({ ...prev, duration: text.replace(/[^0-9]/g, '') }))} 
-                      placeholder={t('schedule.main_screen.duration', lang)} 
-                      placeholderTextColor={themeColors.textColor2} 
-                      keyboardType="number-pad" 
-                      maxLength={3} 
-                      returnKeyType="done"
-                      accessibilityLabel={t('schedule.main_screen.duration', lang)}
-                      onFocus={() => scrollToElement('time', 'duration', 60, 300)}
-                    />
-                  </View>
-                </View>
-              )}
-
-              <View onLayout={e => cardYs.current['startTime'] = e.nativeEvent.layout.y}>
-                <SettingsRow
-                  label={t('settings.menu.start_time.title', lang)}
-                  value={localData.start_time}
-                  icon={Clock}
-                  themeColors={themeColors}
-                  onPress={toggleTimeExpand}
-                />
-              </View>
-
-              {isTimeExpanded && (
-                <View style={styles.expandedContentPicker}>
-                  {Platform.OS === 'android' ? (
-                    <DateTimePicker value={timeDate} mode="time" is24Hour={true} design="material" positiveButton={{ textColor: themeColors.accentColor }} negativeButton={{ textColor: themeColors.textColor2 }} onChange={(event, date) => { setIsTimeExpanded(false); if (event.type === 'set' && date) setLocalData(prev => ({ ...prev, start_time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` })); }} />
-                  ) : (
-                    <View style={styles.timePickerContainer}>
-                      {Platform.OS !== 'web' ? (
-                        <DateTimePicker value={timeDate} mode="time" is24Hour={true} display="spinner" onChange={(event, date) => { if (date) setLocalData(prev => ({ ...prev, start_time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` })); }} textColor={themeColors.textColor} style={{ height: 160, width: '100%' }} />
-                      ) : (
-                        <View style={{ padding: 20, width: '100%', alignItems: 'center' }}>
-                          {React.createElement('input', { type: 'time', value: timeValue, onChange: (e) => setLocalData(prev => ({ ...prev, start_time: e.target.value })), style: { fontSize: 24, padding: 12, borderRadius: 12, width: '80%', textAlign: 'center', border: `1px solid ${themeColors.borderColor}`, backgroundColor: themeColors.backgroundColor, color: themeColors.textColor } })}
-                        </View>
-                      )}
-                    </View>
-                  )}
-                </View>
-              )}
-
-              <View onLayout={e => cardYs.current['breaks'] = e.nativeEvent.layout.y}>
-                <SettingsRow
-                  label={t('settings.menu.breaks.title', lang)}
-                  value={`${localData.breaks.length}`}
-                  icon={Coffee}
-                  themeColors={themeColors}
-                  onPress={toggleBreaksExpand}
-                />
-              </View>
-
-              {isBreaksExpanded && (
-                <View style={styles.expandedContentBreaks}>
-                  {localData.breaks.map((brk, idx) => (
-                    <View key={`break-${idx}`} style={[styles.breakRow, { borderBottomColor: themeColors.borderColor }]}>
-                      <Text style={[styles.breakRowLabel, { color: themeColors.textColor }]}>{t('schedule.day_schedule.break', lang)} {idx + 1}</Text>
-                      
-                      <View style={styles.breakActions}>
-                        <View style={[styles.breakInputWrapper, { backgroundColor: themeColors.accentColor + '15' }]}>
-                          <TextInput 
-                            style={[styles.breakRowInput, { color: themeColors.accentColor }]} 
-                            value={String(brk)} 
-                            onChangeText={(t) => handleBreakChange(t, idx)} 
-                            keyboardType="number-pad" 
-                            maxLength={3} 
-                            accessibilityLabel={`${t('schedule.day_schedule.break', lang)} ${idx + 1}`}
-                            selectTextOnFocus 
-                            onFocus={() => scrollToElement('time', 'breaks', 60 + (idx * 56), 300)}
-                          />
-                          <Text style={[styles.breakRowMin, { color: themeColors.accentColor }]}>{t('schedule.main_screen.minutes', lang)}</Text>
-                        </View>
-
-                        <TouchableOpacity 
-                          accessibilityRole="button"
-                          accessibilityLabel={t('common.delete', lang)}
-                          onPress={() => handleRemoveBreak(idx)} 
-                          style={styles.trashBtn}
-                          activeOpacity={0.7}
-                        >
-                          <Trash size={18} color="#FF3B30" weight="bold" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                  
-                  <View style={{ marginTop: 12 }}>
-                    <SettingsActionRow 
-                      icon={Plus}
-                      label={t('settings.breaks_manager.add_btn', lang)}
-                      onPress={handleAddBreak}
-                      themeColors={themeColors}
-                    />
-                  </View>
-                </View>
-              )}
-
-            </SettingsGroup>
+          <View>
+            <ScheduleTimeEditor value={localData} onChange={setLocalData} themeColors={themeColors} lang={lang} mode={mode} minimumSlots={minimumSlots} title={t('settings.sections.time_management', lang)} />
           </View>
+
         </Animated.ScrollView>
       </KeyboardAvoidingView>
       
@@ -850,14 +665,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
-  expandedContentPicker: {
-    paddingBottom: 8,
-  },
-  expandedContentBreaks: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-
   customInputContainer: { 
     height: 52, 
     flexDirection: 'row',
@@ -910,52 +717,4 @@ const styles = StyleSheet.create({
     overflow: 'hidden'
   },
 
-  timePickerContainer: { 
-    alignItems: 'center', 
-    overflow: 'hidden' 
-  }, 
-  
-  breakRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    paddingVertical: 12, 
-    borderBottomWidth: StyleSheet.hairlineWidth 
-  }, 
-  breakRowLabel: { 
-    fontSize: 16, 
-    fontWeight: '500' 
-  }, 
-  breakActions: { 
-    flexDirection: 'row', 
-    alignItems: 'center' 
-  },
-  breakInputWrapper: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 12, 
-    minHeight: 44,
-    borderRadius: 10, 
-    marginRight: 8 
-  }, 
-  breakRowInput: { 
-    fontSize: 16, 
-    fontWeight: '700', 
-    textAlign: 'center', 
-    minWidth: 30 
-  }, 
-  breakRowMin: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    marginLeft: 2, 
-    opacity: 0.8 
-  }, 
-  trashBtn: { 
-    width: 44,
-    height: 44,
-    borderRadius: 10, 
-    backgroundColor: '#FF3B3015', 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
 });

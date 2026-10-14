@@ -377,8 +377,8 @@ export default function TeacherEditor({
             accessibilityLabel={t("schedule.lesson_editor.teacher_contact_add", lang)}
             activeOpacity={0.75}
           >
-            <Plus size={20} color={themeColors.accentColor} weight="bold" />
-            <Text style={[styles.addContactText, { color: themeColors.accentColor }]}>
+            <Plus size={20} color={themeColors.accentTextColor} weight="bold" />
+            <Text style={[styles.addContactText, { color: themeColors.accentTextColor }]}>
               {t("schedule.lesson_editor.teacher_contact_add", lang)}
             </Text>
           </TouchableOpacity>

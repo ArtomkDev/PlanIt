@@ -86,9 +86,10 @@ test('device screen groups sessions and preserves the current device; subscripti
     assert.match(content(), /IP: 192.0.2.1/);
     assert.equal(tree.root.findAllByType('DeviceMobile').length, 1);
     assert.equal(tree.root.findAllByType('Monitor').length, 1);
-    const logoutButtons = tree.root.findAllByType('Button').filter((n) => n.props.accessibilityLabel);
+    const logoutButtons = tree.root.findAllByType('Button').filter((n) => n.props.accessibilityLabel?.includes('Windows · Chrome'));
     assert.equal(logoutButtons.length, 1);
     assert.match(logoutButtons[0].props.accessibilityLabel, /Windows · Chrome/);
+    assert.equal(tree.root.findAllByType('Button').filter((n) => n.props.accessibilityLabel === mocks['../../../../utils/i18n'].t('settings.device_screen.logout_all_others', 'uk')).length, 1);
     await act(async () => fail(new Error('offline')));
     assert.match(content(), /Не вдалося завантажити пристрої/);
     assert.match(content(), /Спробувати ще раз/);

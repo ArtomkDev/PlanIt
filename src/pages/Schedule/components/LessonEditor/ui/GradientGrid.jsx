@@ -10,8 +10,8 @@ import { triggerHaptic } from '../../../../../utils/haptics';
 export default function GradientGrid({ gradients, selected, onSelect, onEdit, onAddGradient, themeColors }) {
   const { lang } = useScheduleData();
   return <SheetFlatList data={gradients || []} keyExtractor={item => String(item.id)} numColumns={2} contentContainerStyle={styles.list}
-    ListHeaderComponent={onAddGradient && <Pressable style={[styles.add, { backgroundColor: themeColors.backgroundColor2 }]} onPress={onAddGradient} accessibilityRole="button">
-      <Plus size={20} color={themeColors.accentColor} /><Text style={{ color: themeColors.accentColor, fontWeight: '600' }}>{t('schedule.lesson_editor.add_gradient', lang)}</Text>
+    ListHeaderComponent={onAddGradient && <Pressable style={[styles.add, { backgroundColor: themeColors.backgroundColor2 }]} onPress={onAddGradient} accessibilityRole="button" accessibilityLabel={t('schedule.lesson_editor.add_gradient', lang)}>
+      <Plus size={20} color={themeColors.accentTextColor} /><Text style={{ color: themeColors.accentTextColor, fontWeight: '600' }}>{t('schedule.lesson_editor.add_gradient', lang)}</Text>
     </Pressable>}
     ListEmptyComponent={<Text style={[styles.empty, { color: themeColors.textColor2 }]}>{t('schedule.lesson_editor.empty_gradients', lang)}</Text>}
     renderItem={({ item, index }) => {
@@ -27,7 +27,7 @@ export default function GradientGrid({ gradients, selected, onSelect, onEdit, on
           <View style={styles.caption}>
             <Text style={[styles.name, { color: themeColors.textColor }]}>{name}</Text>
             {onEdit && <Pressable style={styles.edit} onPress={() => onEdit(item)} accessibilityRole="button" accessibilityLabel={`${t('common.edit', lang)}: ${name}`}>
-              <PencilSimple size={19} color={themeColors.accentColor} />
+              <PencilSimple size={19} color={themeColors.accentTextColor} />
             </Pressable>}
           </View>
         </View>

@@ -24,10 +24,10 @@ export default function LessonEditorPickerScreen({ options, selectedValues = EMP
   };
   const search = query.trim().toLocaleLowerCase();
   const filtered = options.filter(item => item.key !== 'none' && `${item.label} ${item.hint || ''}`.toLocaleLowerCase().includes(search));
-  const renderAction = (label, Icon, onPress) => <Pressable accessibilityRole="button" onPress={onPress}
+  const renderAction = (label, Icon, onPress) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
     style={({ pressed }) => [styles.secondary, { backgroundColor: pressed ? themeColors.backgroundColor2 : 'transparent' }]}>
-    <Icon size={20} color={themeColors.accentColor} />
-    <Text style={[styles.actionText, { color: themeColors.accentColor }]}>{label}</Text>
+    <Icon size={20} color={themeColors.accentTextColor} />
+    <Text style={[styles.actionText, { color: themeColors.accentTextColor }]}>{label}</Text>
   </Pressable>;
   return <View style={styles.container}>
     {!isGrid && <View style={styles.toolbar}>
@@ -55,17 +55,17 @@ export default function LessonEditorPickerScreen({ options, selectedValues = EMP
             accessibilityState={{ checked, disabled: unavailable }} disabled={unavailable}
             onPress={() => select(item.key)} onLongPress={onEdit ? () => onEdit(item.key) : undefined}
             style={({ pressed }) => [styles.optionMain, { opacity: unavailable ? 0.45 : pressed ? 0.65 : 1 }]}>
-            {Icon && <Icon size={22} color={item.iconColor || themeColors.accentColor} />}
+            {Icon && <Icon size={22} color={item.iconColor || themeColors.accentTextColor} />}
             <View style={styles.optionText}>
               <Text style={[styles.name, { color: themeColors.textColor }]}>{item.label}</Text>
               {(item.hint || unavailable) && <Text style={[styles.hint, { color: themeColors.textColor2 }]}>{unavailable ? t('schedule.picker_screen.already_added', lang) : item.hint}</Text>}
             </View>
             <View style={[styles.selection, { borderColor: checked ? themeColors.accentColor : themeColors.borderColor, backgroundColor: checked ? themeColors.accentColor : 'transparent' }]}>
-              {checked && <Check size={14} color="#fff" weight="bold" />}
+              {checked && <Check size={14} color={themeColors.textOnAccent} weight="bold" />}
             </View>
           </Pressable>
           {onEdit && <Pressable style={styles.iconButton} onPress={() => onEdit(item.key)} accessibilityRole="button" accessibilityLabel={`${t('common.edit', lang)}: ${item.label}`}>
-            <PencilSimple size={20} color={themeColors.accentColor} />
+            <PencilSimple size={20} color={themeColors.accentTextColor} />
           </Pressable>}
         </View>;
       }}

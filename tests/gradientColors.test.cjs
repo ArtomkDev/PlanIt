@@ -378,14 +378,14 @@ test('all UI gradient call sites use the shared surface component', () => {
   assert.match(gradientSource, /experimental_backgroundRepeat: "no-repeat"/);
   assert.match(gradientSource, /component: Component = View/);
   assert.match(gradientSource, /const composedStyle = typeof style === "function"/);
-  assert.match(gridSource, /<GradientBackground[\s\S]*component=\{TouchableOpacity\}[\s\S]*gradient=\{item\}/);
+  assert.match(gridSource, /<Pressable[\s\S]*onSelect\(item\.id\)[\s\S]*accessibilityRole="radio"[\s\S]*<GradientBackground gradient=\{item\}/);
   assert.match(lessonSource, /<GradientBackground[\s\S]*component=\{TouchableOpacity\}[\s\S]*gradient=\{activeGrad\}[\s\S]*fallbackColor=\{subjectColor\}/);
   assert.match(taskSource, /<GradientBackground[\s\S]*component=\{AnimatedTouchableOpacity\}[\s\S]*gradient=\{activeGradient\}[\s\S]*fallbackColor=\{cardColor\}/);
-  assert.match(lessonViewerSource, /<GradientBackground[\s\S]*gradient=\{headerGradient\}[\s\S]*fallbackColor=\{headerColor\}[\s\S]*style=\{styles\.headerContainer\}/);
-  assert.doesNotMatch(lessonViewerSource, /getHeaderBackground|headerBackground/);
+  assert.match(lessonViewerSource, /headerBackground=\{\([\s\S]*<GradientBackground[\s\S]*gradient=\{headerGradient\}[\s\S]*fallbackColor=\{headerColor\}[\s\S]*style=\{StyleSheet\.absoluteFill\}/);
+  assert.doesNotMatch(lessonViewerSource, /getHeaderBackground/);
   assert.match(breakCardSource, /<GradientBackground[\s\S]*appearance\.fillGradient/);
   assert.match(taskEditorSource, /<GradientBackground[\s\S]*gradientOpacity=\{0\.1\}/);
-  assert.match(mainScreenSource, /<GradientBackground[\s\S]*gradient=\{gradient\}[\s\S]*fallbackColor=\{color\}/);
+  assert.match(mainScreenSource, /<GradientBackground[\s\S]*gradient=\{cardGradient\}[\s\S]*fallbackColor=\{cardColor\}/);
   assert.doesNotMatch(gridSource, /gradientTile:\s*\{[^}]*borderWidth/);
   assert.doesNotMatch(mainScreenSource, /colorPreview:\s*\{[^}]*borderWidth/);
   for (const source of migratedGradientSources) {

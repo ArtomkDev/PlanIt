@@ -40,6 +40,7 @@ import {
 } from "../../utils/taskLessonLinking";
 import { getScheduleHeaderHeight } from "../../config/layoutMetrics";
 import { triggerHaptic } from "../../utils/haptics";
+import { t } from "../../utils/i18n";
 import { getCalendarDayKey, getCalendarDayNumber, normalizeCalendarDate } from "./dayNavigation";
 
 const getLocalISODate = (date = new Date()) => {
@@ -85,7 +86,7 @@ const DayPage = memo(({
 ));
 
 export default function Schedule({ route, navigation }) {
-  const { global: globalSettings, schedule, schedules } = useScheduleData();
+  const { global: globalSettings, schedule, schedules, lang } = useScheduleData();
   const { drawerProgress } = useNotificationDrawer();
   const { setGlobalDraft } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
@@ -304,7 +305,8 @@ export default function Schedule({ route, navigation }) {
       schedule.start_time || "08:30",
       Number(schedule.duration) || 45,
       schedule.breaks || [],
-      dayLessons || []
+      dayLessons || [],
+      schedule.slotDurations,
     );
 
     return {
@@ -405,7 +407,7 @@ export default function Schedule({ route, navigation }) {
                                 const lessonData = isInstance ? item : {};
                                 
                                 const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
-                                const lessonTimes = buildLessonTimes(start_time, duration, breaks, rawLessons);
+                                const lessonTimes = buildLessonTimes(start_time, duration, breaks, rawLessons, schedule.slotDurations);
                                 const timeInfo = lessonTimes[lessonIndex] || {};
 
                                 setTimeout(() => {
@@ -453,7 +455,8 @@ export default function Schedule({ route, navigation }) {
 
   return (
     <NowTickProvider activeDate={currentDate}>
-    <Reanimated.View style={[styles.container, screenColorStyle]}>
+    <Reanimated.View style={[styles.container, screenColorStyle, { paddingLeft: insets.left, paddingRight: insets.right }]}>
+      <View style={{ flex: 1 }}>
       <View style={[styles.headerContainer, { height: headerHeight }]}>
         <View style={StyleSheet.absoluteFill}>
           <AppBlur
@@ -496,13 +499,15 @@ export default function Schedule({ route, navigation }) {
       {schedule && (
         <TouchableOpacity 
           style={[styles.fab, { backgroundColor: themeColors.accentColor, bottom: dynamicBottomOffset }]}
+          accessibilityRole="button"
+          accessibilityLabel={t('schedule.lesson_editor.new_lesson', lang)}
           onPress={() => {
             triggerHaptic("open");
             openNewLessonEditor();
           }}
           activeOpacity={0.8}
         >
-          <Plus size={32} color="#fff" weight="bold" />
+          <Plus size={32} color={themeColors.textOnAccent} weight="bold" />
         </TouchableOpacity>
       )}
       
@@ -537,6 +542,7 @@ export default function Schedule({ route, navigation }) {
       
       <CalendarSheet visible={calendarVisible} currentDate={currentDate} onClose={() => setCalendarVisible(false)} onDateSelect={date => goToDate(date, true)} />
 
+      </View>
     </Reanimated.View>
     </NowTickProvider>
   );

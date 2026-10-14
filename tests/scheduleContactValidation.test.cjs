@@ -41,6 +41,31 @@ const baseSchedule = {
   schedule: [],
 };
 
+test('sharing preserves individual slot lengths, zero gaps and lesson bindings', () => {
+  const input = { ...baseSchedule, subjects: [{ id: 'math', name: 'Math' }], slotDurations: [45, 60, 80], breaks: [0, 20],
+    schedule: [{ week1: [null, 'math', { subjectId: 'math', timeMode: 'slot', slotNumber: 3 }] }] };
+  const shared = sanitizeSharedSchedule(input);
+  assert.deepEqual(shared.slotDurations, [45, 60, 80]);
+  assert.deepEqual(shared.breaks, [0, 20]);
+  assert.deepEqual(shared.schedule[0].week1.map(lesson => lesson.slotNumber), [2, 3]);
+  assert.deepEqual(sanitizeSharedSchedule(shared), shared);
+});
+
+test('sharing refuses an empty or overnight slot template instead of changing lesson times', () => {
+  for (const slotDurations of [[], [600, 600]]) {
+    assert.throws(() => sanitizeSharedSchedule({ ...baseSchedule, slotDurations }), /invalid_shared_schedule/);
+  }
+});
+
+test('the shared payload, including flexible timing and an icon, fits the Firestore field whitelist', () => {
+  const payload = sanitizeSharedSchedule({ ...baseSchedule, slotDurations: [45, 60], breaks: [0], icon: 'CalendarBlank', color: '#0A84FF' });
+  const rules = fs.readFileSync(path.resolve(__dirname, '../firestore.rules'), 'utf8');
+  const scheduleRule = rules.slice(rules.indexOf('function validScheduleData'), rules.indexOf('function validVersionFields'));
+  const whitelist = scheduleRule.match(/data\.keys\(\)\.hasOnly\(\[([\s\S]*?)\]\)/)[1];
+  const allowed = new Set([...whitelist.matchAll(/"([^"]+)"/g)].map(match => match[1]));
+  assert.deepEqual(Object.keys(payload).filter(key => !allowed.has(key)), []);
+});
+
 test('shared schedule canonicalizes handles and whitelists appearance fields', () => {
   const result = sanitizeSharedSchedule({
     ...baseSchedule,

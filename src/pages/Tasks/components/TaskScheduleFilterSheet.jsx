@@ -101,7 +101,7 @@ export default function TaskScheduleFilterSheet({
     >
       <View style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: themeColors.accentColor + "18" }]}>
-          <CalendarDots size={23} color={themeColors.accentColor} weight="bold" />
+          <CalendarDots size={23} color={themeColors.accentTextColor} weight="bold" />
         </View>
         <View style={styles.headerCopy}>
           <Text style={[styles.title, { color: themeColors.textColor }]}>
@@ -134,7 +134,7 @@ export default function TaskScheduleFilterSheet({
             { backgroundColor: themeColors.accentColor + "18", borderColor: themeColors.accentColor + "40" },
           ]}
         >
-          <Text style={[styles.actionText, { color: themeColors.accentColor }]}>
+          <Text style={[styles.actionText, { color: themeColors.accentTextColor }]}>
             {t("tasks.filter.all", lang)}
           </Text>
         </TouchableOpacity>

@@ -187,7 +187,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
       contentStyle={styles.container}
     >
           <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + '20' }]}>
-            <CloudArrowUp size={40} color={themeColors.accentColor} weight="fill" />
+            <CloudArrowUp size={40} color={themeColors.accentTextColor} weight="fill" />
           </View>
           
           <Text style={[styles.title, { color: themeColors.textColor }]}>
@@ -205,6 +205,10 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
                 const isSelected = selectedIds.has(item.id);
                 return (
                   <TouchableOpacity 
+                    accessibilityRole="checkbox"
+                    accessibilityLabel={item.name || t('common.untitled', lang)}
+                    accessibilityState={{ checked: isSelected, disabled: isMigrating }}
+                    disabled={isMigrating}
                     style={[
                       styles.scheduleItem, 
                       { backgroundColor: themeColors.backgroundColor2 },
@@ -214,7 +218,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
                     activeOpacity={0.7}
                   >
                     {isSelected ? (
-                      <CheckSquare size={24} color={themeColors.accentColor} weight="fill" />
+                      <CheckSquare size={24} color={themeColors.accentTextColor} weight="fill" />
                     ) : (
                       <Square size={24} color={themeColors.textColor2} weight="regular" />
                     )}
@@ -230,6 +234,9 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
           <View style={styles.buttonRow}>
             <TouchableOpacity 
               style={[styles.button, { backgroundColor: themeColors.backgroundColor2 }]} 
+              accessibilityRole="button"
+              accessibilityLabel={t('common.skip', lang)}
+              accessibilityState={{ disabled: isMigrating }}
               onPress={handleSkip}
               disabled={isMigrating}
             >
@@ -240,13 +247,16 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
 
             <TouchableOpacity 
               style={[styles.button, { backgroundColor: themeColors.accentColor }]} 
+              accessibilityRole="button"
+              accessibilityLabel={t('migration_modal.migrate', lang)}
+              accessibilityState={{ disabled: isMigrating || selectedIds.size === 0, busy: isMigrating }}
               onPress={handleMigrate}
               disabled={isMigrating || selectedIds.size === 0}
             >
               {isMigrating ? (
                 <MorphingLoader size={24} />
               ) : (
-                <Text style={styles.migrateButtonText}>
+                <Text style={[styles.migrateButtonText, { color: themeColors.textOnAccent }]}>
                   {t('migration_modal.migrate', lang)}
                 </Text>
               )}

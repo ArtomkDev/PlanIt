@@ -245,7 +245,7 @@ export default function LessonEditorGradientEditScreen({ themeColors, gradientTo
           <Text style={[styles.label, { color: themeColors.textColor }]}>
             {t('schedule.lesson_editor.gradient_angle', lang)}
           </Text>
-          <Text style={[styles.value, { color: themeColors.accentColor }]}>
+          <Text style={[styles.value, { color: themeColors.accentTextColor }]}>
             {Math.round(clampGradientSliderAngle(angle))}°
           </Text>
         </View>

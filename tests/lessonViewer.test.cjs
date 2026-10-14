@@ -22,12 +22,13 @@ function load(relative, mocks = {}) {
   return loaded.exports;
 }
 
-async function renderViewer(t, { subject = {}, lesson = {}, readOnly = false, ...props } = {}) {
+async function renderViewer(t, { subject = {}, lesson = {}, readOnly = false, nativeOverrides = {}, ...props } = {}) {
   const native = {
     View: 'View', Text: 'Text', TouchableOpacity: 'Button',
     Platform: { OS: 'ios' },
     StyleSheet: { create: (value) => value, hairlineWidth: 1, absoluteFill: { position: 'absolute' } },
     useWindowDimensions: () => ({ width: 390, height: 844 }),
+    ...nativeOverrides,
   };
   const colors = load('src/utils/gradientColors.js');
   const theme = { backgroundColor: '#fff', textColor: '#111', textColor2: '#555', accentColor: '#2458ad' };
@@ -43,9 +44,9 @@ async function renderViewer(t, { subject = {}, lesson = {}, readOnly = false, ..
     '../../../config/themes': { getColors: () => theme, accentColors: {} },
     '../../../components/ui/GradientBackground': 'GradientBackground',
     '../../../config/subjectIcons': { getIconComponent: () => null },
-    '../../../config/contactTypes': {},
+    '../../../config/contactTypes': { getLinkTypeMeta: () => ({ color: '#2458ad', labelKey: 'common.link' }), getLinkIconComponent: () => null },
     '../../../utils/i18n': { t: (key) => key },
-    '../../../utils/contactData': {},
+    '../../../utils/contactData': { getLinkOpenUrl: link => link.url },
     '../../../utils/scheduleTime': load('src/utils/scheduleTime.js'),
     '../../../components/ui/BottomSheet': {
       __esModule: true,
@@ -66,6 +67,7 @@ async function renderViewer(t, { subject = {}, lesson = {}, readOnly = false, ..
   });
   t.after(async () => act(async () => renderer.unmount()));
   return {
+    root: () => renderer.root,
     sheet: () => renderer.root.findByType('Sheet').props,
     text: () => renderer.root.findAllByType('Text').map((node) => node.props.children).flat().join(' '),
     buttons: () => renderer.root.findAllByType('Button').map((node) => node.props.accessibilityLabel),
@@ -82,6 +84,21 @@ async function renderViewer(t, { subject = {}, lesson = {}, readOnly = false, ..
     },
   };
 }
+
+test('a native link failure is reported without an unhandled promise rejection', async t => {
+  const alerts = [], opened = [];
+  const viewer = await renderViewer(t, {
+    sourceSchedule: { subjects: [{ id: 'subject', links: ['course'] }], links: [{ id: 'course', name: 'Course', url: 'https://example.com/course' }] },
+    nativeOverrides: {
+      Linking: { async openURL(url) { opened.push(url); throw new Error('Unavailable'); } },
+      Alert: { alert: (...args) => alerts.push(args) },
+    },
+  });
+  await act(async () => viewer.root().findByProps({ accessibilityRole: 'link' }).props.onPress());
+  assert.deepEqual(opened, ['https://example.com/course']);
+  assert.equal(alerts.length, 1);
+  assert.match(alerts[0][1], /https:\/\/example.com\/course/);
+});
 
 test('missing place and time do not render placeholder information', async (t) => {
   const viewer = await renderViewer(t);

@@ -350,7 +350,7 @@ export default function AttachmentManager({
         },
       ]}
     >
-      <Icon size={17} color={themeColors.accentColor} weight="bold" />
+      <Icon size={17} color={themeColors.accentTextColor} weight="bold" />
       <Text style={[styles.actionButtonText, { color: themeColors.textColor }]} numberOfLines={1}>
         {label}
       </Text>
@@ -392,7 +392,7 @@ export default function AttachmentManager({
         ]}
       >
         <View style={[styles.fileIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
-          <Icon size={20} color={themeColors.accentColor} weight="bold" />
+          <Icon size={20} color={themeColors.accentTextColor} weight="bold" />
         </View>
 
         {isRenaming ? (
@@ -459,7 +459,7 @@ export default function AttachmentManager({
                 accessibilityLabel={t("attachments.rename_save", lang)}
                 accessibilityState={{ disabled: isUploading || disabled }}
               >
-                <Check size={18} color={themeColors.accentColor} weight="bold" />
+                <Check size={18} color={themeColors.accentTextColor} weight="bold" />
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -609,7 +609,7 @@ export default function AttachmentManager({
                   style={styles.libraryFileRow}
                   onPress={() => attachLibraryFile(file)}
                 >
-                  <Icon size={18} color={themeColors.accentColor} weight="bold" />
+                  <Icon size={18} color={themeColors.accentTextColor} weight="bold" />
                   <View style={styles.libraryFileBody}>
                     <Text style={[styles.libraryFileName, { color: themeColors.textColor }]} numberOfLines={1}>
                       {file.name || t("attachments.file", lang)}

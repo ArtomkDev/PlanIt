@@ -6,6 +6,7 @@ import {
 import {
   MAX_SCHEDULE_WEEKS,
   MAX_LESSON_SLOTS,
+  buildScheduleSlots,
   materializeScheduleLessons,
   normalizeScheduleRepeat,
 } from "./scheduleTime";
@@ -40,7 +41,7 @@ const LIMITS = {
   days: 7,
   weeks: MAX_SCHEDULE_WEEKS,
   lessonsPerWeek: 40,
-  breaks: 40,
+  breaks: MAX_LESSON_SLOTS - 1,
   gradientStops: 8,
 };
 
@@ -524,6 +525,13 @@ const sanitizeScheduleCore = (input, options = {}, metadata) => {
     breaks: sanitizeBreaks(input.breaks),
     start_time: cleanTime(input.start_time) || "08:30",
   };
+  if (Array.isArray(input.slotDurations)) {
+    timing.slotDurations = input.slotDurations.slice(0, MAX_LESSON_SLOTS)
+      .map((value) => Math.round(clampNumber(value, 1, 600, timing.duration)));
+    if (!buildScheduleSlots(timing.start_time, timing.duration, timing.breaks, timing.slotDurations).length) {
+      throw new Error("invalid_shared_schedule");
+    }
+  }
   const scheduleGrid = sanitizeScheduleGrid(input.schedule, options, timing);
 
   if (metadata) {

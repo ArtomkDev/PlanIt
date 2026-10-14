@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, BackHandler, View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GitBranch, DeviceMobile, CloudArrowDown, Copy, CaretRight } from 'phosphor-react-native';
 import useSystemThemeColors from '../../hooks/useSystemThemeColors';
@@ -16,6 +16,14 @@ export default function SyncConflictScreen({
   const insets = useSafeAreaInsets();
   const [headerHeight, setHeaderHeight] = useState(200);
   const [resolvingId, setResolvingId] = useState(null);
+  const resolvingRef = useRef(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!conflictQueue?.length) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => subscription.remove();
+  }, [conflictQueue?.length]);
 
   if (!conflictQueue?.length) return null;
 
@@ -28,6 +36,10 @@ export default function SyncConflictScreen({
 
     return (
       <Pressable 
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityHint={subtitle}
+        accessibilityState={{ disabled, busy: disabled }}
         disabled={disabled}
         style={({ pressed }) => [
           styles.actionBtn, 
@@ -64,7 +76,7 @@ export default function SyncConflictScreen({
   };
 
   return (
-    <View style={[styles.absoluteOverlay, { backgroundColor: colors.backgroundColor }]} pointerEvents="auto">
+    <View accessibilityViewIsModal style={[styles.absoluteOverlay, { backgroundColor: colors.backgroundColor }]} pointerEvents="auto">
       
       <ScrollView 
         contentContainerStyle={[
@@ -76,6 +88,7 @@ export default function SyncConflictScreen({
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: colors.textColor, marginBottom: 16 }}>{t('common.action_failed', lang)}</Text>}
         {conflictQueue.map((conflict, index) => {
           const localSch = conflict?.local;
           if (!localSch) return null;
@@ -86,11 +99,19 @@ export default function SyncConflictScreen({
           const conflictId = conflict.id || localSch.id || `conflict-${index}`;
           const isResolving = resolvingId !== null;
           const resolveOnce = async (action) => {
-            if (isResolving) return;
+            if (isResolving || resolvingRef.current) return;
+            resolvingRef.current = true;
             setResolvingId(conflictId);
+            setError(false);
             try {
-              await handleResolveConflict(conflictId, action);
+              if (await handleResolveConflict(conflictId, action) === false) {
+                setError(true);
+                Alert.alert(t('common.error', lang), t('common.action_failed', lang));
+              }
+            } catch {
+              setError(true);
             } finally {
+              resolvingRef.current = false;
               setResolvingId(null);
             }
           };

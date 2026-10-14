@@ -88,6 +88,7 @@ export default function ChangePasswordScreen() {
   };
 
   const handleChangePassword = async () => {
+    if (loading || !user) return;
     if (!currentPassword.trim() || !newPassword || !confirmPassword) {
       setErrorMsg(t('settings.account_settings.change_password.req_empty', lang));
       return;
@@ -227,7 +228,7 @@ export default function ChangePasswordScreen() {
             accessibilityLabel={t('settings.account_settings.change_password.forgot_password', lang)}
             accessibilityState={{ disabled: loading || resetCooldown > 0, busy: loading }}
           >
-            <Text style={[styles.forgotPasswordText, { color: themeColors.accentColor }]}>
+            <Text style={[styles.forgotPasswordText, { color: themeColors.accentTextColor }]}>
               {resetCooldown > 0
                 ? `${t('settings.account_settings.change_password.forgot_password', lang)} (${resetCooldown})`
                 : t('settings.account_settings.change_password.forgot_password', lang)}
@@ -329,5 +330,5 @@ const getStyles = (themeColors) => StyleSheet.create({
   actionButton: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   actionButtonDisabled: { opacity: 0.6 },
   loadingButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  actionButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  actionButtonText: { color: themeColors.textOnAccent, fontSize: 16, fontWeight: 'bold' },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { reauthenticateWithCredential, EmailAuthProvider, verifyBeforeUpdateEmail } from 'firebase/auth';
@@ -26,14 +26,10 @@ export default function ChangeEmailScreen() {
 
   const user = auth.currentUser;
 
-  const isSocialLogin = useMemo(() => {
-    if (!user) return false;
-    return user.providerData.some(
-      (provider) => provider.providerId === 'google.com' || provider.providerId === 'apple.com'
-    );
-  }, [user]);
+  const isSocialLogin = !user?.providerData.some(provider => provider.providerId === 'password');
 
   const handleChangeEmail = async () => {
+    if (loading || !user) return;
     if (!password.trim()) {
       setErrorMsg(t('settings.account_settings.change_email_screen.req_password', lang));
       return;
@@ -178,5 +174,5 @@ const getStyles = (themeColors) => StyleSheet.create({
   actionButton: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   actionButtonDisabled: { opacity: 0.6 },
   loadingButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  actionButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  actionButtonText: { color: themeColors.textOnAccent, fontSize: 16, fontWeight: 'bold' },
 });
