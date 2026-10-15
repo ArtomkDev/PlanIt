@@ -48,7 +48,7 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
       });
 
       const customOwnerName = shareAuthorName 
-        ? (user.displayName || user.email || "User") 
+        ? (user.displayName || t("share.anonymous", lang))
         : t("share.anonymous", lang);
 
       const code = await createSharedSchedule(

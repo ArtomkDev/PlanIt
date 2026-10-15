@@ -41,6 +41,24 @@ const shareService = compileModule(shareServicePath, new Map([
   ['../config/firebase', { db: {} }],
 ]));
 
+test('new public shares use long random codes and do not expose the account email', async () => {
+  const writes = [];
+  const service = compileModule(shareServicePath, new Map([
+    ['firebase/firestore', {
+      doc: (_db, ...segments) => segments.join('/'),
+      setDoc: async (reference, value) => writes.push({ reference, value }),
+    }],
+    ['expo-crypto', { getRandomBytes: length => new Uint8Array(length).fill(17) }],
+    ['../config/firebase', { db: {} }],
+  ]));
+  const code = await service.createSharedSchedule({ uid: 'owner', email: 'private@example.com' }, { name: 'Share' }, 7);
+  assert.equal(code.length, 16);
+  assert.match(code, /^[A-Z0-9]{16}$/);
+  assert.equal(writes[0].value.ownerName, 'User');
+  assert.equal(JSON.stringify(writes[0].value).includes('private@example.com'), false);
+  assert.equal(service.normalizeShareCodeInput('ABCDE'), 'ABCDE');
+});
+
 const schedule = (overrides = {}) => ({
   id: 'schedule-1',
   name: 'Local',
@@ -285,7 +303,7 @@ test('an expected conflict cannot poison the fatal application error state', () 
     'utf8',
   );
   const saveErrorStart = providerSource.indexOf("logSyncDiagnostic('cloud-save-error'");
-  const conflictHandlerEnd = providerSource.indexOf('return false;', saveErrorStart);
+  const conflictHandlerEnd = providerSource.indexOf('} finally {', saveErrorStart);
   const saveErrorHandler = providerSource.slice(saveErrorStart, conflictHandlerEnd);
 
   assert.notEqual(saveErrorStart, -1);

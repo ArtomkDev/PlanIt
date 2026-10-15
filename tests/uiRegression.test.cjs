@@ -51,8 +51,9 @@ const fixture = () => ({
 
 async function mountProvider(t, options = {}) {
   const writes = [], prefsWrites = [];
+  let appStateListener;
   const mocks = {
-    'react-native': { Platform: { OS: 'ios' }, useColorScheme: () => 'light', AppState: { addEventListener: () => ({ remove() {} }) } },
+    'react-native': { Platform: { OS: 'ios' }, useColorScheme: () => 'light', AppState: { addEventListener: (_event, listener) => { appStateListener = listener; return { remove() {} }; } } },
     '@react-native-community/netinfo': { addEventListener(callback) { callback({ isConnected: false }); return () => {}; } },
     'firebase/auth': { signOut: async () => {} },
     '@react-native-async-storage/async-storage': { removeItem: async () => {} },
@@ -60,8 +61,8 @@ async function mountProvider(t, options = {}) {
     '../config/firebase': { app: { options: {} }, auth: {} },
     '../config/firestore': {
       getScheduleFromServer: (...args) => options.readCloud?.(...args) ?? Promise.resolve(null),
-      subscribeToSchedule: () => () => {},
-      saveSchedule: async () => {}, resetUserSchedules: async () => {}, updateDeviceSyncTimeAndCleanUp: async () => {},
+      subscribeToSchedule: (...args) => options.subscribe?.(...args) ?? (() => {}),
+      saveSchedule: (...args) => options.saveCloud?.(...args) ?? Promise.resolve(), resetUserSchedules: async () => {}, updateDeviceSyncTimeAndCleanUp: async () => {},
     },
     '../utils/storage': {
       getDevicePrefs: async () => ({ language: 'uk', theme: ['light', 'blue'], blur: true, navigationStyle: 'classic', navigationLabels: true, navigationAnimations: true, hapticsEnabled: true, currentScheduleId: 'existing' }),
@@ -70,8 +71,9 @@ async function mountProvider(t, options = {}) {
       saveLocalSchedule: async (data, scope) => {
         writes.push({ data, scope });
         if (options.failWrite) throw new Error('Disk unavailable');
+        await options.writeLocal?.(data, scope);
       },
-      clearLocalSchedule: async () => {}, saveScheduleRecoverySnapshot: async () => {},
+      clearLocalSchedule: async () => {}, saveScheduleRecoverySnapshot: (...args) => options.saveRecovery?.(...args) ?? Promise.resolve(),
     },
     '../hooks/useAppLanguage': () => ({ lang: 'uk', isLangLoading: false }),
     '../utils/deviceService': { syncCurrentDeviceLanguage: async () => {} },
@@ -87,8 +89,111 @@ async function mountProvider(t, options = {}) {
     tree = create(React.createElement(ScheduleProvider, { guest: options.guest, user: options.guest ? null : { uid: 'user-1' } }, React.createElement(Probe)));
   });
   t.after(async () => act(async () => tree.unmount()));
-  return { state: () => snapshot, writes, prefsWrites };
+  return { state: () => snapshot, writes, prefsWrites, appState: value => appStateListener(value) };
 }
+
+const gate = () => {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+};
+
+const newerCloudData = () => {
+  const data = fixture();
+  data.schedules[0] = { ...data.schedules[0], name: 'Cloud update', version: 2, baseVersion: 2, lastModified: 2, lastSynced: 2 };
+  return data;
+};
+
+test('manual refresh preserves edits made while the recovery snapshot is being written', async t => {
+  const recovery = gate();
+  const provider = await mountProvider(t, {
+    readLocal: async () => fixture(),
+    readCloud: async () => newerCloudData(),
+    saveRecovery: () => recovery.promise,
+  });
+  let refresh;
+  await act(async () => { refresh = provider.state().reloadAllSchedules(); });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Latest local edit' })));
+  await act(async () => { recovery.resolve(); await refresh; });
+  assert.equal(provider.state().schedule.name, 'Latest local edit');
+  assert.equal(provider.state().isDirty, true);
+});
+
+test('an edit made while persisting a cloud merge retains its dirty signal', async t => {
+  const localWrite = gate();
+  const provider = await mountProvider(t, {
+    readLocal: async () => fixture(),
+    readCloud: async () => newerCloudData(),
+    writeLocal: () => localWrite.promise,
+  });
+  let refresh;
+  await act(async () => { refresh = provider.state().reloadAllSchedules(); });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Edited during local write' })));
+  await act(async () => { localWrite.resolve(); await refresh; });
+  assert.equal(provider.state().schedule.name, 'Edited during local write');
+  assert.equal(provider.state().isDirty, true);
+});
+
+test('manual refresh defers reconciliation until an active cloud save finishes', async t => {
+  const cloudSave = gate();
+  let cloudReads = 0, outgoing;
+  const provider = await mountProvider(t, {
+    readLocal: async () => fixture(),
+    readCloud: async () => { cloudReads++; return null; },
+    saveCloud: (_uid, data) => { outgoing = data; return cloudSave.promise; },
+  });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Saving' })));
+  let saving;
+  await act(async () => { saving = provider.state().saveNow(true); });
+  await act(async () => provider.state().reloadAllSchedules());
+  assert.equal(cloudReads, 0);
+  await act(async () => {
+    cloudSave.resolve({ schedules: outgoing.schedules.map(item => ({ ...item, version: 2, baseVersion: 2, lastSynced: item.lastModified })) });
+    await saving;
+  });
+  assert.ok(cloudReads > 0);
+});
+
+test('backgrounding flushes an offline guest draft without waiting for the debounce', async t => {
+  const provider = await mountProvider(t, { guest: true, readLocal: async () => fixture() });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Offline guest edit' })));
+  await act(async () => provider.appState('background'));
+  assert.equal(provider.writes.at(-1)?.data.schedules[0].name, 'Offline guest edit');
+  assert.equal(provider.writes.at(-1)?.scope, null);
+});
+
+test('acknowledging normalized outgoing settings does not leave an unchanged draft dirty', async t => {
+  const initial = fixture();
+  initial.global.language = null;
+  initial.global.lastModified = 2;
+  const provider = await mountProvider(t, {
+    readLocal: async () => initial,
+    saveCloud: async (_uid, data) => ({
+      global: { ...data.global, version: 2, baseVersion: 2, lastSynced: data.global.lastModified },
+      schedules: [],
+    }),
+  });
+  await act(async () => provider.state().saveNow(true));
+  assert.equal(provider.state().global.language, 'uk');
+  assert.equal(provider.state().isDirty, false);
+});
+
+test('transaction conflict refresh cannot overwrite an edit made while preserving recovery data', async t => {
+  const recovery = gate();
+  const provider = await mountProvider(t, {
+    readLocal: async () => fixture(),
+    readCloud: async () => newerCloudData(),
+    saveCloud: async () => { const error = new Error('Conflict'); error.code = 'sync/conflict'; throw error; },
+    saveRecovery: (_data, _uid, reason) => reason === 'transaction-conflict' ? recovery.promise : Promise.resolve(),
+  });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'First local edit' })));
+  let saving;
+  await act(async () => { saving = provider.state().saveNow(true); });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Edit during conflict refresh' })));
+  await act(async () => { recovery.resolve(); await saving; });
+  assert.equal(provider.state().schedule.name, 'Edit during conflict refresh');
+  assert.ok(provider.state().conflictQueue.every(conflict => conflict.local.name === 'Edit during conflict refresh'));
+});
 
 test('a failed guest read exposes recovery without overwriting existing storage; retry loads the original schedule', async t => {
   let recovered = false;

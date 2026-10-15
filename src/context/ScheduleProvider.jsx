@@ -268,6 +268,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const conflictQueueRef = useRef(conflictQueue);
   useEffect(() => { conflictQueueRef.current = conflictQueue; }, [conflictQueue]);
 
+  const deferCloudRefresh = useCallback(() => {
+    deferredCloudRefreshRef.current = true;
+    if (!isCloudSavingRef.current && !resetInProgressRef.current && conflictQueueRef.current.length === 0) {
+      deferredCloudRefreshRef.current = false;
+      setDeferredCloudRefreshSeq(sequence => sequence + 1);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const scopeUserId = guest ? null : user?.uid || null;
@@ -510,6 +518,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
         setCloudSyncState(isFromCache ? 'syncing' : 'synced');
 
+        // Only the server can confirm that a document is missing. The local
+        // schedule store already supplies the offline view.
+        if (isFromCache) return;
+
         if (metadata.hasPendingWrites) {
           deferredCloudRefreshRef.current = true;
           return;
@@ -548,6 +560,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
               'conflict-detected',
             ).catch(() => {});
             if (!subscriptionActive) return;
+            if (isCloudSavingRef.current || hasScheduleDataChanged(currentLocal, dataRef.current)) {
+              deferCloudRefresh();
+              return;
+            }
             conflictQueueRef.current = conflicts;
             setConflictQueue(conflicts);
             setCloudSyncState('synced');
@@ -567,11 +583,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             // being written. Never apply a cloud result calculated from an old
             // local base; schedule one authoritative server reconciliation.
             if (
-              dataRef.current &&
+              isCloudSavingRef.current ||
+              conflictQueueRef.current.length > 0 ||
               hasScheduleDataChanged(currentLocal, dataRef.current)
             ) {
-              deferredCloudRefreshRef.current = true;
-              setDeferredCloudRefreshSeq((sequence) => sequence + 1);
+              deferCloudRefresh();
               return;
             }
             setData(mergedData);
@@ -583,7 +599,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             updateIsDirty(true);
             setPendingImmediateSave(true);
           } else {
-            updateIsDirty(hasDirtyScheduleData(mergedChanged ? mergedData : currentLocal));
+            updateIsDirty(hasDirtyScheduleData(dataRef.current));
           }
         } catch (e) {
           if (!subscriptionActive) return;
@@ -606,7 +622,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       subscriptionActive = false;
       if (unsubscribeCloud) unsubscribeCloud();
     };
-  }, [cloudSubscriptionUserId, updateIsDirty, saveLocalScheduleIfChanged]);
+  }, [cloudSubscriptionUserId, updateIsDirty, saveLocalScheduleIfChanged, deferCloudRefresh]);
 
   useEffect(() => {
     if (!data || isLoading) return;
@@ -992,7 +1008,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const committed = await saveSchedule(user.uid, dataToSave, true);
       logSyncDiagnostic('cloud-save-committed', summarizeSyncData(committed));
       const currentData = dataRef.current || prev;
-      const committedData = applyCommittedSync(currentData, dataToSave, committed);
+      const committedData = applyCommittedSync(currentData, prev, committed);
       dataRef.current = committedData;
       setData(committedData);
       updateIsDirty(hasDirtyScheduleData(committedData));
@@ -1031,7 +1047,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         const currentData = dataRef.current || prev;
         const partiallyCommittedData = applyCommittedSync(
           currentData,
-          dataToSave,
+          prev,
           e.committed,
         );
         dataRef.current = partiallyCommittedData;
@@ -1051,6 +1067,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
               user.uid,
               'transaction-conflict',
             ).catch(() => {});
+            if (hasScheduleDataChanged(currentLocal, dataRef.current)) {
+              deferCloudRefresh();
+              return false;
+            }
             if (hasScheduleDataChanged(currentLocal, resolution.mergedData)) {
               dataRef.current = resolution.mergedData;
               setData(resolution.mergedData);
@@ -1078,7 +1098,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         setDeferredCloudRefreshSeq((sequence) => sequence + 1);
       }
     }
-  }, [user, guest, updateIsDirty, lang, saveLocalScheduleIfChanged]);
+  }, [user, guest, updateIsDirty, lang, saveLocalScheduleIfChanged, deferCloudRefresh]);
 
   // Data safety must not depend on AutoSaveManager being mounted or on a
   // particular screen re-rendering. This provider-owned loop is a second,
@@ -1189,10 +1209,18 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   }, [guest, user, saveNow, saveLocalScheduleIfChanged]);
 
   const reloadAllSchedules = useCallback(async () => {
-    if (guest || !user) return;
+    if (guest || !user || isLoading || loadedScopeKey !== user.uid) return;
+    if (isCloudSavingRef.current || resetInProgressRef.current || conflictQueueRef.current.length > 0) {
+      deferredCloudRefreshRef.current = true;
+      return;
+    }
     setCloudSyncState('syncing');
     try {
       const fetchedData = await getScheduleFromServer(user.uid);
+      if (isCloudSavingRef.current || resetInProgressRef.current || conflictQueueRef.current.length > 0) {
+        deferredCloudRefreshRef.current = true;
+        return;
+      }
       if (fetchedData) {
         const currentLocal = dataRef.current || await getLocalSchedule(user.uid);
         const { mergedData, needsPushToCloud, conflicts } = resolveSyncConflict(currentLocal, fetchedData);
@@ -1202,6 +1230,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
             user.uid,
             'manual-refresh-conflict',
           ).catch(() => {});
+          if (isCloudSavingRef.current || conflictQueueRef.current.length > 0 || hasScheduleDataChanged(currentLocal, dataRef.current)) {
+            deferCloudRefresh();
+            return;
+          }
           conflictQueueRef.current = conflicts;
           setConflictQueue(conflicts);
         } else {
@@ -1212,11 +1244,15 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
               user.uid,
               'before-manual-cloud-merge',
             ).catch(() => {});
+            if (isCloudSavingRef.current || conflictQueueRef.current.length > 0 || hasScheduleDataChanged(currentLocal, dataRef.current)) {
+              deferCloudRefresh();
+              return;
+            }
             setData(mergedData);
             dataRef.current = mergedData;
             await saveLocalScheduleIfChanged(mergedData, user.uid);
           }
-          updateIsDirty(needsPushToCloud || hasDirtyScheduleData(mergedChanged ? mergedData : currentLocal));
+          updateIsDirty(needsPushToCloud || hasDirtyScheduleData(dataRef.current));
           if (needsPushToCloud) setPendingImmediateSave(true);
         }
       }
@@ -1226,7 +1262,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setCloudSyncState(prevOnlineRef.current ? 'syncing' : 'offline');
       setError(e?.message || "Error");
     }
-  }, [guest, user, isLoading, loadedScopeKey, updateIsDirty, saveLocalScheduleIfChanged]);
+  }, [guest, user, isLoading, loadedScopeKey, updateIsDirty, saveLocalScheduleIfChanged, deferCloudRefresh]);
 
   useEffect(() => {
     if (deferredCloudRefreshSeq === 0 || guest || !user || conflictQueueRef.current.length > 0) {
@@ -1255,6 +1291,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "background" || nextAppState === "inactive") {
+        if (dataRef.current) {
+          saveLocalScheduleIfChanged(dataRef.current, guest ? null : user?.uid || null).catch(localError => {
+            setError(localError?.message || 'Unable to save local data');
+          });
+        }
         if (isDirtyRef.current && isOnline && cloudSyncState === 'synced') {
           saveNow();
         }
@@ -1275,7 +1316,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       }
     });
     return () => subscription.remove();
-  }, [isOnline, cloudSyncState, saveNow, refreshActiveLessonReminders, user, guest, reloadAllSchedules]);
+  }, [isOnline, cloudSyncState, saveNow, refreshActiveLessonReminders, user, guest, reloadAllSchedules, saveLocalScheduleIfChanged]);
 
   const resetApplication = useCallback(async () => {
     if (resetInProgressRef.current) return false;

@@ -12,7 +12,7 @@ const LOCAL_ACCOUNT_KEYS = [
 
 export const clearLocalAccountData = async (userId) => {
   const cleanupResults = await Promise.allSettled([
-    clearLocalSchedule(userId, { throwOnError: true }),
+    clearLocalSchedule(userId, { throwOnError: true, preventWrites: true }),
     clearAllLocalAttachmentCaches(),
     clearAllLocalNotifications(),
     clearWidgetScheduleData(),

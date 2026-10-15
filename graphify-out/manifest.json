@@ -36,10 +36,10 @@
     "semantic_hash": "5cea5acb504f61ba856a512620293f4c"
   },
   "package.json": {
-    "mtime": 1790531313.3382914,
-    "seen": 1790531326.7063189,
-    "ast_hash": "2155612f96f758a202c3c9b3fd7b9486",
-    "semantic_hash": "2155612f96f758a202c3c9b3fd7b9486"
+    "mtime": 1791967387.1880877,
+    "seen": 1791967494.9692898,
+    "ast_hash": "a9e038d815fd69ac6f7aa57517dd3bd3",
+    "semantic_hash": "a9e038d815fd69ac6f7aa57517dd3bd3"
   },
   "scripts/build-aab.ps1": {
     "mtime": 1789063686.2232335,
@@ -180,10 +180,10 @@
     "semantic_hash": "2d5c6cff76c204520d8d41023d59bcc4"
   },
   "src/components/modals/ShareScheduleModal.jsx": {
-    "mtime": 1791210527.9428651,
-    "seen": 1791210919.2096565,
-    "ast_hash": "cab22a9a37e13d30961ed0a40c7ef2ef",
-    "semantic_hash": "cab22a9a37e13d30961ed0a40c7ef2ef"
+    "mtime": 1791966868.9245665,
+    "seen": 1791967039.8895507,
+    "ast_hash": "0074812a80a7296bb637507ed753e2b7",
+    "semantic_hash": "0074812a80a7296bb637507ed753e2b7"
   },
   "src/components/ui/AdvancedColorPicker.jsx": {
     "mtime": 1791211080.3231337,
@@ -294,10 +294,10 @@
     "semantic_hash": "c6c2e4924b83cd97bfce185df6946a59"
   },
   "src/config/firestore.js": {
-    "mtime": 1789063686.2612736,
-    "seen": 1789064222.0282493,
-    "ast_hash": "4b5867101c80bfe9aeb90f29766ad6c7",
-    "semantic_hash": "4b5867101c80bfe9aeb90f29766ad6c7"
+    "mtime": 1791967236.868701,
+    "seen": 1791967357.9235895,
+    "ast_hash": "749ca90bbf2ca97b024b3de815b4ae07",
+    "semantic_hash": "749ca90bbf2ca97b024b3de815b4ae07"
   },
   "src/config/layoutMetrics.js": {
     "mtime": 1791209027.7469175,
@@ -348,10 +348,10 @@
     "semantic_hash": "bb3dd714ae13e20274774a96f5bbc189"
   },
   "src/context/ScheduleProvider.jsx": {
-    "mtime": 1791210748.6401129,
-    "seen": 1791210919.3004794,
-    "ast_hash": "37f497fee73a2f43c28d6352ac09403f",
-    "semantic_hash": "37f497fee73a2f43c28d6352ac09403f"
+    "mtime": 1791967309.6386974,
+    "seen": 1791967357.9260366,
+    "ast_hash": "8eb273657d0e0545a8331b9b7f5afb33",
+    "semantic_hash": "8eb273657d0e0545a8331b9b7f5afb33"
   },
   "src/hooks/useAppLanguage.js": {
     "mtime": 1790124539.0763104,
@@ -708,10 +708,10 @@
     "semantic_hash": "7908c4541e2d2a27913e4925531e2799"
   },
   "src/services/shareService.js": {
-    "mtime": 1789063686.315175,
-    "seen": 1789064222.032587,
-    "ast_hash": "3f1f96a41e28e3f630b00ed0464f2112",
-    "semantic_hash": "3f1f96a41e28e3f630b00ed0464f2112"
+    "mtime": 1791966868.924054,
+    "seen": 1791967039.9121075,
+    "ast_hash": "5b7acfd191a3fab83e02a68d1c306ae6",
+    "semantic_hash": "5b7acfd191a3fab83e02a68d1c306ae6"
   },
   "src/utils/adInit/adInit.native.js": {
     "mtime": 1789063686.3161774,
@@ -816,10 +816,10 @@
     "semantic_hash": "bf098cf268688c7b3d61c077252d18e1"
   },
   "src/utils/storage.js": {
-    "mtime": 1789063686.3259616,
-    "seen": 1789064222.0344245,
-    "ast_hash": "b53aae0db7fa1bd925c734a7ce0c7722",
-    "semantic_hash": "b53aae0db7fa1bd925c734a7ce0c7722"
+    "mtime": 1791967141.8294787,
+    "seen": 1791967357.9476824,
+    "ast_hash": "79c2941593d17ebd9a2bcde15df8ba81",
+    "semantic_hash": "79c2941593d17ebd9a2bcde15df8ba81"
   },
   "src/utils/taskLessonLinking.js": {
     "mtime": 1791212206.9891267,
@@ -922,10 +922,10 @@
     "semantic_hash": ""
   },
   "functions/package.json": {
-    "mtime": 1789063686.1914577,
-    "seen": 1789064222.026683,
-    "ast_hash": "90d262182f175b1a22590fddac83038f",
-    "semantic_hash": "90d262182f175b1a22590fddac83038f"
+    "mtime": 1791966875.9206004,
+    "seen": 1791967039.8814435,
+    "ast_hash": "8e9c26df6cfaccb13bf6251f0d579e87",
+    "semantic_hash": "8e9c26df6cfaccb13bf6251f0d579e87"
   },
   "functions/src/index.js": {
     "mtime": 1789063686.1924622,
@@ -940,10 +940,10 @@
     "semantic_hash": "8ab4014fd60a50c42105705b8c2cf645"
   },
   "src/services/localAccountDataService.js": {
-    "mtime": 1789063686.3131678,
-    "seen": 1789064222.0325844,
-    "ast_hash": "70e8af60d65f8cad1b72876198072054",
-    "semantic_hash": "70e8af60d65f8cad1b72876198072054"
+    "mtime": 1791966932.0356052,
+    "seen": 1791967039.9119194,
+    "ast_hash": "a4962bfb3b040fa59fc3ffc2fb5feb5f",
+    "semantic_hash": "a4962bfb3b040fa59fc3ffc2fb5feb5f"
   },
   "tests/accountDeletionAuth.test.cjs": {
     "mtime": 1789063686.3328652,
@@ -1125,16 +1125,16 @@
     "semantic_hash": "62b028990aa096ebc063999d2bdd9878"
   },
   "tests/firestoreSync.test.cjs": {
-    "mtime": 1789063686.3380072,
-    "seen": 1789064222.034652,
-    "ast_hash": "f77b185fe6a6c049902cb4eee55ca24d",
-    "semantic_hash": "f77b185fe6a6c049902cb4eee55ca24d"
+    "mtime": 1791967221.917346,
+    "seen": 1791967357.9509318,
+    "ast_hash": "28706e71327bcf37037f1e5ab3d3cf71",
+    "semantic_hash": "28706e71327bcf37037f1e5ab3d3cf71"
   },
   "tests/localStorageDurability.test.cjs": {
-    "mtime": 1789063686.339009,
-    "seen": 1789064222.0346546,
-    "ast_hash": "53bd8079976009b8a0a91e75472e4dab",
-    "semantic_hash": "53bd8079976009b8a0a91e75472e4dab"
+    "mtime": 1791966932.0361052,
+    "seen": 1791967039.9226966,
+    "ast_hash": "aa9c40c8ab7de8618421c410cf045ed2",
+    "semantic_hash": "aa9c40c8ab7de8618421c410cf045ed2"
   },
   "tests/passwordPolicy.test.cjs": {
     "mtime": 1789063686.3401122,
@@ -1149,10 +1149,10 @@
     "semantic_hash": "22da4ac1d37646f953fe1ee2ad254037"
   },
   "tests/scheduleSync.test.cjs": {
-    "mtime": 1790123611.2170587,
-    "seen": 1790123650.479903,
-    "ast_hash": "9e07d9a10a041b166f057d575c5b6bd6",
-    "semantic_hash": "9e07d9a10a041b166f057d575c5b6bd6"
+    "mtime": 1791967034.4582522,
+    "seen": 1791967039.9244459,
+    "ast_hash": "dac3514bd15d4e59d7ebf1767e472f34",
+    "semantic_hash": "dac3514bd15d4e59d7ebf1767e472f34"
   },
   "tests/widgetCore.test.cjs": {
     "mtime": 1790123427.5636876,
@@ -1419,10 +1419,10 @@
     "semantic_hash": "20c558df4e1493494e3ea7a31516765a"
   },
   "tests/uiRegression.test.cjs": {
-    "mtime": 1791213559.629098,
-    "seen": 1791213643.324253,
-    "ast_hash": "9021ff8a9d92ef99ef7a2dc02123814e",
-    "semantic_hash": "9021ff8a9d92ef99ef7a2dc02123814e"
+    "mtime": 1791967308.3204222,
+    "seen": 1791967357.954341,
+    "ast_hash": "2416a0961b7973aa614e0809c81ea7cb",
+    "semantic_hash": "2416a0961b7973aa614e0809c81ea7cb"
   },
   "src/components/ScheduleTimeEditor.jsx": {
     "mtime": 1791213559.4584045,

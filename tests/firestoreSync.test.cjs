@@ -11,14 +11,18 @@ const makeFakes = (initialDocuments = []) => {
   const documents = new Map(initialDocuments.map(({ path: documentPath, data }) => [documentPath, data]));
   const snapshotListeners = new Map();
   let transactionFailure = null;
+  let afterCollectionRead = null;
   const doc = (_db, ...segments) => ({ path: segments.join('/'), kind: 'doc' });
   const collection = (_db, ...segments) => ({ path: segments.join('/'), kind: 'collection' });
-  const snapshotFor = (reference) => ({
-    exists: () => documents.has(reference.path),
-    data: () => documents.get(reference.path),
-    id: reference.path.split('/').at(-1),
-    ref: reference,
-  });
+  const snapshotFor = (reference) => {
+    const data = documents.get(reference.path);
+    return {
+      exists: () => data !== undefined,
+      data: () => data,
+      id: reference.path.split('/').at(-1),
+      ref: reference,
+    };
+  };
   const collectionSnapshotFor = (reference) => {
     const prefix = `${reference.path}/`;
     const docs = [...documents.entries()]
@@ -39,10 +43,15 @@ const makeFakes = (initialDocuments = []) => {
       set(reference, value, options) {
         staged.push({ reference, value, options });
       },
+      delete(reference) {
+        staged.push({ reference, deleted: true });
+      },
     };
     const result = await operation(transaction);
-    staged.forEach(({ reference, value, options }) => {
-      if (options?.merge && documents.has(reference.path)) {
+    staged.forEach(({ reference, value, options, deleted }) => {
+      if (deleted) {
+        documents.delete(reference.path);
+      } else if (options?.merge && documents.has(reference.path)) {
         documents.set(reference.path, { ...documents.get(reference.path), ...value });
       } else {
         documents.set(reference.path, value);
@@ -86,13 +95,20 @@ const makeFakes = (initialDocuments = []) => {
     setTransactionFailure(error) {
       transactionFailure = error;
     },
+    setAfterCollectionRead(callback) {
+      afterCollectionRead = callback;
+    },
     api: {
       collection,
       doc,
       getDoc: async (reference) => snapshotFor(reference),
       getDocFromServer: async (reference) => snapshotFor(reference),
       getDocs: async (reference) => collectionSnapshotFor(reference),
-      getDocsFromServer: async (reference) => collectionSnapshotFor(reference),
+      getDocsFromServer: async (reference) => {
+        const snapshot = collectionSnapshotFor(reference);
+        afterCollectionRead?.(reference);
+        return snapshot;
+      },
       onSnapshot: (reference, ...args) => {
         const callbacks = args.filter((argument) => typeof argument === 'function');
         const listener = { next: callbacks[0], error: callbacks[1] };
@@ -121,11 +137,14 @@ const makeFakes = (initialDocuments = []) => {
       },
       waitForPendingWrites: async () => {},
       where: () => ({}),
-      writeBatch: () => ({
-        delete() {},
-        set() {},
-        async commit() {},
-      }),
+      writeBatch: () => {
+        const writes = [];
+        return {
+          delete(reference) { writes.push(() => documents.delete(reference.path)); },
+          set(reference, value) { writes.push(() => documents.set(reference.path, { ...documents.get(reference.path), ...value })); },
+          async commit() { writes.forEach(write => write()); },
+        };
+      },
     },
   };
 };
@@ -306,6 +325,41 @@ test('stale device cannot overwrite a newer cloud version', async () => {
     fakes.documents.get('users/user-2/schedules/schedule-1').name,
     'New cloud value',
   );
+});
+
+test('a successful save stays clean when the device clock moves backwards', async () => {
+  const fakes = makeFakes();
+  const firestore = loadFirestore(fakes);
+  const future = Date.now() + 86400000;
+  const result = await firestore.saveSchedule('clock-user', {
+    global: { version: 0, baseVersion: 0, lastModified: future, lastSynced: 0 },
+    schedules: [{ id: 'main', version: 0, baseVersion: 0, lastModified: future + 1, lastSynced: 0 }],
+  }, true);
+  assert.ok(result.global.lastSynced >= result.global.lastModified);
+  assert.ok(result.schedules[0].lastSynced >= result.schedules[0].lastModified);
+});
+
+test('committing missing cloud settings clears the temporary missing-document marker', async () => {
+  const fakes = makeFakes();
+  const firestore = loadFirestore(fakes);
+  const result = await firestore.saveSchedule('missing-global', {
+    global: { version: 0, baseVersion: 0, lastModified: 10, lastSynced: 0, _cloudMissing: true },
+  }, true);
+  assert.equal('_cloudMissing' in result.global, false);
+  assert.equal('_cloudMissing' in fakes.documents.get('users/missing-global/global/settings'), false);
+});
+
+test('an unsupported realtime cloud schema reaches the error handler without replacing data', async () => {
+  const fakes = makeFakes();
+  const firestore = loadFirestore(fakes);
+  const errors = [], deliveries = [];
+  const unsubscribe = firestore.subscribeToSchedule('schema-user', payload => deliveries.push(payload), error => errors.push(error));
+  assert.doesNotThrow(() => fakes.emitDocument('users/schema-user/global/settings', { _c: 'old-format', _p: 'data' }));
+  fakes.emitCollection('users/schema-user/schedules', []);
+  await flushAsyncWork();
+  assert.equal(errors[0]?.code, 'sync/unsupported-cloud-schema');
+  assert.equal(deliveries.length, 0);
+  unsubscribe();
 });
 
 test('missing cloud document is a conflict for a previously synced active schedule', async () => {
@@ -511,6 +565,27 @@ test('old tombstones are deleted only after the conservative device watermark', 
     isDeleted: true,
     deletedAt,
   }, deletedAt + 10 * 60 * 1000, now), true);
+});
+
+test('cleanup cannot delete a schedule restored by another device after the tombstone scan', async () => {
+  const now = Date.now();
+  const old = now - 100 * 86400000;
+  const schedulePath = 'users/cleanup-user/schedules/restored';
+  const fakes = makeFakes([
+    { path: 'users/cleanup-user/devices/device-1', data: { status: 'active' } },
+    { path: 'users/cleanup-user/global/settings', data: { version: 1, lastModified: 1, watermark: now, watermarkUpdatedAt: now } },
+    { path: schedulePath, data: { version: 3, lastModified: old, deletedAt: old, isDeleted: true } },
+    { path: 'users/cleanup-user/schedules/expired', data: { version: 2, lastModified: old, deletedAt: old, isDeleted: true } },
+  ]);
+  fakes.setAfterCollectionRead(reference => {
+    if (reference.path === 'users/cleanup-user/schedules') {
+      fakes.documents.set(schedulePath, { version: 4, lastModified: now, name: 'Restored by another device', isDeleted: false });
+    }
+  });
+  const firestore = loadFirestore(fakes);
+  await firestore.updateDeviceSyncTimeAndCleanUp('cleanup-user', { force: true });
+  assert.equal(fakes.documents.get(schedulePath)?.name, 'Restored by another device');
+  assert.equal(fakes.documents.has('users/cleanup-user/schedules/expired'), false);
 });
 
 test('security rules do not leave a broad user-subtree write bypass', () => {

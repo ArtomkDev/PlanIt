@@ -4,17 +4,18 @@ import { db } from "../config/firebase";
 
 const SHARE_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const MIN_SHARE_CODE_LENGTH = 5;
+const DEFAULT_SHARE_CODE_LENGTH = 16;
 const MAX_SHARE_CODE_LENGTH = 32;
 const SHARE_CODE_ATTEMPTS_PER_LENGTH = 5;
 const SHARE_CODE_RE = /^[A-Z0-9]{5,32}$/;
 const SHARE_URL_BASE = "https://planit.app/share";
 
 const normalizeCodeLength = (length) => {
-  const numericLength = Math.floor(Number(length) || MIN_SHARE_CODE_LENGTH);
+  const numericLength = Math.floor(Number(length) || DEFAULT_SHARE_CODE_LENGTH);
   return Math.min(MAX_SHARE_CODE_LENGTH, Math.max(MIN_SHARE_CODE_LENGTH, numericLength));
 };
 
-export const generateShareCode = (length = MIN_SHARE_CODE_LENGTH) => {
+export const generateShareCode = (length = DEFAULT_SHARE_CODE_LENGTH) => {
   const codeLength = normalizeCodeLength(length);
   let code = "";
 
@@ -51,14 +52,14 @@ export const createSharedSchedule = async (user, scheduleData, durationDays) => 
   const createdAt = Date.now();
   const expiresAtDate = new Date(createdAt + safeDurationDays * 24 * 60 * 60 * 1000);
 
-  for (let length = MIN_SHARE_CODE_LENGTH; length <= MAX_SHARE_CODE_LENGTH; length += 1) {
+  for (let length = DEFAULT_SHARE_CODE_LENGTH; length <= MAX_SHARE_CODE_LENGTH; length += 1) {
     for (let attempt = 0; attempt < SHARE_CODE_ATTEMPTS_PER_LENGTH; attempt += 1) {
       const shareCode = generateShareCode(length);
       const docRef = doc(db, "shared_schedules", shareCode);
       const sharedDoc = {
         id: shareCode,
         ownerId: user.uid,
-        ownerName: user.displayName || user.email || "User",
+        ownerName: (user.displayName || "User").slice(0, 120),
         scheduleName: scheduleData.name || "Untitled",
         scheduleData,
         createdAt,

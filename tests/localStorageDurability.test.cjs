@@ -183,8 +183,8 @@ test('a payload marked for another account is never returned from the current sc
     _localScopeOwner: 'user:account-b',
   }));
 
-  assert.equal(await storage.getLocalSchedule('account-b'), null);
-  assert.equal(await storage.getLocalSchedule(null), null);
+  await assert.rejects(storage.getLocalSchedule('account-b'), { code: 'local-storage/corrupt-data' });
+  await assert.rejects(storage.getLocalSchedule(null), { code: 'local-storage/corrupt-data' });
 });
 
 test('legacy unmarked data remains readable only from the key where it already lives', async () => {
@@ -202,8 +202,144 @@ test('old compressed local values are not migrated by the plain JSON store', asy
   const storage = loadStorageModule(fake);
   fake.values.set('user_schedule_old-user', 'PZ1:old-compressed-value');
 
-  const result = await storage.getLocalSchedule('old-user');
-
-  assert.equal(result, null);
+  await assert.rejects(storage.getLocalSchedule('old-user'), { code: 'local-storage/corrupt-data' });
   assert.equal(fake.values.get('user_schedule_old-user'), 'PZ1:old-compressed-value');
+});
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((done) => { resolve = done; });
+  return { promise, resolve };
+};
+
+test('overlapping writes cannot interleave the journal or replace the latest draft', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  const entered = deferred();
+  const release = deferred();
+  const originalSet = fake.api.setItem;
+  fake.api.setItem = async (key, value) => {
+    if (key === 'guest_schedule' && JSON.parse(value).schedules[0].name === 'older') {
+      entered.resolve();
+      await release.promise;
+    }
+    return originalSet(key, value);
+  };
+
+  const older = storage.saveLocalSchedule(makeData('older', 1));
+  await entered.promise;
+  const newer = storage.saveLocalSchedule(makeData('newer', 2));
+  await new Promise(resolve => setImmediate(resolve));
+  release.resolve();
+  const results = await Promise.allSettled([older, newer]);
+
+  assert.ok(results.every(result => result.status === 'fulfilled'));
+  assert.equal((await storage.getLocalSchedule()).schedules[0].name, 'newer');
+  assert.equal(fake.values.has('guest_schedule.pending'), false);
+  assert.equal(JSON.parse(fake.values.get('guest_schedule.backup')).schedules[0].name, 'older');
+});
+
+test('a read waits for the in-flight journal before returning or repairing data', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  await storage.saveLocalSchedule(makeData('old'));
+  const entered = deferred();
+  const release = deferred();
+  const originalSet = fake.api.setItem;
+  fake.api.setItem = async (key, value) => {
+    if (key === 'guest_schedule.pending') {
+      entered.resolve();
+      await release.promise;
+    }
+    return originalSet(key, value);
+  };
+  const saving = storage.saveLocalSchedule(makeData('new', 2));
+  await entered.promise;
+  const reading = storage.getLocalSchedule();
+  await new Promise(resolve => setImmediate(resolve));
+  release.resolve();
+  await saving;
+  assert.equal((await reading).schedules[0].name, 'new');
+});
+
+test('clearing storage waits for earlier writes so deleted account data cannot reappear', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  const entered = deferred();
+  const release = deferred();
+  const originalSet = fake.api.setItem;
+  fake.api.setItem = async (key, value) => {
+    if (key === 'user_schedule_deleted') {
+      entered.resolve();
+      await release.promise;
+    }
+    return originalSet(key, value);
+  };
+  const saving = storage.saveLocalSchedule(makeData('private'), 'deleted');
+  await entered.promise;
+  const clearing = storage.clearLocalSchedule('deleted', { throwOnError: true });
+  await new Promise(resolve => setImmediate(resolve));
+  release.resolve();
+  await Promise.allSettled([saving, clearing]);
+  assert.equal(await storage.getLocalSchedule('deleted'), null);
+});
+
+test('concurrent recovery snapshots preserve both versions', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  await Promise.all([
+    storage.saveScheduleRecoverySnapshot(makeData('first'), 'user-history'),
+    storage.saveScheduleRecoverySnapshot(makeData('second'), 'user-history'),
+  ]);
+  assert.deepEqual(
+    (await storage.getScheduleRecoverySnapshots('user-history')).map(item => item.data.schedules[0].name),
+    ['second', 'first'],
+  );
+});
+
+test('a failed operation does not block later saves or another account', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  fake.failNextSet.add('guest_schedule.pending');
+  const failed = storage.saveLocalSchedule(makeData('fails'));
+  const saved = storage.saveLocalSchedule(makeData('survives'));
+  await assert.rejects(failed);
+  await saved;
+  await storage.saveLocalSchedule(makeData('other-account'), 'other');
+  assert.equal((await storage.getLocalSchedule()).schedules[0].name, 'survives');
+  assert.equal((await storage.getLocalSchedule('other')).schedules[0].name, 'other-account');
+});
+
+test('unrecoverable local corruption is reported without creating an empty replacement', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  fake.values.set('guest_schedule', '{broken');
+  await assert.rejects(storage.getLocalSchedule(), { code: 'local-storage/corrupt-data' });
+  assert.equal(fake.values.get('guest_schedule'), '{broken');
+});
+
+test('an invalid draft cannot overwrite any slot of a valid local schedule', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  await storage.saveLocalSchedule(makeData('valid'));
+  const before = [...fake.values.entries()];
+  await assert.rejects(storage.saveLocalSchedule({ global: 'invalid', schedules: [] }), {
+    code: 'local-storage/invalid-data',
+  });
+  assert.deepEqual([...fake.values.entries()], before);
+});
+
+test('account deletion rejects late autosave and unmount backups after clearing private data', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  await storage.saveLocalSchedule(makeData('private'), 'deleted');
+  const clearing = storage.clearLocalSchedule('deleted', { throwOnError: true, preventWrites: true });
+  const lateWrite = storage.saveLocalSchedule(makeData('late private backup'), 'deleted');
+  await clearing;
+  await assert.rejects(lateWrite, { code: 'local-storage/account-deleted' });
+  await assert.rejects(storage.saveScheduleRecoverySnapshot(makeData('late recovery'), 'deleted'), { code: 'local-storage/account-deleted' });
+  assert.equal(await storage.getLocalSchedule('deleted'), null);
+  assert.equal(fake.values.size, 0);
+  await storage.saveLocalSchedule(makeData('guest'));
+  await storage.saveLocalSchedule(makeData('other'), 'other-account');
 });

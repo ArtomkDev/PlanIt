@@ -3,11 +3,9 @@ import {
   getDoc, 
   collection, 
   getDocs, 
-  writeBatch,
   onSnapshot,
   getDocFromServer,
   getDocsFromServer,
-  setDoc,
   query,
   where,
   waitForPendingWrites,
@@ -199,23 +197,20 @@ const runDeviceSyncTimeAndCleanUp = async (userId) => {
     const deletedSchedulesQuery = query(schedulesRef, where('isDeleted', '==', true));
     const schedulesSnap = await getDocsFromServer(deletedSchedulesQuery);
     
-    const batch = writeBatch(db);
-    let hasDeletions = false;
-
-    schedulesSnap.docs.forEach(docSnap => {
-      const data = docSnap.data();
-      if (isTombstoneSafeToDelete(data, watermark, now)) {
-        batch.delete(docSnap.ref);
-        hasDeletions = true;
+    const candidates = schedulesSnap.docs
+      .filter(snapshot => isTombstoneSafeToDelete(snapshot.data(), watermark, now))
+      .slice(0, MAX_SYNC_TRANSACTION_ENTITIES);
+    await Promise.all(candidates.map(snapshot => runTransaction(db, async transaction => {
+      const current = await transaction.get(snapshot.ref);
+      // A different device can restore a schedule after the collection scan.
+      // Recheck inside the transaction so cleanup cannot erase that restoration.
+      if (current.exists() && isTombstoneSafeToDelete(current.data(), watermark, now)) {
+        transaction.delete(snapshot.ref);
       }
-    });
+    })));
 
     if (scannedDevices) {
-      batch.set(globalRef, { watermark, watermarkUpdatedAt: now }, { merge: true });
-    }
-
-    if (hasDeletions || scannedDevices) {
-      await batch.commit();
+      await updateDoc(globalRef, { watermark, watermarkUpdatedAt: now });
     }
   } catch (error) {
     console.error(error);
@@ -278,6 +273,7 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   let lastEmittedFromCache = null;
   let lastEmittedPendingWrites = null;
   let subscriptionActive = true;
+  let subscriptionFailed = false;
   // Firestore does not await async snapshot handlers. Keep deliveries strictly
   // ordered so an older, slower snapshot can never finish after a newer one and
   // overwrite the UI with stale data.
@@ -286,7 +282,7 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   const enqueueDataUpdate = (payload, isFromCache, metadata) => {
     deliveryQueue = deliveryQueue
       .then(() => (
-        subscriptionActive
+        subscriptionActive && !subscriptionFailed
           ? onDataUpdate(payload, isFromCache, metadata)
           : undefined
       ))
@@ -295,8 +291,14 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
       });
   };
 
+  const handleSnapshotError = (error) => {
+    if (!subscriptionActive || subscriptionFailed) return;
+    subscriptionFailed = true;
+    if (onError) onError(error);
+  };
+
   const checkAndEmit = () => {
-    if (globalData !== null && schedulesList !== null) {
+    if (!subscriptionFailed && globalData !== null && schedulesList !== null) {
       const isFromCache = globalFromCache || schedulesFromCache;
       const hasPendingWrites = globalHasPendingWrites || schedulesHasPendingWrites;
       const payload = { global: globalData, schedules: schedulesList };
@@ -323,33 +325,34 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
   const globalRef = doc(db, 'users', userId, 'global', 'settings');
   
   const unsubGlobal = onSnapshot(globalRef, { includeMetadataChanges: true }, (docSnap) => {
-    globalFromCache = docSnap.metadata.fromCache; 
-    globalHasPendingWrites = docSnap.metadata.hasPendingWrites;
-
-    if (docSnap.exists()) {
-      globalData = fromCloudDocument(docSnap.data());
+    if (subscriptionFailed) return;
+    try {
+      globalFromCache = docSnap.metadata.fromCache;
+      globalHasPendingWrites = docSnap.metadata.hasPendingWrites;
+      globalData = docSnap.exists()
+        ? fromCloudDocument(docSnap.data())
+        : createMissingGlobalData();
       checkAndEmit();
-    } else {
-      globalData = createMissingGlobalData();
-      checkAndEmit();
+    } catch (error) {
+      handleSnapshotError(error);
     }
-  }, (error) => {
-    if (onError) onError(error);
-  });
+  }, handleSnapshotError);
 
   const schedulesRef = collection(db, 'users', userId, 'schedules');
   
   const unsubSchedules = onSnapshot(schedulesRef, { includeMetadataChanges: true }, (querySnapshot) => {
-    schedulesFromCache = querySnapshot.metadata.fromCache; 
-    schedulesHasPendingWrites = querySnapshot.metadata.hasPendingWrites;
-    
-    schedulesList = querySnapshot.docs.map((docSnap) => (
-      fromCloudDocument(docSnap.data(), docSnap.id)
-    ));
-    checkAndEmit();
-  }, (error) => {
-    if (onError) onError(error);
-  });
+    if (subscriptionFailed) return;
+    try {
+      schedulesFromCache = querySnapshot.metadata.fromCache;
+      schedulesHasPendingWrites = querySnapshot.metadata.hasPendingWrites;
+      schedulesList = querySnapshot.docs.map((docSnap) => (
+        fromCloudDocument(docSnap.data(), docSnap.id)
+      ));
+      checkAndEmit();
+    } catch (error) {
+      handleSnapshotError(error);
+    }
+  }, handleSnapshotError);
 
   return () => {
     subscriptionActive = false;
@@ -429,6 +432,8 @@ const commitCloudEntity = async ({ kind, id, entity, ref, now }) => (
     const remoteVersion = remote ? Number(remote.version) || 1 : 0;
     const expectedVersion = Number(entity.baseVersion) || Number(entity.version) || 0;
     const wasPreviouslySynced = (Number(entity.lastSynced) || 0) > 0;
+    const acknowledgedAt = Math.max(now, Number(entity.lastModified) || 0);
+    const { _cloudMissing: _missingMarker, ...localEntity } = entity;
     const missingPreviouslySyncedSchedule = kind === 'schedule'
       && !remote
       && expectedVersion > 0
@@ -446,19 +451,19 @@ const commitCloudEntity = async ({ kind, id, entity, ref, now }) => (
 
     if (kind === 'schedule' && !remote && entity.isDeleted) {
       return {
-        ...entity,
+        ...localEntity,
         version: expectedVersion,
         baseVersion: expectedVersion,
-        lastSynced: now,
+        lastSynced: acknowledgedAt,
       };
     }
 
     const nextVersion = remoteVersion + 1;
     const committed = {
-      ...entity,
+      ...localEntity,
       version: nextVersion,
       baseVersion: nextVersion,
-      lastSynced: now,
+      lastSynced: acknowledgedAt,
     };
     transaction.set(ref, toCloudDocument(committed));
     return committed;

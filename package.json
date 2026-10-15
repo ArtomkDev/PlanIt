@@ -50,7 +50,7 @@
     "test:lesson-viewer": "node --test tests/lessonViewer.test.cjs",
     "test:bottom-sheet": "node --test tests/bottomSheetPresentation.test.cjs",
     "test:schedule-navigation": "node --test tests/dayPagerNavigation.test.cjs",
-    "test:sync": "node --test tests/scheduleSync.test.cjs tests/localStorageDurability.test.cjs tests/scheduleOwnership.test.cjs tests/firestoreSync.test.cjs"
+    "test:sync": "node --test tests/scheduleSync.test.cjs tests/localStorageDurability.test.cjs tests/scheduleOwnership.test.cjs tests/firestoreSync.test.cjs tests/uiRegression.test.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
@@ -110,6 +110,7 @@
     "react-test-renderer": "^19.2.3"
   },
   "overrides": {
+    "@grpc/grpc-js": "^1.14.6",
     "websocket-driver": "0.7.5"
   },
   "private": true
