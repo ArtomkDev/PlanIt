@@ -19,6 +19,7 @@ import {
 import Animated, {
   Easing,
   runOnJS,
+  runOnUI,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -47,6 +48,7 @@ import {
   shareAttachment,
 } from "../../services/attachmentService";
 import MorphingLoader from "../ui/MorphingLoader";
+import GradientBackground from "../ui/GradientBackground";
 import AndroidPagerView from "./AndroidPagerView";
 import StagedAttachmentImage, { AttachmentImageLoadingOverlay } from "./StagedAttachmentImage";
 import { t } from "../../utils/i18n";
@@ -87,6 +89,14 @@ const DISMISS_FLING_VERTICAL_RATIO = IS_ANDROID ? 0.38 : 0.65;
 const DISMISS_CANCEL_COMMIT_DISTANCE = IS_ANDROID ? 30 : 112;
 const GALLERY_SNAP_EPSILON = 1.5;
 const GALLERY_SETTLE_DELAY_MS = 90;
+const GALLERY_CLOSE_DURATION_MS = 200;
+const DISMISS_GRADIENT_COLORS = [
+  "rgba(0,0,0,0)",
+  "rgba(0,0,0,0.25)",
+  "rgba(0,0,0,0.82)",
+  "rgba(0,0,0,0.98)",
+];
+const DISMISS_GRADIENT_LOCATIONS = [0.35, 0.65, 0.86, 1];
 const loadedZoomImageKeys = new Set();
 
 const getAttachmentIdentity = (attachment = {}) => (
@@ -201,6 +211,7 @@ function ZoomableImagePage({
   resetToken,
   zoomCommand,
   onZoomChange,
+  onImageError,
   onZoomEdgeSwipe = () => {},
   showEdgePreviews = true,
   dismissGesture = null,
@@ -224,7 +235,7 @@ function ZoomableImagePage({
     (!!imageLoadKey && loadedZoomImageKeys.has(imageLoadKey))
     || loadedImageKey === imageLoadKey
   );
-  const imageFailed = failedImageSignature === imageSignature && !imageLoaded;
+  const imageFailed = failedImageSignature === imageSignature;
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -684,9 +695,11 @@ function ZoomableImagePage({
     }
   };
   const handleImageError = () => {
-    if (!loadedZoomImageKeys.has(imageLoadKey)) {
-      setFailedImageSignature(imageSignature);
-    }
+    loadedZoomImageKeys.delete(imageLoadKey);
+    loadedImageKeyRef.current = "";
+    setLoadedImageKey("");
+    setFailedImageSignature(imageSignature);
+    onImageError?.(attachment);
   };
 
   return (
@@ -791,7 +804,10 @@ export default function AttachmentImagePreview({
   const gallerySettleTimeoutRef = useRef(null);
   const androidPagerSettleTimeoutRef = useRef(null);
   const androidPagerStateRef = useRef("idle");
-  const resolvingKeysRef = useRef(new Set());
+  const resolvingAttachmentsRef = useRef(new Map());
+  const imageRecoveryAttemptsRef = useRef(new Set());
+  const imageRecoveryPendingRef = useRef(new Set());
+  const previewSessionRef = useRef(0);
   const resolvedUrisRef = useRef({});
   const activeIndexRef = useRef(0);
   const zoomActiveRef = useRef(false);
@@ -801,16 +817,20 @@ export default function AttachmentImagePreview({
   const dragY = useSharedValue(0);
   const imageScale = useSharedValue(0.985);
   const backdropOpacity = useSharedValue(0);
+  const backdropGradientOpacity = useSharedValue(0);
   const chromeOpacity = useSharedValue(0);
   const headerTranslateY = useSharedValue(-12);
   const railTranslateY = useSharedValue(18);
   const dismissClosing = useSharedValue(false);
+  const exitProgress = useSharedValue(0);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [zoomActive, setZoomActive] = useState(false);
   const [zoomResetToken, setZoomResetToken] = useState(0);
   const [zoomCommand, setZoomCommand] = useState(null);
   const [resolvedUris, setResolvedUris] = useState({});
+  const [imageRetryTokens, setImageRetryTokens] = useState({});
+  const [imageErrors, setImageErrors] = useState({});
   const [state, setState] = useState({
     loading: false,
     saving: false,
@@ -832,6 +852,8 @@ export default function AttachmentImagePreview({
   const isWideLayout = width >= WIDE_LAYOUT_WIDTH;
   const showArrowNavigation = canNavigate && (Platform.OS === "web" || isWideLayout);
   const activeAttachment = imageAttachments[activeIndex] || attachment;
+  const activeImageError = imageErrors[getAttachmentIdentity(activeAttachment || {})];
+  const errorLabel = activeImageError || state.error;
   const counterLabel = canNavigate ? `${activeIndex + 1}/${imageAttachments.length}` : "";
   const backgroundColor = themeColors?.mode === "light" ? "#0B0B0F" : "#000";
   const textColor = "#fff";
@@ -914,6 +936,41 @@ export default function AttachmentImagePreview({
     onCacheStateChange?.(item);
   }, [onCacheStateChange]);
 
+  const recoverPreviewImage = useCallback(async (item, retry = false) => {
+    const key = getAttachmentIdentity(item);
+    const session = previewSessionRef.current;
+    const reportError = (message) => {
+      if (previewSessionRef.current !== session) return;
+      setImageErrors((current) => ({ ...current, [key]: message }));
+    };
+
+    if (imageRecoveryPendingRef.current.has(key)) return;
+    if (imageRecoveryAttemptsRef.current.has(key) && !retry) {
+      reportError(t("attachments.errors.open_failed", lang));
+      return;
+    }
+
+    imageRecoveryAttemptsRef.current.add(key);
+    imageRecoveryPendingRef.current.add(key);
+    reportError("");
+    try {
+      await resolvingAttachmentsRef.current.get(key);
+      if (previewSessionRef.current !== session) return;
+
+      const prepared = await ensureLocalAttachment(item, { forceDownload: true });
+      if (previewSessionRef.current !== session) return;
+
+      rememberResolvedAttachment(prepared);
+      reportError("");
+      // A refreshed file can keep the same URI; remount its native image view.
+      setImageRetryTokens((current) => ({ ...current, [key]: (current[key] || 0) + 1 }));
+    } catch (error) {
+      reportError(formatAttachmentError(error, lang));
+    } finally {
+      if (previewSessionRef.current === session) imageRecoveryPendingRef.current.delete(key);
+    }
+  }, [lang, rememberResolvedAttachment]);
+
   const resolveAttachmentForPreview = useCallback(async (
     item,
     { active = false, cacheInBackground = false } = {}
@@ -937,50 +994,53 @@ export default function AttachmentImagePreview({
       ));
     }
 
-    if (resolvingKeysRef.current.has(key)) return;
-    resolvingKeysRef.current.add(key);
+    if (resolvingAttachmentsRef.current.has(key)) return resolvingAttachmentsRef.current.get(key);
 
-    try {
-      const cacheState = await getAttachmentCacheState(item);
-      if (
-        (cacheState.status === "local" || cacheState.status === "source")
-        && cacheState.uri
-      ) {
-        rememberResolvedAttachment({
-          ...item,
-          localUri: cacheState.uri,
-          openUri: cacheState.uri,
-          cacheState: cacheState.status,
-        });
+    const pending = (async () => {
+      try {
+        const cacheState = await getAttachmentCacheState(item);
+        if (
+          (cacheState.status === "local" || cacheState.status === "source")
+          && cacheState.uri
+        ) {
+          rememberResolvedAttachment({
+            ...item,
+            localUri: cacheState.uri,
+            openUri: cacheState.uri,
+            cacheState: cacheState.status,
+          });
+          if (active) {
+            setState((prev) => ({ ...prev, loading: false, error: "" }));
+          }
+          return;
+        }
+
+        if (canUseInitialAndroidUri) {
+          if (active) {
+            setState((prev) => ({ ...prev, loading: false, error: "" }));
+          }
+          if (!cacheInBackground) return;
+        }
+
+        const prepared = await ensureLocalAttachment(item);
+        rememberResolvedAttachment(prepared);
         if (active) {
           setState((prev) => ({ ...prev, loading: false, error: "" }));
         }
-        return;
-      }
-
-      if (canUseInitialAndroidUri) {
-        if (active) {
-          setState((prev) => ({ ...prev, loading: false, error: "" }));
+      } catch (error) {
+        if (active && !canUseInitialAndroidUri) {
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: formatAttachmentError(error, lang),
+          }));
         }
-        if (!cacheInBackground) return;
+      } finally {
+        resolvingAttachmentsRef.current.delete(key);
       }
-
-      const prepared = await ensureLocalAttachment(item);
-      rememberResolvedAttachment(prepared);
-      if (active) {
-        setState((prev) => ({ ...prev, loading: false, error: "" }));
-      }
-    } catch (error) {
-      if (active && !canUseInitialAndroidUri) {
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          error: formatAttachmentError(error, lang),
-        }));
-      }
-    } finally {
-      resolvingKeysRef.current.delete(key);
-    }
+    })();
+    resolvingAttachmentsRef.current.set(key, pending);
+    return pending;
   }, [lang, rememberResolvedAttachment]);
 
   const scrollGalleryToIndex = useCallback((index, animated = true) => {
@@ -1067,35 +1127,45 @@ export default function AttachmentImagePreview({
     onClose?.();
   }, [onClose]);
 
-  const close = useCallback(() => {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    dismissClosing.value = true;
-    triggerHaptic("sheetClose");
+  const animateClose = useCallback((fromGesture = false) => {
+    "worklet";
 
-    chromeOpacity.value = withTiming(0, { duration: 130, easing: Easing.out(Easing.cubic) });
-    headerTranslateY.value = withTiming(-14, { duration: 170, easing: Easing.out(Easing.cubic) });
-    railTranslateY.value = withTiming(20, { duration: 170, easing: Easing.out(Easing.cubic) });
-    dragY.value = withTiming(28, { duration: 210, easing: Easing.out(Easing.cubic) });
-    dragX.value = withTiming(0, { duration: 210, easing: Easing.out(Easing.cubic) });
-    imageScale.value = withTiming(0.965, { duration: 210, easing: Easing.out(Easing.cubic) });
-    backdropOpacity.value = withTiming(0, {
-      duration: 210,
+    if (dismissClosing.value) return;
+    dismissClosing.value = true;
+    runOnJS(triggerHaptic)("sheetClose");
+
+    const config = {
+      duration: GALLERY_CLOSE_DURATION_MS,
       easing: Easing.out(Easing.cubic),
-    }, (finished) => {
+    };
+    const travel = fromGesture ? Math.min(height * 0.12, 100) : 12;
+    dragY.value = withTiming(dragY.value + travel, config);
+    imageScale.value = withTiming(imageScale.value * 0.98, config);
+    exitProgress.value = withTiming(1, config, (finished) => {
       if (finished) runOnJS(finishClose)();
     });
   }, [
-    backdropOpacity,
-    chromeOpacity,
     dismissClosing,
-    dragX,
     dragY,
+    exitProgress,
     finishClose,
-    headerTranslateY,
+    height,
     imageScale,
-    railTranslateY,
   ]);
+
+  const close = useCallback(() => {
+    if (closingRef.current || dismissClosing.value) return;
+    closingRef.current = true;
+    runOnUI(animateClose)(false);
+  }, [animateClose, dismissClosing]);
+
+  useEffect(() => {
+    previewSessionRef.current += 1;
+    imageRecoveryAttemptsRef.current.clear();
+    imageRecoveryPendingRef.current.clear();
+    setImageErrors({});
+    return () => { previewSessionRef.current += 1; };
+  }, [attachment, visible]);
 
   useEffect(() => {
     if (!visible || !attachment) return;
@@ -1123,13 +1193,16 @@ export default function AttachmentImagePreview({
     dragY.value = 0;
     imageScale.value = 0.985;
     backdropOpacity.value = 0;
+    backdropGradientOpacity.value = 0;
     chromeOpacity.value = 0;
     dismissClosing.value = false;
+    exitProgress.value = 0;
     headerTranslateY.value = -12;
     railTranslateY.value = 18;
 
     const frame = requestAnimationFrame(() => {
       backdropOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+      backdropGradientOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
       chromeOpacity.value = withTiming(1, { duration: 210, easing: Easing.out(Easing.cubic) });
       headerTranslateY.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.cubic) });
       railTranslateY.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
@@ -1143,10 +1216,12 @@ export default function AttachmentImagePreview({
     };
   }, [
     backdropOpacity,
+    backdropGradientOpacity,
     chromeOpacity,
     clearAndroidPagerSettleTimer,
     clearGallerySettleTimer,
     dismissClosing,
+    exitProgress,
     dragX,
     dragY,
     headerTranslateY,
@@ -1219,10 +1294,15 @@ export default function AttachmentImagePreview({
   }, [close, goToOffset, visible]);
 
   const modalAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
+    opacity: backdropOpacity.value * (1 - exitProgress.value),
+  }));
+
+  const backdropGradientAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: backdropGradientOpacity.value * (1 - exitProgress.value),
   }));
 
   const stageAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: 1 - exitProgress.value,
     transform: [
       { translateX: dragX.value },
       { translateY: dragY.value },
@@ -1231,12 +1311,12 @@ export default function AttachmentImagePreview({
   }));
 
   const topChromeAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: chromeOpacity.value,
+    opacity: chromeOpacity.value * (1 - exitProgress.value),
     transform: [{ translateY: headerTranslateY.value }],
   }));
 
   const bottomChromeAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: chromeOpacity.value,
+    opacity: chromeOpacity.value * (1 - exitProgress.value),
     transform: [{ translateY: railTranslateY.value }],
   }));
 
@@ -1256,29 +1336,10 @@ export default function AttachmentImagePreview({
       dismissPanGesture.averageTouches(true);
     }
 
-    const animateDismissClose = (translationX = 0) => {
-      "worklet";
-
-      if (dismissClosing.value) return;
-
-      dismissClosing.value = true;
-      runOnJS(triggerHaptic)("sheetClose");
-      chromeOpacity.value = withTiming(0, { duration: 120, easing: Easing.out(Easing.cubic) });
-      headerTranslateY.value = withTiming(-16, { duration: 170, easing: Easing.out(Easing.cubic) });
-      railTranslateY.value = withTiming(22, { duration: 170, easing: Easing.out(Easing.cubic) });
-      dragY.value = withTiming(Math.max(height, 1), { duration: 230, easing: Easing.out(Easing.cubic) });
-      dragX.value = withTiming(translationX * 0.12, { duration: 230, easing: Easing.out(Easing.cubic) });
-      imageScale.value = withTiming(0.88, { duration: 230, easing: Easing.out(Easing.cubic) });
-      backdropOpacity.value = withTiming(0, {
-        duration: 210,
-        easing: Easing.out(Easing.cubic),
-      }, (finished) => {
-        if (finished) runOnJS(finishClose)();
-      });
-    };
-
     const panGesture = dismissPanGesture
       .onUpdate((event) => {
+        "worklet";
+
         if (dismissClosing.value) return;
 
         const y = Math.max(0, event.translationY);
@@ -1288,11 +1349,15 @@ export default function AttachmentImagePreview({
         dragX.value = event.translationX * 0.06;
         imageScale.value = Math.max(0.88, 1 - progress * 0.13);
         backdropOpacity.value = Math.max(0.18, 1 - progress * 0.72);
-        chromeOpacity.value = Math.max(0, 1 - progress * 1.45);
-        headerTranslateY.value = -12 * progress;
-        railTranslateY.value = 18 * progress;
+        chromeOpacity.value = backdropOpacity.value;
+        headerTranslateY.value = 0;
+        railTranslateY.value = 0;
       })
       .onEnd((event) => {
+        "worklet";
+
+        if (dismissClosing.value) return;
+
         const absX = Math.abs(event.translationX);
         const absY = Math.abs(event.translationY);
         const shouldClose = (
@@ -1305,7 +1370,7 @@ export default function AttachmentImagePreview({
         );
 
         if (shouldClose) {
-          animateDismissClose(event.translationX);
+          animateClose(true);
           return;
         }
 
@@ -1318,14 +1383,16 @@ export default function AttachmentImagePreview({
         railTranslateY.value = withSpring(0, GALLERY_SPRING);
       })
       .onFinalize((_, success) => {
-        if (success) return;
+        "worklet";
+
+        if (success || dismissClosing.value) return;
 
         if (dragY.value < 0.5 && Math.abs(dragX.value) < 0.5) {
           return;
         }
 
         if (IS_ANDROID && dragY.value > DISMISS_CANCEL_COMMIT_DISTANCE) {
-          animateDismissClose(dragX.value / 0.06);
+          animateClose(true);
           return;
         }
 
@@ -1340,12 +1407,12 @@ export default function AttachmentImagePreview({
 
     return panGesture;
   }, [
+    animateClose,
     backdropOpacity,
     chromeOpacity,
     dismissClosing,
     dragX,
     dragY,
-    finishClose,
     headerTranslateY,
     height,
     imageScale,
@@ -1524,6 +1591,7 @@ export default function AttachmentImagePreview({
 
     const imagePage = (
       <ZoomableImagePage
+        key={`${getAttachmentIdentity(item)}:${imageRetryTokens[getAttachmentIdentity(item)] || 0}`}
         attachment={item}
         uri={uri}
         previousUri={previousUri}
@@ -1536,6 +1604,7 @@ export default function AttachmentImagePreview({
         resetToken={zoomResetToken}
         zoomCommand={zoomCommand}
         onZoomChange={handleZoomChange}
+        onImageError={recoverPreviewImage}
         onZoomEdgeSwipe={handleZoomEdgeSwipe}
         showEdgePreviews={!IS_ANDROID}
         dismissGesture={IS_ANDROID && isActive ? dismissGesture : null}
@@ -1548,6 +1617,7 @@ export default function AttachmentImagePreview({
           styles.galleryPage,
           {
             width,
+            height,
             paddingTop: stageTopInset,
             paddingBottom: stageBottomInset,
           },
@@ -1560,10 +1630,13 @@ export default function AttachmentImagePreview({
     activeIndex,
     galleryViewportHeight,
     getDisplayUri,
+    imageRetryTokens,
     imageAttachments,
     dismissGesture,
     handleZoomEdgeSwipe,
     handleZoomChange,
+    height,
+    recoverPreviewImage,
     stageBottomInset,
     stageTopInset,
     width,
@@ -1735,6 +1808,16 @@ export default function AttachmentImagePreview({
           ]}
         />
 
+        <GradientBackground
+          component={Animated.View}
+          pointerEvents="none"
+          colors={DISMISS_GRADIENT_COLORS}
+          locations={DISMISS_GRADIENT_LOCATIONS}
+          angle={90}
+          smoothColors={false}
+          style={[styles.backdrop, backdropGradientAnimatedStyle]}
+        />
+
         <View style={styles.container}>
           <Animated.View
             style={[
@@ -1764,13 +1847,23 @@ export default function AttachmentImagePreview({
                   {counterLabel}
                 </Text>
               )}
-              {!!state.error && (
+              {!!errorLabel && (
                 <View style={styles.errorRow}>
                   <WarningCircle size={14} color="#FF453A" weight="bold" />
                   <Text style={styles.errorText} numberOfLines={1}>
-                    {state.error}
+                    {errorLabel}
                   </Text>
                 </View>
+              )}
+              {!!activeImageError && (
+                <TouchableOpacity
+                  onPress={() => recoverPreviewImage(activeAttachment, true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.retry", lang)}
+                  style={styles.retryButton}
+                >
+                  <Text style={styles.retryText}>{t("common.retry", lang)}</Text>
+                </TouchableOpacity>
               )}
             </View>
 
@@ -1893,7 +1986,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   container: {
     flex: 1,
@@ -1972,8 +2065,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 4,
   },
+  retryButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignSelf: "center",
+  },
+  retryText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+    textDecorationLine: "underline",
+  },
   imageStage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1,
     overflow: "hidden",
   },
@@ -1981,14 +2086,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   androidPager: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   androidPagerPage: {
-    flex: 1,
+    width: "100%",
+    height: "100%",
   },
   galleryPage: {
-    flex: 1,
-    height: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2002,12 +2106,12 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   edgePreviewImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: "100%",
     height: "100%",
   },
   zoomLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 10,
   },
   navButton: {

@@ -262,3 +262,22 @@ test('custom lesson times remain fixed when the numbered timetable changes', () 
   const normalized = time.normalizeScheduleTiming(changed);
   assert.deepEqual(time.normalizeScheduleTiming(normalized), normalized);
 });
+
+
+test('timing settings reject newly overlapping custom lessons in every retained day and week', () => {
+  const original = { ...flexibleSchedule([slot(1), { subjectId: 'other', timeMode: 'custom', startTime: '09:30', endTime: '10:00' }]), repeat: 2 };
+  const changed = { ...original, slotDurations: [80, 60, 80] };
+  assert.deepEqual(time.findScheduleTimingConflict(original, changed), { dayIndex: 0, week: 1, start: '09:30', end: '09:50' });
+  assert.equal(time.findScheduleTimingConflict(original, { ...changed, slotDurations: [60, 60, 80] }), null);
+  const secondWeek = { ...original, schedule: [{ week1: [slot(1)], week2: original.schedule[0].week1 }] };
+  assert.equal(time.findScheduleTimingConflict(secondWeek, { ...changed, schedule: secondWeek.schedule }).week, 2);
+  assert.equal(time.findScheduleTimingConflict(secondWeek, { ...changed, schedule: secondWeek.schedule, repeat: 1 }), null);
+});
+
+test('unchanged existing overlaps do not prevent unrelated schedule settings from being saved', () => {
+  const original = flexibleSchedule([slot(1), { subjectId: 'other', timeMode: 'custom', startTime: '08:40', endTime: '09:00' }]);
+  assert.equal(time.findScheduleTimingConflict(original, { ...original, name: 'Renamed' }), null);
+  assert.ok(time.findScheduleTimingConflict(original, { ...original, slotDurations: [60, 60, 80] }));
+  const sparse = { ...original, schedule: [{ week1: [null, ...original.schedule[0].week1] }] };
+  assert.equal(time.findScheduleTimingConflict(sparse, sparse), null);
+});

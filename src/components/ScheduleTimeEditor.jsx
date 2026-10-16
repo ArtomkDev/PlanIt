@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Clock, Hourglass, Plus, Minus, CaretDown } from 'phosphor-react-native';
@@ -15,15 +15,14 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
   const [picker, setPicker] = useState(null);
   const [timeError, setTimeError] = useState(false);
   const slots = buildScheduleSlots(value.start_time, value.duration, value.breaks, value.slotDurations);
-  const previousSlots = useRef(slots);
-  if (slots.length) previousSlots.current = slots;
-  const preview = slots.length ? slots : previousSlots.current;
+  const preview = slots;
   const count = value.slotDurations.length;
   const visibleCount = showAll ? count : Math.min(count, 6);
   const uniformDuration = value.slotDurations.every((duration) => Number(duration) === Number(value.slotDurations[0]));
   const copy = (key, params) => t(`settings.schedule_editor.timing.${key}`, lang, params);
   const minutes = t('schedule.main_screen.minutes', lang);
   const errorColor = mode === 'dark' || mode === 'oled' ? '#FF8A80' : '#B91C1C';
+  const invalidNumber = (number, minimum) => String(number).trim() === '' || !Number.isInteger(Number(number)) || Number(number) < minimum || Number(number) > 600;
 
   useEffect(() => {
     if (!active) setPicker(null);
@@ -34,12 +33,14 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
     onChange(next);
   };
   const setDuration = (text, index) => {
+    setPicker(null);
     const numeric = text.replace(/[^0-9]/g, '').slice(0, 3);
     commit(index === undefined
       ? { ...value, duration: numeric, slotDurations: value.slotDurations.map(() => numeric) }
       : { ...value, duration: index === 0 ? numeric : value.duration, slotDurations: value.slotDurations.map((duration, i) => i === index ? numeric : duration) });
   };
   const setBreak = (text, index) => {
+    setPicker(null);
     const numeric = text.replace(/[^0-9]/g, '').slice(0, 3);
     commit({ ...value, breaks: value.breaks.map((gap, i) => index === undefined || i === index ? numeric : gap) });
   };
@@ -77,12 +78,13 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
     if (delta > 0) setShowAll(nextCount > 6);
     commit(next);
   };
-  const numberInput = (label, number, onChangeText) => (
-    <View style={[styles.numberField, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.borderColor }]}>
+  const numberInput = (label, number, onChangeText, minimum = 0) => (
+    <View>
+    <View style={[styles.numberField, { backgroundColor: themeColors.backgroundColor, borderColor: invalidNumber(number, minimum) ? errorColor : themeColors.borderColor }]}>
       <TextInput
         accessibilityLabel={label}
         style={[styles.numberInput, { color: themeColors.textColor }]}
-        value={String(number)}
+        value={String(number ?? '')}
         onChangeText={onChangeText}
         keyboardType="number-pad"
         inputMode="numeric"
@@ -91,6 +93,9 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
         selectTextOnFocus
       />
       <Text style={[styles.unit, { color: themeColors.textColor2 }]}>{minutes}</Text>
+    </View>
+    {invalidNumber(number, minimum) && <Text accessibilityRole="alert" accessibilityLiveRegion="polite"
+      style={[styles.fieldError, { color: errorColor }]}>{copy(minimum ? 'duration_range' : 'break_range')}</Text>}
     </View>
   );
   const renderPicker = (index, field, header = false) => {
@@ -151,6 +156,7 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
         {renderTimeError(0, true)}
         <SettingsRow label={t('settings.menu.duration.title', lang)}
           desc={copy('bulk_hint')} value={uniformDuration ? `${value.slotDurations[0]} ${minutes}` : copy('different')}
+          valuePosition="below"
           icon={Hourglass} themeColors={themeColors} onPress={() => setBulkExpanded(!bulkExpanded)}
           accessibilityState={{ expanded: bulkExpanded }} />
         {bulkExpanded && (
@@ -161,7 +167,7 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
               onTabPress={(duration) => setDuration(duration)} themeColors={themeColors}
               containerBackgroundColor={themeColors.backgroundColor} containerBorderColor={themeColors.borderColor} />
             <View style={styles.bulkInput}>
-              {numberInput(t('schedule.main_screen.duration', lang), value.duration, (text) => setDuration(text))}
+              {numberInput(t('schedule.main_screen.duration', lang), value.duration, (text) => setDuration(text), 1)}
             </View>
             {count > 1 && (
               <View style={styles.fieldRow}>
@@ -173,19 +179,34 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
         )}
       </SettingsGroup>
 
+      <Text style={[styles.label, { color: themeColors.textColor2, marginTop: 12 }]}>{copy('slot_count', { count })}</Text>
+      <View style={styles.countActions}>
+        {[{ delta: -1, Icon: Minus, label: 'remove', disabled: count <= Math.max(1, minimumSlots) },
+          { delta: 1, Icon: Plus, label: 'add', disabled: count >= MAX_LESSON_SLOTS }].map(({ delta, Icon, label, disabled }) => (
+          <TouchableOpacity key={label} accessibilityRole="button" accessibilityLabel={copy(label)}
+            accessibilityState={{ disabled }} disabled={disabled} onPress={() => changeCount(delta)}
+            style={[styles.countButton, { borderColor: themeColors.borderColor, opacity: disabled ? 0.45 : 1 }]}>
+            <Icon size={20} color={themeColors.accentTextColor} />
+            <Text style={[styles.countLabel, { color: themeColors.accentTextColor }]}>{copy(label)}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {!slots.length && <Text accessibilityRole="alert" accessibilityLiveRegion="polite"
+        style={[styles.error, { color: errorColor }]}>{copy('invalid')}</Text>}
       <Text style={[styles.hint, { color: themeColors.textColor2 }]}>{copy('hint')}</Text>
       {value.slotDurations.slice(0, visibleCount).map((duration, index) => (
         <View key={index}>
           <View style={[styles.slot, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
             <View style={styles.slotHeading}>
               <Text style={[styles.slotTitle, { color: themeColors.textColor }]}>{copy('lesson', { number: index + 1 })}</Text>
-              {numberInput(copy('lesson_duration', { number: index + 1 }), duration, (text) => setDuration(text, index))}
+              {numberInput(copy('lesson_duration', { number: index + 1 }), duration, (text) => setDuration(text, index), 1)}
             </View>
             <View style={styles.timeRow}>
               {['start', 'end'].map((field) => (
                 <TouchableOpacity key={field} accessibilityRole="button"
                   accessibilityLabel={copy('lesson_time', { number: index + 1, field: copy(field), time: preview[index]?.[field] || '—' })}
-                  style={[styles.timeButton, { borderColor: themeColors.borderColor, backgroundColor: themeColors.backgroundColor }]}
+                  disabled={!slots.length} accessibilityState={{ disabled: !slots.length }}
+                  style={[styles.timeButton, { borderColor: themeColors.borderColor, backgroundColor: themeColors.backgroundColor, opacity: slots.length ? 1 : 0.5 }]}
                   onPress={() => openPicker(index, field)} activeOpacity={0.7}>
                   <Text style={[styles.timeLabel, { color: themeColors.textColor2 }]}>{copy(field)}</Text>
                   <Text style={[styles.time, { color: themeColors.textColor }]}>{preview[index]?.[field] || '—'}</Text>
@@ -214,20 +235,8 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
           <CaretDown size={18} color={themeColors.accentTextColor} />
         </TouchableOpacity>
       )}
-      <Text style={[styles.label, { color: themeColors.textColor2, marginTop: 12 }]}>{copy('slot_count', { count })}</Text>
-      <View style={styles.countActions}>
-        {[{ delta: -1, Icon: Minus, label: 'remove', disabled: count <= Math.max(1, minimumSlots) },
-          { delta: 1, Icon: Plus, label: 'add', disabled: count >= MAX_LESSON_SLOTS }].map(({ delta, Icon, label, disabled }) => (
-          <TouchableOpacity key={label} accessibilityRole="button" accessibilityLabel={copy(label)}
-            accessibilityState={{ disabled }} disabled={disabled} onPress={() => changeCount(delta)}
-            style={[styles.countButton, { borderColor: themeColors.borderColor, opacity: disabled ? 0.45 : 1 }]}>
-            <Icon size={20} color={themeColors.accentTextColor} />
-            <Text style={[styles.countLabel, { color: themeColors.accentTextColor }]}>{copy(label)}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
       {minimumSlots > 1 && <Text style={[styles.hint, { color: themeColors.textColor2 }]}>{copy('used_slots', { count: minimumSlots })}</Text>}
-      {(timeError?.count || !slots.length) && (
+      {timeError?.count && (
         <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.error, { color: errorColor }]}>{copy('invalid')}</Text>
       )}
     </View>
@@ -250,7 +259,7 @@ const styles = StyleSheet.create({
   timeLabel: { fontSize: 12, lineHeight: 17 },
   time: { fontSize: 20, fontWeight: '600', fontVariant: ['tabular-nums'], marginTop: 2 },
   numberField: { flexDirection: 'row', alignItems: 'center', minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: 10 },
-  numberInput: { minWidth: 36, fontSize: 16, fontWeight: '600', textAlign: 'center', paddingVertical: 10 },
+  numberInput: { width: 48, fontSize: 16, fontWeight: '600', textAlign: 'center', paddingVertical: 10 },
   unit: { fontSize: 13, marginLeft: 4 },
   breakRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 10, paddingHorizontal: 12 },
   breakLabel: { flexShrink: 1, gap: 2 },
@@ -264,4 +273,5 @@ const styles = StyleSheet.create({
   textButton: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' },
   buttonText: { fontSize: 14, fontWeight: '600' },
   error: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
+  fieldError: { fontSize: 12, lineHeight: 18, marginTop: 4 },
 });

@@ -113,7 +113,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
               onPress={handleGoBack}
               style={styles.backButton}
             >
-              <CaretLeft size={28} color={themeColors.accentTextColor} weight="bold" />
+              <CaretLeft size={28} color={themeColors.accentColor} weight="bold" />
             </TouchableOpacity>
           )}
         </View>
@@ -128,7 +128,7 @@ export default function SettingsHeader({ title, subTitle, subTitleIndex, scrollY
               style={[
                 styles.subTitle,
                 { 
-                  color: themeColors.accentTextColor,
+                  color: themeColors.accentColor,
                   opacity: combinedOpacity,
                   transform: [{ translateY: combinedTranslateY }]
                 }

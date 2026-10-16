@@ -61,7 +61,7 @@ const getContainedFrameStyle = (layout, aspectRatio) => {
   const ratio = Number(aspectRatio) || 0;
 
   if (width <= 0 || height <= 0 || ratio <= 0) {
-    return StyleSheet.absoluteFillObject;
+    return StyleSheet.absoluteFill;
   }
 
   const boxRatio = width / height;
@@ -102,7 +102,7 @@ export function AttachmentImageLoadingOverlay({
   const resolvedAspectRatio = Number(aspectRatio) || getAttachmentAspectRatio(attachment);
   const contentFrameStyle = resizeMode === "contain"
     ? getContainedFrameStyle(layout, resolvedAspectRatio)
-    : StyleSheet.absoluteFillObject;
+    : StyleSheet.absoluteFill;
   const scanHeight = resizeMode === "contain" && contentFrameStyle?.height
     ? contentFrameStyle.height
     : layout.height;
@@ -382,27 +382,27 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   absoluteImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: "100%",
     height: "100%",
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: "hidden",
   },
   contentFrame: {
     overflow: "hidden",
   },
   baseLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   previewImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: "100%",
     height: "100%",
   },
   softShade: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.1)",
   },
   scanLine: {

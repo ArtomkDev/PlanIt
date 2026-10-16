@@ -119,6 +119,14 @@ export default function Settings({ guest, onExitGuest }) {
     {
       title: t('settings.sections.schedule', lang),
       data: [
+        ...(schedule?.id ? [{
+          label: t('settings.schedule_editor.current_schedule', lang),
+          screen: 'ScheduleEditorScreen',
+          icon: Table,
+          desc: t('settings.schedule_editor.current_schedule_hint', lang),
+          meta: schedule.name,
+          valuePosition: 'below',
+        }] : []),
         {
           label: t('settings.menu.global_schedule.title', lang),
           screen: 'ScheduleSwitcher',
@@ -215,6 +223,8 @@ export default function Settings({ guest, onExitGuest }) {
   ]), [
     guest,
     user,
+    schedule?.id,
+    schedule?.name,
     lang,
     hapticsEnabled,
     handleToggleHaptics,
@@ -265,7 +275,10 @@ export default function Settings({ guest, onExitGuest }) {
       />
 
       <Animated.ScrollView
-        style={{ flex: 1 }}
+        style={[{ flex: 1 }, Platform.OS === 'web' && {
+          '--planit-scrollbar-top': `${headerHeight}px`,
+          '--planit-scrollbar-bottom': `${safeTabBarHeight}px`,
+        }]}
         contentContainerStyle={[
           styles.scrollContent,
           {
@@ -298,6 +311,7 @@ export default function Settings({ guest, onExitGuest }) {
                   label={item.label}
                   desc={item.desc}
                   value={item.meta}
+                  valuePosition={item.valuePosition}
                   rightContent={item.rightContent}
                   rightContentPointerEvents={item.rightContentPointerEvents}
                   showCaret={item.showCaret}

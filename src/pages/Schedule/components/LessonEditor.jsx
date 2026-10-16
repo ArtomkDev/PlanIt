@@ -463,6 +463,13 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
       Alert.alert(t('schedule.main_screen.time', lang), t('schedule.lesson_editor.invalid_time', lang));
       return;
     }
+    if (instanceData.timeMode === 'custom') {
+      const preview = applyLessonRecurrence(schedule, { ...placementOptions, lesson: instanceData, preview: true });
+      if (preview.conflicts.length) {
+        Alert.alert(t('schedule.main_screen.time', lang), t('schedule.lesson_editor.custom_time_conflict', lang));
+        return;
+      }
+    }
     const draftAttachments = normalizeAttachmentDraftList(effectiveAttachmentRefs);
     const resolvedDraftAttachments = resolveAttachmentList(draftAttachments, fileLibrary);
     const hasPendingAttachments = resolvedDraftAttachments.some((attachment) => (

@@ -108,7 +108,7 @@ export const getLessonSlotNumber = (lesson, time, slots) => {
 
 export const createScheduleTimingDraft = (schedule) => {
   const start_time = schedule?.start_time || "08:30";
-  const duration = Number(schedule?.duration) || 45;
+  const duration = Number(schedule?.duration) || (schedule ? 45 : 80);
   const slots = schedule ? buildScheduleSlots(start_time, duration, schedule.breaks, schedule.slotDurations) : [];
   const breaks = schedule ? schedule.breaks || [] : [10];
   const slotDurations = slots.length ? slots.map((slot) => getDurationMinutes(slot.start, slot.end))
@@ -176,6 +176,32 @@ export const normalizeScheduleTiming = (schedule) => {
       ]),
     )),
   };
+};
+
+export const findScheduleTimingConflict = (original, updated) => {
+  const getTimes = (schedule, lessons) => buildLessonTimes(schedule?.start_time, schedule?.duration,
+    schedule?.breaks, lessons, schedule?.slotDurations);
+  for (const [dayIndex, day] of (updated.schedule || []).entries()) {
+    for (const week of getScheduleWeekNumbers(updated.repeat)) {
+      const lessons = day?.[`week${week}`] || [];
+      if (!Array.isArray(lessons)) continue;
+      const before = getTimes(original, original?.schedule?.[dayIndex]?.[`week${week}`] || []);
+      const after = getTimes(updated, lessons);
+      for (let index = 0; index < lessons.length; index += 1) {
+        if (!lessons[index]) continue;
+        for (let other = index + 1; other < lessons.length; other += 1) {
+          if (!lessons[other]) continue;
+          const unchanged = [index, other].every(i => before[i]?.start === after[i]?.start && before[i]?.end === after[i]?.end);
+          if (unchanged) continue;
+          const start = Math.max(parseTimeToMinutes(after[index].start), parseTimeToMinutes(after[other].start));
+          const end = Math.min(parseTimeToMinutes(after[index].start) + getDurationMinutes(after[index].start, after[index].end),
+            parseTimeToMinutes(after[other].start) + getDurationMinutes(after[other].start, after[other].end));
+          if (start < end) return { dayIndex, week, start: formatMinutesToTime(start), end: formatMinutesToTime(end) };
+        }
+      }
+    }
+  }
+  return null;
 };
 
 export const buildDayTimeline = (schedule, lessons, lessonTimes) => {

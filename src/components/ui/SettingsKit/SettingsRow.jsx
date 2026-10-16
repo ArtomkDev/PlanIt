@@ -26,11 +26,12 @@ export default function SettingsRow({
   accessibilityRole,
   accessibilityState,
   rightContentPointerEvents = "auto",
+  valuePosition = "trailing",
 }) {
   const Component = onPress ? TouchableOpacity : View;
 
   const mainColor = danger ? '#FF3B30' : themeColors.textColor;
-  const calculatedIconColor = iconColor || (danger ? '#FF3B30' : themeColors.accentTextColor);
+  const calculatedIconColor = iconColor || (danger ? '#FF3B30' : themeColors.accentColor);
   const calculatedIconBgColor = iconBgColor || (danger ? '#FF3B3015' : themeColors.accentColor + '15');
   const resolvedAccessibilityLabel = accessibilityLabel || [label, typeof value === "string" ? value : null].filter(Boolean).join(", ");
   const resolvedAccessibilityRole = accessibilityRole || (onPress ? "button" : undefined);
@@ -81,12 +82,13 @@ export default function SettingsRow({
         )}
         <View style={styles.textContainer}>
           <Text style={[styles.label, { color: mainColor }]}>{label}</Text>
+          {valuePosition === "below" && !!value && <Text style={[styles.detail, { color: themeColors.textColor2 }]}>{value}</Text>}
           {!!desc && <Text style={[styles.desc, { color: themeColors.textColor2 }]}>{desc}</Text>}
         </View>
       </View>
 
       <View style={styles.right} pointerEvents={rightContentPointerEvents}>
-        {rightContent || (!!value && <Text style={[styles.value, { color: themeColors.textColor2 }]}>{value}</Text>)}
+        {rightContent || (valuePosition === "trailing" && !!value && <Text style={[styles.value, { color: themeColors.textColor2 }]}>{value}</Text>)}
         {showCaret && !!onPress && <CaretRight size={18} color={themeColors.textColor3 || "#aaa"} weight="bold" style={styles.caret} />}
       </View>
     </Component>
@@ -108,6 +110,7 @@ const styles = StyleSheet.create({
   iconContainer: { width: 32, height: 32, borderRadius: 8, justifyContent: "center", alignItems: "center", marginRight: 12 },
   label: { fontSize: 16, fontWeight: "500" },
   desc: { fontSize: 13, marginTop: 2 },
+  detail: { fontSize: 14, lineHeight: 20, marginTop: 2 },
   value: { flexShrink: 1, fontSize: 16, textAlign: 'right' },
   caret: { marginLeft: 6 },
   disabled: { opacity: 0.5 }

@@ -42,6 +42,8 @@ const mocks = {
   },
   '../../../../../components/ui/AppIconPickerGrid': 'IconGrid',
   '../../../../../components/ui/TabSwitcher': 'Tabs',
+  '../../../../../components/ui/SettingsKit/SettingsGroup': props => React.createElement('Group', {}, React.createElement('Text', { accessibilityRole: 'header' }, props.title), props.headerRight, props.children),
+  '../../../utils/haptics': { triggerHaptic() {} },
   '../../../../../components/ui/GradientBackground': 'Gradient',
   '../../../../../components/attachments/AttachmentManager': 'Attachments',
   '../../../../../config/subjectIcons': { getIconComponent: () => 'SubjectIcon' },
@@ -285,4 +287,20 @@ test('occupied selection waits for a decision; cancellation retains timing and s
   })();
   assert.equal(state.pending, conflict);
   assert.equal(screen, 'main');
+});
+
+
+test('saving a custom time checks the selected weeks for overlaps before changing schedule data', async () => {
+  const alerts = [];
+  let previewOptions;
+  await editorHandler('handleSave', {
+    slotConflict: null, instanceData: { timeMode: 'custom', startTime: '09:00', endTime: '10:00' },
+    parseTimeToMinutes: value => Number(value.slice(0, 2)) * 60 + Number(value.slice(3)),
+    applyLessonRecurrence: (_schedule, options) => { previewOptions = options; return { conflicts: [{ week: 2 }] }; },
+    schedule: {}, placementOptions: { selection: { mode: 'selected', weeks: [2] } },
+    Alert: { alert: (...args) => alerts.push(args) }, t: key => key, lang: 'uk',
+  })();
+  assert.equal(previewOptions.preview, true);
+  assert.equal(previewOptions.selection.weeks[0], 2);
+  assert.equal(alerts[0][1], 'schedule.lesson_editor.custom_time_conflict');
 });

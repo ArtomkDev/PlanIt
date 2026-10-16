@@ -472,7 +472,7 @@ const ScheduleSwitcher = () => {
                         <Text style={[styles.scheduleName, { color: themeColors.textColor }]}>{name}</Text>
                         <Text style={[styles.metadata, { color: themeColors.textColor2 }]}>{label('subject_count', { count: subjectCount })}</Text>
                         <View style={styles.currentLabel}>
-                          {selected && <Check size={14} color={themeColors.accentTextColor} weight="bold" />}
+                          {selected && <Check size={14} color={themeColors.accentColor} weight="bold" />}
                           <Text style={[styles.currentText, { color: selected ? themeColors.accentTextColor : themeColors.textColor2 }]}>{selected ? label('current_schedule') : isAccountTab ? label('select_schedule') : label('on_device')}</Text>
                         </View>
                       </View>

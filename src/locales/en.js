@@ -239,12 +239,9 @@ export default {
     swipe_hint_sub: "Use Next or swipe between screens. Tap Done on the final step.",
     welcome_title: "Create your first schedule",
     welcome_subtitle: "Set up your schedule. You can change these settings later.",
-    step1_title: "What should we call it?",
-    step1_desc: "You can have multiple schedules. Give this one a clear name (e.g., 'Semester 1').",
     step2_title: "Calendar structure",
     step2_desc: "These settings help us display weeks and days correctly.",
     weeks_count_desc: "Specify how many unique weeks you have in your schedule.",
-    starting_week: "Which week should we start counting from?",
     starting_week_desc: "Choose the date of the first day to start counting weeks.",
     step3_title: "Schedule settings",
     step3_desc: "Create lesson slots and adjust their times. You can assign subjects later.",
@@ -316,6 +313,7 @@ export default {
       go_to_lesson: "Go to class",
     },
     lesson_editor: {
+        custom_time_conflict: "This time overlaps another lesson in the selected weeks. Adjust the start, end, or repeat weeks.",
       slot_number: 'Session {number}',
       slot_occupied: 'Occupied',
       slot_occupied_title: 'Session {number} time is occupied',
@@ -824,7 +822,13 @@ export default {
     },
 
     schedule_editor: {
+      current_schedule: "Lessons and time slots",
+      current_schedule_hint: "Lesson times, breaks, weeks, and reminders for the current schedule",
+      cycle_range: "Weeks in the cycle: 1 to {count}.",
       timing: {
+        duration_range: "1–600 min",
+        break_range: "0–600 min",
+        conflict: "The new times overlap: {day}, week {week}, {start}–{end}. Adjust the slots or move the lessons with custom times.",
         bulk_hint: "Quickly apply one duration to every lesson or break.",
         different: "Different durations",
         all_durations: "Duration of all lessons",

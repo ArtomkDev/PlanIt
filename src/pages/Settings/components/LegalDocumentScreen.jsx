@@ -131,7 +131,7 @@ export default function LegalDocumentScreen() {
             activeOpacity={0.7}
             style={styles.headerAction}
           >
-            <Globe size={24} color={themeColors.accentTextColor} weight="bold" />
+            <Globe size={24} color={themeColors.accentColor} weight="bold" />
           </TouchableOpacity>
         )}
       />
@@ -175,7 +175,7 @@ export default function LegalDocumentScreen() {
             },
           ]}
         >
-          <Globe size={18} color={themeColors.accentTextColor} weight="bold" />
+          <Globe size={18} color={themeColors.accentColor} weight="bold" />
           <Text
             numberOfLines={1}
             style={[styles.browserButtonText, { color: themeColors.accentTextColor }]}

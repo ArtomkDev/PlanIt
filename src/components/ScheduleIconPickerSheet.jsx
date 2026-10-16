@@ -9,12 +9,12 @@ import {
 import { X } from "phosphor-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import ScheduleIcon from "../../../components/ScheduleIcon";
-import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
-import AppIconPickerGrid from "../../../components/ui/AppIconPickerGrid";
-import { triggerHaptic } from "../../../utils/haptics";
-import { t } from "../../../utils/i18n";
-import { scheduleColorWithAlpha } from "../../../utils/scheduleColors";
+import ScheduleIcon from "./ScheduleIcon";
+import BottomSheet, { SheetScrollView } from "./ui/BottomSheet";
+import AppIconPickerGrid from "./ui/AppIconPickerGrid";
+import { triggerHaptic } from "../utils/haptics";
+import { t } from "../utils/i18n";
+import { scheduleColorWithAlpha } from "../utils/scheduleColors";
 
 export default function ScheduleIconPickerSheet({
   visible,

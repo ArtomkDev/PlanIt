@@ -49,6 +49,10 @@ export default function SettingsScreenLayout({ children, contentContainerStyle, 
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <SettingsHeader title={title} scrollY={scrollY} />
         <Animated.ScrollView
+          style={Platform.OS === 'web' && {
+            '--planit-scrollbar-top': `${headerHeight}px`,
+            '--planit-scrollbar-bottom': `${safeTabBarHeight}px`,
+          }}
           contentContainerStyle={[
             contentContainerStyle,
             {

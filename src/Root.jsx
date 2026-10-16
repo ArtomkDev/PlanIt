@@ -24,6 +24,7 @@ import { consumeManualLogin, setManualLogin } from "./utils/authFlags";
 import useAppLanguage from './hooks/useAppLanguage';
 import { AdsProvider } from './context/AdsContext';
 import CookieConsentBanner from './components/privacy/CookieConsentBanner';
+import WebThemeStyles from './components/ui/WebThemeStyles';
 import PasswordResetScreen from './auth/PasswordResetScreen';
 import { createPasswordResetNavigationUrl } from './auth/passwordResetService';
 
@@ -190,6 +191,7 @@ export default function RootApp() {
               guest={guest}
               user={user}
             >
+              <WebThemeStyles />
               <BottomSheetPresentationProvider>
                 <NavigationContainer
                 ref={navigationRef}

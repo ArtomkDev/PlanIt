@@ -32,7 +32,7 @@ export default function SettingsActionRow({ icon: Icon, label, onPress, danger =
       <View style={styles.content}>
         {Icon && (
           <View style={[styles.iconContainer, { backgroundColor: danger ? '#FF3B3015' : themeColors.accentColor + '15' }]}>
-            <Icon size={20} color={color} weight={isAndroid ? "regular" : "bold"} />
+            <Icon size={20} color={danger ? color : themeColors.accentColor} weight={isAndroid ? "regular" : "bold"} />
           </View>
         )}
         <Text style={[styles.label, { color }]}>{label}</Text>

@@ -250,11 +250,16 @@ const BottomSheet = forwardRef(function BottomSheet(
         sheetStyle,
       ]}
       accessibilityLabel={accessibilityLabel}
+      accessible={false}
+      accessibilityRole={null}
       accessibilityViewIsModal
       onChange={onChange}
       onDismiss={handleDismiss}
     >
       <View
+        role={Platform.OS === 'web' ? 'dialog' : undefined}
+        aria-modal={Platform.OS === 'web' ? true : undefined}
+        accessibilityLabel={accessibilityLabel}
         style={[styles.content, { backgroundColor }, contentStyle]}
         testID={testID}
       >

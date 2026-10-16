@@ -254,3 +254,18 @@ test('custom header background is opt-in and leaves the drag handle and editor h
   assert.equal(standard.props.children[1].props.style.height, 44);
   assert.ok(standard.props.children.includes(header));
 });
+
+
+for (const platform of ['web', 'android', 'ios']) {
+test(platform + ' sheet exposes form controls instead of grouping the entire form as a slider', async t => {
+  const app = runtime({ platform });
+  t.after(() => app.cleanup());
+  await app.render([{ testID: 'editor', accessibilityLabel: 'Lesson editor' }]);
+  const props = app.modals.get('editor').props;
+  assert.equal(props.accessible, false);
+  assert.equal(props.accessibilityRole, null);
+  assert.equal(props.children.props.role, platform === 'web' ? 'dialog' : undefined);
+  assert.equal(props.children.props['aria-modal'], platform === 'web' ? true : undefined);
+  assert.equal(props.children.props.accessibilityLabel, 'Lesson editor');
+});
+}

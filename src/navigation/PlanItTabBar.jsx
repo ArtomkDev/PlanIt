@@ -178,7 +178,8 @@ function TabItem({
     : (options.title || route.name);
   const activeColor = strategy.getActiveColor({ themeColors });
   const color = focused ? activeColor : themeColors.textColor2;
-  const icon = options.tabBarIcon?.({ color, size: metrics.iconSize, focused }) ?? null;
+  const iconColor = focused ? themeColors.accentColor : themeColors.textColor2;
+  const icon = options.tabBarIcon?.({ color: iconColor, size: metrics.iconSize, focused }) ?? null;
 
   const runIconBounce = () => {
     if (!animationsEnabled) {

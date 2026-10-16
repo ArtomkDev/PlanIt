@@ -30,12 +30,14 @@ function load(relative, mocks = {}) {
 
 const themes = load('src/config/themes.js').default;
 for (const mode of ['light', 'dark', 'oled']) {
-  test(`${mode} themes preserve readable accent text and button labels, including custom colors`, () => {
-    for (const accent of [...Object.keys(themes.accentColors), '#FFFFFF', '#000000', '#808080', '#ffcc00']) {
+  test(`${mode} themes preserve the exact chosen accent and readable button labels, including custom colors`, () => {
+    for (const accent of [...Object.keys(themes.accentColors), '#FFFFFF', '#000000', '#808080', '#ffcc00', '#C00060']) {
       const colors = themes.getColors(mode, accent);
+      const chosenAccent = themes.accentColors[accent] || accent;
+      assert.ok(tinycolor.equals(colors.accentColor, chosenAccent), `${accent}: accent must remain unchanged`);
+      assert.ok(tinycolor.equals(colors.accentTextColor, chosenAccent), `${accent}: accent foreground must keep the chosen color`);
       assert.ok(tinycolor.readability(colors.textOnAccent, colors.accentColor) >= 4.5, `${accent}: button label`);
       for (const background of [colors.backgroundColor, colors.backgroundColor2]) {
-        assert.ok(tinycolor.readability(colors.accentTextColor, background) >= 4.5, `${accent}: accent text on ${background}`);
         assert.ok(tinycolor.readability(colors.textColor2, background) >= 4.5, `${mode}: secondary text on ${background}`);
         assert.ok(tinycolor.readability(colors.textColor3, background) >= 4.5, `${mode}: muted text on ${background}`);
       }
@@ -367,13 +369,13 @@ test('segmented controls use readable labels for both default and explicitly sup
   t.after(async () => act(async () => tree.unmount()));
 });
 
-async function mountOnboarding(t) {
+async function mountOnboarding(t, platform = 'android') {
   const added = [], alerts = [], scrolls = [];
   let gestures, back, tree;
   const Component = load('src/pages/Onboarding/OnboardingWizard.jsx', {
     'react-native': {
       View: 'View', Text: 'Text', TextInput: 'Input', TouchableOpacity: 'Button', KeyboardAvoidingView: 'Keyboard',
-      StyleSheet: { create: x => x }, Platform: { OS: 'android' }, useWindowDimensions: () => ({ width: 390 }), useColorScheme: () => 'light',
+      StyleSheet: { create: x => x }, Platform: { OS: platform }, useWindowDimensions: () => ({ width: 390 }), useColorScheme: () => 'light',
       Alert: { alert: (...args) => alerts.push(args) },
       Keyboard: { dismiss() {} },
       BackHandler: { addEventListener(_, callback) { back = callback; return { remove() {} }; } },
@@ -391,6 +393,9 @@ async function mountOnboarding(t) {
     '../../components/ui/GradientBackground': props => React.createElement(props.component || 'View', props),
     '../../components/ui/TabSwitcher': 'Tabs',
     './ui/TabSwitcher': 'Tabs', './ui/SettingsKit/SettingsGroup': 'Group', './ui/SettingsKit/SettingsRow': 'Row', '../utils/haptics': { triggerHaptic() {} },
+    './ui/AdvancedColorPicker': 'ColorPicker', './ScheduleIcon': 'ScheduleIcon', './ScheduleIconPickerSheet': 'IconPicker',
+    './CalendarSheet/CalendarSheet': 'Calendar', './ui/AppSwitch': 'Switch',
+    '../services/notificationService': { NOTIFICATION_TYPES: {}, ensureNotificationPushPermissionsForType: async () => ({ granted: true }) },
     '../../components/CalendarSheet/CalendarSheet': 'Calendar',
     '../../components/ui/AppBlur': 'Blur', '../../components/ui/AppSwitch': 'Switch',
     '../../components/ui/SettingsKit/SettingsGroup': 'Group', '../../components/ui/SettingsKit/SettingsRow': 'Row', '../../components/ui/SettingsKit/SettingsActionRow': 'Action',
@@ -516,9 +521,11 @@ test('the schedule editor protects an unsaved draft and allows leaving after a s
     '../../../components/ui/SettingsHeader': props => React.createElement('Header', {}, props.rightButton),
     '../../../components/ui/TabSwitcher': 'Tabs', '../../../components/CalendarSheet/CalendarSheet': 'Calendar',
     './ui/TabSwitcher': 'Tabs', './ui/SettingsKit/SettingsGroup': 'Group', './ui/SettingsKit/SettingsRow': 'Row', '../utils/haptics': { triggerHaptic() {} },
+    './ui/AdvancedColorPicker': 'ColorPicker', './ScheduleIcon': 'ScheduleIcon', './ScheduleIconPickerSheet': 'IconPicker',
+    './CalendarSheet/CalendarSheet': 'Calendar', './ui/AppSwitch': 'Switch',
+    '../services/notificationService': { NOTIFICATION_TYPES: {}, ensureNotificationPushPermissionsForType: async () => ({ granted: true }) },
     '../../../components/ui/AdvancedColorPicker': 'Picker', '../../../components/ui/AppSwitch': 'Switch',
     '../../../components/ui/SettingsKit/SettingsGroup': 'Group', '../../../components/ui/SettingsKit/SettingsRow': 'Row', '../../../components/ui/SettingsKit/SettingsActionRow': 'Action',
-    '../../../components/ScheduleIcon': 'ScheduleIcon', './ScheduleIconPickerSheet': 'IconPicker',
     '../../../utils/haptics': { triggerHaptic() {} }, '../../../hooks/useReducedMotionPreference': () => true,
     '../../../services/notificationService': { NOTIFICATION_TYPES: {}, ensureNotificationPushPermissionsForType: async () => ({ granted: true }) },
   }).default;
@@ -541,10 +548,22 @@ test('the schedule editor protects an unsaved draft and allows leaving after a s
   assert.deepEqual(added, []);
   assert.equal(wentBack, 0);
   await act(async () => duration.props.onChangeText('45'));
-  await act(async () => button(tree.root, 'common.save').props.onPress());
+  await act(async () => {
+    const save = button(tree.root, 'common.save');
+    save.props.onPress();
+    save.props.onPress();
+  });
   assert.equal(added.length, 1);
   assert.equal(added[0].name, 'Changed draft');
   assert.equal(wentBack, 1);
+});
+
+test('web onboarding hides inactive steps from focus and preserves input focus during scrolling', async t => {
+  const wizard = await mountOnboarding(t, 'web');
+  const steps = wizard.root().findAllByType('AnimatedView').filter(node => node.props.onLayout && 'pointerEvents' in node.props);
+  assert.equal(steps.filter(node => node.props['aria-hidden'] === false).length, 1);
+  assert.ok(steps.slice(1).every(node => node.props['aria-hidden'] && Object.assign({}, ...node.props.style).visibility === 'hidden'));
+  assert.equal(wizard.root().findByType('Scroll').props.keyboardDismissMode, 'none');
 });
 
 async function mountTimeEditor(t, platform = 'android', options = {}) {
@@ -667,4 +686,113 @@ test('a failed reset cannot report success or delete guest schedules, and duplic
   assert.ok(!haptics.includes('success'));
   assert.ok(tree.root.findAllByType('Text').some(node => node.props.children === tr('common.action_failed')));
   assert.equal(button(tree.root, 'common.wipe').props.disabled, false);
+});
+
+
+async function mountScheduleControl(t, name, initialValue, options = {}) {
+  const alerts = [];
+  const Component = load('src/components/' + name + '.jsx', {
+    'react-native': { View: 'View', Text: 'Text', TextInput: 'Input', TouchableOpacity: 'Button', StyleSheet: { create: x => x }, Alert: { alert: (...args) => alerts.push(args) } },
+    'phosphor-react-native': new Proxy({}, { get: (_, key) => key }),
+    './ui/TabSwitcher': 'Tabs', './ui/SettingsKit/SettingsGroup': 'Group', './ui/SettingsKit/SettingsRow': 'Row',
+    './ui/AdvancedColorPicker': 'ColorPicker', './ScheduleIcon': 'Icon', './ScheduleIconPickerSheet': 'IconPicker',
+    './CalendarSheet/CalendarSheet': 'Calendar', './ui/AppSwitch': 'Switch',
+    '../utils/haptics': { triggerHaptic() {} },
+    '../services/notificationService': { NOTIFICATION_TYPES: {}, ensureNotificationPushPermissionsForType: options.permission || (async () => ({ granted: true })) },
+  }).default;
+  let value, tree, active = true, update;
+  function Controlled() {
+    const [draft, setDraft] = React.useState(initialValue);
+    value = draft; update = setDraft;
+    return React.createElement(Component, { value: draft, onChange: setDraft, themeColors: themes.getColors('dark', 'blue'), lang: 'uk', active });
+  }
+  await act(async () => { tree = create(React.createElement(Controlled)); });
+  t.after(async () => act(async () => tree.unmount()));
+  return { root: () => tree.root, value: () => value, alerts,
+    async update(fn) { await act(async () => update(fn)); },
+    async setActive(next) { await act(async () => { active = next; tree.update(React.createElement(Controlled)); }); },
+  };
+}
+
+test('cycle field retains partial preset digits so twelve weeks can be typed and clamps to the supported range', async t => {
+  const editor = await mountScheduleControl(t, 'ScheduleCycleEditor', { repeat: '1', starting_week: '2026-10-12' });
+  const input = () => editor.root().findByType('Input');
+  await act(async () => input().props.onChangeText('1'));
+  assert.equal(input().props.value, '1');
+  await act(async () => input().props.onChangeText('12'));
+  assert.equal(input().props.value, '12');
+  assert.equal(editor.value().repeat, '12');
+  await act(async () => input().props.onChangeText('99'));
+  await act(async () => input().props.onBlur());
+  assert.equal(editor.value().repeat, '12');
+  await act(async () => editor.root().findByType('Tabs').props.onTabPress('2'));
+  assert.equal(input().props.value, '2');
+  await act(async () => editor.root().findAllByType('Row').find(row => row.props.icon === 'CalendarBlank').props.onPress());
+  assert.equal(editor.root().findByType('Calendar').props.visible, true);
+  await editor.setActive(false);
+  await editor.setActive(true);
+  assert.equal(editor.root().findByType('Calendar').props.visible, false);
+});
+
+test('identity editor applies custom colors and icons without losing schedule fields', async t => {
+  const editor = await mountScheduleControl(t, 'ScheduleIdentityEditor', { name: 'Course', color: '#123456', repeat: '2' });
+  await act(async () => editor.root().findAllByType('Row').find(row => row.props.label === tr('settings.schedule_editor.color')).props.onPress());
+  assert.equal(editor.root().findByType('ColorPicker').props.visible, true);
+  await act(async () => editor.root().findByType('ColorPicker').props.onSave('#654321'));
+  await act(async () => editor.root().findAllByType('Row').find(row => row.props.label === tr('settings.schedule_editor.icon')).props.onPress());
+  await act(async () => editor.root().findByType('IconPicker').props.onSelect('book'));
+  assert.deepEqual(editor.value(), { name: 'Course', color: '#654321', repeat: '2', icon: 'book' });
+  assert.equal(editor.root().findByType('IconPicker').props.visible, false);
+});
+
+test('reminder permission preserves concurrent schedule edits and switching off cancels a pending enable', async t => {
+  const permission = gate();
+  const editor = await mountScheduleControl(t, 'SchedulePreferencesEditor', { name: 'Before', reminder: { enabled: false } }, { permission: () => permission.promise });
+  await act(async () => editor.root().findAllByType('Row')[0].props.onPress());
+  const choices = () => editor.root().findAllByType('Button');
+  await act(async () => { choices().find(node => node.props.accessibilityLabel === i18n.t('schedule.reminders.before_minutes', 'uk', { minutes: '5' })).props.onPress(); });
+  await editor.update(prev => ({ ...prev, name: 'Latest' }));
+  await act(async () => { permission.resolve({ granted: true }); await permission.promise; });
+  assert.equal(editor.value().name, 'Latest');
+  assert.equal(editor.value().reminder.minutesBefore, 5);
+
+  const pending = gate();
+  const canceled = await mountScheduleControl(t, 'SchedulePreferencesEditor', { reminder: { enabled: false } }, { permission: () => pending.promise });
+  await act(async () => canceled.root().findAllByType('Row')[0].props.onPress());
+  await act(async () => { canceled.root().findAllByType('Button').find(node => node.props.accessibilityLabel === i18n.t('schedule.reminders.before_minutes', 'uk', { minutes: '5' })).props.onPress(); });
+  await act(async () => canceled.root().findAllByType('Button').find(node => node.props.accessibilityLabel === tr('schedule.reminders.off')).props.onPress());
+  await act(async () => { pending.resolve({ granted: true }); await pending.promise; });
+  assert.deepEqual(canceled.value().reminder, { enabled: false });
+});
+
+test('permission denial leaves reminders off and exposes an actionable explanation', async t => {
+  const editor = await mountScheduleControl(t, 'SchedulePreferencesEditor', { reminder: { enabled: false } }, { permission: async () => ({ granted: false, status: 'denied' }) });
+  await act(async () => editor.root().findAllByType('Row')[0].props.onPress());
+  await act(async () => editor.root().findAllByType('Button').find(node => node.props.accessibilityLabel === i18n.t('schedule.reminders.before_minutes', 'uk', { minutes: '5' })).props.onPress());
+  assert.deepEqual(editor.value().reminder, { enabled: false });
+  assert.equal(editor.alerts[0][1], tr('schedule.reminders.permission_denied'));
+});
+
+test('invalid durations expose a field error and never keep old times enabled', async t => {
+  const editor = await mountTimeEditor(t);
+  await act(async () => editor.root().findAllByType('Input').find(node => node.props.accessibilityLabel === i18n.t('settings.schedule_editor.timing.lesson_duration', 'uk', { number: 2 })).props.onChangeText('0'));
+  assert.ok(editor.root().findAllByType('Text').some(node => node.props.children === tr('settings.schedule_editor.timing.duration_range')));
+  const times = editor.root().findAllByType('Button').filter(node => node.props.accessibilityLabel?.includes(': '));
+  assert.ok(times.length > 0);
+  assert.ok(times.every(node => node.props.disabled && node.props.accessibilityLabel.endsWith('—')));
+});
+
+test('onboarding commits shared identity and cycle settings with normalized values', async t => {
+  const wizard = await mountOnboarding(t);
+  await act(async () => wizard.root().findAllByType('Input').find(node => node.props.accessibilityLabel === tr('settings.schedule_editor.enter_name')).props.onChangeText('  My course  '));
+  await act(async () => wizard.root().findAllByType('Input').find(node => node.props.accessibilityLabel === tr('settings.week_manager.repeat_label')).props.onChangeText('12'));
+  await act(async () => wizard.root().findByType('IconPicker').props.onSelect('book'));
+  await act(async () => wizard.root().findByType('ColorPicker').props.onSave('#654321'));
+  for (let i = 0; i < 4; i++) await act(async () => button(wizard.root(), 'onboarding.next').props.onPress());
+  await act(async () => button(wizard.root(), 'common.done').props.onPress());
+  assert.equal(wizard.added[0].name, 'My course');
+  assert.equal(wizard.added[0].repeat, 12);
+  assert.equal(wizard.added[0].icon, 'book');
+  assert.equal(wizard.added[0].color, '#654321');
+  assert.equal(wizard.added[0].duration, load('src/utils/scheduleTime.js').createScheduleTimingDraft().duration);
 });

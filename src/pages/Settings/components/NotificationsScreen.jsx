@@ -85,7 +85,7 @@ export default function NotificationsScreen() {
         ]}
       >
         <View style={[styles.iconContainer, { backgroundColor: themeColors.accentColor + "15" }]}>
-          <Icon size={20} color={themeColors.accentTextColor} weight="regular" />
+          <Icon size={20} color={themeColors.accentColor} weight="regular" />
         </View>
 
         <View style={styles.typeText}>
@@ -118,7 +118,7 @@ export default function NotificationsScreen() {
     <SettingsScreenLayout contentContainerStyle={styles.container}>
       <View style={styles.intro}>
         <View style={[styles.introIcon, { backgroundColor: themeColors.accentColor + "15" }]}>
-          <Bell size={22} color={themeColors.accentTextColor} weight="bold" />
+          <Bell size={22} color={themeColors.accentColor} weight="bold" />
         </View>
         <Text style={[styles.introTitle, { color: themeColors.textColor }]}>
           {t("settings.notifications.push_title", lang)}

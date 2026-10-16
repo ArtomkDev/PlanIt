@@ -23,7 +23,7 @@ export default function SettingsGroup({
       {(title || headerRight) && (
         <View style={styles.header}>
           {title ? (
-            <Text style={[
+            <Text accessibilityRole="header" style={[
               styles.title, 
               { color: isAndroid ? themeColors.accentTextColor : themeColors.textColor2 }
             ]}>
@@ -74,17 +74,22 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 8,
+    rowGap: 4,
     justifyContent: "space-between",
     alignItems: "flex-end",
     marginBottom: 6,
     paddingHorizontal: 16, 
   },
   title: {
+    flexShrink: 1,
     fontSize: isAndroid ? 14 : 13,
     fontWeight: isAndroid ? "700" : "400",
     letterSpacing: isAndroid ? 0 : 0.5,
   },
   headerRight: {
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,

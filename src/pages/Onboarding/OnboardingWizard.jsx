@@ -1,44 +1,28 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
   Animated, KeyboardAvoidingView, Platform,
   PanResponder, useColorScheme, useWindowDimensions, Alert, BackHandler, Keyboard
 } from 'react-native';
 import GradientBackground from '../../components/ui/GradientBackground';
 import {
-  CalendarDots, Clock, CalendarBlank, CaretDown,
+  CalendarDots, Clock,
   HandWaving, PencilSimple, CaretLeft,
-  CaretRight, Check, Eye, EyeSlash, Bell, CheckSquare, Palette, DownloadSimple
+  CaretRight, Check, Eye, EyeSlash, Bell, DownloadSimple
 } from 'phosphor-react-native';
 
 import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
-import { t, formatText as interpolateText } from '../../utils/i18n';
+import { t } from '../../utils/i18n';
 import themes from '../../config/themes';
 import defaultSchedule from '../../config/defaultSchedule';
-import TabSwitcher from '../../components/ui/TabSwitcher';
-import CalendarSheet from '../../components/CalendarSheet/CalendarSheet';
 import AppBlur from '../../components/ui/AppBlur';
-import AppSwitch from '../../components/ui/AppSwitch';
-
-import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
-import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
+import ScheduleIdentityEditor from '../../components/ScheduleIdentityEditor';
+import ScheduleCycleEditor from '../../components/ScheduleCycleEditor';
+import SchedulePreferencesEditor from '../../components/SchedulePreferencesEditor';
 import ScheduleTimeEditor from '../../components/ScheduleTimeEditor';
 import { triggerHaptic } from '../../utils/haptics';
-import {
-  CUSTOM_REMINDER_FALLBACK_MINUTES,
-  REMINDER_PRESET_MINUTES,
-  clampReminderMinutes,
-  getScheduleReminderSelectionId,
-  normalizeScheduleReminder,
-} from '../../utils/reminderSettings';
-import {
-  NOTIFICATION_TYPES,
-  ensureNotificationPushPermissionsForType,
-} from '../../services/notificationService';
-import {
-  TASK_AUTO_LINK_MODES,
-  getTaskAutoLinkMode,
-} from '../../utils/taskLessonLinking';
+import { normalizeScheduleReminder } from '../../utils/reminderSettings';
+import { getTaskAutoLinkMode } from '../../utils/taskLessonLinking';
 import {
   getLastMondayISODate,
   normalizeScheduleRepeat,
@@ -53,12 +37,6 @@ const TOTAL_STEPS = 5;
 const STEP_INDICES = Array.from({ length: TOTAL_STEPS }, (_, index) => index);
 const INITIAL_STEP_HEIGHTS = Array.from({ length: TOTAL_STEPS }, () => 400);
 const ICONS = [HandWaving, PencilSimple, CalendarDots, Clock, Bell];
-const SCHEDULE_COLOR_KEYS = [
-  "blue", "sky", "cyan", "teal",
-  "green", "emerald", "amber", "orange",
-  "red", "pink", "violet", "grey",
-];
-
 const expandFirstOutputRange = (firstValue, restValue) => [
   firstValue,
   ...Array.from({ length: TOTAL_STEPS - 1 }, () => restValue),
@@ -167,94 +145,19 @@ export default function OnboardingWizard({ onImportSchedule }) {
     return () => position.removeListener(id);
   }, [step, position]);
 
-  const [scheduleName, setScheduleName] = useState('');
-  const [scheduleColor, setScheduleColor] = useState(themeColors.accentColor);
-  const [weeksCount, setWeeksCount] = useState('1');
-  const [startingWeek, setStartingWeek] = useState(getLastMondayISODate);
-  const [isCalendarVisible, setCalendarVisible] = useState(false);
-  const [timing, setTiming] = useState(() => createScheduleTimingDraft({ start_time: '08:30', duration: 80, breaks: Array(5).fill(10), slotDurations: Array(6).fill(80) }));
-  const [scheduleReminder, setScheduleReminder] = useState(() => normalizeScheduleReminder(defaultSchedule.reminder));
-  const [customReminderMinutes, setCustomReminderMinutes] = useState(String(CUSTOM_REMINDER_FALLBACK_MINUTES));
-  const [taskAutoLinkMode, setTaskAutoLinkMode] = useState(() => getTaskAutoLinkMode(defaultSchedule));
-
-  const [isReminderExpanded, setIsReminderExpanded] = useState(false);
-  const scheduleColorOptions = useMemo(
-    () => SCHEDULE_COLOR_KEYS.map((key) => themes.accentColors[key]).filter(Boolean),
-    []
-  );
-
+  const [draft, setDraft] = useState(() => ({
+    ...defaultSchedule,
+    name: '',
+    color: themeColors.accentColor,
+    icon: null,
+    repeat: '1',
+    starting_week: getLastMondayISODate(),
+    ...createScheduleTimingDraft(),
+  }));
   const handleImportSchedule = useCallback(() => {
-    triggerHaptic("open");
+    triggerHaptic('open');
     onImportSchedule?.();
   }, [onImportSchedule]);
-  const toggleReminderExpand = () => setIsReminderExpanded(prev => !prev);
-
-  const formatReminderValue = useCallback((reminder) => {
-    const normalized = normalizeScheduleReminder(reminder);
-    if (!normalized.enabled) return t('schedule.reminders.off', lang);
-    return interpolateText(t('schedule.reminders.before_minutes', lang), {
-      minutes: normalized.minutesBefore,
-    });
-  }, [interpolateText, lang]);
-
-  const ensureReminderPermission = useCallback(async () => {
-    const permission = await ensureNotificationPushPermissionsForType(
-      NOTIFICATION_TYPES.LESSON_REMINDER,
-      {
-        request: true,
-        notificationPreferences: global?.notificationPreferences,
-      }
-    );
-    if (permission.disabledByPreference) return true;
-    if (!permission.granted && permission.status !== "unsupported") {
-      Alert.alert(t('common.warning', lang), t('schedule.reminders.permission_denied', lang));
-      return false;
-    }
-    return true;
-  }, [global?.notificationPreferences, lang]);
-
-  const handleReminderSelection = useCallback(async (selection) => {
-    if (selection === "off") {
-      triggerHaptic("toggleOff");
-      setScheduleReminder({ enabled: false });
-      return;
-    }
-
-    const canEnable = await ensureReminderPermission();
-    if (!canEnable) {
-      triggerHaptic("warning");
-      return;
-    }
-
-    if (selection === "custom") {
-      const minutes = clampReminderMinutes(customReminderMinutes, CUSTOM_REMINDER_FALLBACK_MINUTES);
-      setCustomReminderMinutes(String(minutes));
-      setScheduleReminder({ enabled: true, minutesBefore: minutes });
-      triggerHaptic("open");
-      return;
-    }
-
-    setScheduleReminder({ enabled: true, minutesBefore: clampReminderMinutes(selection) });
-    triggerHaptic("toggleOn");
-  }, [customReminderMinutes, ensureReminderPermission]);
-
-  const handleCustomReminderChange = useCallback((text) => {
-    const numericText = text.replace(/[^0-9]/g, '').slice(0, 4);
-    const minutes = numericText === '' ? 0 : clampReminderMinutes(numericText, 0);
-    const displayValue = numericText === '' ? '' : String(minutes);
-    setCustomReminderMinutes(displayValue);
-    setScheduleReminder({ enabled: true, minutesBefore: minutes });
-  }, []);
-
-  const handleTaskAutoLinkNextLessonChange = useCallback((enabled) => {
-    triggerHaptic(enabled ? "toggleOn" : "toggleOff");
-    setTaskAutoLinkMode(enabled ? TASK_AUTO_LINK_MODES.NEXT_SAME : TASK_AUTO_LINK_MODES.SELECTED);
-  }, []);
-
-  const handleScheduleColorPress = useCallback((color) => {
-    triggerHaptic(color === scheduleColor ? "selection" : "success");
-    setScheduleColor(color);
-  }, [scheduleColor]);
 
   const handleFinishRef = useRef();
   const navigateToStepRef = useRef();
@@ -263,21 +166,20 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
   const handleFinish = async () => {
     triggerHaptic("success");
-    const finalRepeat = normalizeScheduleRepeat(weeksCount);
+    const finalRepeat = normalizeScheduleRepeat(draft.repeat);
     const scheduleId = generateId();
     addSchedule({
-      ...defaultSchedule,
+      ...draft,
       id: scheduleId,
-      name: scheduleName.trim() || t('common.untitled', lang),
+      name: draft.name.trim() || t('common.schedule_name', lang),
       repeat: finalRepeat,
-      ...timing,
-      duration: Number(timing.slotDurations[0]),
-      slotDurations: timing.slotDurations.map(Number),
-      breaks: timing.breaks.map(Number),
-      starting_week: startingWeek,
-      reminder: normalizeScheduleReminder(scheduleReminder),
-      taskAutoLinkMode: getTaskAutoLinkMode({ taskAutoLinkMode }),
-      color: scheduleColor,
+      duration: Number(draft.slotDurations[0]),
+      slotDurations: draft.slotDurations.map(Number),
+      breaks: draft.breaks.map(Number),
+      starting_week: draft.starting_week,
+      reminder: normalizeScheduleReminder(draft.reminder),
+      taskAutoLinkMode: getTaskAutoLinkMode(draft),
+      color: draft.color,
     });
     setGlobalDraft(prev => ({ ...prev, currentScheduleId: scheduleId }));
   };
@@ -287,7 +189,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
     if (newStep < 0 || finishStartedRef.current) return;
     
     if (newStep >= TOTAL_STEPS) {
-      if (buildScheduleSlots(timing.start_time, timing.duration, timing.breaks, timing.slotDurations).length === 0) {
+      if (buildScheduleSlots(draft.start_time, draft.duration, draft.breaks, draft.slotDurations).length === 0) {
         Alert.alert(t('schedule.main_screen.time', lang), t('settings.schedule_editor.timing.invalid', lang));
         navigateToStepRef.current(3);
         return;
@@ -314,10 +216,6 @@ export default function OnboardingWizard({ onImportSchedule }) {
         if (finished) handleFinishRef.current();
       });
       return;
-    }
-    
-    if (newStep === 1 && currentPosRef.current < 0.5 && !scheduleName.trim()) {
-      setScheduleName(t('common.untitled', lang));
     }
     
     if (reduceMotion) {
@@ -411,16 +309,6 @@ export default function OnboardingWizard({ onImportSchedule }) {
   const dotsTop = position.interpolate({ inputRange: compactDotInputRange, outputRange: [140 + insets.top, dotsLiftTop, ...Array.from({ length: TOTAL_STEPS - 1 }, () => compactDotsTop)], extrapolate: 'clamp' });
   const dotsLeft = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(width / 2 - 40, 84), extrapolate: 'clamp' });
 
-  const isCustomRepeat = !['1', '2', '3', '4'].includes(String(weeksCount));
-  const reminderSelectionId = getScheduleReminderSelectionId(scheduleReminder);
-  const taskAutoLinkNextLesson = getTaskAutoLinkMode({ taskAutoLinkMode }) === TASK_AUTO_LINK_MODES.NEXT_SAME;
-  const isSingleWeek = Number(weeksCount) <= 1;
-
-  const startDateObj = new Date(startingWeek);
-  const formattedDate = startDateObj.toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' });
-  const dayOfWeek = startDateObj.toLocaleDateString(lang, { weekday: 'long' });
-  const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
-
   const renderStep0 = () => (
     <View style={styles.stepContent}>
       <View style={[styles.welcomeBadge, { backgroundColor: themeColors.accentColor + '15', borderColor: themeColors.accentColor + '35' }]}>
@@ -465,74 +353,15 @@ export default function OnboardingWizard({ onImportSchedule }) {
     <View style={styles.stepContent}>
       <Text style={[styles.title, { color: themeColors.textColor, textAlign: 'center' }]}>{t('onboarding.welcome_title', lang)}</Text>
       <Text style={[styles.subtitle, { color: themeColors.textColor2, textAlign: 'center', marginBottom: 30 }]}>{t('onboarding.welcome_subtitle', lang)}</Text>
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: themeColors.textColor }]}>{t('onboarding.step1_title', lang)}</Text>
-        <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.step1_desc', lang)}</Text>
-        <TextInput accessibilityLabel={t('onboarding.step1_title', lang)} style={[styles.textInput, { backgroundColor: themeColors.backgroundColor2, color: themeColors.textColor, borderColor: themeColors.borderColor }]} placeholder={t("common.schedule_name", lang)} placeholderTextColor={themeColors.textColor2} value={scheduleName} onChangeText={setScheduleName} />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <View style={styles.colorLabelRow}>
-          <Palette size={18} color={themeColors.accentTextColor} weight="regular" />
-          <Text style={[styles.label, styles.colorLabel, { color: themeColors.textColor }]}>{t('settings.schedule_editor.color', lang)}</Text>
-        </View>
-        <View style={styles.colorSwatches}>
-          {scheduleColorOptions.map((color) => {
-            const selected = color.toLowerCase() === String(scheduleColor).toLowerCase();
-            return (
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={`${t('settings.schedule_editor.color', lang)} ${color}`}
-                accessibilityState={{ selected }}
-                hitSlop={4}
-                key={color}
-                style={[
-                  styles.colorSwatch,
-                  {
-                    backgroundColor: color,
-                    borderColor: selected ? themeColors.textColor : themeColors.borderColor,
-                    transform: [{ scale: selected ? 1.06 : 1 }],
-                  },
-                ]}
-                onPress={() => handleScheduleColorPress(color)}
-                activeOpacity={0.78}
-              >
-                {selected && <Check size={18} color={themes.getColors(mode, color).textOnAccent} weight="bold" />}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
+      <ScheduleIdentityEditor value={draft} onChange={setDraft} themeColors={themeColors} lang={lang} active={step === 1} />
     </View>
   );
 
   const renderStep2 = () => (
     <View style={styles.stepContent}>
-      <Text style={[styles.title, { color: themeColors.textColor, textAlign: 'center' }]}>{t('onboarding.step2_title', lang)}</Text>
-      <Text style={[styles.subtitle, { color: themeColors.textColor2, textAlign: 'center', marginBottom: 30 }]}>{t('onboarding.step2_desc', lang)}</Text>
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: themeColors.textColor }]}>{t('settings.menu.weeks.title', lang)}</Text>
-        <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.weeks_count_desc', lang)}</Text>
-        <TabSwitcher tabs={[{ id: '1', label: '1' }, { id: '2', label: '2' }, { id: '3', label: '3' }, { id: '4', label: '4' }]} activeTab={String(weeksCount)} onTabPress={setWeeksCount} themeColors={themeColors} activeTabBackgroundColor={isCustomRepeat ? 'transparent' : themeColors.accentColor} containerBackgroundColor={themeColors.backgroundColor2} containerBorderColor={themeColors.borderColor} />
-        <View style={[styles.customInputContainer, { backgroundColor: themeColors.backgroundColor2, borderColor: (isCustomRepeat && weeksCount !== "") ? themeColors.accentColor : themeColors.borderColor }]}>
-          <TextInput accessibilityLabel={t('settings.menu.weeks.title', lang)} style={[styles.customInput, { color: themeColors.textColor }]} value={isCustomRepeat ? String(weeksCount) : ""} onChangeText={(text) => setWeeksCount(text.replace(/[^0-9]/g, ''))} onBlur={() => setWeeksCount(String(normalizeScheduleRepeat(weeksCount)))} placeholder={t('settings.week_manager.repeat_label', lang)} placeholderTextColor={themeColors.textColor2} keyboardType="number-pad" maxLength={2} />
-        </View>
-      </View>
-
-      <View style={[styles.inputGroup, { opacity: isSingleWeek ? 0.5 : 1, marginTop: 10 }]}>
-        <Text style={[styles.label, { color: themeColors.textColor }]}>{t('onboarding.starting_week', lang)}</Text>
-        <Text style={[styles.inputDesc, { color: themeColors.textColor2 }]}>{t('onboarding.starting_week_desc', lang)}</Text>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('onboarding.starting_week', lang)} style={[styles.dateCard, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]} onPress={() => { triggerHaptic("open"); setCalendarVisible(true); }} activeOpacity={0.7}>
-          <View style={[styles.dateCardIcon, { backgroundColor: themeColors.accentColor + '15' }]}>
-            <CalendarBlank size={26} color={themeColors.accentTextColor} weight="fill" />
-          </View>
-          <View style={styles.dateCardTextContainer}>
-            <Text style={[styles.dateCardDay, { color: themeColors.textColor }]}>{capitalizedDay}</Text>
-            <Text style={[styles.dateCardDate, { color: themeColors.textColor2 }]}>{formattedDate}</Text>
-          </View>
-          <CaretDown size={20} color={themeColors.textColor2} weight="bold" style={{ opacity: 0.5 }} />
-        </TouchableOpacity>
-      </View>
+      <Text style={[styles.title, { color: themeColors.textColor }]}>{t('onboarding.step2_title', lang)}</Text>
+      <Text style={[styles.subtitle, { color: themeColors.textColor2, marginBottom: 20 }]}>{t('onboarding.step2_desc', lang)}</Text>
+      <ScheduleCycleEditor value={draft} onChange={setDraft} themeColors={themeColors} lang={lang} active={step === 2} />
     </View>
   );
 
@@ -541,7 +370,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
       <Text style={[styles.title, { color: themeColors.textColor, textAlign: 'center' }]}>{t('onboarding.step3_title', lang)}</Text>
       <Text style={[styles.subtitle, { color: themeColors.textColor2, textAlign: 'center', marginBottom: 20 }]}>{t('onboarding.step3_desc', lang)}</Text>
       
-      <ScheduleTimeEditor value={timing} onChange={setTiming} themeColors={themeColors} lang={lang} mode={mode} active={step === 3} />
+      <ScheduleTimeEditor value={draft} onChange={setDraft} themeColors={themeColors} lang={lang} mode={mode} active={step === 3} />
     </View>
   );
 
@@ -551,94 +380,8 @@ export default function OnboardingWizard({ onImportSchedule }) {
       <Text style={[styles.subtitle, { color: themeColors.textColor2, textAlign: 'center', marginBottom: 20 }]}>{t('onboarding.step4_desc', lang)}</Text>
 
       <View style={{ width: '100%' }}>
-        <SettingsGroup themeColors={themeColors}>
-          <SettingsRow
-            label={t('schedule.reminders.title', lang)}
-            value={formatReminderValue(scheduleReminder)}
-            icon={Bell}
-            themeColors={themeColors}
-            onPress={toggleReminderExpand}
-          />
-          {isReminderExpanded && (
-            <View style={styles.expandedContent}>
-              <View style={styles.reminderChoiceGrid}>
-                {[
-                  { id: 'off', label: t('schedule.reminders.off', lang) },
-                  ...REMINDER_PRESET_MINUTES.map((minutesBefore) => ({
-                    id: String(minutesBefore),
-                    label: String(minutesBefore),
-                  })),
-                  { id: 'custom', label: t('common.custom', lang) },
-                ].map((option) => {
-                  const selected = reminderSelectionId === option.id;
-                  return (
-                    <TouchableOpacity
-                      accessibilityRole="radio"
-                      accessibilityLabel={option.id === 'off' || option.id === 'custom' ? option.label : t('schedule.reminders.before_minutes', lang, { minutes: option.label })}
-                      accessibilityState={{ checked: selected }}
-                      key={option.id}
-                      style={[
-                        styles.reminderChoice,
-                        {
-                          backgroundColor: selected ? themeColors.accentColor : themeColors.backgroundColor,
-                          borderColor: selected ? themeColors.accentColor : themeColors.borderColor,
-                        },
-                      ]}
-                      onPress={() => handleReminderSelection(option.id)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[styles.reminderChoiceText, { color: selected ? themeColors.textOnAccent : themeColors.textColor }]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {reminderSelectionId === 'custom' && (
-                <View style={[styles.reminderInputWrapper, { backgroundColor: themeColors.backgroundColor, borderColor: themeColors.accentColor }]}>
-                  <TextInput
-                    accessibilityLabel={t('schedule.reminders.custom_placeholder', lang)}
-                    style={[styles.reminderInput, { color: themeColors.textColor }]}
-                    value={customReminderMinutes}
-                    onChangeText={handleCustomReminderChange}
-                    placeholder={t('schedule.reminders.custom_placeholder', lang)}
-                    placeholderTextColor={themeColors.textColor2}
-                    keyboardType="number-pad"
-                    maxLength={4}
-                    returnKeyType="done"
-                  />
-                  <Text style={[styles.inputSuffix, { color: themeColors.textColor2 }]}>
-                    {t('schedule.main_screen.minutes', lang)}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          <SettingsRow
-            label={t('settings.schedule_editor.task_auto_link', lang)}
-            desc={t('settings.schedule_editor.task_auto_link_hint', lang)}
-            icon={CheckSquare}
-            themeColors={themeColors}
-            showCaret={false}
-            skipHaptic
-            accessibilityRole="switch"
-            accessibilityState={{ checked: taskAutoLinkNextLesson }}
-            rightContentPointerEvents="none"
-            onPress={() => handleTaskAutoLinkNextLessonChange(!taskAutoLinkNextLesson)}
-            rightContent={(
-              <AppSwitch
-                accessibilityLabel={t('settings.schedule_editor.task_auto_link', lang)}
-                value={taskAutoLinkNextLesson}
-                onValueChange={handleTaskAutoLinkNextLessonChange}
-                themeColors={themeColors}
-                size="small"
-                interactive={false}
-              />
-            )}
-          />
-        </SettingsGroup>
+        <SchedulePreferencesEditor value={draft} onChange={setDraft} themeColors={themeColors} lang={lang}
+          notificationPreferences={global?.notificationPreferences} active={step === 4} />
       </View>
 
       <View style={[styles.finishSummary, { backgroundColor: themeColors.accentColor + '12', borderColor: themeColors.accentColor + '30' }]}>
@@ -664,7 +407,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
           contentContainerStyle={[styles.scrollContent, { paddingBottom: (showNavButtons ? 110 : 24) + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode={Platform.OS === 'web' ? 'none' : 'on-drag'}
           scrollEventThrottle={Platform.OS === 'android' ? 32 : 16}
           removeClippedSubviews={Platform.OS === 'android'}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
@@ -703,10 +446,12 @@ export default function OnboardingWizard({ onImportSchedule }) {
                       });
                     }
                   }}
-                  style={[styles.stepWrapper, { width, opacity, transform: [{ translateX }, { scale }], zIndex: isActive ? 10 : 0 }]}
+                  style={[styles.stepWrapper, { width, opacity, transform: [{ translateX }, { scale }], zIndex: isActive ? 10 : 0 },
+                    Platform.OS === 'web' && { visibility: isActive ? 'visible' : 'hidden' }]}
                   renderToHardwareTextureAndroid={Platform.OS === 'android' && isActive}
                   pointerEvents={isActive ? 'auto' : 'none'}
                   accessibilityElementsHidden={!isActive}
+                  aria-hidden={!isActive}
                   importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
                 >
                   {renderItem()}
@@ -823,7 +568,6 @@ export default function OnboardingWizard({ onImportSchedule }) {
 
       </Animated.View>
 
-      <CalendarSheet visible={isCalendarVisible} onClose={() => setCalendarVisible(false)} currentDate={new Date(startingWeek)} customSchedule={{ repeat: normalizeScheduleRepeat(weeksCount) }} onDateSelect={(date) => { setStartingWeek(date.toISOString()); setCalendarVisible(false); }} />
     </KeyboardAvoidingView>
   );
 }
@@ -838,7 +582,7 @@ const styles = StyleSheet.create({
   iconCircle: { position: 'absolute', width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { flexGrow: 1 },
   contentContainer: { position: 'relative', paddingTop: 20 },
-  stepWrapper: { position: 'absolute', top: 20, left: 0, paddingHorizontal: 24 },
+  stepWrapper: { position: 'absolute', top: 20, left: 0, paddingHorizontal: 16 },
   stepContent: { alignItems: 'center', width: '100%', paddingBottom: 20 },
   title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
   subtitle: { fontSize: 16, textAlign: 'center', marginBottom: 40, lineHeight: 24, paddingHorizontal: 10 },
@@ -853,29 +597,6 @@ const styles = StyleSheet.create({
   importScheduleDesc: { fontSize: 13, lineHeight: 18 },
   swipeHint: { fontSize: 15, fontWeight: '600', marginTop: 28, opacity: 0.6 },
   swipeHintSub: { fontSize: 13, marginTop: 12, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 },
-  inputGroup: { width: '100%', marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 6, opacity: 0.9 },
-  inputDesc: { fontSize: 13, marginBottom: 12, lineHeight: 18 },
-  textInput: { width: '100%', height: 56, borderRadius: 16, paddingHorizontal: 16, fontSize: 16, borderWidth: 1 },
-  colorLabelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  colorLabel: { marginBottom: 0, marginLeft: 8 },
-  colorSwatches: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignSelf: 'center', gap: 10, maxWidth: 292 },
-  colorSwatch: { width: 40, height: 40, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  customInputContainer: { height: 52, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, marginTop: 12 },
-  customInput: { fontSize: 16, fontWeight: '500', height: '100%' },
-  dateCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
-  dateCardIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  dateCardTextContainer: { flex: 1 },
-  dateCardDay: { fontSize: 17, fontWeight: '600', marginBottom: 2 },
-  dateCardDate: { fontSize: 14 },
-  
-  expandedContent: { paddingHorizontal: 16, paddingVertical: 16 },
-  reminderChoiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  reminderChoice: { minWidth: 58, height: 40, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  reminderChoiceText: { fontSize: 14, fontWeight: '700' },
-  reminderInputWrapper: { height: 48, flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, marginTop: 12 },
-  reminderInput: { flex: 1, fontSize: 16, fontWeight: '600', paddingVertical: 0 },
-  inputSuffix: { fontSize: 14, fontWeight: '600', marginLeft: 8 },
   finishSummary: { width: '100%', minHeight: 54, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 12, marginTop: 18, flexDirection: 'row', alignItems: 'center' },
   finishSummaryText: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '600', marginLeft: 10 },
   bottomNavContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 36 : 20, borderTopWidth: StyleSheet.hairlineWidth, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'transparent', overflow: 'hidden' },

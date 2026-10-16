@@ -90,19 +90,11 @@ const themes = {
     }
 
     const textOnAccent = tinycolor.mostReadable(accentColor, ['#FFFFFF', '#111827'], { includeFallbackColors: true }).toHexString();
-    let accentTextColor = accentColor;
-    for (let amount = 0; amount <= 100; amount += 10) {
-      const candidate = tinycolor.mix(accentColor, baseTheme.textColor, amount).toHexString();
-      if ([baseTheme.backgroundColor, baseTheme.backgroundColor2].every(background => tinycolor.readability(candidate, background) >= 4.5)) {
-        accentTextColor = candidate;
-        break;
-      }
-    }
 
     return {
       ...baseTheme,
       accentColor,
-      accentTextColor,
+      accentTextColor: accentColor,
       textOnAccent,
       accentColorLight: accentColor + '20',
     };

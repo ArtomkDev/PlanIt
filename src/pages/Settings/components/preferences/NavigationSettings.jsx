@@ -46,7 +46,7 @@ const PREVIEW_VARIANTS = {
       backgroundColor: themeColors.accentColor,
       top: 0,
     }),
-    activeIconColor: ({ themeColors }) => themeColors.accentTextColor,
+    activeIconColor: ({ themeColors }) => themeColors.accentColor,
     activeLabelColor: ({ themeColors }) => themeColors.accentTextColor,
   },
   floating: {
@@ -67,7 +67,7 @@ const PREVIEW_VARIANTS = {
         transform: [{ translateY: -height / 2 }],
       };
     },
-    activeIconColor: ({ themeColors }) => themeColors.accentTextColor,
+    activeIconColor: ({ themeColors }) => themeColors.accentColor,
     activeLabelColor: ({ themeColors }) => themeColors.accentTextColor,
   },
   dot: {
@@ -81,7 +81,7 @@ const PREVIEW_VARIANTS = {
       backgroundColor: themeColors.accentColor,
       top: Math.round((showLabels ? metrics.indicator.topWithLabels : metrics.indicator.topIconsOnly) * scale),
     }),
-    activeIconColor: ({ themeColors }) => themeColors.accentTextColor,
+    activeIconColor: ({ themeColors }) => themeColors.accentColor,
     activeLabelColor: ({ themeColors }) => themeColors.accentTextColor,
   },
   liquidGlass: {
@@ -102,7 +102,7 @@ const PREVIEW_VARIANTS = {
         transform: [{ translateY: -height / 2 }],
       };
     },
-    activeIconColor: ({ themeColors }) => themeColors.accentTextColor,
+    activeIconColor: ({ themeColors }) => themeColors.accentColor,
     activeLabelColor: ({ themeColors }) => themeColors.accentTextColor,
   },
 };

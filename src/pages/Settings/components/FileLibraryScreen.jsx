@@ -551,7 +551,7 @@ export default function FileLibraryScreen() {
       >
         <Icon
           size={18}
-          color={isAdding ? themeColors.textOnAccent : themeColors.accentTextColor}
+          color={isAdding ? themeColors.textOnAccent : themeColors.accentColor}
           weight="bold"
         />
         <Text
@@ -780,7 +780,7 @@ export default function FileLibraryScreen() {
         ]}
       >
         <View style={[styles.fileIcon, { backgroundColor: themeColors.accentColor + "18" }]}>
-          <Icon size={20} color={themeColors.accentTextColor} weight="bold" />
+          <Icon size={20} color={themeColors.accentColor} weight="bold" />
         </View>
 
         {isRenaming ? (
@@ -1089,7 +1089,7 @@ export default function FileLibraryScreen() {
         <View style={styles.storagePanel}>
           <View style={styles.storageHeader}>
             <View style={[styles.storageIcon, { backgroundColor: themeColors.accentColor + "18" }]}>
-              <Cloud size={22} color={themeColors.accentTextColor} weight="bold" />
+              <Cloud size={22} color={themeColors.accentColor} weight="bold" />
             </View>
             <View style={styles.storageTextBlock}>
               <Text style={[styles.storageValue, { color: themeColors.textColor }]}>
@@ -1153,7 +1153,7 @@ export default function FileLibraryScreen() {
               { backgroundColor: webDropActive ? themeColors.accentColor : themeColors.accentColor + "18" },
             ]}
           >
-            <CloudArrowUp size={24} color={webDropActive ? themeColors.textOnAccent : themeColors.accentTextColor} weight="bold" />
+            <CloudArrowUp size={24} color={webDropActive ? themeColors.textOnAccent : themeColors.accentColor} weight="bold" />
           </View>
           <View style={styles.webUploadTextBlock}>
             <Text style={[styles.webUploadTitle, { color: themeColors.textColor }]} numberOfLines={1}>
