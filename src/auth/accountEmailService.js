@@ -1,59 +1,24 @@
-import * as Linking from 'expo-linking';
 import {
   confirmPasswordReset,
-  sendPasswordResetEmail,
   signOut,
   verifyPasswordResetCode,
 } from 'firebase/auth';
 
 import { auth } from '../config/firebase';
 
-const IOS_BUNDLE_ID = 'com.artomk.planit';
-const ANDROID_PACKAGE_NAME = 'com.artomk.planit';
 const PASSWORD_RESET_MODE = 'resetPassword';
 export const PASSWORD_ACTION_ADD = 'addPassword';
 export const PASSWORD_ACTION_RESET = 'resetPassword';
 const NESTED_LINK_PARAMS = ['link', 'deep_link_id'];
 const REQUEST_TIMEOUT_MS = 12_000;
-const normalizeHost = (value) => (value || '')
-  .trim()
-  .replace(/^https?:\/\//, '')
-  .split('/')[0];
-
-
-const getConfiguredActionUrl = () => {
-  const configuredUrl = process.env.EXPO_PUBLIC_PASSWORD_RESET_URL?.trim();
-  if (configuredUrl) return configuredUrl;
-
-  const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
-  if (authDomain) {
-    const normalizedDomain = authDomain
-      .replace(/^https?:\/\//, '')
-      .replace(/\/$/, '');
-    return `https://${normalizedDomain}/`;
-  }
-
-  return Linking.createURL('/password-reset');
-};
 
 const normalizePasswordAction = (value) => (
   value === PASSWORD_ACTION_ADD ? PASSWORD_ACTION_ADD : PASSWORD_ACTION_RESET
 );
 
-const normalizePasswordActionLanguage = (value) => (
+const normalizeAccountEmailLanguage = (value) => (
   String(value || '').toLowerCase().startsWith('uk') ? 'uk' : 'en'
 );
-
-const withPasswordActionContext = (urlValue, { purpose, lang } = {}) => {
-  try {
-    const url = new URL(urlValue);
-    url.searchParams.set('passwordAction', normalizePasswordAction(purpose));
-    url.searchParams.set('lang', normalizePasswordActionLanguage(lang));
-    return url.toString();
-  } catch {
-    return urlValue;
-  }
-};
 
 export const hasPasswordProvider = (user = auth.currentUser) =>
   Boolean(
@@ -62,51 +27,20 @@ export const hasPasswordProvider = (user = auth.currentUser) =>
     ),
   );
 
-export const getPasswordResetActionCodeSettings = ({
-  purpose = PASSWORD_ACTION_RESET,
-  lang = 'en',
-} = {}) => {
-  const linkDomain = normalizeHost(
-    process.env.EXPO_PUBLIC_FIREBASE_AUTH_LINK_DOMAIN,
-  );
-  const isDefaultFirebaseDomain =
-    linkDomain.endsWith('.firebaseapp.com')
-    || linkDomain.endsWith('.web.app');
-
-  return {
-    url: withPasswordActionContext(getConfiguredActionUrl(), { purpose, lang }),
-    handleCodeInApp: true,
-    ...(linkDomain && !isDefaultFirebaseDomain ? { linkDomain } : {}),
-    iOS: {
-      bundleId: IOS_BUNDLE_ID,
-    },
-    android: {
-      packageName: ANDROID_PACKAGE_NAME,
-      installApp: false,
-    },
-  };
-};
-
 export const requestPasswordResetEmailForEmail = async ({
   email,
   lang = 'en',
 } = {}) => {
   const normalizedEmail = email?.trim();
   if (!normalizedEmail) {
-    const error = new Error('The account email is unavailable.');
-    error.code = 'password-reset/email-unavailable';
-    throw error;
+    throw createAccountEmailError('email-unavailable', 'The account email is unavailable.');
   }
 
-  auth.languageCode = lang === 'uk' ? 'uk' : 'en';
-  await sendPasswordResetEmail(
-    auth,
-    normalizedEmail,
-    getPasswordResetActionCodeSettings({
-      purpose: PASSWORD_ACTION_RESET,
-      lang,
-    }),
-  );
+  await requestAccountActionEmail({
+    purpose: PASSWORD_ACTION_RESET,
+    email: normalizedEmail,
+    lang,
+  });
 
   return normalizedEmail;
 };
@@ -118,59 +52,48 @@ export const requestPasswordResetEmail = ({
   return requestPasswordResetEmailForEmail({ email: user?.email, lang });
 };
 
-const getAddPasswordEmailEndpoint = () => {
-  const configuredEndpoint =
-    process.env.EXPO_PUBLIC_ADD_PASSWORD_EMAIL_ENDPOINT?.trim();
+const getAccountEmailEndpoint = (purpose) => {
+  const endpoints = {
+    addPassword: ['sendAddPasswordEmail', process.env.EXPO_PUBLIC_ADD_PASSWORD_EMAIL_ENDPOINT],
+    resetPassword: ['sendPasswordResetEmail', process.env.EXPO_PUBLIC_PASSWORD_RESET_EMAIL_ENDPOINT],
+    verifyEmail: ['sendAccountVerificationEmail', process.env.EXPO_PUBLIC_ACCOUNT_VERIFICATION_EMAIL_ENDPOINT],
+    verifyAndChangeEmail: ['sendEmailChangeEmail', process.env.EXPO_PUBLIC_EMAIL_CHANGE_EMAIL_ENDPOINT],
+  };
+  const [functionName, endpoint] = endpoints[purpose];
+  const configuredEndpoint = endpoint?.trim();
   if (configuredEndpoint) return configuredEndpoint;
 
   const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim();
   return projectId
-    ? 'https://europe-west1-' + projectId + '.cloudfunctions.net/sendAddPasswordEmail'
+    ? 'https://europe-west1-' + projectId + '.cloudfunctions.net/' + functionName
     : '';
 };
 
-const createPasswordActionError = (code, message) => {
+const createAccountEmailError = (code, message) => {
   const error = new Error(message || code);
-  error.code = 'password-reset/' + code;
+  error.code = 'account-email/' + code;
   return error;
 };
 
-export const requestAddPasswordEmail = async ({
-  user = auth.currentUser,
-  lang = 'en',
-} = {}) => {
-  const email = user?.email?.trim();
-  if (!user || !email) {
-    throw createPasswordActionError(
-      'email-unavailable',
-      'The account email is unavailable.',
-    );
-  }
-  if (hasPasswordProvider(user)) {
-    throw createPasswordActionError(
-      'password-already-exists',
-      'This account already has a password.',
-    );
-  }
-
-  const endpoint = getAddPasswordEmailEndpoint();
+const requestAccountActionEmail = async ({ purpose, email, user, lang, newEmail }) => {
+  const endpoint = getAccountEmailEndpoint(purpose);
   let endpointUrl;
   try {
     endpointUrl = new URL(endpoint);
   } catch {
-    throw createPasswordActionError(
+    throw createAccountEmailError(
       'service-unavailable',
-      'The add-password email service is not configured.',
+      'The account email service is not configured.',
     );
   }
   if (endpointUrl.protocol !== 'https:') {
-    throw createPasswordActionError(
+    throw createAccountEmailError(
       'service-unavailable',
-      'The add-password email service must use HTTPS.',
+      'The account email service must use HTTPS.',
     );
   }
 
-  const firebaseIdToken = await user.getIdToken();
+  const firebaseIdToken = user ? await user.getIdToken() : null;
   const abortController =
     typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timeoutId = setTimeout(() => abortController?.abort(), REQUEST_TIMEOUT_MS);
@@ -180,18 +103,20 @@ export const requestAddPasswordEmail = async ({
     response = await fetch(endpointUrl.toString(), {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + firebaseIdToken,
+        ...(firebaseIdToken ? { Authorization: 'Bearer ' + firebaseIdToken } : {}),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        locale: normalizePasswordActionLanguage(lang),
+        locale: normalizeAccountEmailLanguage(lang),
+        ...(purpose === PASSWORD_ACTION_RESET ? { email } : {}),
+        ...(purpose === 'verifyAndChangeEmail' ? { newEmail } : {}),
       }),
       ...(abortController ? { signal: abortController.signal } : {}),
     });
   } catch {
-    throw createPasswordActionError(
+    throw createAccountEmailError(
       'email-failed',
-      'The add-password email could not be sent.',
+      'The account email could not be sent.',
     );
   } finally {
     clearTimeout(timeoutId);
@@ -207,10 +132,54 @@ export const requestAddPasswordEmail = async ({
     } catch {
       // A non-JSON server error intentionally maps to the generic public code.
     }
-    throw createPasswordActionError(publicCode, 'The add-password email failed.');
+    throw createAccountEmailError(publicCode, 'The account email failed.');
+  }
+};
+
+export const requestAddPasswordEmail = async ({
+  user = auth.currentUser,
+  lang = 'en',
+} = {}) => {
+  const email = user?.email?.trim();
+  if (!user || !email) {
+    throw createAccountEmailError('email-unavailable', 'The account email is unavailable.');
+  }
+  if (hasPasswordProvider(user)) {
+    throw createAccountEmailError(
+      'password-already-exists',
+      'This account already has a password.',
+    );
   }
 
+  await requestAccountActionEmail({ purpose: PASSWORD_ACTION_ADD, user, lang });
   return email;
+};
+
+export const requestEmailVerification = async ({
+  user = auth.currentUser,
+  lang = 'en',
+} = {}) => {
+  if (!user?.email) {
+    throw createAccountEmailError('email-unavailable', 'The account email is unavailable.');
+  }
+  await requestAccountActionEmail({ purpose: 'verifyEmail', user, lang });
+  return user.email;
+};
+
+export const requestEmailChange = async ({
+  user = auth.currentUser,
+  newEmail,
+  lang = 'en',
+} = {}) => {
+  if (!user?.email) {
+    throw createAccountEmailError('email-unavailable', 'The account email is unavailable.');
+  }
+  const normalizedEmail = typeof newEmail === 'string' ? newEmail.trim().toLowerCase() : '';
+  if (!normalizedEmail) {
+    throw createAccountEmailError('invalid-email', 'The new email is unavailable.');
+  }
+  await requestAccountActionEmail({ purpose: 'verifyAndChangeEmail', user, newEmail: normalizedEmail, lang });
+  return normalizedEmail;
 };
 
 const parseUrl = (value) => {
@@ -228,7 +197,7 @@ const readPasswordActionContext = (url) => {
       url.searchParams.get('passwordAction')
       || continueUrl?.searchParams.get('passwordAction'),
     ),
-    lang: normalizePasswordActionLanguage(
+    lang: normalizeAccountEmailLanguage(
       url.searchParams.get('lang')
       || continueUrl?.searchParams.get('lang'),
     ),

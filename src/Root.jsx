@@ -26,7 +26,7 @@ import { AdsProvider } from './context/AdsContext';
 import CookieConsentBanner from './components/privacy/CookieConsentBanner';
 import WebThemeStyles from './components/ui/WebThemeStyles';
 import PasswordResetScreen from './auth/PasswordResetScreen';
-import { createPasswordResetNavigationUrl } from './auth/passwordResetService';
+import { createPasswordResetNavigationUrl } from './auth/accountEmailService';
 
 initGlobalErrorHandling();
 SplashScreen.preventAutoHideAsync();

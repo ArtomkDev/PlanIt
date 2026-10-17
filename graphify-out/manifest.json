@@ -36,10 +36,10 @@
     "semantic_hash": "5cea5acb504f61ba856a512620293f4c"
   },
   "package.json": {
-    "mtime": 1792196622.3015893,
-    "seen": 1792198486.093109,
-    "ast_hash": "087fc50ebc037ca274faf7c7fbe582b9",
-    "semantic_hash": "087fc50ebc037ca274faf7c7fbe582b9"
+    "mtime": 1792258577.4604018,
+    "seen": 1792258608.8692317,
+    "ast_hash": "33b37228b4cb330dc0d8afcd27a33844",
+    "semantic_hash": "33b37228b4cb330dc0d8afcd27a33844"
   },
   "scripts/build-aab.ps1": {
     "mtime": 1789063686.2232335,
@@ -72,16 +72,16 @@
     "semantic_hash": "104d2b978bd6cc77e12e339e3784a4b1"
   },
   "src/Root.jsx": {
-    "mtime": 1792050375.653656,
-    "seen": 1792050560.6478858,
-    "ast_hash": "de4961d8fc30a9ec08dce6f35759dda6",
-    "semantic_hash": "de4961d8fc30a9ec08dce6f35759dda6"
+    "mtime": 1792256413.0830483,
+    "seen": 1792257103.8122785,
+    "ast_hash": "bc5a1fe72ed9e0ead282bbefc17d4915",
+    "semantic_hash": "bc5a1fe72ed9e0ead282bbefc17d4915"
   },
   "src/auth/AuthScreen.jsx": {
-    "mtime": 1791210834.9471743,
-    "seen": 1791210919.155169,
-    "ast_hash": "f0d33618ec0246b54ea2cc3059a58f25",
-    "semantic_hash": "f0d33618ec0246b54ea2cc3059a58f25"
+    "mtime": 1792258548.5669208,
+    "seen": 1792258608.8714817,
+    "ast_hash": "ef76d742da059979f22627ef72c09142",
+    "semantic_hash": "ef76d742da059979f22627ef72c09142"
   },
   "src/auth/authServices.js": {
     "mtime": 1790090149.5180533,
@@ -582,10 +582,10 @@
     "semantic_hash": "721e5cce28f119fe9f0377a17eb8bec7"
   },
   "src/pages/Settings/components/AccountSettings/components/ChangeEmailScreen.jsx": {
-    "mtime": 1791208839.313916,
-    "seen": 1791210361.0402572,
-    "ast_hash": "efb6f4f6fdda2df8ca51b8c40cc88e5e",
-    "semantic_hash": "efb6f4f6fdda2df8ca51b8c40cc88e5e"
+    "mtime": 1792256474.3683057,
+    "seen": 1792257103.8342133,
+    "ast_hash": "78171b8dd705331ea78b87980d55c4da",
+    "semantic_hash": "78171b8dd705331ea78b87980d55c4da"
   },
   "src/pages/Settings/components/AccountSettings/components/ChangeNameScreen.jsx": {
     "mtime": 1791208839.1177533,
@@ -594,10 +594,10 @@
     "semantic_hash": "6de37d7ac66b55a51568e752d0f54570"
   },
   "src/pages/Settings/components/AccountSettings/components/ChangePasswordScreen.jsx": {
-    "mtime": 1791211080.3156269,
-    "seen": 1791211343.6888323,
-    "ast_hash": "3e700eb9d9ee78ec4f800d4a52fe18d9",
-    "semantic_hash": "3e700eb9d9ee78ec4f800d4a52fe18d9"
+    "mtime": 1792256413.095256,
+    "seen": 1792257103.8344138,
+    "ast_hash": "856115166253cc2b86d68bef28d3ea9f",
+    "semantic_hash": "856115166253cc2b86d68bef28d3ea9f"
   },
   "src/pages/Settings/components/AccountSettings/components/DeleteAccountScreen.jsx": {
     "mtime": 1790123529.4914463,
@@ -922,16 +922,16 @@
     "semantic_hash": ""
   },
   "functions/package.json": {
-    "mtime": 1791966875.9206004,
-    "seen": 1791967039.8814435,
-    "ast_hash": "8e9c26df6cfaccb13bf6251f0d579e87",
-    "semantic_hash": "8e9c26df6cfaccb13bf6251f0d579e87"
+    "mtime": 1792256566.1505547,
+    "seen": 1792257103.8094277,
+    "ast_hash": "1e8c00b3e56aaa4eca2108bbe577e3b8",
+    "semantic_hash": "1e8c00b3e56aaa4eca2108bbe577e3b8"
   },
   "functions/src/index.js": {
-    "mtime": 1789063686.1924622,
-    "seen": 1789064222.0266852,
-    "ast_hash": "faed0326d27e2c9b5ef76ef395ab8c50",
-    "semantic_hash": "faed0326d27e2c9b5ef76ef395ab8c50"
+    "mtime": 1792261769.666049,
+    "seen": 1792261865.7504601,
+    "ast_hash": "991c252b83e984bc806817b608d12680",
+    "semantic_hash": "991c252b83e984bc806817b608d12680"
   },
   "src/services/accountDeletionService.js": {
     "mtime": 1789063686.3097298,
@@ -1071,10 +1071,10 @@
     "semantic_hash": "f6abd4bf78c43167a27114a75b6d1e6f"
   },
   "src/auth/PasswordResetScreen.jsx": {
-    "mtime": 1791208838.9458187,
-    "seen": 1791210360.887997,
-    "ast_hash": "3d7f8861461aa02fc255af68c34e2327",
-    "semantic_hash": "3d7f8861461aa02fc255af68c34e2327"
+    "mtime": 1792256413.0822248,
+    "seen": 1792257103.8122816,
+    "ast_hash": "c4a204eda9d566954b921a7c49f0cffa",
+    "semantic_hash": "c4a204eda9d566954b921a7c49f0cffa"
   },
   "src/auth/components/PasswordStrengthBar.jsx": {
     "mtime": 1789063686.2308826,
@@ -1087,12 +1087,6 @@
     "seen": 1790123371.9286084,
     "ast_hash": "3876a3514ce956205eb678985cd17e30",
     "semantic_hash": "3876a3514ce956205eb678985cd17e30"
-  },
-  "src/auth/passwordResetService.js": {
-    "mtime": 1789063686.233544,
-    "seen": 1789064222.0269253,
-    "ast_hash": "408c89b7afa57670709c7b3433c78846",
-    "semantic_hash": "408c89b7afa57670709c7b3433c78846"
   },
   "src/utils/scheduleSync.js": {
     "mtime": 1789063686.3234658,
@@ -1142,12 +1136,6 @@
     "ast_hash": "94f870164a3addbb88578f5e9cdb7d1e",
     "semantic_hash": "94f870164a3addbb88578f5e9cdb7d1e"
   },
-  "tests/passwordResetService.test.cjs": {
-    "mtime": 1789063686.3412447,
-    "seen": 1789064222.034659,
-    "ast_hash": "22da4ac1d37646f953fe1ee2ad254037",
-    "semantic_hash": "22da4ac1d37646f953fe1ee2ad254037"
-  },
   "tests/scheduleSync.test.cjs": {
     "mtime": 1791967034.4582522,
     "seen": 1791967039.9244459,
@@ -1171,24 +1159,6 @@
     "seen": 1789064222.034661,
     "ast_hash": "e9d0654c684c2ca627de2219976fa6da",
     "semantic_hash": "e9d0654c684c2ca627de2219976fa6da"
-  },
-  "functions/src/passwordActionEmailTemplates.js": {
-    "mtime": 1789063686.1934755,
-    "seen": 1789064222.0266867,
-    "ast_hash": "7fc85f28b9df12c63ac17c7d5997e8a8",
-    "semantic_hash": "7fc85f28b9df12c63ac17c7d5997e8a8"
-  },
-  "functions/test/passwordActionEmailSecurity.test.js": {
-    "mtime": 1789063686.1934755,
-    "seen": 1789064222.0266883,
-    "ast_hash": "2e31ecfc9095305f7508d1d10d42278a",
-    "semantic_hash": "2e31ecfc9095305f7508d1d10d42278a"
-  },
-  "functions/test/passwordActionEmailTemplates.test.js": {
-    "mtime": 1789063686.1948237,
-    "seen": 1789064222.0266898,
-    "ast_hash": "f2e34dbaaf49faea355131173dc8c9ee",
-    "semantic_hash": "f2e34dbaaf49faea355131173dc8c9ee"
   },
   "src/hooks/useReducedMotionPreference.js": {
     "mtime": 1789063686.2654376,
@@ -1537,5 +1507,59 @@
     "seen": 1792253484.3779073,
     "ast_hash": "c11b9d962885c0b2b51dc4a656d8798d",
     "semantic_hash": "c11b9d962885c0b2b51dc4a656d8798d"
+  },
+  "functions/scripts/configure-auth-email-templates.js": {
+    "mtime": 1792256688.0564141,
+    "seen": 1792257103.8094301,
+    "ast_hash": "e2d740a4a4a19dfe9327303450cb0333",
+    "semantic_hash": "e2d740a4a4a19dfe9327303450cb0333"
+  },
+  "functions/src/accountActionEmailTemplates.js": {
+    "mtime": 1792261944.1411119,
+    "seen": 1792261950.8441973,
+    "ast_hash": "830ed8857a68085b593287c5ced0d773",
+    "semantic_hash": "830ed8857a68085b593287c5ced0d773"
+  },
+  "functions/src/accountEmailConfig.js": {
+    "mtime": 1792256688.0552807,
+    "seen": 1792257103.8094325,
+    "ast_hash": "214409b7b3457a84688beab5c0a669e7",
+    "semantic_hash": "214409b7b3457a84688beab5c0a669e7"
+  },
+  "functions/test/accountActionEmailSecurity.test.js": {
+    "mtime": 1792261802.072391,
+    "seen": 1792261865.750463,
+    "ast_hash": "e5ef2f34e3316fafd6303fe7f9599e82",
+    "semantic_hash": "e5ef2f34e3316fafd6303fe7f9599e82"
+  },
+  "functions/test/accountActionEmailTemplates.test.js": {
+    "mtime": 1792261802.0713875,
+    "seen": 1792261865.7504647,
+    "ast_hash": "95fd92c80c22dcf4418eb85456af0750",
+    "semantic_hash": "95fd92c80c22dcf4418eb85456af0750"
+  },
+  "functions/test/authEmailTemplateConfig.test.js": {
+    "mtime": 1792260797.811971,
+    "seen": 1792261027.2711337,
+    "ast_hash": "2adc0901c5c802a5fcfa68e4edbaa7df",
+    "semantic_hash": "2adc0901c5c802a5fcfa68e4edbaa7df"
+  },
+  "src/auth/accountEmailService.js": {
+    "mtime": 1792256697.5944757,
+    "seen": 1792257103.8122828,
+    "ast_hash": "5d64cfee399606991a13827f6379f64a",
+    "semantic_hash": "5d64cfee399606991a13827f6379f64a"
+  },
+  "tests/accountEmailService.test.cjs": {
+    "mtime": 1792257007.531932,
+    "seen": 1792257103.8483403,
+    "ast_hash": "f5a36065354a10a7a8a56c2f7e888dd8",
+    "semantic_hash": "f5a36065354a10a7a8a56c2f7e888dd8"
+  },
+  "tests/authPasswordRecovery.test.cjs": {
+    "mtime": 1792258577.459895,
+    "seen": 1792258608.909098,
+    "ast_hash": "5b2aa424e8d823ffc04639df2a9f018d",
+    "semantic_hash": "5b2aa424e8d823ffc04639df2a9f018d"
   }
 }

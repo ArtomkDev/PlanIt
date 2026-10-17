@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { reauthenticateWithCredential, EmailAuthProvider, verifyBeforeUpdateEmail } from 'firebase/auth';
+import { reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
 import { db, auth } from '../../../../../config/firebase';
@@ -10,6 +10,7 @@ import MorphingLoader from '../../../../../components/ui/MorphingLoader';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
 import { t } from '../../../../../utils/i18n';
+import { requestEmailChange } from '../../../../../auth/accountEmailService';
 
 export default function ChangeEmailScreen() {
   const { global, lang} = useScheduleData();
@@ -50,7 +51,7 @@ export default function ChangeEmailScreen() {
       const credential = EmailAuthProvider.credential(user.email, password);
       await reauthenticateWithCredential(user, credential);
       
-      await verifyBeforeUpdateEmail(user, newEmail.trim());
+      await requestEmailChange({ user, newEmail, lang });
       
       const userRef = doc(db, 'users', user.uid);
       await setDoc(userRef, { pendingEmail: newEmail.trim().toLowerCase() }, { merge: true });
@@ -66,12 +67,14 @@ export default function ChangeEmailScreen() {
     } catch (error) {
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         setErrorMsg(t('settings.account_settings.change_email_screen.wrong_password', lang));
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (error.code === 'auth/invalid-email' || error.code === 'account-email/invalid-email') {
         setErrorMsg(t("auth.errors.invalid_email", lang));
-      } else if (error.code === 'auth/email-already-in-use') {
+      } else if (error.code === 'auth/email-already-in-use' || error.code === 'account-email/email-already-in-use') {
         setErrorMsg(t("auth.errors.email_in_use", lang));
-      } else if (error.code === 'auth/requires-recent-login') {
+      } else if (error.code === 'auth/requires-recent-login' || error.code === 'account-email/recent-reauthentication-required') {
         setErrorMsg(t('settings.account_settings.change_email_screen.req_recent_login', lang));
+      } else if (error.code === 'account-email/too-many-requests') {
+        setErrorMsg(t('auth.errors.too_many_requests', lang));
       } else {
         setErrorMsg(t('auth.errors.update_failed', lang));
       }

@@ -17,7 +17,7 @@ import {
   completePasswordReset,
   PASSWORD_ACTION_ADD,
   verifyPasswordResetRequest,
-} from './passwordResetService';
+} from './accountEmailService';
 import PasswordStrengthBar from './components/PasswordStrengthBar';
 import {
   getPasswordPolicyMessage,

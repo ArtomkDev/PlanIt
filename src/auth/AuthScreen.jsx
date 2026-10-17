@@ -14,7 +14,6 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   updateProfile,
-  sendEmailVerification,
   signOut
 } from 'firebase/auth';
 import GradientBackground from '../components/ui/GradientBackground';
@@ -29,7 +28,10 @@ import MorphingLoader from '../components/ui/MorphingLoader';
 import { setManualLogin } from '../utils/authFlags';
 import { triggerHaptic } from '../utils/haptics';
 import { getLegalDocumentBrowserUrl } from '../utils/legalDocumentLinks';
-import { requestPasswordResetEmailForEmail } from './passwordResetService';
+import {
+  requestEmailVerification,
+  requestPasswordResetEmailForEmail,
+} from './accountEmailService';
 import PasswordStrengthBar from './components/PasswordStrengthBar';
 import {
   getPasswordPolicyMessage,
@@ -611,15 +613,21 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     try {
       const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
       await updateProfile(cred.user, { displayName: trimmedName });
-      await sendEmailVerification(cred.user);
-      triggerHaptic("success");
       handleNavigate('verify');
+      await requestEmailVerification({ user: cred.user, lang });
+      setResendCooldown(60);
+      triggerHaptic("success");
     } catch (error) { 
       triggerHaptic("error");
       let msg = t('auth.errors.signup_failed', lang);
       if (error.code === 'auth/email-already-in-use') msg = t('auth.errors.email_in_use', lang);
       if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
       if (error.code === 'auth/weak-password') msg = getPasswordPolicyMessage(lang);
+      if (error.code?.startsWith('account-email/')) msg = t('common.action_failed', lang);
+      if (error.code === 'account-email/too-many-requests') {
+        setResendCooldown(60);
+        msg = t('auth.errors.too_many_requests', lang);
+      }
       setFormError(msg);
     } finally { 
       configureAuthLayoutAnimation(reduceMotion);
@@ -644,26 +652,24 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     }
 
     setIsLoading(true);
+    setFormError('');
+    setSuccessMessage('');
     try {
       await requestPasswordResetEmailForEmail({ email: trimmedEmail, lang });
       triggerHaptic("success");
       setPasswordResetCooldown(60);
       setSuccessMessage(t('auth.forgot_password.success_msg', lang));
     } catch (error) {
-      if (error.code === 'auth/user-not-found') {
-        triggerHaptic("success");
-        setPasswordResetCooldown(60);
-        setSuccessMessage(t('auth.forgot_password.success_msg', lang));
-        return;
-      }
-
       triggerHaptic("error");
-      if (error.code === 'auth/too-many-requests') {
+      const isRateLimited = error.code === 'account-email/too-many-requests';
+      if (isRateLimited) {
         setPasswordResetCooldown(60);
       }
-      const msg = error.code === 'auth/invalid-email'
+      const msg = error.code === 'account-email/invalid-email'
         ? t('auth.errors.invalid_email', lang)
-        : t('auth.errors.reset_failed', lang);
+        : isRateLimited
+          ? t('auth.errors.too_many_requests', lang)
+          : t('auth.errors.reset_failed', lang);
       setFormError(msg);
     } finally {
       setIsLoading(false);
@@ -699,15 +705,17 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       setIsLoading(true);
       setFormError('');
       try {
-        await sendEmailVerification(auth.currentUser);
+        await requestEmailVerification({ user: auth.currentUser, lang });
         triggerHaptic("success");
         setResendCooldown(60);
       } catch (error) {
         triggerHaptic("error");
-        if (error.code === 'auth/too-many-requests') {
+        if (error.code === 'account-email/too-many-requests') {
           setResendCooldown(60);
         }
-        setFormError(t('common.action_failed', lang));
+        setFormError(t(error.code === 'account-email/too-many-requests'
+          ? 'auth.errors.too_many_requests'
+          : 'common.action_failed', lang));
       } finally {
         setIsLoading(false);
       }

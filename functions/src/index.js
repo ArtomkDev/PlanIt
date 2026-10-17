@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -11,7 +12,16 @@ import {
   jwtVerify,
 } from 'jose';
 
-import { createAddPasswordEmailContent } from './passwordActionEmailTemplates.js';
+import {
+  createAccountActionEmailContent,
+  normalizeAccountEmailLocale,
+} from './accountActionEmailTemplates.js';
+import {
+  ACCOUNT_ACTION_HANDLER_BASE_URL,
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_USER,
+} from './accountEmailConfig.js';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -35,13 +45,9 @@ const APPLE_JWKS = createRemoteJWKSet(APPLE_KEYS_URL);
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_AUTHORIZATION_CODE_LENGTH = 4096;
 const MAX_FIREBASE_REAUTH_AGE_SECONDS = 5 * 60;
-const PASSWORD_EMAIL_COOLDOWN_MS = 60 * 1000;
+const ACCOUNT_EMAIL_COOLDOWN_MS = 60 * 1000;
 const IOS_BUNDLE_ID = 'com.artomk.planit';
 const ANDROID_PACKAGE_NAME = 'com.artomk.planit';
-const SMTP_HOST = 'smtp.gmail.com';
-const SMTP_PORT = 465;
-const SMTP_USER = 'planit.app.support@gmail.com';
-const PASSWORD_ACTION_HANDLER_BASE_URL = 'https://planit-hub.firebaseapp.com';
 const NESTED_ACTION_LINK_PARAMS = ['link', 'deep_link_id'];
 let smtpTransporter = null;
 
@@ -184,30 +190,35 @@ const revokeAppleToken = async (tokenResponse, clientSecret) => {
   }
 };
 
-const getPasswordEmailRateLimitRef = (userId) => (
-  getFirestore().collection('_internalPasswordEmailRateLimits').doc(userId)
+const getAccountEmailRateLimitRef = (key) => (
+  getFirestore().collection('_internalPasswordEmailRateLimits').doc(key)
 );
 
-const claimPasswordEmailRateLimit = async (userId) => {
-  const rateLimitRef = getPasswordEmailRateLimitRef(userId);
+const claimAccountEmailRateLimit = async (key, {
+  cooldownMs = ACCOUNT_EMAIL_COOLDOWN_MS,
+  maxRequests = 1,
+} = {}) => {
+  const rateLimitRef = getAccountEmailRateLimitRef(key);
   const now = Date.now();
 
   await getFirestore().runTransaction(async (transaction) => {
     const snapshot = await transaction.get(rateLimitRef);
-    const nextAllowedAt = Number(snapshot.data()?.nextAllowedAt) || 0;
-    if (nextAllowedAt > now) {
+    const data = snapshot.data();
+    const nextAllowedAt = Number(data?.nextAllowedAt) || 0;
+    const activeWindow = nextAllowedAt > now;
+    const requestCount = activeWindow ? Number(data?.requestCount) || 1 : 0;
+    if (requestCount >= maxRequests) {
       throw new PublicFunctionError(429, 'too_many_requests');
     }
     transaction.set(rateLimitRef, {
-      nextAllowedAt: now + PASSWORD_EMAIL_COOLDOWN_MS,
+      nextAllowedAt: activeWindow ? nextAllowedAt : now + cooldownMs,
+      requestCount: requestCount + 1,
       updatedAt: now,
     });
   });
-
 };
 
-
-const getPasswordResetContinueUrl = (locale) => {
+const getAccountActionContinueUrl = (locale, purpose) => {
   const configuredUrl = PASSWORD_RESET_CONTINUE_URL.value().trim();
   const projectId =
     process.env.GCLOUD_PROJECT
@@ -227,12 +238,17 @@ const getPasswordResetContinueUrl = (locale) => {
     throw new PublicFunctionError(503, 'email_service_unavailable');
   }
 
-  continueUrl.searchParams.set('passwordAction', 'addPassword');
+  continueUrl.searchParams.set('accountAction', purpose);
+  if (purpose === 'addPassword' || purpose === 'resetPassword') {
+    continueUrl.searchParams.set('passwordAction', purpose);
+  } else {
+    continueUrl.searchParams.delete('passwordAction');
+  }
   continueUrl.searchParams.set('lang', locale);
   return continueUrl.toString();
 };
 
-const findPasswordActionUrl = (url, depth = 0) => {
+const findAccountActionUrl = (url, depth = 0) => {
   if (url.searchParams.get('mode') && url.searchParams.get('oobCode')) {
     return url;
   }
@@ -244,7 +260,7 @@ const findPasswordActionUrl = (url, depth = 0) => {
 
     try {
       const nestedUrl = new URL(nestedLink);
-      const actionUrl = findPasswordActionUrl(nestedUrl, depth + 1);
+      const actionUrl = findAccountActionUrl(nestedUrl, depth + 1);
       if (actionUrl) return actionUrl;
     } catch {
       // Ignore malformed nested links and fail with a public error below.
@@ -254,25 +270,25 @@ const findPasswordActionUrl = (url, depth = 0) => {
   return null;
 };
 
-const buildPasswordActionLink = (firebaseActionLink, locale) => {
+const buildAccountActionLink = (firebaseActionLink, locale) => {
   let generatedUrl;
   let actionUrl;
   try {
     generatedUrl = new URL(firebaseActionLink);
     actionUrl = new URL(
       '/' + locale + '/auth/action',
-      PASSWORD_ACTION_HANDLER_BASE_URL,
+      ACCOUNT_ACTION_HANDLER_BASE_URL,
     );
   } catch {
     throw new PublicFunctionError(503, 'email_service_unavailable');
   }
 
-  const passwordActionUrl = findPasswordActionUrl(generatedUrl);
-  if (!passwordActionUrl) {
+  const accountActionUrl = findAccountActionUrl(generatedUrl);
+  if (!accountActionUrl) {
     throw new PublicFunctionError(503, 'email_service_unavailable');
   }
 
-  for (const [key, value] of passwordActionUrl.searchParams) {
+  for (const [key, value] of accountActionUrl.searchParams) {
     actionUrl.searchParams.append(key, value);
   }
   actionUrl.searchParams.set('lang', locale);
@@ -311,105 +327,193 @@ const getSmtpTransporter = () => {
   return smtpTransporter;
 };
 
-const sendAddPasswordMessage = async ({ userRecord, locale, actionLink }) => {
-  const message = createAddPasswordEmailContent({
+const sendAccountActionMessage = async ({ userRecord, locale, purpose, newEmail }) => {
+  const settings = {
+    url: getAccountActionContinueUrl(locale, purpose),
+    handleCodeInApp: true,
+    iOS: {
+      bundleId: IOS_BUNDLE_ID,
+    },
+    android: {
+      packageName: ANDROID_PACKAGE_NAME,
+      installApp: false,
+    },
+  };
+  let firebaseActionLink;
+  if (purpose === 'verifyEmail') {
+    firebaseActionLink = await getAuth().generateEmailVerificationLink(userRecord.email, settings);
+  } else if (purpose === 'verifyAndChangeEmail') {
+    firebaseActionLink = await getAuth().generateVerifyAndChangeEmailLink(userRecord.email, newEmail, settings);
+  } else {
+    firebaseActionLink = await getAuth().generatePasswordResetLink(userRecord.email, settings);
+  }
+  const actionLink = buildAccountActionLink(firebaseActionLink, locale);
+  const message = createAccountActionEmailContent({
+    purpose,
     locale,
     displayName: userRecord.displayName,
     actionLink,
+    inlineLogo: true,
   });
   await getSmtpTransporter().sendMail({
     from: {
       name: 'PlanIt',
       address: SMTP_USER,
     },
-    to: userRecord.email,
+    to: purpose === 'verifyAndChangeEmail' ? newEmail : userRecord.email,
     subject: message.subject,
     text: message.text,
     html: message.html,
+    attachments: message.attachments,
     disableFileAccess: true,
     disableUrlAccess: true,
   });
 };
 
-export const sendAddPasswordEmail = onRequest(
+const respondWithAccountEmailError = (error, response, functionName) => {
+  if (error?.code === 'auth/email-already-exists') {
+    error = new PublicFunctionError(409, 'email_already_in_use');
+  }
+  const isPublicError = error instanceof PublicFunctionError;
+  if (!isPublicError) {
+    console.error(functionName + ' failed', {
+      code: error?.code || 'unknown',
+      name: error?.name || 'Error',
+    });
+  }
+  response.status(isPublicError ? error.status : 500).json({
+    error: isPublicError ? error.publicCode : 'internal_error',
+  });
+};
+
+const onAccountEmailRequest = (functionName, handler) => onRequest(
   {
     region: 'europe-west1',
     timeoutSeconds: 30,
     memory: '256MiB',
     cors: true,
-    secrets: [
-      SMTP_APP_PASSWORD,
-    ],
+    secrets: [SMTP_APP_PASSWORD],
   },
   async (request, response) => {
     response.set('Cache-Control', 'no-store');
     response.set('Content-Type', 'application/json; charset=utf-8');
-
     if (request.method !== 'POST') {
       response.set('Allow', 'POST');
       response.status(405).json({ error: 'method_not_allowed' });
       return;
     }
-
     try {
-      const firebaseIdentity = await getVerifiedFirebaseIdentity(request);
-      const userRecord = await getAuth().getUser(firebaseIdentity.uid);
-      if (!userRecord.email || userRecord.emailVerified !== true) {
-        throw new PublicFunctionError(403, 'verified_email_required');
-      }
-      if (
-        userRecord.providerData.some(
-          ({ providerId }) => providerId === 'password',
-        )
-      ) {
-        throw new PublicFunctionError(409, 'password_already_exists');
-      }
-
-      const locale = String(request.body?.locale || '')
-        .toLowerCase()
-        .startsWith('uk')
-        ? 'uk'
-        : 'en';
-      await claimPasswordEmailRateLimit(userRecord.uid);
-      const firebaseActionLink = await getAuth().generatePasswordResetLink(
-        userRecord.email,
-        {
-          url: getPasswordResetContinueUrl(locale),
-          handleCodeInApp: true,
-          iOS: {
-            bundleId: IOS_BUNDLE_ID,
-          },
-          android: {
-            packageName: ANDROID_PACKAGE_NAME,
-            installApp: false,
-          },
-        },
-      );
-      const actionLink = buildPasswordActionLink(firebaseActionLink, locale);
-      await sendAddPasswordMessage({
-        userRecord,
-        locale,
-        actionLink,
-      });
-
+      await handler(request);
       response.status(204).send();
     } catch (error) {
-      const status = error instanceof PublicFunctionError
-        ? error.status
-        : 500;
-      const publicCode = error instanceof PublicFunctionError
-        ? error.publicCode
-        : 'internal_error';
-      if (!(error instanceof PublicFunctionError)) {
-        console.error('sendAddPasswordEmail failed', {
-          code: error?.code || 'unknown',
-          name: error?.name || 'Error',
-        });
-      }
-      response.status(status).json({ error: publicCode });
+      respondWithAccountEmailError(error, response, functionName);
     }
   },
 );
+
+export const sendAddPasswordEmail = onAccountEmailRequest('sendAddPasswordEmail', async (request) => {
+  const firebaseIdentity = await getVerifiedFirebaseIdentity(request);
+  const userRecord = await getAuth().getUser(firebaseIdentity.uid);
+  if (!userRecord.email || userRecord.emailVerified !== true) {
+    throw new PublicFunctionError(403, 'verified_email_required');
+  }
+  if (
+    userRecord.providerData.some(
+      ({ providerId }) => providerId === 'password',
+    )
+  ) {
+    throw new PublicFunctionError(409, 'password_already_exists');
+  }
+
+  const locale = normalizeAccountEmailLocale(request.body?.locale);
+  await claimAccountEmailRateLimit(userRecord.uid);
+  await sendAccountActionMessage({
+    userRecord,
+    locale,
+    purpose: 'addPassword',
+  });
+});
+
+export const sendPasswordResetEmail = onAccountEmailRequest('sendPasswordResetEmail', async (request) => {
+  const email = typeof request.body?.email === 'string'
+    ? request.body.email.trim().toLowerCase()
+    : '';
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new PublicFunctionError(400, 'invalid_email');
+  }
+
+  const ipHash = createHash('sha256').update(request.ip || 'unknown').digest('hex');
+  await claimAccountEmailRateLimit('reset-ip-' + ipHash, {
+    cooldownMs: 10 * 60 * 1000,
+    maxRequests: 10,
+  });
+
+  let userRecord;
+  try {
+    const emailHash = createHash('sha256').update(email).digest('hex');
+    await claimAccountEmailRateLimit('reset-email-' + emailHash);
+    userRecord = await getAuth().getUserByEmail(email);
+    if (userRecord.disabled) {
+      return;
+    }
+    await claimAccountEmailRateLimit(userRecord.uid);
+  } catch (error) {
+    if (error?.code === 'auth/user-not-found' || error?.publicCode === 'too_many_requests') {
+      // Unknown accounts and recipient cooldowns have the same public response.
+      return;
+    }
+    throw error;
+  }
+
+  await sendAccountActionMessage({
+    userRecord,
+    locale: normalizeAccountEmailLocale(request.body?.locale),
+    purpose: 'resetPassword',
+  });
+});
+
+export const sendAccountVerificationEmail = onAccountEmailRequest('sendAccountVerificationEmail', async (request) => {
+  const identity = await getVerifiedFirebaseIdentity(request);
+  const userRecord = await getAuth().getUser(identity.uid);
+  if (!userRecord.email || userRecord.disabled) {
+    throw new PublicFunctionError(403, 'email_unavailable');
+  }
+  if (userRecord.emailVerified) {
+    return;
+  }
+  await claimAccountEmailRateLimit(userRecord.uid);
+  await sendAccountActionMessage({
+    userRecord,
+    locale: normalizeAccountEmailLocale(request.body?.locale),
+    purpose: 'verifyEmail',
+  });
+});
+
+export const sendEmailChangeEmail = onAccountEmailRequest('sendEmailChangeEmail', async (request) => {
+  const identity = await getFirebaseIdentity(request);
+  const userRecord = await getAuth().getUser(identity.uid);
+  if (!userRecord.email || !userRecord.emailVerified || userRecord.disabled) {
+    throw new PublicFunctionError(403, 'verified_email_required');
+  }
+  const newEmail = typeof request.body?.newEmail === 'string'
+    ? request.body.newEmail.trim().toLowerCase()
+    : '';
+  if (newEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    throw new PublicFunctionError(400, 'invalid_email');
+  }
+  if (newEmail === userRecord.email.toLowerCase()) {
+    throw new PublicFunctionError(400, 'email_unchanged');
+  }
+  await claimAccountEmailRateLimit(userRecord.uid);
+  const recipientHash = createHash('sha256').update(newEmail).digest('hex');
+  await claimAccountEmailRateLimit('change-email-' + recipientHash);
+  await sendAccountActionMessage({
+    userRecord,
+    newEmail,
+    locale: normalizeAccountEmailLocale(request.body?.locale),
+    purpose: 'verifyAndChangeEmail',
+  });
+});
 
 export const revokeAppleAuthorization = onRequest(
   {

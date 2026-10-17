@@ -13,7 +13,7 @@ import {
   hasPasswordProvider,
   requestAddPasswordEmail,
   requestPasswordResetEmail,
-} from '../../../../../auth/passwordResetService';
+} from '../../../../../auth/accountEmailService';
 import PasswordStrengthBar from '../../../../../auth/components/PasswordStrengthBar';
 import {
   getPasswordPolicyMessage,
@@ -73,11 +73,11 @@ export default function ChangePasswordScreen() {
     } catch (error) {
       if (
         error.code === 'auth/too-many-requests'
-        || error.code === 'password-reset/too-many-requests'
+        || error.code === 'account-email/too-many-requests'
       ) {
         setResetCooldown(60);
         setErrorMsg(t('settings.account_settings.change_password.too_many_requests', lang));
-      } else if (error.code === 'password-reset/email-unavailable') {
+      } else if (error.code === 'account-email/email-unavailable') {
         setErrorMsg(t('settings.account_settings.change_password.email_unavailable', lang));
       } else {
         setErrorMsg(t('settings.account_settings.change_password.email_failed', lang));

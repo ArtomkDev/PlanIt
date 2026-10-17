@@ -7,23 +7,22 @@ const babel = require('@babel/core');
 
 const servicePath = path.resolve(
   __dirname,
-  '../src/auth/passwordResetService.js',
+  '../src/auth/accountEmailService.js',
 );
 
-const loadPasswordResetService = ({ currentUser = null } = {}) => {
+const loadAccountEmailService = ({ currentUser = null } = {}) => {
   const calls = {
     confirmations: [],
-    resetEmails: [],
     verifications: [],
     signOuts: 0,
   };
-  const auth = { currentUser, languageCode: null };
+  const auth = { currentUser };
   const firebaseAuth = {
     confirmPasswordReset: async (_auth, oobCode, password) => {
       calls.confirmations.push({ oobCode, password });
     },
-    sendPasswordResetEmail: async (_auth, email, settings) => {
-      calls.resetEmails.push({ email, settings });
+    sendPasswordResetEmail: async () => {
+      throw new Error('The legacy Firebase email sender must not be used.');
     },
     verifyPasswordResetCode: async (_auth, oobCode) => {
       calls.verifications.push(oobCode);
@@ -47,9 +46,6 @@ const loadPasswordResetService = ({ currentUser = null } = {}) => {
   Module._load = function mockedLoad(request, parent, isMain) {
     if (request === '../config/firebase') return { auth };
     if (request === 'firebase/auth') return firebaseAuth;
-    if (request === 'expo-linking') {
-      return { createURL: (route) => `planit://${route.replace(/^\//, '')}` };
-    }
     return originalLoad.call(this, request, parent, isMain);
   };
 
@@ -62,7 +58,7 @@ const loadPasswordResetService = ({ currentUser = null } = {}) => {
 };
 
 test('detects whether the account already has a password provider', () => {
-  const { service } = loadPasswordResetService();
+  const { service } = loadAccountEmailService();
 
   assert.equal(service.hasPasswordProvider({
     providerData: [{ providerId: 'google.com' }],
@@ -75,39 +71,94 @@ test('detects whether the account already has a password provider', () => {
   }), true);
 });
 
-test('sends a password reset link that is handled inside the app', async () => {
-  const previousDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
-  process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = 'planit-test.firebaseapp.com';
-
-  try {
-    const user = {
-      email: 'person@example.com',
-      providerData: [{ providerId: 'google.com' }],
-    };
-    const { service, auth, calls } = loadPasswordResetService({ currentUser: user });
-
-    const email = await service.requestPasswordResetEmail({ user, lang: 'uk' });
-
-    assert.equal(email, user.email);
-    assert.equal(auth.languageCode, 'uk');
-    assert.equal(calls.resetEmails.length, 1);
-    assert.equal(calls.resetEmails[0].email, user.email);
-    assert.equal(calls.resetEmails[0].settings.handleCodeInApp, true);
-    assert.equal(
-      calls.resetEmails[0].settings.url,
-      'https://planit-test.firebaseapp.com/?passwordAction=resetPassword&lang=uk',
-    );
-  } finally {
-    if (previousDomain === undefined) {
-      delete process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
-    } else {
-      process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = previousDomain;
-    }
+const configureResetEndpoint = (t, endpoint = undefined) => {
+  const values = {
+    EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'planit-test',
+    EXPO_PUBLIC_PASSWORD_RESET_EMAIL_ENDPOINT: endpoint,
+  };
+  for (const [key, value] of Object.entries(values)) {
+    const previousValue = process.env[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+    t.after(() => {
+      if (previousValue === undefined) delete process.env[key];
+      else process.env[key] = previousValue;
+    });
   }
+};
+
+test('login recovery and settings reset use the branded email endpoint', async (t) => {
+  configureResetEndpoint(t);
+  const requests = [];
+  t.mock.method(global, 'fetch', async (url, options) => {
+    requests.push({ url, options });
+    return { ok: true, status: 204 };
+  });
+  const user = { email: 'person@example.com' };
+  const { service } = loadAccountEmailService({ currentUser: user });
+
+  assert.equal(await service.requestPasswordResetEmailForEmail({
+    email: ' person@example.com ',
+    lang: 'uk-UA',
+  }), user.email);
+  assert.equal(await service.requestPasswordResetEmail({ user, lang: 'en' }), user.email);
+
+  assert.equal(requests.length, 2);
+  for (const request of requests) {
+    assert.equal(request.url, 'https://europe-west1-planit-test.cloudfunctions.net/sendPasswordResetEmail');
+    assert.equal(request.options.method, 'POST');
+    assert.equal(request.options.headers.Authorization, undefined);
+  }
+  assert.deepEqual(JSON.parse(requests[0].options.body), { email: user.email, locale: 'uk' });
+  assert.deepEqual(JSON.parse(requests[1].options.body), { email: user.email, locale: 'en' });
+});
+
+test('reset service rejects missing email without sending a request', async (t) => {
+  const fetch = t.mock.method(global, 'fetch');
+  const { service } = loadAccountEmailService();
+
+  await assert.rejects(service.requestPasswordResetEmailForEmail({ email: ' ' }), {
+    code: 'account-email/email-unavailable',
+  });
+  await assert.rejects(service.requestPasswordResetEmail(), {
+    code: 'account-email/email-unavailable',
+  });
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('reset service requires HTTPS and never falls back to Firebase mail', async (t) => {
+  configureResetEndpoint(t, 'http://example.com/send-reset');
+  const fetch = t.mock.method(global, 'fetch');
+  const { service } = loadAccountEmailService();
+
+  await assert.rejects(service.requestPasswordResetEmailForEmail({ email: 'person@example.com' }), {
+    code: 'account-email/service-unavailable',
+  });
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('reset service surfaces throttling, malformed responses, and network failures', async (t) => {
+  configureResetEndpoint(t, 'https://example.com/send-reset');
+  const { service } = loadAccountEmailService();
+  const request = () => service.requestPasswordResetEmailForEmail({ email: 'person@example.com' });
+  const fetch = t.mock.method(global, 'fetch', async () => ({
+    ok: false,
+    json: async () => ({ error: 'too_many_requests' }),
+  }));
+  await assert.rejects(request(), { code: 'account-email/too-many-requests' });
+
+  fetch.mock.mockImplementation(async () => ({
+    ok: false,
+    json: async () => { throw new SyntaxError('Not JSON'); },
+  }));
+  await assert.rejects(request(), { code: 'account-email/email-failed' });
+
+  fetch.mock.mockImplementation(async () => { throw new TypeError('Network unavailable'); });
+  await assert.rejects(request(), { code: 'account-email/email-failed' });
 });
 
 test('extracts reset codes from direct and nested Firebase action links', () => {
-  const { service } = loadPasswordResetService();
+  const { service } = loadAccountEmailService();
   const direct = 'https://example.com/action?mode=resetPassword&oobCode=abc123';
   const nested = `https://example.com/__/auth/links?link=${encodeURIComponent(direct)}`;
 
@@ -130,7 +181,7 @@ test('extracts reset codes from direct and nested Firebase action links', () => 
 });
 
 test('preserves add-password purpose and language from the continue URL', () => {
-  const { service } = loadPasswordResetService();
+  const { service } = loadAccountEmailService();
   const continueUrl =
     'https://planit.example/password-reset?passwordAction=addPassword&lang=uk';
   const actionUrl =
@@ -170,7 +221,7 @@ test('requests the authenticated custom add-password email endpoint', async () =
       providerData: [{ providerId: 'google.com' }],
       getIdToken: async () => 'firebase-id-token',
     };
-    const { service } = loadPasswordResetService({ currentUser: user });
+    const { service } = loadAccountEmailService({ currentUser: user });
     const email = await service.requestAddPasswordEmail({ user, lang: 'uk-UA' });
 
     assert.equal(email, user.email);
@@ -216,10 +267,10 @@ test('normalizes public Cloud Function errors for the client UI', async () => {
       providerData: [{ providerId: 'google.com' }],
       getIdToken: async () => 'firebase-id-token',
     };
-    const { service } = loadPasswordResetService({ currentUser: user });
+    const { service } = loadAccountEmailService({ currentUser: user });
     await assert.rejects(
       () => service.requestAddPasswordEmail({ user, lang: 'en' }),
-      (error) => error.code === 'password-reset/too-many-requests',
+      (error) => error.code === 'account-email/too-many-requests',
     );
   } finally {
     global.fetch = previousFetch;
@@ -236,17 +287,17 @@ test('never calls the add-password endpoint for an existing password account', a
     email: 'person@example.com',
     providerData: [{ providerId: 'password' }],
   };
-  const { service } = loadPasswordResetService({ currentUser: user });
+  const { service } = loadAccountEmailService({ currentUser: user });
 
   await assert.rejects(
     () => service.requestAddPasswordEmail({ user, lang: 'en' }),
-    (error) => error.code === 'password-reset/password-already-exists',
+    (error) => error.code === 'account-email/password-already-exists',
   );
 });
 
 test('verifies the email code and ends a stale session after reset', async () => {
   const user = {};
-  const { service, calls } = loadPasswordResetService({ currentUser: user });
+  const { service, calls } = loadAccountEmailService({ currentUser: user });
 
   const email = await service.verifyPasswordResetRequest('verified-code');
   await service.completePasswordReset('verified-code', 'new-secret');
@@ -258,4 +309,31 @@ test('verifies the email code and ends a stale session after reset', async () =>
     password: 'new-secret',
   }]);
   assert.equal(calls.signOuts, 1);
+});
+
+test('registration and email change use authenticated branded endpoints', async (t) => {
+  configureResetEndpoint(t);
+  const requests = [];
+  t.mock.method(global, 'fetch', async (url, options) => {
+    requests.push({ url, options });
+    return { ok: true, status: 204 };
+  });
+  const user = { email: 'person@example.com', getIdToken: async () => 'firebase-id-token' };
+  const { service } = loadAccountEmailService({ currentUser: user });
+  assert.equal(await service.requestEmailVerification({ user, lang: 'uk-UA' }), user.email);
+  assert.equal(await service.requestEmailChange({ user, newEmail: ' New@Example.com ', lang: 'en' }), 'new@example.com');
+  assert.equal(requests[0].url, 'https://europe-west1-planit-test.cloudfunctions.net/sendAccountVerificationEmail');
+  assert.deepEqual(JSON.parse(requests[0].options.body), { locale: 'uk' });
+  assert.equal(requests[1].url, 'https://europe-west1-planit-test.cloudfunctions.net/sendEmailChangeEmail');
+  assert.deepEqual(JSON.parse(requests[1].options.body), { locale: 'en', newEmail: 'new@example.com' });
+  for (const request of requests) assert.equal(request.options.headers.Authorization, 'Bearer firebase-id-token');
+});
+
+test('account verification and email change reject missing account data', async () => {
+  const { service } = loadAccountEmailService();
+  await assert.rejects(service.requestEmailVerification(), { code: 'account-email/email-unavailable' });
+  await assert.rejects(service.requestEmailChange(), { code: 'account-email/email-unavailable' });
+  await assert.rejects(service.requestEmailChange({ user: { email: 'person@example.com' }, newEmail: ' ' }), {
+    code: 'account-email/invalid-email',
+  });
 });
