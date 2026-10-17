@@ -81,7 +81,6 @@ export default function LessonEditorMainScreen({
   onUploadedAttachments,
   onAttachmentUploadStateChange,
   attachmentUploadState,
-  attachmentOwnerAvailable,
   attachmentUserId,
   fileLibrary,
   getItemVisual,
@@ -707,7 +706,6 @@ export default function LessonEditorMainScreen({
           onUploadedAttachments={onUploadedAttachments}
           onUploadStateChange={onAttachmentUploadStateChange}
           userId={attachmentUserId}
-          ownerAvailable={attachmentOwnerAvailable}
           disabled={attachmentUploadState?.uploading}
           uploadState={attachmentUploadState}
           fileLibrary={fileLibrary}

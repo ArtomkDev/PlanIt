@@ -13,7 +13,8 @@ import {
   getPendingCloudMigrationSchedules,
   markScheduleAsAccountOwned,
 } from '../../utils/scheduleOwnership';
-import { useScheduleData } from '../../context/ScheduleProvider';
+import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
+import { copyScheduleAttachments, upsertAttachmentLibraryFiles } from '../../services/attachmentService';
 import themes from '../../config/themes';
 import { t } from '../../utils/i18n';
 import MorphingLoader from '../ui/MorphingLoader';
@@ -22,6 +23,7 @@ import { triggerHaptic } from '../../utils/haptics';
 
 export default function MigrationModal({ userId, onComplete = () => {} }) {
   const { global, lang } = useScheduleData();
+  const { setGlobalDraft } = useScheduleActions();
   
   const [currentTheme, currentAccent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(currentTheme, currentAccent);
@@ -33,6 +35,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
   const [localDataFull, setLocalDataFull] = useState(null);
   const [migrationTargetIds, setMigrationTargetIds] = useState({});
   const committedTargetIdsRef = useRef(new Set());
+  const attachmentCopiesRef = useRef(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -110,10 +113,16 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
       const schedulesToMigrate = localSchedules.filter(
         (schedule) => selectedIds.has(schedule.id),
       );
+      for (const schedule of schedulesToMigrate) {
+        if (attachmentCopiesRef.current.has(schedule.id)) continue;
+        const transferred = await copyScheduleAttachments(schedule, localDataFull?.global?.fileLibrary);
+        attachmentCopiesRef.current.set(schedule.id, transferred);
+        setGlobalDraft((prev) => ({ ...prev, fileLibrary: upsertAttachmentLibraryFiles(prev.fileLibrary, transferred.files) }));
+      }
       const pendingCopies = schedulesToMigrate
         .map((localSchedule) => {
           const copy = markScheduleAsAccountOwned(
-            JSON.parse(JSON.stringify(localSchedule)),
+            attachmentCopiesRef.current.get(localSchedule.id).schedule,
           );
           copy.id = migrationTargetIds[localSchedule.id] || generateId();
           copy.version = 0;

@@ -45,6 +45,7 @@ import {
   getAttachmentShareLabel,
   getAttachmentCacheState,
   getAttachmentLibraryUsage,
+  getAttachmentOpenHint,
   getAttachmentRevision,
   isImageAttachment,
   MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES,
@@ -58,7 +59,7 @@ import {
   renameAttachmentDisplayName,
   shareAttachment,
   uploadAttachmentDraft,
-  uploadAttachmentDrafts,
+  storeAttachmentDrafts,
   upsertAttachmentLibraryFiles,
 } from "../../../services/attachmentService";
 import { t, formatText as interpolate } from "../../../utils/i18n";
@@ -179,6 +180,9 @@ export default function FileLibraryScreen() {
   const [activeFileTab, setActiveFileTab] = useState("photos");
   const [photoPreviewCache, setPhotoPreviewCache] = useState({});
   const [addingSource, setAddingSource] = useState(null);
+  const [storageMode, setStorageMode] = useState("local");
+  const [search, setSearch] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(30);
   const photoPreviewLoadsRef = useRef(new Set());
   const photoPreviewCacheRef = useRef({});
   const webDropDepthRef = useRef(0);
@@ -186,6 +190,9 @@ export default function FileLibraryScreen() {
   const [webDropActive, setWebDropActive] = useState(false);
   const isWebLayout = Platform.OS === "web";
   const { openImagePreview } = useAttachmentImagePreview();
+  const showCloudUsage = !!user?.uid && storageMode === "cloud";
+
+  useEffect(() => { setVisibleLimit(30); }, [search, activeFileTab]);
 
   const files = useMemo(
     () => normalizeAttachmentLibrary(global?.fileLibrary),
@@ -203,7 +210,10 @@ export default function FileLibraryScreen() {
   ), [files, photoPreviewCache]);
   const photoFiles = useMemo(() => filesWithPreviewUris.filter(isImageAttachment), [filesWithPreviewUris]);
   const otherFiles = useMemo(() => filesWithPreviewUris.filter((file) => !isImageAttachment(file)), [filesWithPreviewUris]);
-  const visibleFiles = activeFileTab === "photos" ? photoFiles : otherFiles;
+  const visibleFiles = (activeFileTab === "photos" ? photoFiles : otherFiles)
+    .filter((file) => file.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+  const localUsage = files.filter((file) => file.storageMode === "local")
+    .reduce((total, file) => total + file.size, 0);
   const cloudUsage = useMemo(() => getAttachmentLibraryUsage(files), [files]);
   const cloudFilesCount = files.filter((file) => file.storageMode !== "local").length;
   const localFilesCount = files.filter((file) => file.storageMode === "local").length;
@@ -388,7 +398,10 @@ export default function FileLibraryScreen() {
       return;
     }
 
-    const uploadedFiles = await uploadAttachmentDrafts(pickedFiles, { userId: user.uid });
+    const uploadedFiles = await storeAttachmentDrafts(pickedFiles, {
+      userId: user?.uid,
+      storageMode: user?.uid ? storageMode : "local",
+    });
     const nextCloudUsage = cloudUsage + getAttachmentLibraryUsage(uploadedFiles);
 
     if (nextCloudUsage > MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES) {
@@ -412,11 +425,6 @@ export default function FileLibraryScreen() {
 
   const handleAddLibraryFiles = async (picker, sourceId, fallbackTab = "files") => {
     if (addingSource) return;
-
-    if (!user?.uid) {
-      setFileError(t("attachments.errors.auth_required", lang));
-      return;
-    }
 
     setAddingSource(sourceId);
     setError("");
@@ -466,11 +474,6 @@ export default function FileLibraryScreen() {
     setWebDropActive(false);
 
     if (addingSource) return;
-
-    if (!user?.uid) {
-      setFileError(t("attachments.errors.auth_required", lang));
-      return;
-    }
 
     const droppedFiles = getWebDroppedFiles(event);
     if (!droppedFiles.length) return;
@@ -531,7 +534,7 @@ export default function FileLibraryScreen() {
 
   const renderAddLibraryButton = ({ id, icon: Icon, label, picker, fallbackTab }) => {
     const isAdding = addingSource === id;
-    const isDisabled = !!addingSource;
+    const isDisabled = !!addingSource || !!busyFileId;
 
     return (
       <TouchableOpacity
@@ -614,7 +617,8 @@ export default function FileLibraryScreen() {
       delete localFile.uri;
       const cachedLocalFile = await cacheAttachmentFromLocalUri(
         localFile,
-        prepared.localUri || prepared.openUri || file.downloadURL || file.url
+        prepared.localUri || prepared.openUri || file.downloadURL || file.url,
+        { required: true },
       );
       const cacheState = await getAttachmentCacheState(localFile);
       if (!cacheState?.uri || (cacheState.status !== "local" && cacheState.status !== "source")) {
@@ -631,6 +635,10 @@ export default function FileLibraryScreen() {
   };
 
   const confirmMakeLocalOnly = (file) => {
+    if (Platform.OS === "web") {
+      if (window.confirm(t("settings.files.local_only_confirm", lang))) makeLocalOnly(file);
+      return;
+    }
     Alert.alert(
       t("settings.files.local_only_title", lang),
       t("settings.files.local_only_confirm", lang),
@@ -709,8 +717,8 @@ export default function FileLibraryScreen() {
     setBusyFileId(file.id);
     setError("");
     try {
-      setLibraryAndRemoveReferences(file.id);
       await deleteLocalAttachmentCache(file);
+      setLibraryAndRemoveReferences(file.id);
       triggerHaptic("success");
     } catch (deleteError) {
       setFileError(formatAttachmentError(deleteError, lang));
@@ -720,6 +728,10 @@ export default function FileLibraryScreen() {
   };
 
   const confirmDeleteFile = (file) => {
+    if (Platform.OS === "web") {
+      if (window.confirm(t("settings.files.delete_confirm", lang, { name: file.name }))) deleteFile(file);
+      return;
+    }
     Alert.alert(
       t("settings.files.delete_title", lang),
       interpolate(t("settings.files.delete_confirm", lang), {
@@ -758,7 +770,7 @@ export default function FileLibraryScreen() {
 
   const renderFileRow = (file) => {
     const Icon = getFileIcon(file);
-    const isBusy = busyFileId === file.id;
+    const isBusy = !!busyFileId || !!addingSource;
     const isRenaming = renamingFileId === file.id;
     const modeLabel = file.storageMode === "local"
       ? t("attachments.local_only", lang)
@@ -815,6 +827,7 @@ export default function FileLibraryScreen() {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={`${file.name || t("attachments.file", lang)}${details ? `. ${details}` : ""}`}
+            accessibilityHint={getAttachmentOpenHint(file, lang)}
             accessibilityState={{ disabled: isBusy, busy: isBusy }}
             activeOpacity={0.72}
             style={styles.fileBody}
@@ -898,7 +911,7 @@ export default function FileLibraryScreen() {
   };
 
   const renderPhotoRow = (file) => {
-    const isBusy = busyFileId === file.id;
+    const isBusy = !!busyFileId || !!addingSource;
     const isRenaming = renamingFileId === file.id;
     const previewUri = getAttachmentPreviewUri(file);
     const modeLabel = file.storageMode === "local"
@@ -1057,6 +1070,9 @@ export default function FileLibraryScreen() {
   };
 
   const renderEmptyState = () => {
+    if (search.trim()) return <View style={styles.emptyState}>
+      <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>{t("settings.files.no_results", lang)}</Text>
+    </View>;
     const emptyTitle = files.length === 0
       ? t("settings.files.empty_title", lang)
       : activeFileTab === "photos"
@@ -1089,14 +1105,14 @@ export default function FileLibraryScreen() {
         <View style={styles.storagePanel}>
           <View style={styles.storageHeader}>
             <View style={[styles.storageIcon, { backgroundColor: themeColors.accentColor + "18" }]}>
-              <Cloud size={22} color={themeColors.accentColor} weight="bold" />
+              {showCloudUsage ? <Cloud size={22} color={themeColors.accentColor} weight="bold" /> : <File size={22} color={themeColors.accentColor} weight="bold" />}
             </View>
             <View style={styles.storageTextBlock}>
               <Text style={[styles.storageValue, { color: themeColors.textColor }]}>
-                {interpolate(t("settings.files.storage_used", lang), {
+                {showCloudUsage ? interpolate(t("settings.files.storage_used", lang), {
                   used: formatFileSize(cloudUsage) || "0 B",
                   limit: formatFileSize(MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES),
-                })}
+                }) : t("settings.files.local_usage", lang, { used: formatFileSize(localUsage) || "0 B" })}
               </Text>
               <Text style={[styles.storageMeta, { color: themeColors.textColor2 }]}>
                 {interpolate(t("settings.files.storage_counts", lang), {
@@ -1105,7 +1121,7 @@ export default function FileLibraryScreen() {
                 })}
               </Text>
             </View>
-            <Text
+            {showCloudUsage && <Text
               style={[
                 styles.storagePercent,
                 {
@@ -1116,10 +1132,10 @@ export default function FileLibraryScreen() {
               numberOfLines={1}
             >
               {usagePercent}%
-            </Text>
+            </Text>}
           </View>
 
-          <View style={[styles.usageTrack, { backgroundColor: themeColors.backgroundColor3 }]}>
+          {showCloudUsage && <View style={[styles.usageTrack, { backgroundColor: themeColors.backgroundColor3 }]}>
             <View
               style={[
                 styles.usageFill,
@@ -1129,9 +1145,19 @@ export default function FileLibraryScreen() {
                 },
               ]}
             />
-          </View>
+          </View>}
         </View>
       </SettingsGroup>
+
+      {!!user?.uid && <TabSwitcher
+        tabs={[{ id: "local", label: t("attachments.save_local", lang) }, { id: "cloud", label: t("attachments.save_cloud", lang) }]}
+        activeTab={storageMode}
+        onTabPress={(value) => { if (!addingSource) setStorageMode(value); }}
+        themeColors={themeColors}
+      />}
+      <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
+        {t(!user?.uid || storageMode === "local" ? "attachments.local_hint" : "attachments.cloud_hint", lang)}
+      </Text>
 
       {isWebLayout ? (
         <View
@@ -1215,6 +1241,19 @@ export default function FileLibraryScreen() {
         />
       </View>
 
+      <TextInput
+        value={search}
+        onChangeText={setSearch}
+        accessibilityLabel={t("settings.files.search", lang)}
+        placeholder={t("settings.files.search", lang)}
+        placeholderTextColor={themeColors.textColor2}
+        autoCorrect={false}
+        style={[styles.renameInput, { color: themeColors.textColor, backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor, minHeight: 44 }]}
+      />
+      {activeFileTab === "files" && <Text style={[styles.emptyText, { color: themeColors.textColor2 }]}>
+        {t(Platform.OS === "web" ? "attachments.documents_web_hint" : "attachments.documents_native_hint", lang)}
+      </Text>}
+
       {!!error && (
         <View accessibilityRole="alert" style={[styles.errorBox, { borderColor: "#FF3B3030", backgroundColor: "#FF3B3012" }]}>
           <WarningCircle size={18} color="#FF3B30" weight="bold" />
@@ -1231,12 +1270,22 @@ export default function FileLibraryScreen() {
         {visibleFiles.length === 0 ? (
           renderEmptyState()
         ) : (
-          visibleFiles.map((file) => (
+          visibleFiles.slice(0, visibleLimit).map((file) => (
             activeFileTab === "photos" ? renderPhotoRow(file) : renderFileRow(file)
           ))
         )}
       </SettingsGroup>
-
+      {visibleFiles.length > visibleLimit && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => setVisibleLimit((limit) => limit + 30)}
+          style={[styles.addLibraryButton, { minHeight: 44, backgroundColor: themeColors.backgroundColor2 }]}
+        >
+          <Text style={[styles.addLibraryButtonText, { color: themeColors.accentTextColor }]}>
+            {t("settings.files.show_more", lang)}
+          </Text>
+        </TouchableOpacity>
+      )}
     </SettingsScreenLayout>
   );
 }

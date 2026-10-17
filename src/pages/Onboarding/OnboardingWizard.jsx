@@ -344,6 +344,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
         </View>
         <CaretRight size={20} color={themeColors.accentTextColor} weight="bold" />
       </TouchableOpacity>
+      {__DEV__ && React.createElement(require('../../components/development/CreateTestScheduleButton').default, { themeColors })}
       <Text style={[styles.swipeHint, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_to_continue', lang)} -&gt;</Text>
       <Text style={[styles.swipeHintSub, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_hint_sub', lang)}</Text>
     </View>

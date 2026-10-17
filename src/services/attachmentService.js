@@ -4,7 +4,6 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
-import * as Sharing from "expo-sharing";
 import {
   deleteObject,
   getDownloadURL,
@@ -17,6 +16,7 @@ import {
 import { auth, storage, storageBucketName } from "../config/firebase";
 import { generateId } from "../utils/idGenerator";
 import { t, formatText as interpolate } from "../utils/i18n";
+import { shareLocalFile } from "./fileSharingService";
 
 export const MAX_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
 export const MAX_ATTACHMENTS_PER_ENTITY = 10;
@@ -253,7 +253,7 @@ export const normalizeAttachmentDisplayNameForMimeType = (name, mimeType) => {
 
 export const renameAttachmentDisplayName = (attachment, nextName) => ({
   ...attachment,
-  name: normalizeAttachmentDisplayName(nextName, attachment),
+  name: normalizeAttachmentDisplayNameForMimeType(nextName || attachment.name, attachment.mimeType),
 });
 
 const getAttachmentFileId = (attachment = {}) => (
@@ -365,6 +365,63 @@ export const resolveAttachmentList = (attachments, fileLibrary = []) => {
       };
     })
     .filter(Boolean);
+};
+
+export const getScheduleAttachmentFiles = (schedule, fileLibrary = []) => {
+  const entities = [
+    ...(schedule?.subjects || []),
+    ...(schedule?.tasks || []),
+    ...(schedule?.schedule || []).flatMap((day) => Object.values(day || {}).flatMap((lessons) => Array.isArray(lessons) ? lessons : [])),
+  ];
+  const files = entities.flatMap((entity) => resolveAttachmentList(entity?.attachments, fileLibrary))
+    .filter((file) => file.storageMode === "local" || file.storagePath);
+  return upsertAttachmentLibraryFiles([], files.map((file) => ({ ...file, id: file.fileId || file.id })));
+};
+
+const mapScheduleAttachments = (schedule, transform) => {
+  const resolveEntity = (entity) => entity?.attachments ? {
+    ...entity, attachments: transform(entity.attachments),
+  } : entity;
+  return {
+    ...schedule,
+    subjects: (schedule.subjects || []).map(resolveEntity),
+    tasks: (schedule.tasks || []).map(resolveEntity),
+    schedule: (schedule.schedule || []).map((day) => Object.fromEntries(
+      Object.entries(day || {}).map(([key, lessons]) => [key, Array.isArray(lessons) ? lessons.map(resolveEntity) : lessons]),
+    )),
+  };
+};
+
+export const resolveScheduleAttachments = (schedule, fileLibrary = []) => mapScheduleAttachments(
+  schedule, (attachments) => normalizeAttachmentList(resolveAttachmentList(attachments, fileLibrary)),
+);
+
+export const copyScheduleAttachments = async (schedule, fileLibrary = []) => {
+  const resolved = resolveScheduleAttachments(schedule, fileLibrary);
+  const copies = new Map();
+  try {
+    for (const file of getScheduleAttachmentFiles(resolved)) {
+      const source = await ensureLocalAttachment(file);
+      const id = generateId();
+      const [copy] = normalizeAttachmentLibrary([{
+        ...file, id, fileId: id, cacheKey: id,
+        storageMode: "local", storagePath: null, downloadURL: null,
+        cloudRevision: Date.now(), uploadedAt: null,
+      }]);
+      copies.set(file.id, copy);
+      await cacheAttachmentFromLocalUri(copy, source.localUri || source.openUri, { required: true });
+    }
+    return {
+      files: [...copies.values()],
+      schedule: mapScheduleAttachments(resolved, (attachments) => attachments.map((attachment) => {
+        const copy = copies.get(attachment.fileId || attachment.id);
+        return copy ? { ...copy, id: attachment.id, fileId: copy.id } : attachment;
+      })),
+    };
+  } catch (error) {
+    await deleteLocalAttachmentCaches([...copies.values()]);
+    throw error;
+  }
 };
 
 const getAttachmentContentDisposition = (name = "attachment") => {
@@ -640,7 +697,7 @@ const runWebAttachmentCacheTransaction = async (mode, handler) => {
     transaction.onabort = () => reject(transaction.error);
 
     try {
-      result = handler(store, resolve, reject);
+      handler(store, (value) => { result = value; }, reject);
     } catch (error) {
       reject(error);
     }
@@ -710,7 +767,7 @@ const writeWebAttachmentCacheRecord = async (attachment, blob) => {
   const cacheKey = getAttachmentCacheKey(attachment);
   const entry = {
     cacheKey,
-    blob,
+    blob: blob.slice(0, blob.size, inferAttachmentMimeType(attachment.name, attachment.mimeType)),
     storagePath: attachment.storagePath || null,
     downloadURL: attachment.downloadURL || attachment.url || null,
     revision: getAttachmentRevision(attachment),
@@ -735,15 +792,13 @@ const deleteWebAttachmentCacheRecord = async (attachment) => {
   const cacheKey = typeof attachment === "string" ? attachment : getAttachmentCacheKey(attachment);
   if (!cacheKey) return;
 
-  try {
-    await runWebAttachmentCacheTransaction("readwrite", (store, resolve, reject) => {
-      const request = store.delete(cacheKey);
-      request.onsuccess = () => resolve(null);
-      request.onerror = () => reject(request.error);
-      return null;
-    });
-    revokeWebAttachmentObjectUrlsForCacheKey(cacheKey);
-  } catch (error) {}
+  await runWebAttachmentCacheTransaction("readwrite", (store, resolve, reject) => {
+    const request = store.delete(cacheKey);
+    request.onsuccess = () => resolve(null);
+    request.onerror = () => reject(request.error);
+    return null;
+  });
+  revokeWebAttachmentObjectUrlsForCacheKey(cacheKey);
 };
 
 const getWebAttachmentSourceBlob = async (attachment, sourceUri) => {
@@ -792,16 +847,23 @@ const readAttachmentCacheManifest = async () => {
 
 const saveAttachmentCacheManifest = async (manifest) => {
   if (!canUseNativeAttachmentCache()) return;
-  try {
-    await AsyncStorage.setItem(ATTACHMENT_CACHE_MANIFEST_KEY, JSON.stringify(manifest || {}));
-  } catch (error) {}
+  await AsyncStorage.setItem(ATTACHMENT_CACHE_MANIFEST_KEY, JSON.stringify(manifest || {}));
+};
+
+let attachmentManifestQueue = Promise.resolve();
+const updateAttachmentCacheManifest = (update) => {
+  const operation = attachmentManifestQueue.then(async () => {
+    const manifest = await readAttachmentCacheManifest();
+    await saveAttachmentCacheManifest(update(manifest));
+  });
+  attachmentManifestQueue = operation.catch(() => {});
+  return operation;
 };
 
 const writeAttachmentCacheEntry = async (attachment, localUri) => {
   if (!canUseNativeAttachmentCache() || !localUri) return null;
 
   const cacheKey = getAttachmentCacheKey(attachment);
-  const manifest = await readAttachmentCacheManifest();
   const entry = {
     cacheKey,
     uri: localUri,
@@ -814,8 +876,7 @@ const writeAttachmentCacheEntry = async (attachment, localUri) => {
     cachedAt: Date.now(),
   };
 
-  manifest[cacheKey] = entry;
-  await saveAttachmentCacheManifest(manifest);
+  await updateAttachmentCacheManifest((manifest) => ({ ...manifest, [cacheKey]: entry }));
   return entry;
 };
 
@@ -917,11 +978,11 @@ export const getAttachmentCacheState = async (attachment) => {
   };
 };
 
-export const cacheAttachmentFromLocalUri = async (attachment, sourceUri) => {
+export const cacheAttachmentFromLocalUri = async (attachment, sourceUri, { required = false } = {}) => {
   if (canUseWebAttachmentCache()) {
     try {
       const blob = await getWebAttachmentSourceBlob(attachment, sourceUri);
-      if (!blob?.size) return attachment;
+      if (!blob?.size) throw makeAttachmentError("file_read_failed", { name: attachment?.name });
 
       const webEntry = await writeWebAttachmentCacheRecord(attachment, blob);
       return {
@@ -931,11 +992,15 @@ export const cacheAttachmentFromLocalUri = async (attachment, sourceUri) => {
         cacheRevision: getAttachmentRevision(attachment),
       };
     } catch (error) {
+      if (required) throw makeAttachmentError("cache_unavailable", { originalError: error });
       return attachment;
     }
   }
 
-  if (!canUseNativeAttachmentCache() || !sourceUri) return attachment;
+  if (!canUseNativeAttachmentCache() || !sourceUri) {
+    if (required) throw makeAttachmentError("cache_unavailable");
+    return attachment;
+  }
 
   const cacheUri = getAttachmentCacheFileUri(attachment);
   const cacheDirectory = getAttachmentCacheDirectory(attachment);
@@ -958,6 +1023,7 @@ export const cacheAttachmentFromLocalUri = async (attachment, sourceUri) => {
       cacheRevision: getAttachmentRevision(attachment),
     };
   } catch (error) {
+    if (required) throw makeAttachmentError("cache_unavailable", { originalError: error });
     return attachment;
   }
 };
@@ -982,6 +1048,8 @@ export const ensureLocalAttachment = async (attachment, { forceDownload = false 
       cacheState: cacheState.status,
     };
   }
+
+  if (attachment?.storageMode === "local") throw makeAttachmentError("local_missing", { name: attachment?.name });
 
   if (canUseWebAttachmentCache()) {
     const remoteUri = await getFreshAttachmentDownloadURL(attachment)
@@ -1087,33 +1155,37 @@ export const deleteLocalAttachmentCache = async (attachment) => {
   const cacheKey = getAttachmentCacheKey(attachment);
   const cacheDirectory = getAttachmentCacheDirectory(attachment);
 
-  try {
-    const manifest = await readAttachmentCacheManifest();
+  await updateAttachmentCacheManifest((manifest) => {
     delete manifest[cacheKey];
-    await saveAttachmentCacheManifest(manifest);
-  } catch (error) {}
+    return manifest;
+  });
 
   if (!cacheDirectory) return;
-  try {
-    await FileSystem.deleteAsync(cacheDirectory, { idempotent: true });
-  } catch (error) {}
+  await FileSystem.deleteAsync(cacheDirectory, { idempotent: true });
 };
 
-export const clearAllLocalAttachmentCaches = async () => {
+export const clearAllLocalAttachmentCaches = async ({ preserve = [] } = {}) => {
   const failures = [];
+  const preservedKeys = new Set(preserve.map(getAttachmentCacheKey));
 
   if (canUseWebAttachmentCache()) {
     try {
       await runWebAttachmentCacheTransaction("readwrite", (store, resolve, reject) => {
-        const request = store.clear();
-        request.onsuccess = () => resolve(null);
+        const request = store.openCursor();
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor) return;
+          if (!preservedKeys.has(cursor.key)) cursor.delete();
+          cursor.continue();
+        };
         request.onerror = () => reject(request.error);
         return null;
       });
-      webAttachmentObjectUrls.forEach((objectUrl) => {
+      webAttachmentObjectUrls.forEach((objectUrl, key) => {
+        if (preservedKeys.has(key.split("|")[0])) return;
         revokeWebAttachmentObjectUrl(objectUrl);
+        webAttachmentObjectUrls.delete(key);
       });
-      webAttachmentObjectUrls.clear();
     } catch (error) {
       failures.push(error);
     }
@@ -1121,13 +1193,22 @@ export const clearAllLocalAttachmentCaches = async () => {
 
   if (canUseNativeAttachmentCache()) {
     try {
-      await AsyncStorage.removeItem(ATTACHMENT_CACHE_MANIFEST_KEY);
+      await updateAttachmentCacheManifest((manifest) => Object.fromEntries(
+        Object.entries(manifest).filter(([key]) => preservedKeys.has(key)),
+      ));
     } catch (error) {
       failures.push(error);
     }
 
     try {
-      await FileSystem.deleteAsync(ATTACHMENT_CACHE_DIR, { idempotent: true });
+      if (!preservedKeys.size) await FileSystem.deleteAsync(ATTACHMENT_CACHE_DIR, { idempotent: true });
+      else if ((await FileSystem.getInfoAsync(ATTACHMENT_CACHE_DIR)).exists) {
+        const preservedDirectories = new Set([...preservedKeys].map(sanitizePathSegment));
+        const directories = await FileSystem.readDirectoryAsync(ATTACHMENT_CACHE_DIR);
+        for (const directory of directories) {
+          if (!preservedDirectories.has(directory)) await FileSystem.deleteAsync(`${ATTACHMENT_CACHE_DIR}${directory}`, { idempotent: true });
+        }
+      }
     } catch (error) {
       failures.push(error);
     }
@@ -1994,6 +2075,51 @@ export const uploadAttachmentDraft = async (attachment, {
   return cachedAttachment;
 };
 
+export const storeAttachmentDrafts = async (attachments, {
+  storageMode = "local",
+  ...options
+} = {}) => {
+  if (storageMode === "cloud") return uploadAttachmentDrafts(attachments, options);
+
+  const stored = [];
+  const created = [];
+  try {
+    for (const attachment of normalizeAttachmentDraftList(attachments)) {
+      const [existing] = normalizeAttachmentList([attachment]);
+      if (existing) {
+        stored.push(existing);
+        continue;
+      }
+      options.onAttachmentStart?.(attachment);
+      const prepared = await prepareAttachmentForUpload(attachment);
+      const validationError = validateAsset(prepared, prepared.source || "file", { allowCompressionCandidate: false });
+      if (validationError) throw validationError;
+
+      const [file] = normalizeAttachmentLibrary([{
+        ...prepared,
+        storageMode: "local",
+        cloudRevision: Date.now(),
+      }]);
+      created.push(file);
+      const cached = await cacheAttachmentFromLocalUri(
+        { ...file, file: prepared.file },
+        prepared.localUri || prepared.uri,
+        { required: true },
+      );
+      stored.push({ ...file, localUri: cached.localUri });
+      options.onAttachmentProgress?.(attachment, 100);
+      if (prepared.localUri && prepared.localUri !== cached.localUri && prepared.compression) {
+        if (Platform.OS === "web") revokeWebObjectUrl(prepared.localUri);
+        else await deleteNativeCompressionCandidate({ uri: prepared.localUri });
+      }
+    }
+    return stored;
+  } catch (error) {
+    await deleteLocalAttachmentCaches(created);
+    throw error;
+  }
+};
+
 export const uploadAttachmentDrafts = async (attachments, {
   userId,
   onAttachmentProgress,
@@ -2138,24 +2264,54 @@ const shareNativeAttachment = async (attachment) => {
   const localUri = attachment?.localUri || attachment?.openUri || attachment?.uri;
   if (!localUri) throw makeAttachmentError("download_failed", { name: attachment?.name });
 
-  const sharingAvailable = await Sharing.isAvailableAsync();
-  if (!sharingAvailable) {
-    return attachment;
+  try {
+    await shareLocalFile({
+      uri: localUri,
+      name: normalizeAttachmentDisplayNameForMimeType(attachment?.name, attachment?.mimeType),
+      mimeType: inferAttachmentMimeType(attachment?.name, attachment?.mimeType),
+      uti: getAttachmentUTI(attachment),
+    });
+  } catch (error) {
+    throw makeAttachmentError("open_failed", { name: attachment?.name, originalError: error });
   }
-
-  await Sharing.shareAsync(localUri, {
-    dialogTitle: attachment?.name || t("attachments.file", "en"),
-    mimeType: inferAttachmentMimeType(attachment?.name, attachment?.mimeType),
-    UTI: isImageAttachment(attachment) ? "public.image" : "public.data",
-  });
 
   return attachment;
 };
 
 export const getAttachmentShareLabel = (lang) => t("attachments.share", lang);
 
+const getAttachmentUTI = (attachment) => ({
+  "application/pdf": "com.adobe.pdf",
+  "application/msword": "com.microsoft.word.doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "org.openxmlformats.wordprocessingml.document",
+  "text/plain": "public.plain-text",
+}[getAttachmentMimeType(attachment)] || (isImageAttachment(attachment) ? "public.image" : "public.data"));
+
+export const getAttachmentOpenHint = (attachment, lang) => t(
+  isImageAttachment(attachment) ? "attachments.preview_image"
+    : Platform.OS !== "web" ? "attachments.preview_native"
+      : ["application/pdf", "text/plain"].includes(getAttachmentMimeType(attachment))
+        ? "attachments.preview_browser" : "attachments.preview_download",
+  lang,
+);
+
 export const shareAttachment = async (attachment) => {
   const preparedAttachment = await ensureLocalAttachment(attachment);
+  if (Platform.OS === "web") {
+    const cached = await getWebAttachmentCacheRecord(attachment);
+    const file = cached?.blob && typeof globalThis.File === "function"
+      ? new globalThis.File([cached.blob], attachment.name, { type: getAttachmentMimeType(attachment) }) : null;
+    if (file && typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+      } catch (error) {
+        if (error?.name !== "AbortError") throw error;
+      }
+      return preparedAttachment;
+    }
+    await triggerWebAttachmentDownload(preparedAttachment.openUri, attachment);
+    return preparedAttachment;
+  }
   return shareNativeAttachment(preparedAttachment);
 };
 
@@ -2352,36 +2508,22 @@ export const openAttachment = async (attachment, { download = false } = {}) => {
   const url = attachment?.downloadURL || attachment?.url || attachment?.localUri || attachment?.uri;
 
   if (Platform.OS === "web" && typeof window !== "undefined") {
-    let webUrl = url;
-    if (!webUrl) {
-      try {
-        const cacheState = await getAttachmentCacheState(attachment);
-        webUrl = cacheState?.uri || "";
-      } catch (error) {}
+    const browserPreview = ["application/pdf", "text/plain"].includes(getAttachmentMimeType(attachment))
+      || (isImageAttachment(attachment) && getAttachmentMimeType(attachment) !== "image/svg+xml");
+    const previewWindow = !download && browserPreview ? window.open("", "_blank") : null;
+    if (previewWindow) previewWindow.opener = null;
+    if (!download && browserPreview && !previewWindow) throw makeAttachmentError("preview_blocked");
+    try {
+      const prepared = await ensureLocalAttachment(attachment);
+      const webUrl = prepared.openUri || prepared.localUri || url;
+      if (!webUrl) throw makeAttachmentError("open_failed", { name: attachment?.name });
+      if (previewWindow) previewWindow.location.replace(webUrl);
+      else await triggerWebAttachmentDownload(webUrl, attachment);
+      return prepared;
+    } catch (error) {
+      previewWindow?.close();
+      throw error;
     }
-    if (!webUrl) {
-      webUrl = await getFreshAttachmentDownloadURL(attachment);
-    }
-    if (!webUrl) throw makeAttachmentError("open_failed", { name: attachment?.name });
-
-    if (download && typeof document !== "undefined") {
-      await triggerWebAttachmentDownload(webUrl, attachment);
-      return;
-    }
-
-    if (typeof document !== "undefined") {
-      const anchor = document.createElement("a");
-      anchor.href = webUrl;
-      anchor.target = "_blank";
-      anchor.rel = "noopener noreferrer";
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      return;
-    }
-
-    window.open(webUrl, "_blank", "noopener,noreferrer");
-    return;
   }
 
   if (!url && !attachment?.storagePath) {
@@ -2398,10 +2540,20 @@ export const openAttachment = async (attachment, { download = false } = {}) => {
   }
 
   let openUri = preparedAttachment.openUri || preparedAttachment.localUri || url;
-  if (Platform.OS === "android" && String(openUri).startsWith("file://")) {
+  if (Platform.OS === "ios") return shareNativeAttachment(preparedAttachment);
+  if (Platform.OS === "android") {
     try {
-      openUri = await FileSystem.getContentUriAsync(openUri);
-    } catch (error) {}
+      if (String(openUri).startsWith("file://")) openUri = await FileSystem.getContentUriAsync(openUri);
+      const IntentLauncher = require("expo-intent-launcher");
+      await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
+        data: openUri,
+        type: getAttachmentMimeType(attachment),
+        flags: 1,
+      });
+      return preparedAttachment;
+    } catch (error) {
+      throw makeAttachmentError("viewer_unavailable", { name: attachment?.name, originalError: error });
+    }
   }
 
   const supported = await Linking.canOpenURL(openUri);

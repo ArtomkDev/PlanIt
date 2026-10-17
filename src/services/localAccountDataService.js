@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { clearLocalSchedule } from '../utils/storage';
-import { clearAllLocalAttachmentCaches } from './attachmentService';
+import { clearLocalSchedule, getLocalSchedule } from '../utils/storage';
+import { clearAllLocalAttachmentCaches, getScheduleAttachmentFiles } from './attachmentService';
+import { clearSharedFileCache } from './fileSharingService';
 import { clearAllLocalNotifications } from './notificationService';
 import { clearWidgetScheduleData } from '../widgets/widgetService';
 
@@ -11,9 +12,15 @@ const LOCAL_ACCOUNT_KEYS = [
 ];
 
 export const clearLocalAccountData = async (userId) => {
+  const guestData = await getLocalSchedule(null);
+  const preserve = [
+    ...(guestData?.global?.fileLibrary || []),
+    ...(guestData?.schedules || []).flatMap((schedule) => getScheduleAttachmentFiles(schedule, guestData?.global?.fileLibrary)),
+  ];
   const cleanupResults = await Promise.allSettled([
     clearLocalSchedule(userId, { throwOnError: true, preventWrites: true }),
-    clearAllLocalAttachmentCaches(),
+    clearAllLocalAttachmentCaches({ preserve }),
+    clearSharedFileCache(),
     clearAllLocalNotifications(),
     clearWidgetScheduleData(),
     AsyncStorage.multiRemove(LOCAL_ACCOUNT_KEYS),

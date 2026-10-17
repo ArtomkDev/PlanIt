@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Platform,
   StyleSheet,
@@ -32,8 +32,10 @@ import {
   getAttachmentCacheState,
   isImageAttachment,
   MAX_ATTACHMENT_SIZE_BYTES,
+  MAX_ATTACHMENTS_PER_ENTITY,
   createAttachmentReference,
   getAttachmentLibraryUsage,
+  getAttachmentOpenHint,
   normalizeAttachmentDraftList,
   normalizeAttachmentLibrary,
   openAttachment,
@@ -43,8 +45,9 @@ import {
   resolveAttachmentList,
   shareAttachment,
   upsertAttachmentLibraryFiles,
-  uploadAttachmentDrafts,
+  storeAttachmentDrafts,
 } from "../../services/attachmentService";
+import TabSwitcher from "../ui/TabSwitcher";
 import { t, formatText as interpolate } from "../../utils/i18n";
 import { triggerHaptic } from "../../utils/haptics";
 import { useAttachmentImagePreview } from "../../context/AttachmentImagePreviewContext";
@@ -63,7 +66,6 @@ export default function AttachmentManager({
   onFileLibraryChange,
   storageLimitBytes = MAX_ATTACHMENT_SIZE_BYTES,
   userId,
-  ownerAvailable = true,
   disabled = false,
   uploadState,
   themeColors,
@@ -75,6 +77,8 @@ export default function AttachmentManager({
   const [renamingAttachmentId, setRenamingAttachmentId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [storageMode, setStorageMode] = useState("local");
+  const pickerBusyRef = useRef(false);
   const { openImagePreview } = useAttachmentImagePreview();
   const activeUploadState = uploadState || internalUploadState;
   const normalizedAttachments = useMemo(
@@ -171,8 +175,9 @@ export default function AttachmentManager({
 
     try {
       updateUploadState({ uploading: true, attachmentId: null, progress: 0, error: "" });
-      const uploadedAttachments = await uploadAttachmentDrafts(pickedAttachments, {
+      const uploadedAttachments = await storeAttachmentDrafts(pickedAttachments, {
         userId,
+        storageMode: userId ? storageMode : "local",
         onAttachmentStart: (attachment) => {
           updateUploadState({ uploading: true, attachmentId: attachment.id, progress: 0, error: "" });
         },
@@ -205,7 +210,6 @@ export default function AttachmentManager({
       }
       uploadedAttachments.forEach(refreshAttachmentCacheState);
       updateUploadState({ uploading: false });
-      setLocalError("");
       triggerHaptic("success");
     } catch (error) {
       const formattedError = formatAttachmentError(error, lang);
@@ -222,12 +226,8 @@ export default function AttachmentManager({
   };
 
   const runPicker = async (picker) => {
-    if (disabled || activeUploadState?.uploading) return;
-    if (!ownerAvailable || !userId) {
-      setLocalError(t("attachments.errors.auth_required", lang));
-      triggerHaptic("warning");
-      return;
-    }
+    if (disabled || activeUploadState?.uploading || pickerBusyRef.current) return;
+    pickerBusyRef.current = true;
 
     try {
       setLocalError("");
@@ -236,6 +236,8 @@ export default function AttachmentManager({
     } catch (error) {
       triggerHaptic("error");
       setLocalError(formatAttachmentError(error, lang));
+    } finally {
+      pickerBusyRef.current = false;
     }
   };
 
@@ -251,6 +253,10 @@ export default function AttachmentManager({
 
   const attachLibraryFile = (file) => {
     if (disabled || activeUploadState?.uploading || !file?.id) return;
+    if (normalizedAttachments.length >= MAX_ATTACHMENTS_PER_ENTITY) {
+      setLocalError(t("attachments.errors.too_many", lang, { max: MAX_ATTACHMENTS_PER_ENTITY }));
+      return;
+    }
 
     triggerHaptic("success");
     onChange?.([...normalizedAttachments, createAttachmentReference(file)]);
@@ -427,6 +433,7 @@ export default function AttachmentManager({
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={`${attachment.name || t("attachments.file", lang)}${details ? `. ${details}` : ""}`}
+            accessibilityHint={getAttachmentOpenHint(attachment, lang)}
             accessibilityState={{ disabled: isUploading, busy: isUploading }}
             activeOpacity={0.72}
             style={styles.attachmentBody}
@@ -561,6 +568,17 @@ export default function AttachmentManager({
 
   return (
     <View style={styles.container}>
+      {!!userId && (
+        <TabSwitcher
+          tabs={[{ id: "local", label: t("attachments.save_local", lang) }, { id: "cloud", label: t("attachments.save_cloud", lang) }]}
+          activeTab={storageMode}
+          onTabPress={(value) => { if (!activeUploadState?.uploading && !disabled) setStorageMode(value); }}
+          themeColors={themeColors}
+        />
+      )}
+      <Text style={[styles.hintText, { color: themeColors.textColor2 }]}>
+        {t(!userId || storageMode === "local" ? "attachments.local_hint" : "attachments.cloud_hint", lang)}
+      </Text>
       <View style={styles.actionRow}>
         {renderActionButton({
           label: t("attachments.file", lang),
@@ -631,7 +649,7 @@ export default function AttachmentManager({
             {t("attachments.empty", lang)}
           </Text>
           <Text style={[styles.hintText, { color: themeColors.textColor3 || themeColors.textColor2 }]}>
-            {onFileLibraryChange
+            {onFileLibraryChange && userId && storageMode === "cloud"
               ? interpolate(t("attachments.storage_hint", lang), {
                 used: formatFileSize(cloudStorageUsed),
                 limit: formatFileSize(storageLimitBytes),

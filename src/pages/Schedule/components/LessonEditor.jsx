@@ -1245,7 +1245,6 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                 onUploadedAttachments={null}
                 onAttachmentUploadStateChange={setAttachmentUploadState}
                 attachmentUploadState={attachmentUploadState}
-                attachmentOwnerAvailable={!!user?.uid}
                 attachmentUserId={user?.uid}
                 fileLibrary={fileLibrary}
                 getItemVisual={getItemVisual}

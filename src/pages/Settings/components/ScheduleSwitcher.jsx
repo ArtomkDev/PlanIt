@@ -33,6 +33,7 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
 import { createScheduleCopy } from "../../../utils/scheduleCopy";
+import { copyScheduleAttachments, upsertAttachmentLibraryFiles } from "../../../services/attachmentService";
 import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
 import { triggerHaptic } from "../../../utils/haptics";
 import { getScheduleDisplayName } from "../../../utils/scheduleDisplay";
@@ -156,11 +157,6 @@ const ScheduleSwitcher = () => {
   };
 
   const handleShare = (scheduleData) => {
-    if (!user) {
-      triggerHaptic("warning");
-      showScheduleAlert(t('common.warning', lang), t('share.req_auth', lang));
-      return;
-    }
     triggerHaptic("open");
     setScheduleToShare(scheduleData);
     setShareModalVisible(true);
@@ -234,8 +230,10 @@ const ScheduleSwitcher = () => {
     triggerHaptic("selection");
     enqueueOperation(guestSchedule.id, async () => {
       try {
+        const guestData = await getLocalSchedule(null);
+        const transferred = await copyScheduleAttachments(guestSchedule, guestData?.global?.fileLibrary);
         const scheduleCopy = markScheduleAsAccountOwned(
-          JSON.parse(JSON.stringify(guestSchedule)),
+          transferred.schedule,
         );
 
         const oldId = scheduleCopy.id;
@@ -243,9 +241,9 @@ const ScheduleSwitcher = () => {
         scheduleCopy.lastModified = Date.now();
         scheduleCopy.lastSynced = 0;
 
+        setGlobalDraft((prev) => ({ ...prev, fileLibrary: upsertAttachmentLibraryFiles(prev.fileLibrary, transferred.files) }));
         await addSchedule(scheduleCopy);
 
-        const guestData = await getLocalSchedule(null);
         if (guestData) {
 
           guestData.schedules = guestData.schedules.map(s => {
@@ -284,8 +282,9 @@ const ScheduleSwitcher = () => {
           return;
         }
 
+        const transferred = await copyScheduleAttachments(accountSchedule, global?.fileLibrary);
         const scheduleCopy = markScheduleAsDeviceLocal(
-          JSON.parse(JSON.stringify(accountSchedule)),
+          transferred.schedule,
           { offerCloudMigration: false },
         );
 
@@ -298,6 +297,10 @@ const ScheduleSwitcher = () => {
 
         if (!guestData.schedules) guestData.schedules = [];
         guestData.schedules.push(scheduleCopy);
+        guestData.global = {
+          ...guestData.global,
+          fileLibrary: upsertAttachmentLibraryFiles(guestData.global?.fileLibrary, transferred.files),
+        };
 
         await saveLocalSchedule(guestData, null);
 
@@ -400,6 +403,10 @@ const ScheduleSwitcher = () => {
                 <Text style={[styles.buttonLabel, { color: themeColors.textColor }]}>{label('import_schedule')}</Text>
               </Pressable>
           </View>
+          {__DEV__ && React.createElement(require('../../../components/development/CreateTestScheduleButton').default, {
+            themeColors,
+            onCreated: () => changeTab('account'),
+          })}
           {!guest && (
             <TabSwitcher
               tabs={tabs}
@@ -502,7 +509,7 @@ const ScheduleSwitcher = () => {
                         disabled={busy}
                       />
                       {isAccountTab && <SettingsRow icon={PencilSimple} label={t('common.edit', lang)} onPress={() => runAction(() => handleEdit(schedule.id, false))} themeColors={themeColors} showCaret={false} disabled={busy} />}
-                      {isAccountTab && <SettingsRow icon={ShareNetwork} label={t('common.share', lang)} onPress={() => runAction(() => handleShare(schedule))} themeColors={themeColors} showCaret={false} disabled={busy} />}
+                      <SettingsRow icon={ShareNetwork} label={t('common.share', lang)} onPress={() => runAction(() => handleShare(schedule))} themeColors={themeColors} showCaret={false} disabled={busy} />
                       {!guest && <SettingsRow
                         icon={isAccountTab ? CloudArrowDown : CloudArrowUp}
                         label={isAccountTab ? label('move_to_device') : label('move_to_account')}

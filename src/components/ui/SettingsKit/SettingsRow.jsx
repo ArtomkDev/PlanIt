@@ -57,6 +57,13 @@ export default function SettingsRow({
       accessibilityLabel={onPress ? resolvedAccessibilityLabel : undefined}
       accessibilityHint={onPress ? accessibilityHint : undefined}
       accessibilityState={resolvedAccessibilityState}
+      {...(Platform.OS === "web" ? {
+        "aria-checked": resolvedAccessibilityState?.checked,
+        "aria-selected": resolvedAccessibilityState?.selected,
+        "aria-expanded": resolvedAccessibilityState?.expanded,
+        "aria-disabled": resolvedAccessibilityState?.disabled,
+        "aria-busy": resolvedAccessibilityState?.busy,
+      } : {})}
       style={[
         styles.row,
         disabled && styles.disabled,

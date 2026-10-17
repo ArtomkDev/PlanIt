@@ -1566,7 +1566,6 @@ export default function TaskEditor({
             onFileLibraryChange={handleFileLibraryChange}
             storageLimitBytes={MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES}
             userId={user?.uid}
-            ownerAvailable={!!user?.uid}
             disabled={attachmentUploadState.uploading}
             uploadState={attachmentUploadState}
             themeColors={themeColors}
