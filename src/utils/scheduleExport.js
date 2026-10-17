@@ -11,7 +11,7 @@ const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
 const capitalize = (value) => value.charAt(0).toLocaleUpperCase() + value.slice(1);
 
 export const SCHEDULE_EXPORT_DEFAULTS = {
-  layout: "grid", paper: "a4", orientation: "auto", density: "comfortable", color: "accent",
+  layout: "combined", paper: "a4", orientation: "auto", density: "comfortable", color: "accent",
   linkStyle: "label", csvSeparator: "comma", shareLocations: true, shareTypes: true,
   showEmptyDays: false, showNumbers: true, showCycleStart: true,
   includeWeekCalendar: false,

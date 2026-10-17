@@ -34,6 +34,12 @@ function load(relative, mocks = {}) {
 const { createCollegeTestSchedule } = load('src/config/development/collegeSchedule.js');
 const { buildScheduleSlots } = load('src/utils/scheduleTime.js');
 const { sanitizeSharedSchedule } = load('src/utils/scheduleValidation.js');
+const { SUBJECT_ICONS } = load('src/config/subjectIcons.js', {
+  'phosphor-react-native': new Proxy({}, { get: (_, key) => key === '__esModule' ? false : key }),
+});
+const { getLessonColors } = load('src/utils/scheduleColors.js');
+const { createPerceptualGradientStops, getReadableForeground } = load('src/utils/gradientColors.js');
+const tinycolor = require('tinycolor2');
 
 test('college timetable retains both alternating weeks, all six bell slots and valid references', () => {
   const schedule = createCollegeTestSchedule();
@@ -75,6 +81,37 @@ test('source date conditions, streams, meeting credentials and distinct Saturday
   const other = createCollegeTestSchedule();
   assert.notEqual(other.id, schedule.id);
   assert.equal(other.subjects.some(subject => schedule.subjects.some(existing => existing.id === subject.id)), false);
+});
+
+test('college lessons inherit valid subject icons and readable gradients across both weeks and sharing', () => {
+  const schedule = createCollegeTestSchedule();
+  const shared = sanitizeSharedSchedule(schedule);
+  assert.equal(schedule.gradients.length, schedule.subjects.length);
+  assert.equal(new Set(schedule.subjects.map(subject => subject.icon)).size, schedule.subjects.length);
+  assert.equal(new Set(schedule.gradients.map(gradient => JSON.stringify(gradient.colors))).size, schedule.subjects.length);
+  for (const model of [schedule, shared]) {
+    for (const subject of model.subjects) {
+      assert.ok(Object.hasOwn(SUBJECT_ICONS, subject.icon));
+      assert.equal(subject.typeColor, 'gradient');
+      const gradient = model.gradients.find(item => item.id === subject.colorGradient);
+      assert.ok(gradient, `${subject.name}: gradient reference must resolve`);
+      assert.equal(gradient.type, 'linear');
+      assert.deepEqual(gradient.colors.map(stop => stop.position), [0, 1]);
+      assert.equal(subject.color, gradient.colors[0].color);
+      const foreground = getReadableForeground(gradient);
+      for (const stop of createPerceptualGradientStops(gradient)) {
+        assert.ok(tinycolor.readability(foreground, stop.color) >= 4.5, `${subject.name}: text must stay readable throughout the gradient`);
+      }
+    }
+    for (const lesson of model.schedule.flatMap(day => [...day.week1, ...day.week2])) {
+      const subject = model.subjects.find(item => item.id === lesson.subjectId);
+      assert.equal(getLessonColors(lesson, model).activeGrad?.id, subject.colorGradient);
+    }
+  }
+  const other = createCollegeTestSchedule();
+  assert.equal(other.gradients.some(gradient => schedule.gradients.some(existing => existing.id === gradient.id)), false);
+  other.gradients[0].colors[0].color = '#000000';
+  assert.notEqual(schedule.gradients[0].colors[0].color, '#000000');
 });
 
 for (const lang of ['uk', 'en']) {

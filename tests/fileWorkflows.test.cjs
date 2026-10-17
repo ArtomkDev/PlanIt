@@ -398,7 +398,7 @@ test('Word export creates a real DOCX package containing Ukrainian tables and cy
   const zip = await JSZip.loadAsync(base64, { base64: true });
   const xml = await zip.file('word/document.xml').async('string');
   assert.match(xml, /Математика/);
-  assert.match(xml, /Тиждень 2/);
+  assert.match(xml, /Тижні 1 і 2/);
   assert.match(xml, /09:25/);
   assert.match(xml, /<w:tbl>/);
   assert.doesNotMatch(xml, /PRIVATE|Private note|private-file/);
@@ -956,16 +956,17 @@ test('web settings rows expose radio and expanded states to assistive technology
   assert.equal(row.props['aria-disabled'], false);
 });
 
-test('guest share UI exports Word without creating a public schedule and explains code sign-in', async t => {
+function shareUIEnvironment({ user = null, lang = 'uk', platform = 'android' } = {}) {
   const exported = [];
-  let publicCalls = 0;
+  const shared = [];
   const { default: Modal } = load('src/components/modals/ShareScheduleModal.jsx', {
     ...uiMocks,
-    '../../context/ScheduleProvider': { useScheduleData: () => ({ global: {}, lang: 'uk', user: null }) },
+    'react-native': { ...uiMocks['react-native'], Platform: { OS: platform } },
+    '../../context/ScheduleProvider': { useScheduleData: () => ({ global: {}, lang, user }) },
     '../../config/themes': { getColors: () => theme }, '../../utils/i18n': i18n,
     '../../utils/haptics': { triggerHaptic() {} },
     '../../utils/analytics/crashlytics': { logCrashlyticsError() {} },
-    '../../services/shareService': { createSharedSchedule: async () => { publicCalls++; }, createSharedScheduleLink: () => '' },
+    '../../services/shareService': { createSharedSchedule: async (...args) => { shared.push(args); return 'SHARE123'; }, createSharedScheduleLink: code => `https://planit.app/share/${code}` },
     '../../services/scheduleExportService': { exportSchedule: async (...args) => exported.push(args) },
     '../../utils/scheduleValidation': { sanitizeSharedSchedule: value => value },
     '../../utils/scheduleExport': exportsUtil,
@@ -975,23 +976,37 @@ test('guest share UI exports Word without creating a public schedule and explain
     '../ui/MorphingLoader': 'Loader', '../ui/BottomSheet': { __esModule: true, default: 'Sheet', SheetScrollView: 'Scroll' },
     'expo-clipboard': {},
   });
+  return { Modal, exported, shared };
+}
+
+test('guest share UI exports Word without creating a public schedule and explains code sign-in', async t => {
+  const { Modal, exported, shared } = shareUIEnvironment();
   let tree;
-  await act(async () => { tree = create(React.createElement(Modal, { visible: true, scheduleToShare: { ...schedule(), starting_week: '2026-08-31T12:00:00' }, onClose() {} })); });
+  const input = { ...schedule(), id: 'share-ui', starting_week: '2026-08-31T12:00:00' };
+  await act(async () => { tree = create(React.createElement(Modal, { visible: true, scheduleToShare: input, onClose() {} })); });
   t.after(async () => { await act(async () => tree.unmount()); });
-  const word = tree.root.findAllByType('Row').find(row => row.props.label === 'Word (.docx)');
-  await act(async () => word.props.onPress());
-  const exportButton = tree.root.findAllByType('Button').find(button => button.findAllByType('Text').some(text => text.props.children === 'Експортувати документ'));
+  const row = label => tree.root.findAllByType('Row').find(item => item.props.label === label);
+  const chooseFormat = async label => {
+    await act(async () => row('Формат файла').props.onPress());
+    await act(async () => row(label).props.onPress());
+  };
+  assert.equal(row('Word (.docx)'), undefined);
+  assert.equal(row('Імена викладачів'), undefined, 'content controls stay collapsed');
+  assert.equal(row('Графік тижнів').props.accessibilityState.checked, true);
+  assert.equal(row('Мова документа').props.accessibilityState.expanded, false);
+  await chooseFormat('Word (.docx)');
+  const exportButton = tree.root.findAllByType('Button').find(button => button.props.accessibilityState?.busy !== undefined);
   await act(async () => exportButton.props.onPress());
   assert.equal(exported[0][1], 'docx');
   assert.equal(exported[0][2], 'uk');
   assert.equal(exported[0][3].shareNotes, false);
-  assert.equal(exported[0][3].layout, 'grid');
-  assert.equal(exported[0][3].includeWeekCalendar, false);
-  await act(async () => tree.root.findAllByType('Button').find(button => button.props.accessibilityLabel === 'Тижні разом').props.onPress());
+  assert.equal(exported[0][3].layout, 'combined');
+  assert.equal(exported[0][3].includeWeekCalendar, true);
+  await act(async () => tree.root.findAllByType('Button').find(button => button.props.accessibilityLabel === 'Тижні окремо').props.onPress());
   await act(async () => exportButton.props.onPress());
-  assert.equal(exported.pop()[3].layout, 'combined');
-  const calendarSwitch = () => tree.root.findAllByType('Row').find(row => row.props.label === 'Графік тижнів')?.props.rightContent;
-  await act(async () => calendarSwitch().props.onValueChange(true));
+  assert.equal(exported.pop()[3].layout, 'grid');
+  const calendarSwitch = () => row('Графік тижнів');
+  await act(async () => row('Дати графіка').props.onPress());
   await act(async () => tree.root.findAllByType('Button').find(button => button.props.accessibilityLabel === '4 тижні').props.onPress());
   await act(async () => tree.root.findAllByType('Row').find(row => row.props.label === 'Початок періоду').props.onPress());
   await act(async () => tree.root.findByType('CalendarSheet').props.onDateSelect(new Date('2026-09-02T12:00:00')));
@@ -1003,26 +1018,99 @@ test('guest share UI exports Word without creating a public schedule and explain
   await act(async () => exportButton.props.onPress());
   assert.deepEqual([exported.at(-1)[3].calendarFrom, exported.at(-1)[3].calendarTo], ['2026-09-02', '2026-12-13']);
   assert.equal(exported.pop()[3].includeWeekCalendar, true);
-  await act(async () => tree.root.findAllByType('Row').find(row => row.props.label === 'CSV (.csv)').props.onPress());
+  await chooseFormat('CSV (.csv)');
   assert.equal(calendarSwitch(), undefined);
   await act(async () => exportButton.props.onPress());
   assert.equal(exported.pop()[3].includeWeekCalendar, false);
-  await act(async () => word.props.onPress());
-  await act(async () => calendarSwitch().props.onValueChange(false));
+  await chooseFormat('Word (.docx)');
+  await act(async () => calendarSwitch().props.onPress());
+  await act(async () => row('Мова документа').props.onPress());
   await act(async () => tree.root.findAllByType('Button').find(button => button.props.accessibilityLabel === 'English').props.onPress());
+  await act(async () => row('Які тижні додати').props.onPress());
   await act(async () => tree.root.findAllByType('Button').find(button => button.props.accessibilityLabel === 'Тиждень 1').props.onPress());
   await act(async () => exportButton.props.onPress());
   assert.equal(exported[1][2], 'en');
   assert.deepEqual(exported[1][3].selectedWeeks, [2]);
-  await act(async () => tree.update(React.createElement(Modal, { visible: false, scheduleToShare: schedule(), onClose() {} })));
-  await act(async () => tree.update(React.createElement(Modal, { visible: true, scheduleToShare: schedule(), onClose() {} })));
-  await act(async () => tree.root.findAllByType('Button').find(button => button.findAllByType('Text').some(text => text.props.children === 'Експортувати документ')).props.onPress());
+  await act(async () => tree.update(React.createElement(Modal, { visible: false, scheduleToShare: input, onClose() {} })));
+  await act(async () => tree.update(React.createElement(Modal, { visible: true, scheduleToShare: input, onClose() {} })));
+  await act(async () => exportButton.props.onPress());
   assert.equal(exported[2][2], 'uk');
   assert.equal(exported[2][3].selectedWeeks, undefined);
-  assert.equal(publicCalls, 0);
+  assert.equal(exported[2][3].layout, 'combined');
+  assert.equal(exported[2][3].includeWeekCalendar, true);
+  assert.equal(row('Дати графіка').props.accessibilityState.expanded, false);
+  assert.equal(shared.length, 0);
   await act(async () => tree.root.findByType('TabSwitcher').props.onTabPress('code'));
   assert.equal(tree.root.findAllByType('Text').some(text => text.props.children === i18n.t('share.code_auth_hint', 'uk')), true);
   assert.equal(tree.root.findAllByType('Button').some(button => button.findAllByType('Text').some(text => text.props.children === 'Згенерувати код')), false);
+});
+
+test('share defaults follow the cycle, retain at least one week, and recover from a missing calendar anchor', async t => {
+  const { Modal, exported } = shareUIEnvironment();
+  let tree;
+  const render = input => React.createElement(Modal, { visible: true, scheduleToShare: input, onClose() {} });
+  await act(async () => { tree = create(render({ ...schedule(), id: 'single', repeat: 1 })); });
+  t.after(async () => { await act(async () => tree.unmount()); });
+  const row = label => tree.root.findAllByType('Row').find(item => item.props.label === label);
+  const button = label => tree.root.findAllByType('Button').find(item => item.props.accessibilityLabel === label);
+  const submit = () => tree.root.findAllByType('Button').find(item => item.props.accessibilityState?.busy !== undefined);
+  assert.equal(row('Графік тижнів').props.accessibilityState.checked, false);
+  assert.equal(row('Які тижні додати'), undefined);
+  assert.equal(submit().props.disabled, false);
+  await act(async () => submit().props.onPress());
+  assert.equal(exported.at(-1)[1], 'pdf');
+  assert.equal(exported.at(-1)[3].includeWeekCalendar, false);
+
+  await act(async () => tree.update(render({ ...schedule(), id: 'three', repeat: 3, starting_week: '2026-08-31T12:00:00' })));
+  assert.equal(row('Графік тижнів').props.accessibilityState.checked, true);
+  await act(async () => row('Які тижні додати').props.onPress());
+  await act(async () => button('Тиждень 1').props.onPress());
+  await act(async () => button('Тиждень 2').props.onPress());
+  await act(async () => button('Тиждень 3').props.onPress());
+  assert.equal(button('Тиждень 3').props.accessibilityState.checked, true);
+  await act(async () => submit().props.onPress());
+  assert.deepEqual(exported.at(-1)[3].selectedWeeks, [3]);
+  assert.equal(exported.at(-1)[3].includeWeekCalendar, true);
+
+  await act(async () => tree.update(render({ ...schedule(), id: 'missing-anchor' })));
+  assert.equal(submit().props.disabled, true);
+  assert.equal(tree.root.findAllByType('Text').some(item => item.props.children === i18n.t('share.week_calendar_missing_anchor', 'uk')), true);
+  await act(async () => row('Графік тижнів').props.onPress());
+  assert.equal(submit().props.disabled, false);
+  await act(async () => submit().props.onPress());
+  assert.equal(exported.at(-1)[3].includeWeekCalendar, false);
+});
+
+test('share details and appearance remain editable, and code sharing keeps its privacy choices', async t => {
+  const { Modal, exported, shared } = shareUIEnvironment({ user: { uid: 'author', displayName: 'Олена' }, platform: 'web', lang: 'en' });
+  let tree;
+  await act(async () => { tree = create(React.createElement(Modal, { visible: true, scheduleToShare: { ...schedule(), starting_week: '2026-08-31T12:00:00' }, onClose() {} })); });
+  t.after(async () => { await act(async () => tree.unmount()); });
+  const row = label => tree.root.findAllByType('Row').find(item => item.props.label === label);
+  const button = label => tree.root.findAllByType('Button').find(item => item.props.accessibilityLabel === label);
+  const submit = () => tree.root.findAllByType('Button').find(item => item.props.accessibilityState?.busy !== undefined);
+  await act(async () => row('Document content').props.onPress());
+  await act(async () => row('Include class notes').props.onPress());
+  await act(async () => row('Teacher names').props.onPress());
+  await act(async () => row('Page appearance').props.onPress());
+  assert.equal(row('Include class notes'), undefined, 'opening a section collapses the previous section');
+  await act(async () => button('Portrait').props.onPress());
+  await act(async () => button('Black and white').props.onPress());
+  await act(async () => submit().props.onPress());
+  assert.equal(exported.at(-1)[3].shareNotes, true);
+  assert.equal(exported.at(-1)[3].shareTeachers, false);
+  assert.equal(exported.at(-1)[3].orientation, 'portrait');
+  assert.equal(exported.at(-1)[3].color, 'mono');
+  await act(async () => tree.root.findAllByType('TabSwitcher')[0].props.onTabPress('code'));
+  await act(async () => tree.root.findAllByType('TabSwitcher')[1].props.onTabPress('30'));
+  await act(async () => row('Privacy settings').props.onPress());
+  assert.equal(row('Include class notes').props.accessibilityState.checked, true);
+  await act(async () => row('Show my name').props.onPress());
+  await act(async () => submit().props.onPress());
+  assert.equal(shared.length, 1);
+  assert.equal(shared[0][0].displayName, 'Олена');
+  assert.equal(shared[0][2], 30);
+  assert.equal(tree.root.findAllByType('Text').some(item => item.props.children === 'SHARE123'), true);
 });
 
 test('guest library UI adds, searches, and renames a local PDF without authentication', async t => {

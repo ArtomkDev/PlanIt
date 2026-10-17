@@ -4,13 +4,13 @@ import { getLastMondayDate } from '../../utils/scheduleTime';
 // Transcribed from the supplied 2026–2027 college timetable. The document does
 // not define a cycle start; use the app's usual current-Monday default.
 const subjects = [
-  ['database', 'Бази даних', 'Міронов Ю.Г.', '#3B82F6'],
-  ['theory', 'Теорія ігор та прийняття рішень (Дослідження операції)', 'Талапов Т.К.', '#8B5CF6'],
-  ['architecture', "Архітектура комп'ютера та комп'ютерних мереж", 'Зубко Р.А.', '#F59E0B'],
-  ['os', 'Операційні системи', 'Храпачевський І.В.', '#10B981'],
-  ['english', 'Іноземна мова (за професійним спрямуванням)', 'Калинюк Н.В.', '#EC4899'],
-  ['iot', 'Технологія інтернет речей', 'Дуднік А.С.', '#06B6D4'],
-  ['resistance', 'Основи національного спротиву', null, '#F97316'],
+  { key: 'database', name: 'Бази даних', teacher: 'Міронов Ю.Г.', icon: 'data', colors: ['#2563EB', '#4338CA'] },
+  { key: 'theory', name: 'Теорія ігор та прийняття рішень (Дослідження операції)', teacher: 'Талапов Т.К.', icon: 'strategy', colors: ['#7C3AED', '#A21CAF'] },
+  { key: 'architecture', name: "Архітектура комп'ютера та комп'ютерних мереж", teacher: 'Зубко Р.А.', icon: 'cpu', colors: ['#B45309', '#C2410C'] },
+  { key: 'os', name: 'Операційні системи', teacher: 'Храпачевський І.В.', icon: 'terminal', colors: ['#047857', '#0F766E'] },
+  { key: 'english', name: 'Іноземна мова (за професійним спрямуванням)', teacher: 'Калинюк Н.В.', icon: 'lang', colors: ['#BE185D', '#7E22CE'] },
+  { key: 'iot', name: 'Технологія інтернет речей', teacher: 'Дуднік А.С.', icon: 'network', colors: ['#0E7490', '#1D4ED8'] },
+  { key: 'resistance', name: 'Основи національного спротиву', icon: 'target', colors: ['#3F6212', '#166534'] },
 ];
 
 const meetings = {
@@ -46,7 +46,7 @@ const lessons = [
 export function createCollegeTestSchedule() {
   const monday = getLastMondayDate();
   const teacherNames = [...new Set([
-    ...subjects.map(([, , teacher]) => teacher).filter(Boolean),
+    ...subjects.map(({ teacher }) => teacher).filter(Boolean),
     'Яфонкін Анатолій Олексійович',
   ])];
   const teachers = teacherNames.map(name => ({ id: generateId(), name }));
@@ -55,8 +55,12 @@ export function createCollegeTestSchedule() {
     id: generateId(), key, name, url, type: 'meeting',
   }));
   const linkId = key => links.find(link => link.key === key).id;
-  const scheduleSubjects = subjects.map(([key, name, teacher, color]) => ({
-    id: generateId(), key, name, color,
+  const gradients = subjects.map(({ name, colors }) => ({
+    id: generateId(), name, type: 'linear', angle: 135,
+    colors: [{ color: colors[0], position: 0 }, { color: colors[1], position: 1 }],
+  }));
+  const scheduleSubjects = subjects.map(({ key, name, teacher, icon, colors }, index) => ({
+    id: generateId(), key, name, icon, color: colors[0], typeColor: 'gradient', colorGradient: gradients[index].id,
     ...(teacher ? { teachers: [teacherId(teacher)] } : {}),
     links: [linkId(key)],
     ...(meetings[key][2] ? { note: meetings[key][2] } : {}),
@@ -90,7 +94,7 @@ export function createCollegeTestSchedule() {
     subjects: scheduleSubjects.map(({ key, ...subject }) => subject),
     teachers,
     links: links.map(({ key, ...link }) => link),
-    gradients: [],
+    gradients,
     tasks: [],
     schedule,
   };
