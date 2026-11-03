@@ -235,6 +235,9 @@ test('keeps white as the card default and switches only for consistently light s
   );
   assert.equal(colors.getReadableForeground('#ffffff'), '#111827');
   assert.equal(colors.getReadableForeground('#f97316'), '#ffffff');
+  assert.equal(colors.getReadableForeground('#ffffff'), '#111827', 'cached results stay stable');
+  assert.equal(colors.getReadableForeground('not-a-color', '#123456'), '#123456');
+  assert.equal(colors.getReadableForeground('not-a-color', '#abcdef'), '#abcdef', 'the cache never keeps a caller fallback');
   assert.equal(colors.isLightForeground('#fff'), true);
   assert.equal(colors.isLightForeground('#ffffff'), true);
 });

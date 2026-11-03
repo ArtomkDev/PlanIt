@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Platform, Alert, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { Monitor, DeviceMobile, SignOut, X } from "phosphor-react-native";
 import { collection, onSnapshot } from "firebase/firestore";
 import { removeDevice, removeAllOtherDevices, getDeviceId } from "../../../../utils/deviceService";
 import { useScheduleData } from "../../../../context/ScheduleProvider";
+import { useAppDialog } from "../../../../context/AppDialogContext";
 import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
 import { db } from "../../../../config/firebase";
 import themes from "../../../../config/themes";
@@ -13,6 +14,7 @@ import { formatDeviceActivity, getDeviceActivity, getDevicePresentation } from "
 
 export default function DeviceManager() {
   const { user, global, lang } = useScheduleData();
+  const dialog = useAppDialog();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDeviceId, setCurrentDeviceId] = useState(null);
@@ -79,18 +81,16 @@ export default function DeviceManager() {
     }
   }
 
-  function confirmSignOut(device) {
-    const message = device
-      ? label("logout_confirm", { device: getDevicePresentation(device, lang).title })
-      : label("logout_all_confirm");
-    if (Platform.OS === "web") {
-      if (window.confirm(message)) signOutDevice(device);
-      return;
-    }
-    Alert.alert(label("logout"), message, [
-      { text: t("common.cancel", lang), style: "cancel" },
-      { text: label("logout"), style: "destructive", onPress: () => signOutDevice(device) },
-    ]);
+  async function confirmSignOut(device) {
+    const confirmed = await dialog.confirm({
+      title: label("logout"),
+      message: device
+        ? label("logout_confirm", { device: getDevicePresentation(device, lang).title })
+        : label("logout_all_confirm"),
+      confirmLabel: label("logout"),
+      destructive: true,
+    });
+    if (confirmed) signOutDevice(device);
   }
 
   const current = devices.find((device) => device.id === currentDeviceId);

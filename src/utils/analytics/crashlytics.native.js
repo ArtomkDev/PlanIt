@@ -73,6 +73,10 @@ const createSanitizedError = (error, fallbackMessage = "Unknown error") => {
   if (error instanceof Error) {
     const safeError = new Error(sanitizeText(error.message || fallbackMessage));
     safeError.name = sanitizeText(error.name || "Error", 80);
+    if (typeof error.stack === 'string') {
+      safeError.stack = error.stack.split('\n').slice(0, 60)
+        .map((line) => sanitizeText(line)).join('\n');
+    }
     return safeError;
   }
 

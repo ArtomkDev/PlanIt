@@ -75,6 +75,7 @@ const loadHandlers = ({
     process: { env: { GCLOUD_PROJECT: 'planit-hub' } },
     console: { error: () => {} },
     createHash,
+    widgetSyncHandler: () => {},
     createAccountActionEmailContent,
     normalizeAccountEmailLocale,
     ...accountEmailConfig,
@@ -147,7 +148,7 @@ test('add-password mail keeps the branded template, website, and action context'
   assert.equal(result.status, 204);
   assert.equal(result.body, null);
   assert.equal(app.mail[0].subject, 'Створіть пароль для PlanIt');
-  assert.match(app.mail[0].html, /https:\/\/planit-hub.firebaseapp.com\/uk\/auth\/action\?/);
+  assert.match(app.mail[0].html, /https:\/\/planitflow\.com\/uk\/auth\/action\?/);
   assert.equal(new URL(app.generatedLinks[0].settings.url).searchParams.get('passwordAction'), 'addPassword');
 });
 
@@ -171,12 +172,12 @@ test('public reset sends a localized branded email to the account owner without 
   assert.equal(app.mail[0].from.address, 'planit.app.support@gmail.com');
   assert.match(app.mail[0].html, /<h1\b/);
   assert.match(app.mail[0].html, /<img src="cid:planit-wordmark"/);
-  assert.equal(app.mail[0].attachments.length, 1);
-  assert.equal(app.mail[0].attachments[0].cid, 'planit-wordmark');
+  assert.deepEqual(app.mail[0].attachments.map((logo) => logo.cid), ['planit-wordmark', 'planit-wordmark-dark']);
   assert.doesNotMatch(app.mail[0].text, /attacker|додавання пароля/);
 
   const link = new URL(app.mail[0].text.split('\n').find((line) => line.startsWith('https://')));
-  assert.equal(link.origin + link.pathname, 'https://planit-hub.firebaseapp.com/uk/auth/action');
+  assert.equal(link.origin + link.pathname, 'https://planitflow.com/uk/auth/action');
+  assert.equal(new URL(link.searchParams.get('continueUrl')).origin, 'https://planitflow.com');
   assert.equal(link.searchParams.get('mode'), 'resetPassword');
   assert.equal(link.searchParams.get('oobCode'), 'secret-code');
   assert.equal(link.searchParams.get('apiKey'), 'test-key');
@@ -272,7 +273,7 @@ test('nested Firebase mobile links are rewritten to the English website handler'
   const result = await app.invoke('sendPasswordResetEmail', { body: { email: defaultUser.email, locale: 'de' } });
   assert.equal(result.status, 204);
   assert.equal(app.mail[0].subject, 'Reset your PlanIt password');
-  assert.match(app.mail[0].text, /https:\/\/planit-hub.firebaseapp.com\/en\/auth\/action\?/);
+  assert.match(app.mail[0].text, /https:\/\/planitflow\.com\/en\/auth\/action\?/);
 });
 
 test('registration verification uses the authenticated account email and the branded handler', async () => {

@@ -22,9 +22,11 @@ const compileModule = (filePath, mocks = new Map()) => {
 
 const fingerprintPath = path.resolve(__dirname, '../src/utils/scheduleDataFingerprint.js');
 const fingerprint = compileModule(fingerprintPath);
+const identity = compileModule(path.resolve(__dirname, '../src/utils/scheduleIdentity.js'));
 const syncPath = path.resolve(__dirname, '../src/utils/scheduleSync.js');
 const sync = compileModule(syncPath, new Map([
   ['./scheduleDataFingerprint', fingerprint],
+  ['./scheduleIdentity', identity],
 ]));
 const createDefaultDataPath = path.resolve(__dirname, '../src/config/createDefaultData.js');
 const navigationMetrics = compileModule(path.resolve(__dirname, '../src/navigation/navigationMetrics.js'), new Map([
@@ -36,6 +38,7 @@ const createDefaultData = compileModule(createDefaultDataPath, new Map([
 ])).default;
 const shareServicePath = path.resolve(__dirname, '../src/services/shareService.js');
 const shareService = compileModule(shareServicePath, new Map([
+  ['react-native', { Platform: { OS: 'web' } }],
   ['firebase/firestore', {}],
   ['expo-crypto', {}],
   ['../config/firebase', { db: {} }],
@@ -44,6 +47,7 @@ const shareService = compileModule(shareServicePath, new Map([
 test('new public shares use long random codes and do not expose the account email', async () => {
   const writes = [];
   const service = compileModule(shareServicePath, new Map([
+    ['react-native', { Platform: { OS: 'web' } }],
     ['firebase/firestore', {
       doc: (_db, ...segments) => segments.join('/'),
       setDoc: async (reference, value) => writes.push({ reference, value }),
@@ -92,17 +96,29 @@ test('initial data never creates a schedule before onboarding finishes', () => {
 test('friend schedule import accepts a raw code or a complete share link', () => {
   assert.equal(shareService.normalizeShareCodeInput('abc12'), 'ABC12');
   assert.equal(
-    shareService.normalizeShareCodeInput('https://planit.app/share/Friend42?source=chat'),
+    shareService.normalizeShareCodeInput('https://planit-demo.web.app/share/Friend42?source=chat'),
     'FRIEND42',
   );
   assert.equal(
     shareService.createSharedScheduleLink('Friend42'),
-    'https://planit.app/share/FRIEND42',
+    'https://app.planitflow.com/share/FRIEND42',
   );
   assert.throws(
-    () => shareService.normalizeShareCodeInput('https://planit.app/not-a-share-link'),
+    () => shareService.normalizeShareCodeInput('https://planit-demo.web.app/not-a-share-link'),
     /invalid_code/,
   );
+});
+
+test('web shares use the application domain and native app links retain their configurable HTTPS host', () => {
+  const { getShareLinkHost } = require('../src/config/shareLinks.cjs');
+  const hosting = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../.firebaserc'), 'utf8'));
+  assert.equal(getShareLinkHost(), `${hosting.targets['planit-hub'].hosting.app[0]}.web.app`);
+  assert.equal(getShareLinkHost(undefined, 'web'), 'app.planitflow.com');
+  assert.equal(getShareLinkHost('native.example.com', 'android'), 'native.example.com');
+  assert.equal(getShareLinkHost(' https://Share.Example.com/ '), 'share.example.com');
+  for (const value of ['http://example.com', 'https://user:secret@example.com', 'example.com/share', 'example.com:8080', 'example.com?redirect=bad']) {
+    assert.throws(() => getShareLinkHost(value));
+  }
 });
 
 test('fingerprint covers arbitrary and nested user fields', () => {
@@ -112,6 +128,21 @@ test('fingerprint covers arbitrary and nested user fields', () => {
     fingerprint.getScheduleDataFingerprint(left),
     fingerprint.getScheduleDataFingerprint(right),
   );
+});
+
+test('dirty marking does not traverse unchanged schedule content', () => {
+  const untouched = schedule({ id: 'untouched' });
+  let reads = 0;
+  Object.defineProperty(untouched, 'subjects', { enumerable: true, get() { reads++; return []; } });
+  const previous = data(schedule());
+  previous.schedules.push(untouched);
+  const updated = sync.markScheduleDataDirty(previous, {
+    ...previous,
+    schedules: [{ ...previous.schedules[0], name: 'Changed' }, untouched],
+  });
+  assert.equal(updated.schedules[1], untouched);
+  assert.equal(reads, 0);
+  assert.equal(sync.isSyncEntityDirty(updated.schedules[0]), true);
 });
 
 test('fingerprint ignores Firestore collection order but not in-schedule order', () => {
@@ -287,8 +318,11 @@ test('schedule provider owns a screen-independent autosave safety path', () => {
     path.resolve(__dirname, '../src/context/ScheduleProvider.jsx'),
     'utf8',
   );
-  const safetyPathStart = providerSource.indexOf('Data safety must not depend on AutoSaveManager');
-  const safetyPath = providerSource.slice(safetyPathStart, safetyPathStart + 2600);
+  const safetyPathStart = providerSource.indexOf('const remainingWait = Math.max(0, 60000');
+  const safetyPath = providerSource.slice(
+    providerSource.lastIndexOf('useEffect(() => {', safetyPathStart),
+    providerSource.indexOf('const safeLogout', safetyPathStart),
+  );
 
   assert.notEqual(safetyPathStart, -1);
   assert.match(safetyPath, /cloudSubscriptionUserId/);

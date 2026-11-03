@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Trash, Clock } from "phosphor-react-native";
 import { useScheduleData } from "../../../context/ScheduleProvider";
+import { useAppDialog } from "../../../context/AppDialogContext";
 import { getUserSharedSchedules, deleteSharedSchedule } from "../../../services/shareService";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import MorphingLoader from "../../../components/ui/MorphingLoader";
@@ -10,6 +11,7 @@ import { t, getLocale } from "../../../utils/i18n";
 
 export default function SharedSchedulesManager() {
   const { user, global, lang } = useScheduleData();
+  const dialog = useAppDialog();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
@@ -45,7 +47,7 @@ export default function SharedSchedulesManager() {
     return () => { requestIdRef.current += 1; };
   }, [fetchSchedules]);
 
-  const handleDelete = (shareCode) => {
+  const handleDelete = async (shareCode) => {
     if (deletionBusyRef.current) return;
     const deactivate = async () => {
       if (deletionBusyRef.current) return;
@@ -62,22 +64,13 @@ export default function SharedSchedulesManager() {
         setPendingCode(null);
       }
     };
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('share.deactivate_desc', lang))) deactivate();
-      return;
-    }
-    Alert.alert(
-      t("share.deactivate_title", lang),
-      t("share.deactivate_desc", lang),
-      [
-        { text: t("common.cancel", lang), style: "cancel" },
-        {
-          text: t("share.deactivate_btn", lang),
-          style: "destructive",
-          onPress: deactivate,
-        },
-      ]
-    );
+    const confirmed = await dialog.confirm({
+      title: t("share.deactivate_title", lang),
+      message: t("share.deactivate_desc", lang),
+      confirmLabel: t("share.deactivate_btn", lang),
+      destructive: true,
+    });
+    if (confirmed) deactivate();
   };
 
   const renderItem = (item) => {

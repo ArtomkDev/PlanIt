@@ -6,6 +6,7 @@ import {
   collection,
   onSnapshot,
   getDoc,
+  runTransaction,
   writeBatch,
   deleteField,
   serverTimestamp,
@@ -53,6 +54,8 @@ const createDeviceRevocationPatch = (
   revokedAt: serverTimestamp(),
   revokedReason: reason,
   expoPushToken: deleteField(),
+  widgetPushToken: deleteField(),
+  widgetScheduleId: deleteField(),
   pushPermissionStatus: deleteField(),
   pushTokenPlatform: deleteField(),
   pushTokenUpdatedAt: deleteField(),
@@ -326,14 +329,37 @@ export async function registerDevice(userId, options = {}) {
   }
 }
 
+export async function syncWidgetPushRegistration(userId, scheduleId, token) {
+  if (Platform.OS !== 'android' || auth.currentUser?.uid !== userId) return;
+  const deviceId = await getDeviceId();
+  const ref = doc(db, 'users', userId, 'devices', deviceId);
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (auth.currentUser?.uid !== userId || !snapshot.exists()) return false;
+    const device = snapshot.data();
+    if (device.status !== DEVICE_STATUS.ACTIVE) return false;
+    const widgetPushToken = scheduleId ? token : null;
+    const widgetScheduleId = scheduleId || null;
+    if ((device.widgetPushToken || null) === widgetPushToken
+      && (device.widgetScheduleId || null) === widgetScheduleId) return true;
+    transaction.update(ref, { widgetPushToken, widgetScheduleId });
+    return true;
+  }, { maxAttempts: 1 });
+}
+
 export async function listenForDeviceRemoval(userId, onRemoved) {
   if (!userId) return () => {};
   
   const deviceId = await getDeviceId();
   const ref = doc(db, "users", userId, "devices", deviceId);
+  let active = true;
+  const isCurrentSession = () => active && auth.currentUser?.uid === userId;
+  const signOutCurrentSession = () => {
+    if (isCurrentSession() && !isAccountBeingDeleted) signOut(auth).catch(console.error);
+  };
 
   const unsubscribeDevice = onSnapshot(ref, (docSnap) => {
-    if (!auth.currentUser) return;
+    if (!isCurrentSession()) return;
 
     if (!docSnap.exists()) return;
     const status = docSnap.data()?.status || DEVICE_STATUS.ACTIVE;
@@ -350,47 +376,41 @@ export async function listenForDeviceRemoval(userId, onRemoved) {
   const userRef = doc(db, "users", userId);
   let checkInterval = null;
   let isChecking = false;
+  let pendingEmail = null;
 
   const unsubscribeSecurity = onSnapshot(userRef, (docSnap) => {
-    if (!auth.currentUser) return;
+    if (!isCurrentSession()) return;
 
-    if (docSnap.exists()) {
-      const userData = docSnap.data();
-
-      if (userData.pendingEmail) {
-        if (!checkInterval) {
-          checkInterval = setInterval(async () => {
-            if (isChecking) return;
-            isChecking = true;
-
-            const currentUser = auth.currentUser;
-            if (currentUser) {
-              try {
-                await currentUser.reload();
-                
-                if (currentUser.email && currentUser.email.toLowerCase() === userData.pendingEmail.toLowerCase()) {
-                  clearInterval(checkInterval);
-                  checkInterval = null;
-                  signOut(auth);
-                }
-              } catch (error) {
-                clearInterval(checkInterval);
-                checkInterval = null;
-                signOut(auth);
-              } finally {
-                isChecking = false;
-              }
-            } else {
-               isChecking = false;
-            }
-          }, 4000);
+    pendingEmail = docSnap.exists() ? docSnap.data()?.pendingEmail : null;
+    if (pendingEmail && !checkInterval) {
+      checkInterval = setInterval(async () => {
+        if (isChecking || !isCurrentSession()) return;
+        isChecking = true;
+        const currentUser = auth.currentUser;
+        const expectedEmail = pendingEmail;
+        try {
+          await currentUser.reload();
+          if (
+            isCurrentSession() && pendingEmail === expectedEmail &&
+            currentUser.email?.toLowerCase() === expectedEmail.toLowerCase()
+          ) {
+            clearInterval(checkInterval);
+            checkInterval = null;
+            signOutCurrentSession();
+          }
+        } catch (error) {
+          if (['auth/user-token-expired', 'auth/invalid-user-token', 'auth/user-disabled', 'auth/user-not-found'].includes(error?.code)) {
+            clearInterval(checkInterval);
+            checkInterval = null;
+            signOutCurrentSession();
+          }
+        } finally {
+          isChecking = false;
         }
-      } else {
-        if (checkInterval) {
-          clearInterval(checkInterval);
-          checkInterval = null;
-        }
-      }
+      }, 4000);
+    } else if (!pendingEmail && checkInterval) {
+      clearInterval(checkInterval);
+      checkInterval = null;
     }
   }, (error) => {
     if (error.code !== 'permission-denied') {
@@ -399,6 +419,7 @@ export async function listenForDeviceRemoval(userId, onRemoved) {
   });
 
   return () => {
+    active = false;
     unsubscribeDevice();
     unsubscribeSecurity();
     if (checkInterval) clearInterval(checkInterval);

@@ -24,6 +24,7 @@ const compile = (relative, mocks = {}) => {
 };
 const model = compile('src/pages/Schedule/dayNavigation.js');
 const day = (number) => new Date(2026, 8, number);
+const gestureStates = { FAILED: 1, BEGAN: 2, CANCELLED: 3, ACTIVE: 4, END: 5 };
 
 // Separate UI and JS queues deliberately expose the frame between animation
 // completion and React's commit. Native timing itself still needs device testing.
@@ -33,6 +34,10 @@ const createRuntime = () => {
   const reactions = new Set();
   const values = new Set();
   let gesture;
+  let translationX = 0;
+  let translationY = 0;
+  let touchX = 200;
+  let touchY = 300;
   const assertSerializable = (value, seen = new Set()) => {
     if (value === null || value === undefined || seen.has(value)) return;
     seen.add(value);
@@ -102,7 +107,7 @@ const createRuntime = () => {
         for (const name of ['enabled', 'averageTouches', 'activeOffsetX', 'failOffsetY']) {
           pan[name] = () => pan;
         }
-        for (const name of ['onStart', 'onUpdate', 'onEnd', 'onFinalize']) {
+        for (const name of ['onBegin', 'onStart', 'onUpdate', 'onEnd', 'onFinalize']) {
           pan[name] = (callback) => {
             assertSerializable(callback);
             callbacks[name] = callback;
@@ -150,8 +155,21 @@ const createRuntime = () => {
         }
       }
     },
-    gesture(name, event = {}) {
-      gesture.callbacks[name](event);
+    gesture(name, event = {}, success = true) {
+      if (name === 'onStart' || name === 'onBegin') {
+        translationX = 0;
+        translationY = 0;
+        touchX = event.absoluteX ?? 200;
+        touchY = event.absoluteY ?? 300;
+        if (name === 'onStart') gesture.callbacks.onBegin?.({ absoluteX: touchX, absoluteY: touchY });
+      }
+      translationX = event.translationX ?? translationX;
+      translationY = event.translationY ?? translationY;
+      gesture.callbacks[name]({
+        translationX, translationY,
+        absoluteX: touchX + translationX, absoluteY: touchY + translationY,
+        ...event,
+      }, success);
       runtime.ui();
     },
     pendingAnimations: () => [...values].filter((value) => value.animation).length,
@@ -161,13 +179,14 @@ const createRuntime = () => {
   return runtime;
 };
 
-const mountPager = async (initialDay = 7, reducedMotion = false) => {
+const mountPager = async (initialDay = 7, reducedMotion = false, initialLayout = true, lowEndDevice = false, platform = 'android') => {
   const runtime = createRuntime();
   const DayPager = compile('src/pages/Schedule/components/DayPager.jsx', {
-    'react-native': { View: 'View', StyleSheet: { create: (x) => x, absoluteFill: {} } },
-    'react-native-gesture-handler': { Gesture: runtime.Gesture, GestureDetector: 'GestureDetector' },
+    'react-native': { Platform: { OS: platform }, View: 'View', StyleSheet: { create: (x) => x, absoluteFill: {} } },
+    'react-native-gesture-handler': { Gesture: runtime.Gesture, GestureDetector: 'GestureDetector', State: gestureStates },
     'react-native-reanimated': runtime.reanimated,
     '../../../hooks/useReducedMotionPreference': { __esModule: true, default: () => reducedMotion },
+    '../../../utils/devicePerformance': { isLowEndDevice: lowEndDevice },
     '../dayNavigation': model,
   }).default;
   const ref = React.createRef();
@@ -190,7 +209,10 @@ const mountPager = async (initialDay = 7, reducedMotion = false) => {
     return React.createElement(DayPager, { ref, date, onDateChange, renderDay, dayProgress, weekTransition, weekProgress });
   };
   let renderer;
-  await act(async () => { renderer = create(React.createElement(App)); });
+  let commitCount = 0;
+  await act(async () => {
+    renderer = create(React.createElement(React.Profiler, { id: 'pager', onRender: () => { commitCount++; } }, React.createElement(App)));
+  });
   let measuredWidth = 400;
   const resize = async (width) => {
     measuredWidth = width;
@@ -199,29 +221,41 @@ const mountPager = async (initialDay = 7, reducedMotion = false) => {
     });
     await runtime.flush();
   };
-  await resize(400);
-  const flush = async () => {
-    await runtime.flush();
+  if (initialLayout) await resize(400);
+  const measurePages = async () => {
     await act(async () => {
       for (const page of renderer.root.findAllByType('AnimatedView')) {
         page.props.onLayout?.({ nativeEvent: { layout: { width: measuredWidth } } });
       }
     });
+  };
+  const flush = async () => {
+    await runtime.flush();
+    await measurePages();
     await runtime.flush();
   };
   return {
     ...runtime, ref, commits, resize, dayProgress, weekTransition, weekProgress,
-    flush, flushWithoutLayout: runtime.flush,
+    flush, measurePages, flushWithoutLayout: runtime.flush,
+    commitCount: () => commitCount,
+    animatedStyles: () => renderer.root.findAllByType('AnimatedView').map((node) => node.props.style.at(-1).readStyle()),
+    trackBounds() {
+      const styles = renderer.root.findByProps({ testID: 'day-pager-track' }).props.style;
+      const left = styles[1].left + styles.at(-1).readStyle().transform[0].translateX;
+      return { left, right: left + styles[1].width };
+    },
     page(number) {
       const instance = renderer.root.findAllByType('AnimatedView').find((page) => (
-        page.findByType('Day').props.timestamp === day(number).getTime()
+        page.props.onLayout && page.findByType('Day').props.timestamp === day(number).getTime()
       ));
       if (!instance) return null;
       return {
         identity: instance.findByType('Day').props.identity,
         decorationsReady: instance.findByType('Day').props.decorationsReady,
-        x: instance.props.style[1].readStyle().transform[0].translateX,
-        opacity: instance.props.style[1].readStyle().opacity,
+        x: instance.props.style.at(-1).readStyle().transform[0].translateX
+          + renderer.root.findByProps({ testID: 'day-pager-track' }).props.style.at(-1).readStyle().transform[0].translateX
+          + renderer.root.findByProps({ testID: 'day-pager-track' }).props.style[1].left,
+        opacity: instance.props.style.at(-1).readStyle().opacity,
         active: instance.props.pointerEvents === 'auto',
       };
     },
@@ -473,7 +507,7 @@ test('settling preserves the exact visible page and its coordinate over 1000 tra
     current = model.settleDayWindow(current, position, step);
     assert.equal(current.pages[2], visible);
     assert.equal(current.center, position);
-    assert.ok(current.pages.length >= 15 && current.pages.length <= 45);
+    assert.ok(current.pages.length >= 7 && current.pages.length <= 12);
     assert.equal(new Set(current.pages.map((page) => page.key)).size, current.pages.length);
     assert.deepEqual(JSON.parse(JSON.stringify(current)), current);
   }
@@ -502,7 +536,7 @@ test('week scrubbing holds both pages halfway, reverses and commits only after r
       await pager.flush();
       assert.equal(pager.page(7 + finish * 7).x, 0);
       assert.equal(pager.weekTransition.value.active, false);
-      assert.ok(pager.pageCount() <= 45);
+      assert.ok(pager.pageCount() <= 12);
     } finally { await pager.close(); }
   }
 });
@@ -516,9 +550,9 @@ test('week dragging uses already mounted pages before any JS work or layout ackn
     for (const amount of [0.1, 0.5, 0.9, 0, -0.4, -1]) {
       pager.weekProgress.value = amount;
       pager.ui();
-      assert.equal(pager.page(7).x, (0 - amount) * 400);
-      assert.equal(pager.page(14).x, (1 - amount) * 400);
-      assert.equal(pager.page(0).x, (-1 - amount) * 400);
+      assert.ok(Math.abs(pager.page(7).x - (0 - amount) * 400) < 0.001);
+      assert.ok(Math.abs(pager.page(14).x - (1 - amount) * 400) < 0.001);
+      assert.ok(Math.abs(pager.page(0).x - (-1 - amount) * 400) < 0.001);
       assert.equal(pager.page(8).opacity, 0, 'ordinary adjacent days must not overlap the weekly pages');
       assert.equal(pager.page(14).opacity, 1);
       assert.equal(pager.mountCount(), mounts, 'a gesture must not construct any lesson page');
@@ -536,7 +570,7 @@ test('week dragging uses already mounted pages before any JS work or layout ackn
   } finally { await pager.close(); }
 });
 
-test('returning across recent weeks preserves mounted pages and their revealed decorations', async () => {
+test('returning to the previous week preserves its page while distant history is released', async () => {
   const pager = await mountPager();
   try {
     await pager.flush();
@@ -553,15 +587,68 @@ test('returning across recent weeks preserves mounted pages and their revealed d
       await pager.flush();
       current += direction * 7;
     };
-    await visit(1);
-    await visit(1);
-    const warmedMounts = pager.mountCount();
     for (let cycle = 0; cycle < 5; cycle++) {
-      for (const direction of [-1, -1, 1, 1]) await visit(direction);
-      assert.equal(pager.mountCount(), warmedMounts);
+      await visit(1);
+      assert.equal(pager.page(7).identity, identity);
+      await visit(-1);
       assert.equal(pager.page(7).identity, identity);
       assert.equal(pager.page(7).decorationsReady, true);
-      assert.ok(pager.pageCount() <= 45);
+      assert.ok(pager.pageCount() <= 12);
+    }
+    await visit(1);
+    await visit(1);
+    await visit(1);
+    assert.equal(pager.page(7), null);
+    assert.equal(pager.pageCount(), 12);
+    assert.ok(pager.trackBounds().left <= 0 && pager.trackBounds().right >= 400, 'the native touch bounds cover the viewport after committing');
+  } finally { await pager.close(); }
+});
+
+test('idle cached history drops its lesson views while required pages stay rendered', async () => {
+  const pager = await mountPager();
+  try {
+    await pager.flush();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 180)));
+    assert.equal(pager.page(7).decorationsReady, true);
+    let current = 7;
+    let id = 0;
+    const visit = async (direction) => {
+      pager.weekTransition.value = { id: ++id, active: true, origin: model.getCalendarDayNumber(day(current)), finished: false };
+      pager.weekProgress.value = direction;
+      pager.ui();
+      pager.weekTransition.value = { ...pager.weekTransition.value, finished: true };
+      await pager.flush();
+      current += direction * 7;
+    };
+    await visit(1);
+    await visit(1);
+    assert.equal(pager.pageCount(), 12);
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 1600)));
+    assert.equal(pager.pageCount(), 7, 'only the required day and week neighbours keep native content');
+    const mounts = pager.mountCount();
+    await visit(-1);
+    assert.equal(pager.mountCount(), mounts + 5, 'returning re-renders released pages around the new day');
+    assert.equal(pager.page(7).decorationsReady, false, 'released history waits for an idle visible page again');
+  } finally { await pager.close(); }
+});
+
+test('repeated adjacent-day returns reuse the warm buffer without mounting more lesson pages', async () => {
+  const pager = await mountPager();
+  try {
+    const visit = async number => {
+      await act(async () => pager.ref.current.navigateToDate(day(number)));
+      await pager.flush();
+      pager.animate();
+      await pager.flush();
+    };
+    await visit(8);
+    await visit(7);
+    const mounts = pager.mountCount();
+    for (let cycle = 0; cycle < 5; cycle++) {
+      await visit(8);
+      await visit(7);
+      assert.equal(pager.mountCount(), mounts);
+      assert.ok(pager.pageCount() <= 12);
     }
   } finally { await pager.close(); }
 });
@@ -622,7 +709,7 @@ test('week jumps wait for layout and retain the prepared destination through com
       assert.equal(pager.page(target).identity, identity);
       assert.equal(pager.page(target + (target > 7 ? 1 : -1)).identity, neighborIdentity);
       assert.equal(pager.page(target).x, 0);
-      assert.ok(pager.pageCount() <= 45);
+      assert.ok(pager.pageCount() <= 12);
     } finally { await pager.close(); }
   }
 });
@@ -682,7 +769,7 @@ test('swipe settles on UI without waiting for JS and React does not move or remo
     assert.deepEqual(pager.commits, [8]);
     assert.equal(pager.page(8).identity, originalIdentity);
     assert.equal(pager.page(8).x, 0);
-    assert.ok(pager.pageCount() <= 45);
+    assert.ok(pager.pageCount() <= 12);
   } finally { await pager.close(); }
 });
 
@@ -750,7 +837,7 @@ test('cancelled and short swipes return to the same mounted day', async () => {
       await pager.flush();
       assert.equal(pager.page(7).x, 0);
       assert.equal(pager.page(7).identity, identity);
-      assert.ok(pager.commits.every((number) => number === 7));
+      assert.deepEqual(pager.commits, [], 'returning to the current day needs no React commit');
     }
   } finally { await pager.close(); }
 });
@@ -774,19 +861,60 @@ test('button bursts retain only the latest pending destination without moving th
   } finally { await pager.close(); }
 });
 
-test('reduced motion and explicitly instant commands use zero-duration transitions', async () => {
+test('reduced motion uses zero-duration transitions and instant commands commit without animation', async () => {
   for (const reduced of [false, true]) {
     const pager = await mountPager(7, reduced);
     try {
-      pager.ref.current.navigateToDate(day(10), { animated: reduced });
+      await act(async () => pager.ref.current.navigateToDate(day(10), { animated: reduced }));
       await pager.flush();
-      assert.deepEqual(pager.durations(), [0]);
+      assert.deepEqual(pager.durations(), reduced ? [0] : []);
       pager.animate();
       await pager.flush();
       assert.deepEqual(pager.commits, [10]);
       assert.equal(pager.page(10).x, 0);
     } finally { await pager.close(); }
   }
+});
+
+test('an instant lesson jump before initial layout keeps the requested date through mounting and resize', async () => {
+  const pager = await mountPager(7, false, false);
+  try {
+    await act(async () => pager.ref.current.navigateToDate(day(6), { animated: false }));
+    assert.deepEqual(pager.commits, [6]);
+    await pager.resize(400);
+    await pager.flush();
+    assert.equal(pager.page(6).x, 0);
+    assert.equal(pager.page(6).active, true);
+    assert.equal(pager.dayProgress.value, model.getCalendarDayNumber(day(6)));
+    await pager.resize(760);
+    await pager.flush();
+    assert.equal(pager.page(6).x, 0);
+    assert.deepEqual(pager.commits, [6]);
+  } finally { await pager.close(); }
+});
+
+test('an instant lesson jump rejects stale animation callbacks and queued gesture input', async () => {
+  const pager = await mountPager();
+  try {
+    pager.ref.current.navigateToDate(day(10));
+    await pager.flush();
+    pager.animate();
+    await act(async () => pager.ref.current.navigateToDate(day(6), { animated: false }));
+    await pager.flush();
+    assert.deepEqual(pager.commits, [6]);
+    assert.equal(pager.page(6).x, 0);
+    pager.gesture('onStart');
+    pager.gesture('onUpdate', { translationX: -180 });
+    await act(async () => pager.ref.current.navigateToDate(day(12), { animated: false }));
+    await pager.flush();
+    pager.gesture('onEnd', { velocityX: -1000 });
+    pager.gesture('onFinalize');
+    pager.animate();
+    await pager.flush();
+    assert.deepEqual(pager.commits, [6, 12]);
+    assert.equal(pager.page(12).x, 0);
+    assert.equal(pager.page(12).active, true);
+  } finally { await pager.close(); }
 });
 
 test('repeated forward/backward gestures keep a bounded mounted window', async () => {
@@ -805,7 +933,7 @@ test('repeated forward/backward gestures keep a bounded mounted window', async (
       await pager.flush();
       assert.equal(pager.page(next).identity, identity);
       assert.equal(pager.page(next).x, 0);
-      assert.ok(pager.pageCount() <= 45);
+      assert.ok(pager.pageCount() <= 12);
       current = next;
     }
   } finally { await pager.close(); }
@@ -831,7 +959,7 @@ test('ten swipes survive a stalled React commit without losing days', async () =
     await pager.flush();
     assert.equal(pager.commits.at(-1), 17);
     assert.equal(pager.page(17).x, 0);
-    assert.ok(pager.pageCount() <= 45);
+    assert.ok(pager.pageCount() <= 12);
   } finally { await pager.close(); }
 });
 
@@ -891,8 +1019,166 @@ test('a second swipe catches the moving page without snapping or waiting for the
     await pager.flush();
     assert.deepEqual(pager.commits, [9]);
     assert.equal(pager.page(9).x, 0);
-    assert.ok(pager.pageCount() <= 45);
+    assert.ok(pager.pageCount() <= 12);
   } finally { await pager.close(); }
+});
+
+test('held swipes catch up when React acknowledges the preceding day', async () => {
+  const pager = await mountPager(7, false, true, true);
+  try {
+    pager.gesture('onStart');
+    pager.gesture('onUpdate', { translationX: -160 });
+    pager.gesture('onEnd', { velocityX: -500 });
+    pager.gesture('onFinalize');
+    pager.animate();
+    for (let current = 8; current <= 10; current++) {
+      pager.gesture('onStart');
+      pager.gesture('onUpdate', { translationX: -160 });
+      await pager.flush();
+      assert.ok(Math.abs(pager.page(current).x + 160) < 0.001, 'the page must follow the held finger after acknowledgement');
+      pager.gesture('onUpdate', { translationX: -240 });
+      assert.ok(Math.abs(pager.page(current).x + 240) < 0.001);
+      pager.gesture('onEnd', { velocityX: -500 });
+      pager.gesture('onFinalize');
+      pager.animate();
+    }
+    await pager.flush();
+    assert.deepEqual(pager.commits, [8, 9, 10, 11]);
+    assert.equal(pager.page(11).x, 0);
+    assert.ok(pager.pageCount() <= 12);
+  } finally { await pager.close(); }
+});
+
+test('day dragging updates one native transform regardless of the cached page count', async () => {
+  const pager = await mountPager();
+  try {
+    for (let step = 0; step < 3; step++) {
+      pager.gesture('onStart');
+      pager.gesture('onUpdate', { translationX: -160 });
+      pager.gesture('onEnd', { velocityX: -500 });
+      pager.animate();
+      await pager.flush();
+    }
+    assert.equal(pager.pageCount(), 12);
+    pager.gesture('onStart');
+    const before = pager.animatedStyles().map((style) => JSON.stringify(style));
+    pager.gesture('onUpdate', { translationX: -160 });
+    const after = pager.animatedStyles().map((style) => JSON.stringify(style));
+    assert.equal(after.filter((style, index) => style !== before[index]).length, 1);
+    assert.ok(Math.abs(pager.page(10).x + 160) < 0.001);
+    assert.ok(pager.trackBounds().left <= 0 && pager.trackBounds().right >= 400, 'vertical scrolling remains reachable while pages move');
+  } finally { await pager.close(); }
+});
+
+test('short Android flicks use the release position when no update frame arrives', async () => {
+  const pager = await mountPager();
+  try {
+    pager.gesture('onStart');
+    pager.gesture('onEnd', { absoluteX: 40, velocityX: 0 });
+    pager.gesture('onFinalize');
+    pager.animate();
+    await pager.flush();
+    assert.deepEqual(pager.commits, [8]);
+    assert.equal(pager.page(8).x, 0);
+  } finally { await pager.close(); }
+});
+
+test('horizontal flicks that finish before Android activates the pan survive busy commits', async () => {
+  const pager = await mountPager();
+  try {
+    for (let index = 0; index < 8; index++) {
+      pager.gesture('onBegin');
+      pager.gesture('onFinalize', {
+        state: gestureStates.FAILED, oldState: gestureStates.BEGAN,
+        translationX: -160, velocityX: 0,
+      }, false);
+      pager.animate();
+    }
+    for (let index = 0; index < 8; index++) {
+      await pager.flush();
+      pager.animate();
+    }
+    await pager.flush();
+    assert.equal(pager.commits.at(-1), 15);
+    assert.equal(pager.page(15).x, 0);
+    assert.ok(pager.pageCount() <= 12);
+  } finally { await pager.close(); }
+});
+
+test('failed flick recovery excludes taps, vertical drags, cancellations, superseded touches and other platforms', async () => {
+  for (const kind of ['tap', 'vertical', 'cancelled', 'resized', 'jumped', 'ios', 'web']) {
+    const platform = kind === 'ios' || kind === 'web' ? kind : 'android';
+    const pager = await mountPager(7, false, true, false, platform);
+    try {
+      pager.gesture('onBegin');
+      if (kind === 'resized') await pager.resize(600);
+      if (kind === 'jumped') {
+        await act(async () => pager.ref.current.navigateToDate(day(12), { animated: false }));
+        await pager.flush();
+      }
+      pager.gesture('onFinalize', {
+        state: kind === 'cancelled' ? gestureStates.CANCELLED : gestureStates.FAILED,
+        oldState: gestureStates.BEGAN,
+        translationX: kind === 'tap' ? -10 : -160,
+        translationY: kind === 'vertical' ? 100 : 0,
+        velocityX: 0,
+      }, false);
+      pager.animate();
+      await pager.flush();
+      assert.deepEqual(pager.commits, kind === 'jumped' ? [12] : [], kind);
+      assert.equal(pager.page(kind === 'jumped' ? 12 : 7).x, 0);
+    } finally { await pager.close(); }
+  }
+});
+
+test('measuring prefetched pages does not render the pager again', async () => {
+  const pager = await mountPager(7, false, true, true);
+  try {
+    await pager.flush();
+    const beforeSwipe = pager.commitCount();
+    pager.gesture('onStart');
+    pager.gesture('onUpdate', { translationX: -160 });
+    pager.gesture('onEnd', { velocityX: -500 });
+    pager.animate();
+    await pager.flushWithoutLayout();
+    const before = pager.commitCount();
+    assert.equal(before - beforeSwipe, 1, 'waiting for decoration readiness does not render intermediate idle state');
+    await pager.measurePages();
+    await pager.flushWithoutLayout();
+    assert.equal(pager.commitCount(), before);
+    assert.deepEqual(pager.commits, [8]);
+    assert.equal(pager.page(8).x, 0);
+  } finally { await pager.close(); }
+});
+
+test('a held swipe can reverse or cancel after a pending week commit', async () => {
+  for (const cancelled of [false, true]) {
+    const pager = await mountPager();
+    try {
+      pager.weekTransition.value = { id: 1, active: true, origin: model.getCalendarDayNumber(day(7)), finished: false };
+      pager.weekProgress.value = 1;
+      pager.ui();
+      pager.weekTransition.value = { ...pager.weekTransition.value, finished: true };
+      pager.ui();
+      pager.gesture('onStart');
+      pager.gesture('onUpdate', { translationX: 160 });
+      await pager.flush();
+      assert.ok(Math.abs(pager.page(14).x - 160) < 0.001);
+      pager.gesture('onEnd', { velocityX: 500 }, !cancelled);
+      pager.gesture('onFinalize');
+      pager.animate();
+      await pager.flush();
+      assert.deepEqual(pager.commits, cancelled ? [14] : [14, 13]);
+      assert.equal(pager.page(cancelled ? 14 : 13).x, 0);
+      pager.gesture('onStart');
+      pager.gesture('onUpdate', { translationX: -160 });
+      pager.gesture('onEnd', { velocityX: -500 });
+      pager.gesture('onFinalize');
+      pager.animate();
+      await pager.flush();
+      assert.equal(pager.commits.at(-1), cancelled ? 15 : 14, 'navigation stays available');
+    } finally { await pager.close(); }
+  }
 });
 
 test('prepared schedule data covers every repeat week and is reused until the snapshot changes', () => {
@@ -934,8 +1220,20 @@ test('decorations wait for an idle visible page and are not built on prefetched 
   } finally { await pager.close(); }
 });
 
+test('low-end devices defer their bitmap decorations until the page is idle', async () => {
+  const pager = await mountPager(7, false, true, true);
+  try {
+    await pager.flush();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 180)));
+    assert.equal(pager.page(7).decorationsReady, true);
+    assert.equal(pager.page(8).decorationsReady, false);
+  } finally { await pager.close(); }
+});
+
 test('changing inactive days does not rerender every timer consumer', async () => {
-  const { NowTickProvider, useNowTick } = compile('src/hooks/useNowTick.js');
+  const { NowTickProvider, useNowTick } = compile('src/hooks/useNowTick.js', {
+    'react-native': { AppState: { currentState: 'active', addEventListener: () => ({ remove() {} }) } },
+  });
   const target = new Date();
   target.setDate(target.getDate() + 10);
   let renders = 0;
@@ -958,8 +1256,159 @@ test('changing inactive days does not rerender every timer consumer', async () =
   } finally { await act(async () => renderer.unmount()); }
 });
 
+test('leaving and returning to today rerenders only the consumers of those days', async () => {
+  const { NowTickProvider, useNowTick } = compile('src/hooks/useNowTick.js', {
+    'react-native': { AppState: { currentState: 'active', addEventListener: () => ({ remove() {} }) } },
+  });
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const later = new Date(today);
+  later.setDate(later.getDate() + 3);
+  const renders = { today: 0, later: 0 };
+  const values = {};
+  const Consumer = React.memo(({ name, date }) => {
+    renders[name]++;
+    values[name] = useNowTick(date, true, 60000);
+    return null;
+  });
+  const render = (activeDate) => React.createElement(NowTickProvider, { activeDate },
+    React.createElement(Consumer, { name: 'today', date: today }),
+    React.createElement(Consumer, { name: 'later', date: later }));
+  let renderer;
+  await act(async () => { renderer = create(render(today)); });
+  try {
+    assert.ok(values.today instanceof Date);
+    const laterRenders = renders.later;
+    for (let swipe = 0; swipe < 4; swipe++) {
+      await act(async () => renderer.update(render(swipe % 2 ? today : tomorrow)));
+    }
+    assert.equal(renders.later, laterRenders, 'pages of other days stay untouched');
+    assert.ok(values.today instanceof Date);
+    await act(async () => renderer.update(render(tomorrow)));
+    assert.equal(values.today, null);
+  } finally { await act(async () => renderer.unmount()); }
+});
+
+test('the lesson clock stops on hidden tabs and in background, then resumes immediately', async t => {
+  const intervals = new Set();
+  let appState, now;
+  t.mock.method(global, 'setInterval', callback => { intervals.add(callback); return callback; });
+  t.mock.method(global, 'clearInterval', callback => intervals.delete(callback));
+  const { NowTickProvider, useNowTick } = compile('src/hooks/useNowTick.js', {
+    'react-native': { AppState: { currentState: 'active', addEventListener: (_event, callback) => { appState = callback; return { remove() {} }; } } },
+  });
+  const today = new Date();
+  let time = Date.now(), renders = 0;
+  t.mock.method(Date, 'now', () => time);
+  const Consumer = React.memo(() => { renders++; now = useNowTick(today); return null; });
+  const render = enabled => React.createElement(NowTickProvider, { activeDate: today, enabled }, React.createElement(Consumer));
+  let tree;
+  await act(async () => { tree = create(render(true)); });
+  t.after(async () => act(async () => tree.unmount()));
+  assert.equal(intervals.size, 1);
+  assert.ok(now instanceof Date);
+  const visibleTime = now;
+  const visibleRenders = renders;
+  await act(async () => tree.update(render(false)));
+  assert.equal(intervals.size, 0);
+  assert.equal(now, visibleTime, 'hidden cards retain their last snapshot');
+  assert.equal(renders, visibleRenders, 'hiding a tab must not invalidate its timer consumers');
+  time += 60000;
+  await act(async () => tree.update(render(true)));
+  assert.equal(intervals.size, 1);
+  assert.equal(now.getTime(), Math.floor(time / 1000) * 1000);
+  const resumedRenders = renders;
+  await act(async () => appState('background'));
+  assert.equal(intervals.size, 0);
+  assert.equal(renders, resumedRenders);
+  time += 60000;
+  await act(async () => appState('active'));
+  assert.equal(intervals.size, 1);
+  assert.equal(now.getTime(), Math.floor(time / 1000) * 1000);
+  await act(async () => tree.unmount());
+  assert.equal(intervals.size, 0);
+});
+
+test('second ticks update only the visible countdown while minute consumers wait for a boundary', async t => {
+  const today = new Date();
+  today.setHours(8, 30, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  let time = today.getTime(), tick;
+  t.mock.method(Date, 'now', () => time);
+  t.mock.method(global, 'setInterval', callback => { tick = callback; return 1; });
+  t.mock.method(global, 'clearInterval', () => {});
+  const { NowTickProvider, useNowTick } = compile('src/hooks/useNowTick.js', {
+    'react-native': { AppState: { currentState: 'active', addEventListener: () => ({ remove() {} }) } },
+  });
+  const renders = { second: 0, minute: 0, hidden: 0 };
+  const values = {};
+  const Consumer = React.memo(({ name, date, precision }) => {
+    renders[name]++;
+    values[name] = useNowTick(date, true, precision);
+    return null;
+  });
+  const render = activeDate => React.createElement(NowTickProvider, { activeDate },
+    React.createElement(Consumer, { name: 'second', date: today }),
+    React.createElement(Consumer, { name: 'minute', date: today, precision: 60000 }),
+    React.createElement(Consumer, { name: 'hidden', date: yesterday }));
+  let tree;
+  await act(async () => { tree = create(render(today)); });
+  t.after(async () => act(async () => tree.unmount()));
+  const initial = { ...renders };
+  assert.equal(values.hidden, null);
+  for (let second = 1; second < 60; second++) {
+    time = today.getTime() + second * 1000;
+    await act(async () => tick());
+  }
+  assert.equal(renders.second - initial.second, 59);
+  assert.equal(renders.minute, initial.minute);
+  assert.equal(renders.hidden, initial.hidden);
+  time = today.getTime() + 60000;
+  await act(async () => tick());
+  assert.equal(renders.minute - initial.minute, 1);
+  assert.equal(values.minute.getTime(), time);
+  await act(async () => tree.update(render(yesterday)));
+  assert.equal(values.second, null);
+  assert.equal(values.minute, null);
+  assert.equal(values.hidden.getTime(), time);
+});
+
+test('a paused clock rechecks the viewed date after midnight before resuming', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 9, 30, 23, 59).getTime() });
+  const intervals = new Set();
+  let appState, now;
+  t.mock.method(global, 'setInterval', callback => { intervals.add(callback); return callback; });
+  t.mock.method(global, 'clearInterval', callback => intervals.delete(callback));
+  const { NowTickProvider, useNowTick } = compile('src/hooks/useNowTick.js', {
+    'react-native': { AppState: { currentState: 'active', addEventListener: (_event, callback) => { appState = callback; return { remove() {} }; } } },
+  });
+  const target = new Date(2026, 9, 31);
+  function Consumer() { now = useNowTick(target); return null; }
+  let tree;
+  await act(async () => { tree = create(React.createElement(NowTickProvider, { activeDate: target }, React.createElement(Consumer))); });
+  t.after(async () => act(async () => tree.unmount()));
+  assert.equal(now, null);
+  assert.equal(intervals.size, 0);
+  await act(async () => appState('background'));
+  t.mock.timers.tick(120000);
+  await act(async () => appState('active'));
+  assert.ok(now instanceof Date);
+  assert.equal(now.getTime(), Date.now());
+  assert.equal(intervals.size, 1);
+  await act(async () => appState('background'));
+  t.mock.timers.tick(3 * 24 * 60 * 60 * 1000);
+  await act(async () => appState('active'));
+  assert.equal(now, null);
+  assert.equal(intervals.size, 0);
+});
+
 test('card patterns reuse one icon and keep every rotated instance inside safe margins', async () => {
   let reduceMotion = false;
+  let platform = 'ios';
+  let tickNow = null;
+  let cardPresses = 0;
   const progressValues = [];
   const starts = [];
   const reactions = new Set();
@@ -1007,13 +1456,14 @@ test('card patterns reuse one icon and keep every rotated instance inside safe m
     'react-native': {
       StyleSheet: { create: (x) => x, absoluteFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } },
       Text: 'Text', View: 'View', TouchableOpacity: 'TouchableOpacity', Animated: animated,
-      Platform: { OS: 'ios', select: (options) => options.ios ?? options.default },
+      Platform: { get OS() { return platform; }, select: (options) => options[platform] ?? options.default },
     },
     'react-native-svg': { __esModule: true, default: 'Svg', Defs: 'Defs', G: 'G', Use: 'Use', LinearGradient: 'LinearGradient', Mask: 'Mask', Rect: 'Rect', Stop: 'Stop' },
-    'phosphor-react-native': { Clock: 'Clock', Hourglass: 'Hourglass', User: 'User', MapPin: 'MapPin' },
+    './CardIcon': { __esModule: true, default: 'CardIcon' },
+    '../../../components/SubjectPattern': { __esModule: true, default: 'SubjectPattern' },
     '../../../context/ScheduleProvider': { useScheduleData: () => ({ schedule, lang: 'en' }) },
     '../../../context/DayScheduleProvider': { useDaySchedule: () => ({ currentDate: day(7) }) },
-    '../../../hooks/useNowTick': { useNowTick: () => null },
+    '../../../hooks/useNowTick': { useNowTick: () => tickNow },
     '../../../hooks/useSystemThemeColors': { __esModule: true, default: () => ({ isDark: false }) },
     '../../../hooks/useReducedMotionPreference': { __esModule: true, default: () => reduceMotion },
     '../../../config/themes': { __esModule: true, default: { accentColors: { grey: '#999' } } },
@@ -1028,7 +1478,10 @@ test('card patterns reuse one icon and keep every rotated instance inside safe m
       resolveValidColor: (color, fallback) => color ?? fallback,
     },
   }).default;
-  const props = { lesson: { subjectId: 'math', timeInfo: { start: '08:30', end: '09:15' } } };
+  const props = {
+    lesson: { subjectId: 'math', timeInfo: { start: '08:30', end: '09:15' } },
+    onPress: () => { cardPresses++; },
+  };
   let renderer;
   await act(async () => { renderer = create(React.createElement(LessonCard, { ...props, decorationsReady: false })); });
   try {
@@ -1038,6 +1491,14 @@ test('card patterns reuse one icon and keep every rotated instance inside safe m
     assert.deepEqual([outlineStyle.position, outlineStyle.top, outlineStyle.right, outlineStyle.bottom, outlineStyle.left], ['absolute', 1, 1, 1, 1]);
     assert.equal(outlineStyle.borderRadius, 17);
     assert.equal(outline.props.pointerEvents, 'none');
+    assert.equal(renderer.root.findAllByProps({ name: 'hourglass' }).length, 0, 'inactive cards skip the countdown pill');
+    tickNow = new Date(2026, 8, 7, 8, 40);
+    await act(async () => renderer.update(React.createElement(LessonCard, { ...props, lesson: { ...props.lesson } })));
+    assert.equal(renderer.root.findAllByProps({ name: 'hourglass' }).length, 1, 'the current lesson mounts its countdown');
+    tickNow = new Date(2026, 8, 7, 9, 30);
+    await act(async () => renderer.update(React.createElement(LessonCard, { ...props, lesson: { ...props.lesson } })));
+    assert.equal(renderer.root.findAllByProps({ name: 'hourglass' }).length, 1, 'the countdown stays mounted to fade out');
+    tickNow = null;
     assert.equal(renderer.root.findAllByProps({ testID: 'lesson-slot-number' }).length, 0);
     await act(async () => renderer.update(React.createElement(LessonCard, {
       ...props, decorationsReady: false, lesson: { ...props.lesson, slotNumber: 8 },
@@ -1119,5 +1580,28 @@ test('card patterns reuse one icon and keep every rotated instance inside safe m
     await act(async () => renderer.update(React.createElement(LessonCard, props)));
     assert.equal(starts.length, animationCount, 'reduced motion must not schedule a wave');
     assert.equal(renderer.root.findAllByType('Mask').length, 0);
+    platform = 'android';
+    reduceMotion = false;
+    await act(async () => renderer.update(React.createElement(LessonCard, { ...props, decorationsReady: false })));
+    await act(async () => renderer.update(React.createElement(LessonCard, props)));
+    assert.equal(starts.length, animationCount, 'Android must not repaint an SVG mask on every animation frame');
+    assert.equal(renderer.root.findAllByType('Mask').length, 0);
+    assert.equal(renderer.root.findAllByType('PatternIcon').length, 0);
+    assert.equal(renderer.root.findAllByType('Svg').length, 0, 'Android never mounts a vector decoration');
+    assert.equal(renderer.root.findByType('SubjectPattern').props.width, 1440);
+    const card = renderer.root.findByType('GradientBackground');
+    const touch = (pageX, pageY) => ({ nativeEvent: { pageX, pageY, identifier: 0 } });
+    await act(async () => {
+      card.props.onPressIn(touch(880, 1100));
+      card.props.onPress(touch(180, 1100));
+    });
+    assert.equal(cardPresses, 0, 'a horizontal swipe must not open a lesson');
+    await act(async () => {
+      card.props.onPressIn(touch(200, 600));
+      card.props.onPress(touch(202, 603));
+    });
+    assert.equal(cardPresses, 1, 'a tap with small finger movement still opens the lesson');
+    await act(async () => card.props.onPress());
+    assert.equal(cardPresses, 2, 'activation without touch coordinates is preserved');
   } finally { await act(async () => renderer.unmount()); }
 });

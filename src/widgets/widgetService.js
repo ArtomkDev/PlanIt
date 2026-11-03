@@ -6,6 +6,9 @@ import {
   setWidgetSelectedScheduleId as writeSelectedScheduleId,
 } from './widgetCore';
 import { refreshScheduleWidgets } from './widgetRenderer';
+import { syncWidgetPushSubscription } from './widgetSync';
+
+export { syncWidgetPushSubscription };
 
 const NO_PENDING_SCHEDULE = Symbol('no-pending-widget-schedule');
 const SYNC_DEBOUNCE_MS = 100;
@@ -24,20 +27,23 @@ const flushPendingSchedule = () => {
   syncDebounceTimer = null;
   if (pendingSchedule === NO_PENDING_SCHEDULE) return;
 
-  const { schedule, lang } = pendingSchedule;
+  const { schedule, lang, userId } = pendingSchedule;
   pendingSchedule = NO_PENDING_SCHEDULE;
   enqueueOperation(async () => {
     try {
-      await persistWidgetSchedule(schedule, lang);
-      if (Platform.OS === 'android') await refreshScheduleWidgets();
+      await persistWidgetSchedule(schedule, lang, userId);
+      if (Platform.OS === 'android') {
+        await refreshScheduleWidgets();
+        syncWidgetPushSubscription();
+      }
     } catch (error) {
       console.error('Widget sync error:', error);
     }
   });
 };
 
-export const syncScheduleToWidget = (schedule, lang = 'en') => {
-  pendingSchedule = { schedule, lang };
+export const syncScheduleToWidget = (schedule, lang = 'en', userId = null) => {
+  pendingSchedule = { schedule, lang, userId };
   if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(flushPendingSchedule, SYNC_DEBOUNCE_MS);
 };

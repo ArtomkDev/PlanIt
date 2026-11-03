@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
 
 import { auth } from '../../../../../config/firebase';
 import { useScheduleData } from '../../../../../context/ScheduleProvider';
+import { useAppDialog } from '../../../../../context/AppDialogContext';
 import MorphingLoader from '../../../../../components/ui/MorphingLoader';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
@@ -22,6 +24,7 @@ import {
 
 export default function ChangePasswordScreen() {
   const { global, lang } = useScheduleData();
+  const dialog = useAppDialog();
   const navigation = useNavigation();
   useIsFocused();
   
@@ -64,12 +67,12 @@ export default function ChangePasswordScreen() {
         : requestAddPasswordEmail({ user, lang }));
       setVerificationSent(true);
       setResetCooldown(60);
-      Alert.alert(
-        t('settings.account_settings.change_password.email_sent_title', lang),
-        t(hasPassword
+      dialog.alert({
+        title: t('settings.account_settings.change_password.email_sent_title', lang),
+        message: t(hasPassword
             ? 'settings.account_settings.change_password.reset_email_sent_desc'
             : 'settings.account_settings.change_password.add_email_sent_desc', lang, { email: email }),
-      );
+      });
     } catch (error) {
       if (
         error.code === 'auth/too-many-requests'
@@ -113,11 +116,10 @@ export default function ChangePasswordScreen() {
       
       await updatePassword(user, newPassword);
       
-      Alert.alert(
-        t('common.success', lang),
-        t('settings.account_settings.change_password.success_msg', lang),
-        [{ text: t('common.ok', lang), onPress: () => navigation.goBack() }]
-      );
+      dialog.alert({
+        title: t('common.success', lang),
+        message: t('settings.account_settings.change_password.success_msg', lang),
+      }).then(() => navigation.goBack());
     } catch (error) {
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         setErrorMsg(t('settings.account_settings.change_password.wrong_password', lang));

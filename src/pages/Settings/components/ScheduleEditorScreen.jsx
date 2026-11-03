@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation, usePreventRemove, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../../context/ScheduleProvider';
+import { useAppDialog } from '../../../context/AppDialogContext';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
 import SettingsHeader from '../../../components/ui/SettingsHeader';
@@ -25,6 +26,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const params = route.params || propsRoute?.params || {};
   const { scheduleId, isInitialSetup, isNew } = params;
   const { global, schedules, schedule: currentActiveSchedule, lang } = useScheduleData();
+  const dialog = useAppDialog();
   const { setData, setGlobalDraft, addSchedule } = useScheduleActions();
   const { tabBarHeight } = useScheduleLayout();
   const [mode, accent] = global?.theme || ['light', 'blue'];
@@ -47,16 +49,14 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const saveStarted = useRef(false);
   const [isSaved, setIsSaved] = useState(false);
   const hasUnsavedChanges = JSON.stringify(localData) !== initialDraft.current;
-  usePreventRemove(hasUnsavedChanges && !isSaved, ({ data }) => {
-    const discard = () => navigation.dispatch(data.action);
-    if (Platform.OS === 'web') {
-      if (window.confirm(`${t('common.discard_title', lang)}\n\n${t('common.discard_desc', lang)}`)) discard();
-      return;
-    }
-    Alert.alert(t('common.discard_title', lang), t('common.discard_desc', lang), [
-      { text: t('common.cancel', lang), style: 'cancel' },
-      { text: t('common.discard', lang), style: 'destructive', onPress: discard },
-    ]);
+  usePreventRemove(hasUnsavedChanges && !isSaved, async ({ data }) => {
+    const confirmed = await dialog.confirm({
+      title: t('common.discard_title', lang),
+      message: t('common.discard_desc', lang),
+      confirmLabel: t('common.discard', lang),
+      destructive: true,
+    });
+    if (confirmed) navigation.dispatch(data.action);
   });
   useEffect(() => {
     if (!isSaved) return;
@@ -84,19 +84,19 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     if (!localData.icon) delete scheduleData.icon;
     const slots = buildScheduleSlots(localData.start_time, localData.duration, localData.breaks, localData.slotDurations);
     if (slots.length === 0) {
-      Alert.alert(t('schedule.main_screen.time', lang), t('settings.schedule_editor.timing.invalid', lang));
+      dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('settings.schedule_editor.timing.invalid', lang) });
       return;
     }
     const exceedsDay = (scheduleData.schedule || []).some((day) => Object.values(day || {}).some((lessons) =>
       Array.isArray(lessons) && lessons.some((lesson) => lesson?.timeMode === 'slot' && !slots.some((slot) => slot.number === lesson.slotNumber))));
     if (exceedsDay) {
-      Alert.alert(t('schedule.main_screen.time', lang), t('schedule.lesson_editor.slots_outside_day', lang));
+      dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('schedule.lesson_editor.slots_outside_day', lang) });
       return;
     }
     const conflict = findScheduleTimingConflict(targetSchedule, scheduleData);
     if (conflict) {
       const day = new Date(2024, 0, 1 + conflict.dayIndex).toLocaleDateString(lang, { weekday: 'long' });
-      Alert.alert(t('schedule.main_screen.time', lang), t('settings.schedule_editor.timing.conflict', lang, { ...conflict, day }));
+      dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('settings.schedule_editor.timing.conflict', lang, { ...conflict, day }) });
       return;
     }
     const reconciledSchedule = reconcileScheduleRepeat(

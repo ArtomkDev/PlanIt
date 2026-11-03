@@ -5,6 +5,29 @@ const path = require('node:path');
 const test = require('node:test');
 const babel = require('@babel/core');
 
+test('Crashlytics retains original stack frames while redacting personal data', () => {
+  const filename = path.resolve(__dirname, '../src/utils/analytics/crashlytics.native.js');
+  const transformed = babel.transformFileSync(filename).code;
+  const reported = [];
+  const mod = new Module(filename, module);
+  mod.filename = filename;
+  mod.paths = Module._nodeModulePaths(path.dirname(filename));
+  const originalRequire = mod.require.bind(mod);
+  mod.require = name => {
+    if (name === 'expo-constants') return { default: { executionEnvironment: 'standalone' }, ExecutionEnvironment: { StoreClient: 'storeClient' }, __esModule: true };
+    if (name === '@react-native-firebase/crashlytics') return () => ({ setAttribute() {}, recordError: error => reported.push(error) });
+    return originalRequire(name);
+  };
+  mod._compile(transformed, filename);
+  const error = new Error('Failed for person@example.com');
+  error.stack = 'Error: Failed for person@example.com\n    at saveLesson (index.bundle:12:34)\n    at press (index.bundle:56:78)';
+  mod.exports.logCrashlyticsError(error, 'save');
+  assert.equal(reported.length, 1);
+  assert.match(reported[0].stack, /at saveLesson \(index.bundle:12:34\)\n/);
+  assert.doesNotMatch(reported[0].stack, /person@example.com/);
+  assert.doesNotMatch(reported[0].message, /person@example.com/);
+});
+
 const notificationServicePath = path.resolve(
   __dirname,
   '../src/services/notificationService.js',
@@ -195,6 +218,18 @@ test('keeps native notifications enabled in development and standalone builds', 
   assert.equal(getNotificationsModuleLoads(), 1);
   assert.equal(notificationHandlers.length, 1);
 });
+
+test('widget invalidations stay silent while ordinary notifications retain their presentation', async () => {
+  const { notificationHandlers } = loadNotificationService({ isExpoGo: false });
+  const handle = notificationHandlers[0].handleNotification;
+  const silent = await handle({ request: { content: { data: { type: 'widget_schedule_changed' } } } });
+  assert.equal(silent.shouldShowBanner, false);
+  assert.equal(silent.shouldShowList, false);
+  assert.equal(silent.shouldPlaySound, false);
+  const visible = await handle({ request: { content: { data: { type: 'account_login' } } } });
+  assert.equal(visible.shouldShowBanner, true);
+  assert.equal(visible.shouldPlaySound, true);
+});
 test('falls back from Liquid Glass navigation in Expo Go', () => {
   const metrics = loadNavigationMetrics({ isExpoGo: true, osVersion: '26.0' });
 
@@ -216,7 +251,7 @@ test('keeps Liquid Glass navigation available in standalone iOS 26 builds', () =
 test('provides safe area context above navigation and attachment modals', () => {
   const source = fs.readFileSync(rootAppPath, 'utf8');
   const safeAreaProviderIndex = source.indexOf('<SafeAreaProvider>');
-  const navigationContainerIndex = source.indexOf('<NavigationContainer');
+  const navigationContainerIndex = source.indexOf('<ThemedNavigationContainer');
   const safeAreaProviderEndIndex = source.indexOf('</SafeAreaProvider>');
 
   assert.ok(
@@ -239,7 +274,7 @@ test('hosts image previews above bottom sheets instead of nesting attachment mod
   const providerSource = fs.readFileSync(attachmentPreviewContextPath, 'utf8');
   const bottomSheetSource = fs.readFileSync(bottomSheetPath, 'utf8');
   const previewProviderIndex = rootSource.indexOf('<AttachmentImagePreviewProvider');
-  const navigationContainerIndex = rootSource.indexOf('<NavigationContainer');
+  const navigationContainerIndex = rootSource.indexOf('<ThemedNavigationContainer');
   const previewProviderEndIndex = rootSource.indexOf('</AttachmentImagePreviewProvider>');
   const providerChildrenIndex = providerSource.indexOf('{children}');
   const previewHostIndex = providerSource.indexOf('<AttachmentImagePreview\n', providerChildrenIndex);
@@ -287,6 +322,14 @@ test('keeps notification movement and corner radius on the Reanimated UI thread'
   assert.doesNotMatch(source, /DRAWER_VISUAL_/);
 });
 
+test('keeps settled Reanimated values in the commit registry while JavaScript is busy', () => {
+  // Settled values otherwise reach React through a delayed setState; any commit before it
+  // restores mount-time styles, stacking pager days and hiding the week-strip highlight.
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8'));
+
+  assert.equal(packageJson.reanimated.staticFeatureFlags.FORCE_REACT_RENDER_FOR_SETTLED_ANIMATIONS, false);
+});
+
 test('does not shadow the runtime global in components with Reanimated worklets', () => {
   const workletSources = [
     tabNavigatorPath,
@@ -318,7 +361,7 @@ test('keeps notifications transparent and underneath the moving app shell', () =
   assert.doesNotMatch(navigatorSource, /drawerBackgroundColor|drawerCardBackgroundColor/);
   assert.doesNotMatch(notificationPanelSource, /cardBackgroundColor|Animated\.createAnimatedComponent/);
   assert.match(navigatorSource, /drawerContentInset:\s*0/);
-  assert.match(navigatorSource, /styles\.notificationLayer,\s*\{\s*width:\s*drawerWidth\s*\}/);
+  assert.match(navigatorSource, /styles\.notificationLayer,\s*\{\s*width:\s*drawerWidth,\s*bottom:\s*insets\.bottom\s*\}/);
   assert.match(navigatorSource, /NotificationInboxPanel backgroundColor="transparent"/);
   assert.doesNotMatch(navigatorSource, /notificationsMounted\s*&&\s*\(\s*<View[\s\S]*?styles\.notificationLayer/);
   assert.ok(notificationLayerIndex >= 0, 'the notification layer must be rendered');

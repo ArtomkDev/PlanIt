@@ -4,9 +4,16 @@ import useReducedMotionPreference from "../../../hooks/useReducedMotionPreferenc
 
 export default function useActivityTransition(active) {
   const progress = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const mountedRef = useRef(false);
   const reduceMotion = useReducedMotionPreference();
 
   useEffect(() => {
+    // The value starts at its target. Animating on mount would only build native
+    // animation nodes for every card the schedule pager prepares.
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return undefined;
+    }
     if (reduceMotion) {
       progress.setValue(active ? 1 : 0);
       return;

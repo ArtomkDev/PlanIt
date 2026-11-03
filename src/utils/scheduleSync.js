@@ -1,4 +1,5 @@
 import { getScheduleDataFingerprint } from './scheduleDataFingerprint';
+import { assignScheduleId } from './scheduleIdentity';
 
 const SYNC_META_KEYS = new Set([
   'version',
@@ -18,8 +19,10 @@ const withoutSyncMetadata = (entity = {}) => {
 };
 
 const contentChanged = (left, right) => (
-  getScheduleDataFingerprint(withoutSyncMetadata(left)) !==
-  getScheduleDataFingerprint(withoutSyncMetadata(right))
+  left !== right && (
+    getScheduleDataFingerprint(withoutSyncMetadata(left)) !==
+    getScheduleDataFingerprint(withoutSyncMetadata(right))
+  )
 );
 
 export const nextLogicalTimestamp = (entity = {}, now = Date.now()) => (
@@ -335,8 +338,7 @@ export const resolveConflictChoice = (
     if (index >= 0) schedules[index] = cloud;
     else schedules.push(cloud);
     schedules.push({
-      ...conflict.local,
-      id: generateId(),
+      ...assignScheduleId(conflict.local, generateId()),
       name: `${conflict.local?.name || ''} (Recovered copy)`,
       version: 0,
       baseVersion: 0,

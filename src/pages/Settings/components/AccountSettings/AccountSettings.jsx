@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
-import { AppleLogo, EnvelopeSimple, GoogleLogo, LockKey, Trash, User } from 'phosphor-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { EnvelopeSimple, LockKey, Trash, User } from 'phosphor-react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { GoogleAuthProvider, OAuthProvider, linkWithPopup } from 'firebase/auth';
 import Constants from 'expo-constants';
 
 import { auth } from '../../../../config/firebase';
 import { useScheduleData } from '../../../../context/ScheduleProvider';
+import { useAppDialog } from '../../../../context/AppDialogContext';
 import themes from '../../../../config/themes';
 import { t } from '../../../../utils/i18n';
 import MorphingLoader from '../../../../components/ui/MorphingLoader';
+import { AppleIcon, GoogleIcon } from '../../../../components/ui/BrandIcons';
 import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
 import { getLinkedProviders, unlinkProvider, linkGoogleAccount, linkAppleAccount } from '../../../../auth/authServices';
 
@@ -18,8 +20,6 @@ import SettingsRow from '../../../../components/ui/SettingsKit/SettingsRow';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
-const AuthenticGoogleIcon = (props) => <GoogleLogo {...props} weight="bold" />;
-const AuthenticAppleIcon = (props) => <AppleLogo {...props} weight="fill" />;
 
 if (Platform.OS !== 'web' && !isExpoGo) {
   const { GoogleSignin } = require('@react-native-google-signin/google-signin');
@@ -31,6 +31,7 @@ if (Platform.OS !== 'web' && !isExpoGo) {
 
 export default function AccountSettings() {
   const { global, user: contextUser, lang } = useScheduleData();
+  const dialog = useAppDialog();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
 
@@ -54,10 +55,10 @@ export default function AccountSettings() {
 
   const handleLinkGoogle = async () => {
     if (isNativeDisabled) {
-      Alert.alert(
-        t('auth.errors.expo_go_title', lang),
-        t('auth.errors.expo_go_google_msg', lang)
-      );
+      dialog.alert({
+        title: t('auth.errors.expo_go_title', lang),
+        message: t('auth.errors.expo_go_google_msg', lang),
+      });
       return;
     }
 
@@ -83,9 +84,9 @@ export default function AccountSettings() {
       setLinkedProviders(getLinkedProviders());
     } catch (error) {
       if (error.code !== 'ERR_REQUEST_CANCELED' && error.message !== 'Sign in action cancelled') {
-        Alert.alert(t('common.error', lang), t(error.code === 'auth/credential-already-in-use'
+        dialog.alert({ title: t('common.error', lang), message: t(error.code === 'auth/credential-already-in-use'
           ? 'auth.errors.provider_already_linked'
-          : 'auth.errors.provider_link_failed', lang));
+          : 'auth.errors.provider_link_failed', lang) });
       }
     } finally {
       setIsProcessing(null);
@@ -94,10 +95,10 @@ export default function AccountSettings() {
 
   const handleLinkApple = async () => {
     if (isNativeDisabled) {
-      Alert.alert(
-        t('auth.errors.expo_go_title', lang),
-        t('auth.errors.expo_go_apple_msg', lang)
-      );
+      dialog.alert({
+        title: t('auth.errors.expo_go_title', lang),
+        message: t('auth.errors.expo_go_apple_msg', lang),
+      });
       return;
     }
 
@@ -119,9 +120,9 @@ export default function AccountSettings() {
       setLinkedProviders(getLinkedProviders());
     } catch (error) {
       if (error.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert(t('common.error', lang), t(error.code === 'auth/credential-already-in-use'
+        dialog.alert({ title: t('common.error', lang), message: t(error.code === 'auth/credential-already-in-use'
           ? 'auth.errors.provider_already_linked'
-          : 'auth.errors.provider_link_failed', lang));
+          : 'auth.errors.provider_link_failed', lang) });
       }
     } finally {
       setIsProcessing(null);
@@ -130,7 +131,7 @@ export default function AccountSettings() {
 
   const handleUnlink = async (providerId) => {
     if (activeUser.providerData.length <= 1) {
-      Alert.alert(t('common.error', lang), t('auth.errors.cannot_unlink_only_provider', lang));
+      dialog.alert({ title: t('common.error', lang), message: t('auth.errors.cannot_unlink_only_provider', lang) });
       return;
     }
 
@@ -139,7 +140,7 @@ export default function AccountSettings() {
       await unlinkProvider(providerId);
       setLinkedProviders(getLinkedProviders());
     } catch (error) {
-      Alert.alert(t('common.error', lang), t('auth.errors.provider_unlink_failed', lang));
+      dialog.alert({ title: t('common.error', lang), message: t('auth.errors.provider_unlink_failed', lang) });
     } finally {
       setIsProcessing(null);
     }
@@ -209,10 +210,10 @@ export default function AccountSettings() {
           themeColors={themeColors}
           onPress={() => {
             if (isSocialOnly) {
-              Alert.alert(
-                t('settings.account_settings.change_email_screen.social_login_title', lang),
-                t('settings.account_settings.change_email_screen.social_login_desc', lang)
-              );
+              dialog.alert({
+                title: t('settings.account_settings.change_email_screen.social_login_title', lang),
+                message: t('settings.account_settings.change_email_screen.social_login_desc', lang),
+              });
             } else {
               navigation.navigate('ChangeEmail');
             }
@@ -225,7 +226,7 @@ export default function AccountSettings() {
         themeColors={themeColors}
       >
         <SettingsRow
-          icon={AuthenticGoogleIcon}
+          icon={GoogleIcon}
           label="Google"
           showCaret={false}
           themeColors={themeColors}
@@ -233,7 +234,8 @@ export default function AccountSettings() {
         />
         {Platform.OS !== 'android' && (
           <SettingsRow
-            icon={AuthenticAppleIcon}
+            icon={AppleIcon}
+            iconColor={themeColors.textColor}
             label="Apple"
             showCaret={false}
             themeColors={themeColors}

@@ -1,9 +1,12 @@
 import * as Linking from 'expo-linking';
 import {
   recordWidgetIntent,
+  readWidgetState,
   updateWidgetOffset,
 } from './widgetCore';
-import { renderScheduleWidgetTask } from './widgetRenderer';
+import { createWidgetLessonUrl } from './widgetLinking';
+import { refreshScheduleWidgets, renderScheduleWidgetTask } from './widgetRenderer';
+import { syncWidgetFromCloud, syncWidgetPushSubscription } from './widgetSync';
 
 const RENDER_ACTIONS = new Set([
   'WIDGET_ADDED',
@@ -13,17 +16,30 @@ const RENDER_ACTIONS = new Set([
 ]);
 
 const NAVIGATION_ACTIONS = new Set(['PREV_DAY', 'NEXT_DAY', 'TODAY']);
-const OPEN_ACTIONS = new Set(['OPEN_SCHEDULE_SELECTOR', 'OPEN_LESSON']);
 
 export async function widgetTask({
   widgetAction,
   widgetInfo,
   clickAction,
   clickActionData,
-  renderWidget,
 }) {
   try {
-    if (OPEN_ACTIONS.has(clickAction)) {
+    if (widgetAction === 'WIDGET_SYNC') {
+      const changed = await syncWidgetFromCloud();
+      if (!changed) await refreshScheduleWidgets();
+      await syncWidgetPushSubscription();
+      return;
+    }
+    if (widgetAction === 'WIDGET_DELETED') {
+      await syncWidgetPushSubscription();
+      return;
+    }
+    if (clickAction === 'OPEN_LESSON') {
+      const { schedule } = await readWidgetState();
+      await Linking.openURL(createWidgetLessonUrl(clickActionData, schedule?.id));
+      return;
+    }
+    if (clickAction === 'OPEN_SCHEDULE_SELECTOR') {
       await recordWidgetIntent(clickAction, clickActionData || {});
       await Linking.openURL('planit://');
       return;
@@ -35,9 +51,11 @@ export async function widgetTask({
       await updateWidgetOffset(clickAction);
     }
 
-    // This renderer belongs to the exact widget instance that emitted the event.
-    // Calling it directly avoids a second WorkManager job and redundant redraws.
-    await renderScheduleWidgetTask(widgetInfo, renderWidget);
+    await renderScheduleWidgetTask(widgetInfo);
+    if (widgetAction === 'WIDGET_ADDED' || widgetAction === 'WIDGET_UPDATE') {
+      await syncWidgetFromCloud();
+      await syncWidgetPushSubscription();
+    }
   } catch (error) {
     console.error('Widget Task Error:', error);
   }

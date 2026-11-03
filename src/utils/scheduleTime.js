@@ -122,6 +122,18 @@ export const createScheduleTimingDraft = (schedule) => {
   };
 };
 
+export const appendScheduleSlot = (schedule) => {
+  const slots = buildScheduleSlots(schedule.start_time, schedule.duration, schedule.breaks, schedule.slotDurations);
+  if (!slots.length || slots.length >= MAX_LESSON_SLOTS) return null;
+  const timing = createScheduleTimingDraft(schedule);
+  const next = {
+    ...timing,
+    slotDurations: [...timing.slotDurations, timing.slotDurations.at(-1)],
+    breaks: [...timing.breaks, timing.breaks.at(-1) ?? 10],
+  };
+  return buildScheduleSlots(next.start_time, next.duration, next.breaks, next.slotDurations).length ? next : null;
+};
+
 export const updateScheduleSlotTime = (timing, index, field, time) => {
   const slots = buildScheduleSlots(timing.start_time, timing.duration, timing.breaks, timing.slotDurations);
   const minutes = parseTimeToMinutes(time);

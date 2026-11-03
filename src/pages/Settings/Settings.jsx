@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -18,6 +18,7 @@ import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
 import AppSwitch from '../../components/ui/AppSwitch';
 import { triggerHaptic } from '../../utils/haptics';
 import { useAds } from '../../context/AdsContext';
+import { useAppDialog } from '../../context/AppDialogContext';
 import { getSettingsHeaderHeight } from '../../config/layoutMetrics';
 import { requestCookiePreferences } from '../../services/cookieConsentService';
 
@@ -31,6 +32,7 @@ export default function Settings({ guest, onExitGuest }) {
     openPrivacyOptions,
     privacyOptionsRequired,
   } = useAds();
+  const dialog = useAppDialog();
   const insets = useSafeAreaInsets();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -76,44 +78,42 @@ export default function Settings({ guest, onExitGuest }) {
 
   const handleAuthAction = () => {
     if (guest && onExitGuest) {
-      onExitGuest();
+      return performSignOut();
+    }
+  };
+
+  const performSignOut = async () => {
+    try {
+      setIsLoggingOut(true);
+      if (await safeLogout() === false) throw new Error('Logout was not completed.');
+      if (guest) onExitGuest?.();
+    } catch (error) {
+      console.error("Logout error:", error);
+      setIsLoggingOut(false);
+      dialog.alert({ title: t('common.error', lang), message: t('settings.alerts.logout_error', lang) });
     }
   };
 
   const handleSignOut = async () => {
-    Alert.alert(
-      t('settings.alerts.logout_title', lang),
-      t('settings.alerts.logout_confirm', lang),
-      [
-        { text: t('common.cancel', lang), style: "cancel" },
-        {
-          text: t('settings.menu.logout.title', lang),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setIsLoggingOut(true);
-              await safeLogout();
-            } catch (error) {
-              console.error("Logout error:", error);
-              setIsLoggingOut(false);
-              Alert.alert(t('common.error', lang), t('settings.alerts.logout_error', lang));
-            }
-          }
-        }
-      ]
-    );
+    const confirmed = await dialog.confirm({
+      title: t('settings.alerts.logout_title', lang),
+      message: t('settings.alerts.logout_confirm', lang),
+      confirmLabel: t('settings.menu.logout.title', lang),
+      destructive: true,
+    });
+    if (confirmed) await performSignOut();
   };
 
   const handleAdPrivacyOptions = useCallback(async () => {
     try {
       await openPrivacyOptions();
     } catch (_error) {
-      Alert.alert(
-        t('common.error', lang),
-        t('settings.alerts.ad_privacy_error', lang),
-      );
+      dialog.alert({
+        title: t('common.error', lang),
+        message: t('settings.alerts.ad_privacy_error', lang),
+      });
     }
-  }, [lang, openPrivacyOptions]);
+  }, [dialog, lang, openPrivacyOptions]);
 
   const sections = useMemo(() => ([
     {
@@ -122,6 +122,7 @@ export default function Settings({ guest, onExitGuest }) {
         ...(schedule?.id ? [{
           label: t('settings.schedule_editor.current_schedule', lang),
           screen: 'ScheduleEditorScreen',
+          params: { scheduleId: schedule.id },
           icon: Table,
           desc: t('settings.schedule_editor.current_schedule_hint', lang),
           meta: schedule.name,
@@ -320,7 +321,7 @@ export default function Settings({ guest, onExitGuest }) {
                   accessibilityState={item.accessibilityState}
                   danger={item.danger}
                   themeColors={themeColors}
-                  onPress={() => item.action ? item.action() : navigation.navigate(item.screen, { scheduleId: schedule?.id })}
+                  onPress={() => item.action ? item.action() : navigation.navigate(item.screen, item.params)}
                 />
               ))}
             </SettingsGroup>

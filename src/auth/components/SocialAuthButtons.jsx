@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
-import { AppleLogo, GoogleLogo } from 'phosphor-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { AppleIcon, GoogleIcon } from '../../components/ui/BrandIcons';
 import useSystemThemeColors from '../../hooks/useSystemThemeColors';
+import { useAppDialog } from '../../context/AppDialogContext';
 import useAppLanguage from '../../hooks/useAppLanguage';
 import MorphingLoader from '../../components/ui/MorphingLoader';
 import { t } from '../../utils/i18n';
@@ -33,6 +34,7 @@ if (Platform.OS !== 'web' && !isExpoGo) {
 const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled = false, isLinking = false }) => {
   const { colors, isDark } = useSystemThemeColors('blue');
   const { lang } = useAppLanguage();
+  const dialog = useAppDialog();
   const [loadingProvider, setLoadingProvider] = useState(null);
   const providerPrefix = isLinking ? t('auth.settings.link_with', lang) : t('auth.common.continue_with', lang);
   const googleAccessibilityLabel = `${providerPrefix} Google`;
@@ -42,10 +44,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
     if (disabled || loadingProvider || onBeforeAuth?.() === false) return;
     if (isExpoGo && Platform.OS !== 'web') {
       triggerHaptic("warning");
-      Alert.alert(
-        t('auth.errors.expo_go_title', lang), 
-        t('auth.errors.expo_go_google_msg', lang)
-      );
+      dialog.alert({
+        title: t('auth.errors.expo_go_title', lang),
+        message: t('auth.errors.expo_go_google_msg', lang),
+      });
       return;
     }
 
@@ -98,10 +100,10 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
     if (disabled || loadingProvider || onBeforeAuth?.() === false) return;
     if (isExpoGo && Platform.OS !== 'web') {
       triggerHaptic("warning");
-      Alert.alert(
-        t('auth.errors.expo_go_title', lang), 
-        t('auth.errors.expo_go_apple_msg', lang)
-      );
+      dialog.alert({
+        title: t('auth.errors.expo_go_title', lang),
+        message: t('auth.errors.expo_go_apple_msg', lang),
+      });
       return;
     }
 
@@ -175,7 +177,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
         <TouchableOpacity
           style={[
             styles.socialButton, 
-            { backgroundColor: isDark ? '#222' : '#fff', borderColor: colors.borderColor },
+            { backgroundColor: isDark ? '#131314' : '#fff', borderColor: colors.borderColor },
             isNativeDisabled && { opacity: 0.5 }
           ]}
           onPress={handleGoogleAuth}
@@ -188,12 +190,12 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
           {loadingProvider === 'google' ? (
             <>
               <MorphingLoader size={24} />
-              <Text style={[styles.socialButtonText, { color: colors.textColor }]}>Google</Text>
+              <Text style={[styles.socialButtonText, { color: isDark ? '#e3e3e3' : '#1f1f1f' }]}>Google</Text>
             </>
           ) : (
             <>
-              <GoogleLogo size={20} color={isDark ? '#fff' : '#DB4437'} weight="bold" />
-              <Text style={[styles.socialButtonText, { color: colors.textColor }]}>Google</Text>
+              <GoogleIcon size={20} />
+              <Text style={[styles.socialButtonText, { color: isDark ? '#e3e3e3' : '#1f1f1f' }]}>Google</Text>
             </>
           )}
         </TouchableOpacity>
@@ -255,7 +257,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
               </>
             ) : (
               <>
-                <AppleLogo size={24} color={isDark ? '#000' : '#fff'} weight="fill" />
+                <AppleIcon size={20} color={isDark ? '#000' : '#fff'} />
                 <Text style={[styles.socialButtonText, { color: isDark ? '#000' : '#fff' }]}>Apple</Text>
               </>
             )}

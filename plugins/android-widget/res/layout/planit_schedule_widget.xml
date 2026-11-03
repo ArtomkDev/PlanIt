@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/planit_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:clipToOutline="true"
+    android:background="@drawable/planit_widget_background">
+
+    <TextView
+        android:id="@+id/planit_widget_loading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="PlanIt"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/planit_widget_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/planit_widget_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:includeFontPadding="false"
+                android:ellipsize="end"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/planit_widget_date"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="#8E8E93"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <FrameLayout
+            android:id="@+id/planit_widget_selector"
+            android:layout_width="44dp"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:background="@drawable/planit_widget_button">
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/planit_widget_calendar" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+        <ListView
+            android:id="@+id/planit_widget_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="6dp"
+            android:visibility="gone" />
+        <LinearLayout
+            android:id="@+id/planit_widget_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/planit_widget_empty_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:textColor="#8E8E93"
+                android:textSize="15sp" />
+            <TextView
+                android:id="@+id/planit_widget_choose"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="44dp"
+                android:layout_marginTop="8dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:gravity="center"
+                android:background="@drawable/planit_widget_choose"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/planit_widget_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/planit_widget_previous"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:minHeight="44dp"
+            android:gravity="center"
+            android:background="@drawable/planit_widget_button"
+            android:text="‹"
+            android:includeFontPadding="false"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp" />
+        <TextView
+            android:id="@+id/planit_widget_today"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="2"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
+            android:minHeight="44dp"
+            android:gravity="center"
+            android:background="@drawable/planit_widget_button"
+            android:maxLines="1"
+            android:includeFontPadding="false"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="8sp"
+            android:autoSizeMaxTextSize="14sp"
+            android:autoSizeStepGranularity="1sp"
+            android:ellipsize="end"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/planit_widget_next"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:minHeight="44dp"
+            android:gravity="center"
+            android:background="@drawable/planit_widget_button"
+            android:text="›"
+            android:includeFontPadding="false"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp" />
+    </LinearLayout>
+</LinearLayout>

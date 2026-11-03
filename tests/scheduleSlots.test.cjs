@@ -180,6 +180,32 @@ test('widget shows free morning before the third period and hides it after it en
 const flexibleSchedule = lessons => ({ ...schedule(lessons), duration: 45, slotDurations: [45, 60, 80], breaks: [0, 20] });
 const slotsFor = s => time.buildScheduleSlots(s.start_time, s.duration, s.breaks, s.slotDurations);
 
+test('appending a slot repeats the last duration and break without moving existing lessons', () => {
+  const original = { ...schedule([slot(4)]), slotDurations: [45, 60, 80, 50], breaks: [5, 15, 20] };
+  const before = JSON.stringify(original);
+  const timing = time.appendScheduleSlot(original);
+  assert.deepEqual(timing.slotDurations, [45, 60, 80, 50, 50]);
+  assert.deepEqual(timing.breaks, [5, 15, 20, 20]);
+  assert.deepEqual(slotsFor(timing).slice(0, 4), slotsFor(original));
+  assert.deepEqual(slotsFor(timing).at(-1), { number: 5, start: '13:25', end: '14:15' });
+  assert.deepEqual(times({ ...original, ...timing }), times(original));
+  assert.equal(JSON.stringify(original), before);
+});
+
+test('appending supports zero-minute gaps and the same default gap as timetable settings', () => {
+  const zero = time.appendScheduleSlot({ ...flexibleSchedule([]), breaks: [0, 0] });
+  const slots = slotsFor(zero);
+  assert.equal(slots.at(-1).start, slots.at(-2).end);
+  const single = time.appendScheduleSlot({ ...flexibleSchedule([]), slotDurations: [45], breaks: [] });
+  assert.deepEqual(slotsFor(single).at(-1), { number: 2, start: '09:25', end: '10:10' });
+});
+
+test('appending rejects invalid timing, overnight overflow and the maximum slot count', () => {
+  assert.equal(time.appendScheduleSlot({ ...flexibleSchedule([]), slotDurations: [0] }), null);
+  assert.equal(time.appendScheduleSlot({ ...flexibleSchedule([]), start_time: '23:00', slotDurations: [45], breaks: [] }), null);
+  assert.equal(time.appendScheduleSlot({ ...flexibleSchedule([]), slotDurations: Array(48).fill(1), breaks: [] }), null);
+});
+
 test('individual durations resolve numbered and legacy positional lessons without cycling the template', () => {
   const s = flexibleSchedule([slot(3), slot(1), slot(2)]);
   assert.deepEqual(slotsFor(s), [

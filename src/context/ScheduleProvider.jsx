@@ -34,6 +34,8 @@ import {
   reconcileLessonRemindersForSchedule,
 } from "../services/notificationService";
 import { setHapticsEnabled } from "../utils/haptics";
+import { deleteCloudAttachmentObject, getScheduleAttachmentFiles } from '../services/attachmentService';
+import { logCrashlyticsError } from '../utils/analytics/crashlytics';
 import { getDefaultNavigationStyle, resolveNavigationStyle } from '../navigation/navigationMetrics';
 import { generateId } from "../utils/idGenerator";
 import { normalizeScheduleTiming } from "../utils/scheduleTime";
@@ -187,6 +189,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const systemColorScheme = useColorScheme();
 
   const [devicePrefs, setDevicePrefs] = useState({});
+  const [isDevicePrefsReady, setIsDevicePrefsReady] = useState(false);
   const devicePrefsRef = useRef(devicePrefs);
 
   const [tabBarHeight, setTabBarHeightState] = useState(0);
@@ -241,7 +244,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [deferredCloudRefreshSeq, setDeferredCloudRefreshSeq] = useState(0);
   const deferredCloudRefreshRef = useRef(false);
   const autoSaveFailureCountRef = useRef(0);
-  const autoSaveFingerprintRef = useRef(null);
+  const autoSavePendingSinceRef = useRef(null);
+  const autoSaveRetryAtRef = useRef(0);
 
   const { lang, isLangLoading } = useAppLanguage(data?.global?.language, devicePrefs.language);
 
@@ -256,13 +260,26 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   useEffect(() => { dataRef.current = data; }, [data]);
 
   const lastLocalSaveFingerprintRef = useRef(null);
-  const saveLocalScheduleIfChanged = useCallback(async (nextData, userId = null) => {
+  const localSaveTailRef = useRef(null);
+  const saveLocalScheduleIfChanged = useCallback((nextData, userId = null) => {
     const nextFingerprint = getScheduleDataFingerprint(nextData);
     const nextSaveKey = `${userId || "guest"}:${nextFingerprint}`;
-    if (lastLocalSaveFingerprintRef.current === nextSaveKey) return;
+    const pending = localSaveTailRef.current;
+    if (pending?.key === nextSaveKey) return pending.promise;
+    if (!pending && lastLocalSaveFingerprintRef.current === nextSaveKey) return Promise.resolve();
 
-    await saveLocalSchedule(nextData, userId);
-    lastLocalSaveFingerprintRef.current = nextSaveKey;
+    const operation = {
+      key: nextSaveKey,
+      promise: saveLocalSchedule(nextData, userId).then(() => {
+        lastLocalSaveFingerprintRef.current = nextSaveKey;
+      }),
+    };
+    localSaveTailRef.current = operation;
+    const release = () => {
+      if (localSaveTailRef.current === operation) localSaveTailRef.current = null;
+    };
+    operation.promise.then(release, release);
+    return operation.promise;
   }, []);
 
   const conflictQueueRef = useRef(conflictQueue);
@@ -293,10 +310,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const prefs = await getDevicePrefs();
       if (cancelled) return;
       setDevicePrefs(prefs);
+      setIsDevicePrefsReady(true);
+      const local = guest || user?.uid ? await getLocalSchedule(scopeUserId) : null;
+      if (cancelled) return;
 
       if (guest) {
-        const local = await getLocalSchedule(null);
-        if (cancelled) return;
         if (local) lastLocalSaveFingerprintRef.current = `guest:${getScheduleDataFingerprint(local)}`;
         const initialData = local || createDefaultData();
         dataRef.current = initialData;
@@ -305,9 +323,6 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         setIsLoading(false);
         setCloudSyncState('synced');
       } else if (user) {
-        const local = await getLocalSchedule(user.uid);
-        if (cancelled) return;
-
         if (local) {
           lastLocalSaveFingerprintRef.current = `${user.uid}:${getScheduleDataFingerprint(local)}`;
           dataRef.current = local;
@@ -364,6 +379,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
     loadLocal().catch((loadError) => {
       if (cancelled) return;
+      setIsDevicePrefsReady(true);
       setError(loadError?.message || 'Unable to initialize local data');
       setLoadedScopeKey(guest ? 'guest' : (user?.uid || 'none'));
       setIsLoading(false);
@@ -375,7 +391,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         saveLocalSchedule(latestData, scopeUserId).catch(() => {});
       }
     };
-  }, [guest, user, loadAttempt, saveLocalScheduleIfChanged, updateIsDirty]);
+  }, [guest, user?.uid, loadAttempt, saveLocalScheduleIfChanged, updateIsDirty]);
 
   useEffect(() => {
     if (!data || isLoading) return;
@@ -624,23 +640,50 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     };
   }, [cloudSubscriptionUserId, updateIsDirty, saveLocalScheduleIfChanged, deferCloudRefresh]);
 
+  const [localSaveRetryAttempt, setLocalSaveRetryAttempt] = useState(0);
+  const localSaveFailuresRef = useRef(0);
+  const localSaveErrorRef = useRef(null);
+  const localSavePendingSinceRef = useRef(null);
+
   useEffect(() => {
     if (!data || isLoading) return;
-    const timeoutId = setTimeout(() => {
-      saveLocalScheduleIfChanged(data, user?.uid || null).catch((localError) => {
-        setError(localError?.message || 'Unable to save local data');
-      });
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [data, isLoading, user, saveLocalScheduleIfChanged]);
+    const now = Date.now();
+    if (localSavePendingSinceRef.current === null) localSavePendingSinceRef.current = now;
+    const failures = localSaveFailuresRef.current;
+    const delay = failures > 0
+      ? Math.min(30000, 1000 * (2 ** Math.min(failures - 1, 5)))
+      : Math.min(500, Math.max(0, 5000 - (now - localSavePendingSinceRef.current)));
+    let active = true;
+    const timeoutId = setTimeout(async () => {
+      localSavePendingSinceRef.current = null;
+      try {
+        await saveLocalScheduleIfChanged(data, guest ? null : user?.uid || null);
+        if (active && localSaveFailuresRef.current > 0) {
+          const recoveredError = localSaveErrorRef.current;
+          setError(current => current === recoveredError ? null : current);
+        }
+        localSaveFailuresRef.current = 0;
+        localSaveErrorRef.current = null;
+      } catch (localError) {
+        if (!active) return;
+        localSaveFailuresRef.current += 1;
+        localSaveErrorRef.current = localError?.message || 'Unable to save local data';
+        setError(localSaveErrorRef.current);
+        setLocalSaveRetryAttempt(attempt => attempt + 1);
+      }
+    }, delay);
+    return () => { active = false; clearTimeout(timeoutId); };
+  }, [data, isLoading, guest, user?.uid, saveLocalScheduleIfChanged, localSaveRetryAttempt]);
 
   const mergedGlobal = useMemo(() => {
     const baseGlobal = data?.global || {};
     const fallbackMode = systemColorScheme === 'dark' ? 'dark' : 'light';
+    const systemTheme = [fallbackMode, "blue"];
 
     return {
       ...baseGlobal,
-      theme: devicePrefs.theme || baseGlobal.theme || [fallbackMode, "blue"],
+      // Before sign-in, screens follow the device theme like the auth screen does.
+      theme: guest || user ? (devicePrefs.theme || baseGlobal.theme || systemTheme) : systemTheme,
       blur: devicePrefs.blur !== undefined ? devicePrefs.blur : (baseGlobal.blur ?? true),
       navigationStyle: resolveNavigationStyle(devicePrefs.navigationStyle || baseGlobal.navigationStyle || getDefaultNavigationStyle()),
       navigationLabels: devicePrefs.navigationLabels !== undefined
@@ -656,7 +699,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       watermark: baseGlobal.watermark || 0,
       language: lang
     };
-  }, [data?.global, devicePrefs, lang, systemColorScheme]);
+  }, [data?.global, devicePrefs, lang, systemColorScheme, guest, user]);
 
   const currentScheduleId = mergedGlobal?.currentScheduleId || null;
 
@@ -677,6 +720,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
   const reminderScheduleIdRef = useRef(null);
   const reminderSyncSeqRef = useRef(0);
+
+  useEffect(() => () => {
+    const scheduleId = reminderScheduleIdRef.current;
+    if (scheduleId) cancelLessonRemindersForSchedule(scheduleId).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (isLoading) return undefined;
@@ -731,16 +779,18 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
     const currentScheduleFingerprint = JSON.stringify([
       lang,
+      guest ? null : user?.uid || null,
       widgetSchedule ? getScheduleDataFingerprint({ global: {}, schedules: [widgetSchedule] }) : null,
     ]);
 
     if (prevWidgetScheduleFingerprint.current !== currentScheduleFingerprint) {
-      prevWidgetScheduleFingerprint.current = currentScheduleFingerprint;
-      setTimeout(() => {
-        syncScheduleToWidget(widgetSchedule, lang);
+      const timeoutId = setTimeout(() => {
+        prevWidgetScheduleFingerprint.current = currentScheduleFingerprint;
+        syncScheduleToWidget(widgetSchedule, lang, guest ? null : user?.uid || null);
       }, 0);
+      return () => clearTimeout(timeoutId);
     }
-  }, [widgetSchedule, widgetScheduleId, isLoading, lang]);
+  }, [widgetSchedule, widgetScheduleId, isLoading, lang, guest, user?.uid]);
 
   const selectWidgetSchedule = useCallback(async (scheduleId) => {
     const selected = activeSchedules.find((item) => item.id === scheduleId) || null;
@@ -750,27 +800,81 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     await setWidgetSelectedScheduleId(scheduleId);
   }, [activeSchedules]);
 
-  const setDataDraft = useCallback((updater) => {
-    setData((previousData) => {
-      const proposedData = typeof updater === "function" ? updater(previousData) : updater;
+  const setDataDraft = useCallback((updater, { persistLocally = false } = {}) => {
+    const previousData = dataRef.current;
+    const proposedData = typeof updater === "function" ? updater(previousData) : updater;
 
-      if (!hasScheduleDataChanged(previousData, proposedData)) {
-        return previousData;
+    if (!hasScheduleDataChanged(previousData, proposedData)) {
+      if (persistLocally && previousData) return saveLocalScheduleIfChanged(previousData, guest ? null : user?.uid || null);
+      return;
+    }
+
+    const nextData = markScheduleDataDirty(previousData, proposedData);
+
+    dataRef.current = nextData;
+    setData(nextData);
+    if (!guest) updateIsDirty(true);
+    if (persistLocally) return saveLocalScheduleIfChanged(nextData, guest ? null : user?.uid || null);
+  }, [guest, user?.uid, updateIsDirty, saveLocalScheduleIfChanged]);
+
+  const attachmentCleanupInFlightRef = useRef(false);
+  const attachmentCleanupMountedRef = useRef(true);
+  const attachmentCleanupFailedRef = useRef(false);
+  const [attachmentCleanupAttempt, setAttachmentCleanupAttempt] = useState(0);
+  useEffect(() => {
+    attachmentCleanupMountedRef.current = true;
+    return () => { attachmentCleanupMountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    if (
+      guest || !user?.uid || isLoading || !isOnline || isCloudSaving ||
+      cloudSyncState !== 'synced' || conflictQueue.length > 0 ||
+      hasDirtyScheduleData(data) || !data?.global?.attachmentDeletionQueue?.length
+    ) return;
+
+    let cancelled = false;
+    const timeoutId = setTimeout(async () => {
+      if (attachmentCleanupInFlightRef.current) return;
+      attachmentCleanupInFlightRef.current = true;
+      try {
+        for (const file of dataRef.current?.global?.attachmentDeletionQueue || []) {
+          if (cancelled || isCloudSavingRef.current || hasDirtyScheduleData(dataRef.current)) return;
+          const current = dataRef.current;
+          const referenced = [
+            ...(current.global?.fileLibrary || []),
+            ...(current.schedules || []).flatMap((item) => getScheduleAttachmentFiles(item, current.global?.fileLibrary)),
+          ].some((item) => item.storagePath === file.storagePath);
+          if (!referenced && file.storagePath?.startsWith(`users/${user.uid}/attachments/`)) {
+            await deleteCloudAttachmentObject(file);
+          }
+          attachmentCleanupFailedRef.current = false;
+          if (cancelled) return;
+          setDataDraft((previous) => ({
+            ...previous,
+            global: {
+              ...previous.global,
+              attachmentDeletionQueue: (previous.global.attachmentDeletionQueue || [])
+                .filter((item) => item.storagePath !== file.storagePath),
+            },
+          }));
+        }
+      } catch (cleanupError) {
+        attachmentCleanupFailedRef.current = true;
+        logCrashlyticsError(cleanupError, 'attachment-deletion-after-sync');
+      } finally {
+        attachmentCleanupInFlightRef.current = false;
+        if (attachmentCleanupMountedRef.current) setAttachmentCleanupAttempt((attempt) => attempt + 1);
       }
-
-      const nextData = markScheduleDataDirty(previousData, proposedData);
-
-      dataRef.current = nextData;
-      if (!guest) updateIsDirty(true);
-      return nextData;
-    });
-  }, [guest, updateIsDirty]);
+    }, attachmentCleanupFailedRef.current ? 30000 : 1000);
+    return () => { cancelled = true; clearTimeout(timeoutId); };
+  }, [data, guest, user?.uid, isLoading, isOnline, isCloudSaving, cloudSyncState, conflictQueue.length, setDataDraft, attachmentCleanupAttempt]);
 
   const setScheduleDraft = useCallback((updater) => {
     const currentId = devicePrefsRef.current.currentScheduleId || dataRef.current?.global?.currentScheduleId;
     if (!currentId) return;
 
-    setData((prev) => {
+    setDataDraft((prev) => {
       if (!prev) return prev;
 
       let changed = false;
@@ -787,13 +891,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
       if (!changed) return prev;
 
-      const nextData = markScheduleDataDirty(prev, { ...prev, schedules: nextSchedules });
-      if (!hasScheduleDataChanged(prev, nextData)) return prev;
-      dataRef.current = nextData;
-      if (!guest) updateIsDirty(true);
-      return nextData;
+      return { ...prev, schedules: nextSchedules };
     });
-  }, [guest, updateIsDirty]);
+  }, [setDataDraft]);
 
   const setGlobalDraft = useCallback((updater) => {
     const currentPrev = dataRef.current;
@@ -870,26 +970,23 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       return;
     }
 
-    setData((prev) => {
+    setDataDraft((prev) => {
       if (!prev) return prev;
       const nextData = {
         ...prev,
         global: {
           ...prev.global,
           ...nextGlobal,
-          lastModified: nextLogicalTimestamp(prev.global),
         },
       };
-      dataRef.current = nextData;
       return nextData;
     });
+  }, [setDataDraft, syncDevicePrefsUpdate]);
 
-    if (!guest) updateIsDirty(true);
-  }, [guest, updateIsDirty, syncDevicePrefsUpdate]);
-
-  const addSchedule = useCallback((scheduleObj) => {
-    setData((prev) => {
+  const addSchedule = useCallback((scheduleObj, { persistLocally = false } = {}) => {
+    setDataDraft((prev) => {
       if (!prev) return prev;
+      if ((prev.schedules || []).some((item) => item.id === scheduleObj.id)) return prev;
       const ownedSchedule = guest
         ? markScheduleAsDeviceLocal(scheduleObj)
         : markScheduleAsAccountOwned(scheduleObj);
@@ -901,11 +998,10 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         lastSynced: 0
       };
       const nextData = { ...prev, schedules: [...(prev.schedules || []), newSchedule] };
-      dataRef.current = nextData;
       return nextData;
     });
-    if (!guest) updateIsDirty(true);
-  }, [guest, updateIsDirty]);
+    if (persistLocally) return saveLocalScheduleIfChanged(dataRef.current, guest ? null : user?.uid || null);
+  }, [guest, user?.uid, setDataDraft, saveLocalScheduleIfChanged]);
 
   const removeSchedule = useCallback(async (scheduleId) => {
     const prev = dataRef.current;
@@ -944,16 +1040,13 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       syncDevicePrefsUpdate({ ...devicePrefsRef.current, currentScheduleId: fallbackId });
     }
 
-    setData(current => {
-      if (!current) return current;
-      const nextData = {
-        ...current,
-        global: nextGlobal,
-        schedules: nextSchedules
-      };
-      dataRef.current = nextData;
-      return nextData;
-    });
+    const nextData = {
+      ...prev,
+      global: nextGlobal,
+      schedules: nextSchedules
+    };
+    dataRef.current = nextData;
+    setData(nextData);
 
     if (!guest) updateIsDirty(true);
   }, [guest, updateIsDirty, syncDevicePrefsUpdate]);
@@ -1100,33 +1193,23 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     }
   }, [user, guest, updateIsDirty, lang, saveLocalScheduleIfChanged, deferCloudRefresh]);
 
-  // Data safety must not depend on AutoSaveManager being mounted or on a
-  // particular screen re-rendering. This provider-owned loop is a second,
-  // independent path that saves any durable local draft and retries transient
-  // failures with bounded backoff. Firestore transactions remain the final
-  // conflict guard.
+  // Keep debounce, the maximum wait and retries in one owner so UI timers or
+  // ongoing edits cannot restart backoff or postpone a save indefinitely.
   useEffect(() => {
-    if (
-      !cloudSubscriptionUserId ||
-      !data ||
-      !isDirty ||
-      !isOnline ||
-      isCloudSaving ||
-      conflictQueue.length > 0
-    ) {
+    if (!cloudSubscriptionUserId || !data || !isDirty) {
+      autoSavePendingSinceRef.current = null;
+      autoSaveRetryAtRef.current = 0;
+      autoSaveFailureCountRef.current = 0;
       return undefined;
     }
+    if (!isOnline || isCloudSaving || conflictQueue.length > 0) return undefined;
 
-    const fingerprint = getScheduleDataFingerprint(data);
-    if (autoSaveFingerprintRef.current !== fingerprint) {
-      autoSaveFingerprintRef.current = fingerprint;
-      autoSaveFailureCountRef.current = 0;
-    }
-
-    const failures = autoSaveFailureCountRef.current;
-    const delay = failures === 0
-      ? 2500
-      : Math.min(30000, 5000 * (2 ** Math.min(failures - 1, 3)));
+    const now = Date.now();
+    if (autoSavePendingSinceRef.current === null) autoSavePendingSinceRef.current = now;
+    const remainingWait = Math.max(0, 60000 - (now - autoSavePendingSinceRef.current));
+    const delay = autoSaveFailureCountRef.current > 0
+      ? Math.max(0, autoSaveRetryAtRef.current - now)
+      : Math.min(2500, remainingWait);
 
     const timeoutId = setTimeout(async () => {
       if (
@@ -1138,13 +1221,19 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         return;
       }
 
+      autoSavePendingSinceRef.current = Date.now();
       const saved = await saveNow();
       if (saved === true) {
         autoSaveFailureCountRef.current = 0;
+        autoSaveRetryAtRef.current = 0;
       } else {
         autoSaveFailureCountRef.current = Math.min(
           autoSaveFailureCountRef.current + 1,
           5,
+        );
+        autoSaveRetryAtRef.current = Date.now() + Math.min(
+          30000,
+          5000 * (2 ** (autoSaveFailureCountRef.current - 1)),
         );
       }
     }, delay);
@@ -1450,7 +1539,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const deleteGuestSchedules = useCallback(async () => {
     setIsLoading(true);
     try {
-      await clearLocalSchedule(null);
+      await clearLocalSchedule(null, { throwOnError: true });
     } finally {
       setIsLoading(false);
     }
@@ -1469,9 +1558,14 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       user?.uid || null,
       `before-conflict-choice:${action}`,
     ).catch(() => {});
+    const latestData = dataRef.current;
+    if (!latestData) return false;
+    const latestLocal = currentConflict.kind === 'global'
+      ? latestData.global
+      : latestData.schedules.find(schedule => schedule.id === conflictId);
     const updatedData = resolveConflictChoice(
-      prev,
-      currentConflict,
+      latestData,
+      { ...currentConflict, local: latestLocal || currentConflict.local },
       action,
       generateId,
     );
@@ -1485,6 +1579,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       resolutionDurable = false;
       setError(localError?.message || 'Unable to preserve conflict resolution');
     }
+    if (!resolutionDurable) return false;
 
     const filteredQ = currentQueue.filter(c => c.id !== conflictId);
     conflictQueueRef.current = filteredQ;
@@ -1492,7 +1587,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
     if (filteredQ.length === 0) {
       if (!guest) {
-        updateIsDirty(hasDirtyScheduleData(updatedData));
+        updateIsDirty(hasDirtyScheduleData(dataRef.current));
         // Re-read the server before any push: more changes may have arrived
         // while the conflict screen was open.
         setTimeout(() => reloadAllSchedules(), 0);
@@ -1510,10 +1605,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     schedules: activeSchedules,
     widgetScheduleId,
     isLoading,
+    isDevicePrefsReady,
     error,
     lang,
     isLangLoading,
-  }), [user, guest, schedule, mergedGlobal, activeSchedules, widgetScheduleId, isLoading, error, lang, isLangLoading]);
+  }), [user, guest, schedule, mergedGlobal, activeSchedules, widgetScheduleId, isLoading, isDevicePrefsReady, error, lang, isLangLoading]);
 
   const actionsValue = useMemo(() => ({
     selectWidgetSchedule,

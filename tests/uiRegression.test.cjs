@@ -9,6 +9,7 @@ const { act, create } = require('react-test-renderer');
 const tinycolor = require('tinycolor2');
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
+global.__DEV__ = false;
 const compiled = new Map();
 function load(relative, mocks = {}) {
   const filename = path.resolve(__dirname, '..', relative);
@@ -18,6 +19,8 @@ function load(relative, mocks = {}) {
   const original = mod.require.bind(mod);
   mod.require = name => {
     if (name in mocks) return mocks[name];
+    if (name.endsWith('/ui/AppTextInput')) return 'Input';
+    if (name.endsWith('/ui/AppDateTimePicker')) return mocks['@react-native-community/datetimepicker'];
     if (!name.startsWith('.')) return original(name);
     const target = path.resolve(path.dirname(filename), name);
     const resolved = [target, target + '.js', target + '.jsx'].find(file => fs.existsSync(file) && fs.statSync(file).isFile());
@@ -29,6 +32,66 @@ function load(relative, mocks = {}) {
 }
 
 const themes = load('src/config/themes.js').default;
+
+async function mountAutoSave(t, online = true) {
+  const timers = new Set(), animations = [];
+  const nativeSet = global.setTimeout, nativeClear = global.clearTimeout;
+  t.mock.method(global, 'setTimeout', (callback, delay, ...args) => {
+    if (delay !== 2000 && delay !== 60000 && delay !== 4000) return nativeSet(callback, delay, ...args);
+    const timer = { callback, delay };
+    timers.add(timer);
+    return timer;
+  });
+  t.mock.method(global, 'clearTimeout', timer => { if (!timers.delete(timer)) nativeClear(timer); });
+  let saves = 0;
+  let saveNow = () => { saves++; };
+  class Value {
+    interpolate() { return 0; }
+    stopAnimation() {}
+  }
+  const AutoSave = load('src/services/AutoSaveManager.jsx', {
+    'react-native': {
+      StyleSheet: { create: value => value },
+      Animated: {
+        Value, View: 'view', Text: 'text',
+        timing: () => ({ start() {} }),
+        parallel: () => ({ start: callback => { if (callback) animations.push(callback); } }),
+      },
+    },
+    '../context/ScheduleProvider': {
+      useScheduleActions: () => ({ saveNow }),
+      useScheduleData: () => ({ user: { uid: 'test' }, lang: 'uk' }),
+      useScheduleSync: () => ({ isDirty: true, isOnline: online, isCloudSaving: false, cloudSyncState: 'synced', conflictQueue: [] }),
+    },
+    '../utils/i18n': { t: value => value },
+  }).default;
+  let tree;
+  await act(async () => { tree = create(React.createElement(AutoSave)); });
+  t.after(async () => act(async () => tree.unmount()));
+  return {
+    timers, animations, tree, saves: () => saves,
+    async replaceSaveAction() {
+      saveNow = () => { saves += 10; };
+      await act(async () => tree.update(React.createElement(AutoSave, { revision: 1 })));
+    },
+  };
+}
+
+test('autosave status UI does not start a second cloud save scheduler', async t => {
+  const ui = await mountAutoSave(t);
+  await ui.replaceSaveAction();
+  assert.equal(ui.timers.size, 0);
+  assert.equal(ui.saves(), 0);
+});
+
+test('an animation finishing after autosave UI unmount cannot leave a timer', async t => {
+  const ui = await mountAutoSave(t, false);
+  assert.equal(ui.animations.length, 1);
+  await act(async () => ui.tree.unmount());
+  ui.animations[0]({ finished: true });
+  assert.equal(ui.timers.size, 0);
+});
+
 for (const mode of ['light', 'dark', 'oled']) {
   test(`${mode} themes preserve the exact chosen accent and readable button labels, including custom colors`, () => {
     for (const accent of [...Object.keys(themes.accentColors), '#FFFFFF', '#000000', '#808080', '#ffcc00', '#C00060']) {
@@ -56,7 +119,7 @@ async function mountProvider(t, options = {}) {
   let appStateListener;
   const mocks = {
     'react-native': { Platform: { OS: 'ios' }, useColorScheme: () => 'light', AppState: { addEventListener: (_event, listener) => { appStateListener = listener; return { remove() {} }; } } },
-    '@react-native-community/netinfo': { addEventListener(callback) { callback({ isConnected: false }); return () => {}; } },
+    '@react-native-community/netinfo': { addEventListener(callback) { callback({ isConnected: options.online === true }); return () => {}; } },
     'firebase/auth': { signOut: async () => {} },
     '@react-native-async-storage/async-storage': { removeItem: async () => {} },
     'expo-crypto': { randomUUID: () => 'generated-id' },
@@ -67,7 +130,7 @@ async function mountProvider(t, options = {}) {
       saveSchedule: (...args) => options.saveCloud?.(...args) ?? Promise.resolve(), resetUserSchedules: async () => {}, updateDeviceSyncTimeAndCleanUp: async () => {},
     },
     '../utils/storage': {
-      getDevicePrefs: async () => ({ language: 'uk', theme: ['light', 'blue'], blur: true, navigationStyle: 'classic', navigationLabels: true, navigationAnimations: true, hapticsEnabled: true, currentScheduleId: 'existing' }),
+      getDevicePrefs: options.readPrefs || (async () => ({ language: 'uk', theme: ['light', 'blue'], blur: true, navigationStyle: 'classic', navigationLabels: true, navigationAnimations: true, hapticsEnabled: true, currentScheduleId: 'existing' })),
       saveDevicePrefs: async prefs => { prefsWrites.push(prefs); },
       getLocalSchedule: (...args) => options.readLocal?.(...args) ?? Promise.resolve(null),
       saveLocalSchedule: async (data, scope) => {
@@ -80,6 +143,8 @@ async function mountProvider(t, options = {}) {
     '../hooks/useAppLanguage': () => ({ lang: 'uk', isLangLoading: false }),
     '../utils/deviceService': { syncCurrentDeviceLanguage: async () => {} },
     '../utils/haptics': { setHapticsEnabled() {} },
+    '../services/attachmentService': { deleteCloudAttachmentObject: (...args) => options.deleteCloudFile?.(...args), getScheduleAttachmentFiles: () => [] },
+    '../utils/analytics/crashlytics': { logCrashlyticsError() {} },
     '../widgets/widgetService': { getWidgetSelectedScheduleId: async () => null, setWidgetSelectedScheduleId: async () => {}, syncScheduleToWidget: async () => {} },
     '../services/notificationService': { cancelLessonRemindersForSchedule: async () => {}, reconcileLessonRemindersForSchedule: async () => {} },
     '../navigation/navigationMetrics': { getDefaultNavigationStyle: () => 'classic', resolveNavigationStyle: value => value || 'classic' },
@@ -87,11 +152,13 @@ async function mountProvider(t, options = {}) {
   const { ScheduleProvider, useSchedule } = load('src/context/ScheduleProvider.jsx', mocks);
   let snapshot, tree;
   function Probe() { snapshot = useSchedule(); return null; }
-  await act(async () => {
-    tree = create(React.createElement(ScheduleProvider, { guest: options.guest, user: options.guest ? null : { uid: 'user-1' } }, React.createElement(Probe)));
-  });
+  const render = user => React.createElement(ScheduleProvider, { guest: options.guest, user }, React.createElement(Probe));
+  await act(async () => { tree = create(render(options.guest ? null : { uid: 'user-1' })); });
   t.after(async () => act(async () => tree.unmount()));
-  return { state: () => snapshot, writes, prefsWrites, appState: value => appStateListener(value) };
+  return {
+    state: () => snapshot, writes, prefsWrites, appState: value => appStateListener(value),
+    async refreshUser() { await act(async () => tree.update(render({ uid: 'user-1' }))); },
+  };
 }
 
 const gate = () => {
@@ -99,6 +166,225 @@ const gate = () => {
   const promise = new Promise(done => { resolve = done; });
   return { promise, resolve };
 };
+
+test('startup exposes saved preferences before a first cloud fetch finishes', async t => {
+  const prefs = gate();
+  const cloud = gate();
+  const provider = await mountProvider(t, { readPrefs: () => prefs.promise, readCloud: () => cloud.promise });
+  assert.equal(provider.state().isDevicePrefsReady, false);
+  await act(async () => prefs.resolve({ theme: ['light', 'blue'], language: 'uk' }));
+  assert.equal(provider.state().isDevicePrefsReady, true);
+  assert.equal(provider.state().isLoading, true, 'network loading can show its existing loader and timeout UI');
+  assert.deepEqual(provider.state().global.theme, ['light', 'blue']);
+  await act(async () => cloud.resolve(fixture()));
+  assert.equal(provider.state().isLoading, false);
+});
+
+test('unreadable startup preferences release the gate so the existing recovery UI can appear', async t => {
+  const provider = await mountProvider(t, { readPrefs: async () => { throw new Error('Preferences unavailable'); } });
+  assert.equal(provider.state().isDevicePrefsReady, true);
+  assert.equal(provider.state().isLoading, false);
+  assert.equal(provider.state().error, 'Preferences unavailable');
+});
+
+test('saved theme remains available while local data loads and if that data is corrupt', async t => {
+  const local = gate();
+  const provider = await mountProvider(t, { guest: true, readLocal: async () => {
+    await local.promise;
+    throw new Error('Local data unavailable');
+  } });
+  assert.equal(provider.state().isDevicePrefsReady, true);
+  assert.equal(provider.state().isLoading, true);
+  assert.deepEqual(provider.state().global.theme, ['light', 'blue']);
+  await act(async () => local.resolve());
+  assert.equal(provider.state().isLoading, false);
+  assert.equal(provider.state().error, 'Local data unavailable');
+  assert.deepEqual(provider.state().global.theme, ['light', 'blue']);
+});
+
+function captureProviderTimers(t) {
+  let now = 100000;
+  const timers = new Set();
+  t.mock.method(Date, 'now', () => now);
+  t.mock.method(global, 'setTimeout', (callback, delay) => {
+    const timer = { callback, due: now + delay };
+    timers.add(timer);
+    return timer;
+  });
+  t.mock.method(global, 'clearTimeout', timer => timers.delete(timer));
+  return {
+    async advance(ms) {
+      const target = now + ms;
+      for (;;) {
+        const next = [...timers].filter(timer => timer.due <= target).sort((a, b) => a.due - b.due)[0];
+        if (!next) break;
+        now = next.due;
+        timers.delete(next);
+        await act(async () => next.callback());
+      }
+      now = target;
+    },
+  };
+}
+
+test('continuous edits cannot postpone provider autosave past one minute', async t => {
+  const clock = captureProviderTimers(t);
+  let saves = 0;
+  const provider = await mountProvider(t, {
+    online: true,
+    readLocal: async () => fixture(),
+    saveCloud: async (_uid, data) => {
+      saves++;
+      return { schedules: data.schedules.map(item => ({ ...item, version: 2, baseVersion: 2, lastSynced: item.lastModified })) };
+    },
+  });
+  for (let edit = 0; edit < 60; edit++) {
+    await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: `Edit ${edit}` })));
+    await clock.advance(1000);
+  }
+  assert.equal(saves, 1);
+  assert.equal(provider.state().isDirty, false);
+});
+
+test('editing after a failed autosave preserves retry backoff', async t => {
+  const clock = captureProviderTimers(t);
+  let saves = 0;
+  const provider = await mountProvider(t, {
+    online: true,
+    readLocal: async () => fixture(),
+    saveCloud: async () => { saves++; throw new Error('Unavailable'); },
+  });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'First' })));
+  await clock.advance(2500);
+  assert.equal(saves, 1);
+  await clock.advance(1000);
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Second' })));
+  await clock.advance(2500);
+  assert.equal(saves, 1);
+  await clock.advance(1500);
+  assert.equal(saves, 2);
+});
+
+test('an offline local save failure retries the draft without another edit', async t => {
+  const clock = captureProviderTimers(t);
+  const options = { guest: true, readLocal: async () => fixture(), failWrite: true };
+  const provider = await mountProvider(t, options);
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Keep offline' })));
+  await clock.advance(500);
+  assert.equal(provider.writes.length, 1);
+  options.failWrite = false;
+  await clock.advance(1000);
+  assert.equal(provider.writes.length, 2);
+  assert.equal(provider.writes.at(-1).data.schedules[0].name, 'Keep offline');
+  assert.equal(provider.state().error, null);
+});
+
+test('concurrent local flushes of the same draft share the durable write', async t => {
+  const writing = gate();
+  const provider = await mountProvider(t, { guest: true, readLocal: async () => fixture(), writeLocal: () => writing.promise });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'One durable draft' })));
+  let first, second;
+  await act(async () => {
+    first = provider.state().setData(prev => prev, { persistLocally: true });
+    second = provider.state().setData(prev => prev, { persistLocally: true });
+  });
+  assert.equal(provider.writes.length, 1);
+  await act(async () => { writing.resolve(); await Promise.all([first, second]); });
+});
+
+test('refreshing the same account does not reload or replace an unsaved draft', async t => {
+  let reads = 0;
+  const provider = await mountProvider(t, { readLocal: async () => { reads++; return fixture(); } });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Still editing' })));
+  await provider.refreshUser();
+  assert.equal(reads, 1);
+  assert.equal(provider.state().schedule.name, 'Still editing');
+});
+
+function captureAttachmentCleanup(t) {
+  const callbacks = [];
+  const originalSet = global.setTimeout;
+  const originalClear = global.clearTimeout;
+  t.mock.method(global, 'setTimeout', (callback, delay, ...args) => {
+    if (delay !== 1000 && delay !== 30000) return originalSet(callback, delay, ...args);
+    const timer = { attachmentCleanup: true, callback, delay };
+    callbacks.push(timer);
+    return timer;
+  });
+  t.mock.method(global, 'clearTimeout', timer => { if (!timer?.attachmentCleanup) originalClear(timer); });
+  return callbacks;
+}
+
+test('attachment cloud deletion waits for a server-confirmed clean draft', async t => {
+  const timers = captureAttachmentCleanup(t);
+  const initial = fixture();
+  const storagePath = 'users/user-1/attachments/file/old/document.pdf';
+  initial.global.attachmentDeletionQueue = [{ storagePath }];
+  let deliver;
+  const removed = [];
+  const provider = await mountProvider(t, {
+    online: true, readLocal: async () => initial,
+    subscribe: (_uid, callback) => { deliver = callback; return () => {}; },
+    deleteCloudFile: async file => removed.push(file.storagePath),
+  });
+  assert.equal(timers.length, 0, 'local startup data does not authorize cloud cleanup');
+  await act(async () => deliver(initial, false));
+  assert.ok(timers.length > 0);
+  await act(async () => timers.at(-1).callback());
+  assert.deepEqual(removed, [storagePath]);
+  assert.deepEqual(provider.state().global.attachmentDeletionQueue, []);
+  assert.equal(provider.state().isDirty, true, 'queue acknowledgement is synchronized through the existing provider');
+});
+
+test('a restored file is removed from the deletion queue without deleting its cloud bytes', async t => {
+  const timers = captureAttachmentCleanup(t);
+  const initial = fixture();
+  const storagePath = 'users/user-1/attachments/file/old/document.pdf';
+  initial.global.fileLibrary = [{ id: 'restored', storagePath }];
+  initial.global.attachmentDeletionQueue = [{ storagePath }];
+  let deliver, removed = 0;
+  const provider = await mountProvider(t, {
+    online: true, readLocal: async () => initial,
+    subscribe: (_uid, callback) => { deliver = callback; return () => {}; },
+    deleteCloudFile: async () => { removed++; },
+  });
+  await act(async () => deliver(initial, false));
+  await act(async () => timers.at(-1).callback());
+  assert.equal(removed, 0);
+  assert.deepEqual(provider.state().global.attachmentDeletionQueue, []);
+});
+
+test('a failed cloud cleanup keeps its durable intent and retries with backoff', async t => {
+  const timers = captureAttachmentCleanup(t);
+  const initial = fixture();
+  initial.global.attachmentDeletionQueue = [{ storagePath: 'users/user-1/attachments/file/old/document.pdf' }];
+  let deliver;
+  const provider = await mountProvider(t, {
+    online: true, readLocal: async () => initial,
+    subscribe: (_uid, callback) => { deliver = callback; return () => {}; },
+    deleteCloudFile: async () => { throw new Error('Offline'); },
+  });
+  await act(async () => deliver(initial, false));
+  await act(async () => timers.at(-1).callback());
+  assert.equal(provider.state().global.attachmentDeletionQueue.length, 1);
+  assert.equal(timers.at(-1).delay, 30000);
+});
+
+test('a queued attachment path from another account is never deleted', async t => {
+  const timers = captureAttachmentCleanup(t);
+  const initial = fixture();
+  initial.global.attachmentDeletionQueue = [{ storagePath: 'users/other/attachments/file/document.pdf' }];
+  let deliver, removed = 0;
+  const provider = await mountProvider(t, {
+    online: true, readLocal: async () => initial,
+    subscribe: (_uid, callback) => { deliver = callback; return () => {}; },
+    deleteCloudFile: async () => { removed++; },
+  });
+  await act(async () => deliver(initial, false));
+  await act(async () => timers.at(-1).callback());
+  assert.equal(removed, 0);
+  assert.deepEqual(provider.state().global.attachmentDeletionQueue, []);
+});
 
 const newerCloudData = () => {
   const data = fixture();
@@ -121,6 +407,27 @@ test('manual refresh preserves edits made while the recovery snapshot is being w
   assert.equal(provider.state().isDirty, true);
 });
 
+test('a conflict remains blocked and retryable until the chosen copy is durable', async t => {
+  let deliver;
+  const options = {
+    readLocal: async () => fixture(),
+    subscribe: (_uid, callback) => { deliver = callback; return () => {}; },
+  };
+  const provider = await mountProvider(t, options);
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Local copy' })));
+  await act(async () => deliver(newerCloudData(), false));
+  assert.equal(provider.state().conflictQueue.length, 1);
+  options.failWrite = true;
+  let result;
+  await act(async () => { result = await provider.state().handleResolveConflict('existing', 'local'); });
+  assert.equal(result, false);
+  assert.equal(provider.state().conflictQueue.length, 1);
+  options.failWrite = false;
+  await act(async () => { result = await provider.state().handleResolveConflict('existing', 'local'); });
+  assert.equal(result, true);
+  assert.equal(provider.state().conflictQueue.length, 0);
+});
+
 test('an edit made while persisting a cloud merge retains its dirty signal', async t => {
   const localWrite = gate();
   const provider = await mountProvider(t, {
@@ -134,6 +441,38 @@ test('an edit made while persisting a cloud merge retains its dirty signal', asy
   await act(async () => { localWrite.resolve(); await refresh; });
   assert.equal(provider.state().schedule.name, 'Edited during local write');
   assert.equal(provider.state().isDirty, true);
+});
+
+test('saving immediately after an edit uses the new draft before React commits it', async t => {
+  let outgoing;
+  const provider = await mountProvider(t, {
+    readLocal: async () => fixture(),
+    saveCloud: async (_uid, data) => {
+      outgoing = data;
+      return { schedules: data.schedules.map(item => ({ ...item, version: 2, baseVersion: 2, lastSynced: item.lastModified })) };
+    },
+  });
+  await act(async () => {
+    provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Immediate edit' }));
+    await provider.state().saveNow(true);
+  });
+  assert.equal(outgoing.schedules[0].name, 'Immediate edit');
+  assert.equal(provider.state().isDirty, false);
+});
+
+test('durable schedule addition waits for disk and retains settings edited in the same event', async t => {
+  const writing = gate();
+  const provider = await mountProvider(t, { readLocal: async () => fixture(), writeLocal: () => writing.promise });
+  let saving, finished = false;
+  await act(async () => {
+    provider.state().setGlobalDraft(prev => ({ ...prev, fileLibrary: [{ id: 'copied-file' }] }));
+    saving = provider.state().addSchedule({ id: 'transferred', name: 'Transfer' }, { persistLocally: true }).then(() => { finished = true; });
+  });
+  assert.equal(finished, false);
+  assert.ok(provider.writes.at(-1).data.schedules.some(item => item.id === 'transferred'));
+  assert.equal(provider.writes.at(-1).data.global.fileLibrary[0].id, 'copied-file');
+  await act(async () => { writing.resolve(); await saving; });
+  assert.equal(finished, true);
 });
 
 test('manual refresh defers reconciliation until an active cloud save finishes', async t => {
@@ -195,6 +534,29 @@ test('transaction conflict refresh cannot overwrite an edit made while preservin
   await act(async () => { recovery.resolve(); await saving; });
   assert.equal(provider.state().schedule.name, 'Edit during conflict refresh');
   assert.ok(provider.state().conflictQueue.every(conflict => conflict.local.name === 'Edit during conflict refresh'));
+});
+
+test('conflict resolution keeps edits made while its recovery copy is being saved', async t => {
+  const recovery = gate();
+  let deliver;
+  const provider = await mountProvider(t, {
+    readLocal: async () => fixture(),
+    subscribe: (_uid, callback) => { deliver = callback; return () => {}; },
+    saveRecovery: (_data, _uid, reason) => reason.startsWith('before-conflict-choice:') ? recovery.promise : Promise.resolve(),
+  });
+  await act(async () => provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Conflicting edit' })));
+  await act(async () => deliver(newerCloudData(), false));
+  assert.equal(provider.state().conflictQueue.length, 1);
+  let resolving;
+  await act(async () => { resolving = provider.state().handleResolveConflict('existing', 'local'); });
+  await act(async () => {
+    provider.state().setScheduleDraft(prev => ({ ...prev, name: 'Latest local edit' }));
+    provider.state().setGlobalDraft(prev => ({ ...prev, fileLibrary: [{ id: 'new-file' }] }));
+  });
+  await act(async () => { recovery.resolve(); await resolving; });
+  assert.equal(provider.state().schedule.name, 'Latest local edit');
+  assert.deepEqual(provider.state().global.fileLibrary, [{ id: 'new-file' }]);
+  assert.equal(provider.state().isDirty, true);
 });
 
 test('a failed guest read exposes recovery without overwriting existing storage; retry loads the original schedule', async t => {
@@ -376,7 +738,6 @@ async function mountOnboarding(t, platform = 'android') {
     'react-native': {
       View: 'View', Text: 'Text', TextInput: 'Input', TouchableOpacity: 'Button', KeyboardAvoidingView: 'Keyboard',
       StyleSheet: { create: x => x }, Platform: { OS: platform }, useWindowDimensions: () => ({ width: 390 }), useColorScheme: () => 'light',
-      Alert: { alert: (...args) => alerts.push(args) },
       Keyboard: { dismiss() {} },
       BackHandler: { addEventListener(_, callback) { back = callback; return { remove() {} }; } },
       PanResponder: { create(callbacks) { gestures = callbacks; return { panHandlers: {} }; } },
@@ -390,6 +751,8 @@ async function mountOnboarding(t, platform = 'android') {
       useScheduleData: () => ({ lang: 'uk', global: {} }),
       useScheduleActions: () => ({ addSchedule: data => added.push(data), setGlobalDraft() {} }),
     },
+    '../../context/AppDialogContext': { useAppDialog: () => ({ alert: async (options) => alerts.push(options) }) },
+    '../context/AppDialogContext': { useAppDialog: () => ({ alert: async (options) => alerts.push(options) }) },
     '../../components/ui/GradientBackground': props => React.createElement(props.component || 'View', props),
     '../../components/ui/TabSwitcher': 'Tabs',
     './ui/TabSwitcher': 'Tabs', './ui/SettingsKit/SettingsGroup': 'Group', './ui/SettingsKit/SettingsRow': 'Row', '../utils/haptics': { triggerHaptic() {} },
@@ -473,36 +836,98 @@ test(`onboarding refuses an invalid lesson duration: ${duration || 'empty'}`, as
 });
 }
 
-test('the theme picker renders selected colors and commits changes through the schedule provider', async t => {
+async function mountThemeScreen(t, platform = 'ios', initial = { theme: ['light', 'blue'] }, lang = 'uk') {
   const updates = [];
+  let value = initial, tree;
   const Component = load('src/pages/Settings/components/preferences/ThemeSettings.jsx', {
-    'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', StyleSheet: { create: x => x }, Platform: { OS: 'ios', select: x => x.default } },
+    'react-native': { View: 'View', Text: 'Text', Pressable: 'Button', StyleSheet: { create: x => x, hairlineWidth: 1 }, Platform: { OS: platform } },
     'phosphor-react-native': { PencilSimple: 'Pencil', Check: 'Check' },
     '../../../../context/ScheduleProvider': {
-      useScheduleData: () => ({ global: { theme: ['light', 'blue'] }, lang: 'uk' }),
-      useScheduleActions: () => ({ setGlobalDraft: updater => updates.push(updater({})) }),
+      useScheduleData: () => ({ global: value, lang }),
+      useScheduleActions: () => ({ setGlobalDraft: updater => { value = updater(value); updates.push(value); tree.update(render()); } }),
     },
+    '../../../../hooks/useAppTheme': () => ({ mode: value.theme[0], colors: themes.getColors(...value.theme) }),
     '../../../../layouts/SettingsScreenLayout': 'Layout',
     '../../../../components/ui/AdvancedColorPicker': 'Picker', '../../../../components/ui/AppSwitch': 'Switch',
+    '../../../../components/ui/SettingsKit/SettingsGroup': 'Group',
+    '../../../../components/ui/SettingsKit/SettingsRow': props => React.createElement('Row', props, props.rightContent),
     '../../../../utils/haptics': { triggerHaptic() {} },
   }).default;
-  let tree;
-  await act(async () => { tree = create(React.createElement(Component)); });
+  const render = () => React.createElement(Component);
+  await act(async () => { tree = create(render()); });
   t.after(async () => act(async () => tree.unmount()));
-  await act(async () => tree.root.findByProps({ accessibilityLabel: 'pastelYellow' }).props.onPress());
-  assert.deepEqual(updates.at(-1).theme, ['light', 'pastelYellow']);
-  assert.equal(tree.root.findByType('Check').props.color, themes.getColors('light', 'pastelYellow').textOnAccent);
+  return {
+    root: () => tree.root, value: () => value, updates,
+    async press(key) {
+      const label = i18n.t(`settings.theme_screen.${key}`, lang);
+      await act(async () => tree.root.findAllByType('Button').find(node => node.props.accessibilityLabel === label).props.onPress());
+    },
+    async external(next) { await act(async () => { value = next; tree.update(render()); }); },
+    async openCustom() { await act(async () => tree.root.findAllByType('Row').find(node => node.props.label === i18n.t('settings.theme_screen.custom_color', lang)).props.onPress()); },
+  };
+}
+
+test('the theme picker renders selected colors and commits changes through the schedule provider', async t => {
+  const screen = await mountThemeScreen(t);
+  await screen.press('colors.pastelYellow');
+  assert.deepEqual(screen.value().theme, ['light', 'pastelYellow']);
+  assert.equal(screen.root().findByType('Check').props.color, themes.getColors('light', 'pastelYellow').textOnAccent);
+});
+
+test('theme choices use the latest provider values and retain unrelated preferences', async t => {
+  const screen = await mountThemeScreen(t, 'android', { theme: ['dark', 'cyan'], blur: false, watermark: 1 });
+  await screen.press('modes.oled');
+  await screen.press('colors.red');
+  assert.deepEqual(screen.value(), { theme: ['oled', 'red'], blur: false, watermark: 1 });
+  const count = screen.updates.length;
+  await screen.press('modes.oled');
+  assert.equal(screen.updates.length, count);
+  await screen.external({ theme: ['light', 'green'], blur: true, watermark: 2 });
+  const selected = screen.root().findAllByType('Button').filter(node => node.props.accessibilityState?.checked);
+  assert.deepEqual(selected.map(node => node.props.accessibilityLabel), [i18n.t('settings.theme_screen.modes.light', 'uk'), i18n.t('settings.theme_screen.colors.green', 'uk')]);
+  assert.equal(screen.updates.length, count);
+});
+
+test('custom colors start from the active accent; cancel preserves it and save retains mode and preferences', async t => {
+  const screen = await mountThemeScreen(t, 'android', { theme: ['oled', 'red'], blur: false });
+  await screen.openCustom();
+  assert.equal(screen.root().findByType('Picker').props.visible, true);
+  assert.equal(screen.root().findByType('Picker').props.initialColor, themes.accentColors.red);
+  await act(async () => screen.root().findByType('Picker').props.onClose());
+  assert.equal(screen.updates.length, 0);
+  await screen.openCustom();
+  await act(async () => screen.root().findByType('Picker').props.onSave('#987654'));
+  assert.deepEqual(screen.value(), { theme: ['oled', '#987654'], blur: false });
+  assert.equal(screen.root().findByType('Picker').props.visible, false);
+  assert.equal(screen.root().findByType('Picker').props.initialColor, '#987654');
+});
+
+test('the theme screen removes emoji and the result demo, labels all colors, and preserves platform blur controls', async t => {
+  const screen = await mountThemeScreen(t, 'android');
+  const labels = screen.root().findAllByType('Button').map(node => node.props.accessibilityLabel);
+  assert.ok(labels.every(label => !/\p{Extended_Pictographic}/u.test(label)));
+  assert.equal(labels.length, Object.keys(themes.accentColors).length + 3);
+  assert.ok(labels.every(label => label && !label.includes('settings.theme_screen')));
+  assert.ok(!screen.root().findAllByType('Text').some(node => node.props.children === 'Результат'));
+  assert.equal(screen.root().findAllByType('Switch').length, 0);
+  const web = await mountThemeScreen(t, 'web', { theme: ['dark', 'blue'], blur: true }, 'en');
+  await act(async () => web.root().findByType('Switch').props.onValueChange(false));
+  assert.deepEqual(web.value(), { theme: ['dark', 'blue'], blur: false });
 });
 
 test('the schedule editor protects an unsaved draft and allows leaving after a successful save', async t => {
   let guard, tree, wentBack = 0;
-  const alerts = [], dispatched = [], added = [];
+  const alerts = [], confirms = [], dispatched = [], added = [];
   const navigation = { dispatch: action => dispatched.push(action), canGoBack: () => true, goBack() { assert.equal(guard.enabled, false); wentBack++; } };
+  const dialog = {
+    alert: async (options) => alerts.push(options),
+    confirm: (options) => new Promise(resolve => confirms.push({ options, resolve })),
+  };
   const Component = load('src/pages/Settings/components/ScheduleEditorScreen.jsx', {
     'react-native': {
       View: 'View', Text: 'Text', TouchableOpacity: 'Button', TextInput: 'Input', KeyboardAvoidingView: 'Keyboard',
       StyleSheet: { create: x => x }, Platform: { OS: 'ios' }, LayoutAnimation: {}, UIManager: {},
-      useWindowDimensions: () => ({ height: 844 }), Alert: { alert: (...args) => alerts.push(args) },
+      useWindowDimensions: () => ({ height: 844 }),
       Animated: { Value: AnimatedValue, ScrollView: 'Scroll', event: () => () => {} },
     },
     '@react-navigation/native': {
@@ -518,6 +943,8 @@ test('the schedule editor protects an unsaved draft and allows leaving after a s
       useScheduleActions: () => ({ setData() {}, setGlobalDraft() {}, addSchedule: data => added.push(data) }),
       useScheduleLayout: () => ({ tabBarHeight: 80 }),
     },
+    '../../../context/AppDialogContext': { useAppDialog: () => dialog },
+    '../context/AppDialogContext': { useAppDialog: () => dialog },
     '../../../components/ui/SettingsHeader': props => React.createElement('Header', {}, props.rightButton),
     '../../../components/ui/TabSwitcher': 'Tabs', '../../../components/CalendarSheet/CalendarSheet': 'Calendar',
     './ui/TabSwitcher': 'Tabs', './ui/SettingsKit/SettingsGroup': 'Group', './ui/SettingsKit/SettingsRow': 'Row', '../utils/haptics': { triggerHaptic() {} },
@@ -536,10 +963,11 @@ test('the schedule editor protects an unsaved draft and allows leaving after a s
   await act(async () => name.props.onChangeText('Changed draft'));
   assert.equal(guard.enabled, true);
   const action = { type: 'GO_BACK' };
-  await act(async () => guard.callback({ data: { action } }));
+  await act(async () => { guard.callback({ data: { action } }); });
   assert.deepEqual(dispatched, []);
-  assert.equal(alerts[0][2][0].style, 'cancel');
-  alerts[0][2][1].onPress();
+  assert.equal(confirms[0].options.destructive, true);
+  assert.equal(confirms[0].options.confirmLabel, tr('common.discard'));
+  await act(async () => confirms[0].resolve(true));
   assert.deepEqual(dispatched, [action]);
   await act(async () => tree.root.findAllByType('Row').find(node => node.props.label === tr('settings.menu.duration.title')).props.onPress());
   const duration = tree.root.findAllByType('Input').find(node => node.props.accessibilityLabel === tr('schedule.main_screen.duration'));
@@ -650,6 +1078,31 @@ test('slot count changes preserve previous numbers and protect assigned slots', 
   assert.equal(button(editor.root(), 'settings.schedule_editor.timing.remove').props.disabled, true);
 });
 
+test('editing one held slot uses the shared controls and shifts every following slot', async t => {
+  const editor = await mountTimeEditor(t, 'android', { slotNumber: 1 });
+  const before = editor.slots();
+  assert.equal(button(editor.root(), 'settings.schedule_editor.timing.add'), undefined);
+  assert.equal(editor.root().findAllByType('Input').length, 2);
+  await editor.open(1, 'start');
+  await act(async () => editor.root().findByType('TimePicker').props.onChange({ type: 'set' }, clockDate(9, 0)));
+  const after = editor.slots();
+  assert.deepEqual(after.map(slot => slot.start), ['09:00', '09:55', '11:15']);
+  assert.deepEqual(editor.value().slotDurations, [45, 60, 80]);
+  assert.deepEqual(editor.value().breaks, [10, 20]);
+  assert.equal(after.length, before.length);
+});
+
+test('editing a later held slot renders its own fields and leaves earlier slots unchanged', async t => {
+  const editor = await mountTimeEditor(t, 'web', { slotNumber: 3 });
+  const before = editor.slots();
+  assert.equal(editor.root().findAllByType('Input').length, 1);
+  await editor.open(3, 'start');
+  await act(async () => editor.root().findByType('input').props.onChange({ target: { value: '11:00' } }));
+  assert.deepEqual(editor.slots().slice(0, 2), before.slice(0, 2));
+  assert.equal(editor.slots()[2].start, '11:00');
+  assert.equal(editor.slots()[2].end, '12:20');
+});
+
 test('bulk presets and individual gap edits update the same timeline, including zero-minute gaps', async t => {
   const editor = await mountTimeEditor(t);
   await act(async () => editor.root().findAllByType('Row').find(node => node.props.label === tr('settings.menu.duration.title')).props.onPress());
@@ -662,26 +1115,31 @@ test('bulk presets and individual gap edits update the same timeline, including 
 });
 
 test('a failed reset cannot report success or delete guest schedules, and duplicate confirmations are ignored', async t => {
-  let tree, confirm, resolve, calls = 0, guestDeletes = 0;
+  let tree, confirmDialog, resolve, calls = 0, guestDeletes = 0;
+  const confirmation = new Promise(done => { confirmDialog = done; });
   const haptics = [];
   const Component = load('src/pages/Settings/components/ResetDB.jsx', {
-    'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', StyleSheet: { create: x => x }, Platform: { OS: 'ios' }, Alert: { alert(_, __, actions) { confirm = actions[1].onPress; } } },
+    'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', StyleSheet: { create: x => x }, Platform: { OS: 'ios' } },
     'phosphor-react-native': { Warning: 'Warning' },
     '../../../context/ScheduleProvider': {
       useScheduleData: () => ({ guest: false, global: {}, isLoading: false, lang: 'uk' }),
       useScheduleActions: () => ({ resetApplication() { calls++; return new Promise(done => { resolve = done; }); }, deleteGuestSchedules: async () => guestDeletes++ }),
     },
+    '../../../context/AppDialogContext': { useAppDialog: () => ({ confirm: () => confirmation }) },
     '../../../layouts/SettingsScreenLayout': 'Layout', '../../../components/ui/MorphingLoader': 'Loader',
     '../../../utils/haptics': { triggerHaptic: value => haptics.push(value) },
   }).default;
   await act(async () => { tree = create(React.createElement(Component)); });
   t.after(async () => act(async () => tree.unmount()));
-  await act(async () => button(tree.root, 'common.wipe').props.onPress());
   let first, duplicate;
-  await act(async () => { first = confirm(); duplicate = confirm(); });
+  await act(async () => {
+    first = button(tree.root, 'common.wipe').props.onPress();
+    duplicate = button(tree.root, 'common.wipe').props.onPress();
+  });
+  await act(async () => { confirmDialog(true); await first; await duplicate; });
   assert.equal(calls, 1);
   assert.equal(button(tree.root, 'common.wipe').props.disabled, true);
-  await act(async () => { resolve(false); await first; await duplicate; });
+  await act(async () => { resolve(false); });
   assert.equal(guestDeletes, 0);
   assert.ok(!haptics.includes('success'));
   assert.ok(tree.root.findAllByType('Text').some(node => node.props.children === tr('common.action_failed')));
@@ -692,8 +1150,9 @@ test('a failed reset cannot report success or delete guest schedules, and duplic
 async function mountScheduleControl(t, name, initialValue, options = {}) {
   const alerts = [];
   const Component = load('src/components/' + name + '.jsx', {
-    'react-native': { View: 'View', Text: 'Text', TextInput: 'Input', TouchableOpacity: 'Button', StyleSheet: { create: x => x }, Alert: { alert: (...args) => alerts.push(args) } },
+    'react-native': { View: 'View', Text: 'Text', TextInput: 'Input', TouchableOpacity: 'Button', StyleSheet: { create: x => x } },
     'phosphor-react-native': new Proxy({}, { get: (_, key) => key }),
+    '../context/AppDialogContext': { useAppDialog: () => ({ alert: async (options) => alerts.push(options) }) },
     './ui/TabSwitcher': 'Tabs', './ui/SettingsKit/SettingsGroup': 'Group', './ui/SettingsKit/SettingsRow': 'Row',
     './ui/AdvancedColorPicker': 'ColorPicker', './ScheduleIcon': 'Icon', './ScheduleIconPickerSheet': 'IconPicker',
     './CalendarSheet/CalendarSheet': 'Calendar', './ui/AppSwitch': 'Switch',
@@ -770,7 +1229,7 @@ test('permission denial leaves reminders off and exposes an actionable explanati
   await act(async () => editor.root().findAllByType('Row')[0].props.onPress());
   await act(async () => editor.root().findAllByType('Button').find(node => node.props.accessibilityLabel === i18n.t('schedule.reminders.before_minutes', 'uk', { minutes: '5' })).props.onPress());
   assert.deepEqual(editor.value().reminder, { enabled: false });
-  assert.equal(editor.alerts[0][1], tr('schedule.reminders.permission_denied'));
+  assert.equal(editor.alerts[0].message, tr('schedule.reminders.permission_denied'));
 });
 
 test('invalid durations expose a field error and never keep old times enabled', async t => {

@@ -21,22 +21,32 @@ const selectionAmount = (number, progress, transition, amount) => {
   return Number.isInteger(distance) ? Math.max(0, 1 - Math.abs(distance - amount)) : 0;
 };
 
+// Every day button reruns its colour worklet on each pager frame, but only the
+// one or two days next to the selection are mid-transition; the rest keep a
+// plain colour, which also lets Reanimated skip their unchanged props.
+const selectionColor = (amount, color, selectedColor) => {
+  "worklet";
+  if (amount <= 0) return color;
+  if (amount >= 1) return selectedColor;
+  return interpolateColor(amount, [0, 1], [color, selectedColor]);
+};
+
 const DayButton = React.memo(({ number, name, locale, today, selected, progress, weekTransition, weekProgress, colors, onSelect }) => {
   const date = useMemo(() => dateFromCalendarDayNumber(number), [number]);
   const nameColor = today === number ? colors.accentColor : colors.textColor2;
   const numberColor = today === number ? colors.accentColor : colors.textColor;
   const selectedColor = colors.textOnAccent;
   const nameStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(selectionAmount(number, progress.value, weekTransition?.value, weekProgress?.value ?? 0), [0, 1], [nameColor, selectedColor]),
+    color: selectionColor(selectionAmount(number, progress.value, weekTransition?.value, weekProgress?.value ?? 0), nameColor, selectedColor),
   }));
   const numberStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(selectionAmount(number, progress.value, weekTransition?.value, weekProgress?.value ?? 0), [0, 1], [numberColor, selectedColor]),
+    color: selectionColor(selectionAmount(number, progress.value, weekTransition?.value, weekProgress?.value ?? 0), numberColor, selectedColor),
   }));
   return (
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={date.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
-      accessibilityState={{ selected: selected === number }}
+      accessibilityState={{ selected }}
       activeOpacity={0.65}
       style={styles.day}
       onPress={() => onSelect(number)}
@@ -69,7 +79,7 @@ const WeekRow = React.memo(({ week, offset, camera, width, progress, weekTransit
     <Reanimated.View collapsable={false} style={[styles.row, active ? styles.currentRow : styles.bufferRow, rowStyle]} pointerEvents={active ? "auto" : "none"} accessibilityElementsHidden={!active} importantForAccessibility={active ? "auto" : "no-hide-descendants"} aria-hidden={!active}>
       <Reanimated.View pointerEvents="none" style={[styles.accent, { backgroundColor: colors.accentColor }, accentStyle]} />
       {names.map((name, index) => (
-        <DayButton key={index} number={firstDay + index} name={name} locale={locale} today={today} selected={selected} progress={progress} weekTransition={weekTransition} weekProgress={weekProgress} colors={colors} onSelect={onSelect} />
+        <DayButton key={index} number={firstDay + index} name={name} locale={locale} today={today} selected={selected === firstDay + index} progress={progress} weekTransition={weekTransition} weekProgress={weekProgress} colors={colors} onSelect={onSelect} />
       ))}
     </Reanimated.View>
   );

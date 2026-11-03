@@ -686,6 +686,9 @@ function ZoomableImagePage({
     : null;
   const handleImageLoad = (event) => {
     loadedZoomImageKeys.add(imageLoadKey);
+    if (loadedZoomImageKeys.size > 512) {
+      loadedZoomImageKeys.delete(loadedZoomImageKeys.values().next().value);
+    }
     loadedImageKeyRef.current = imageLoadKey;
     setLoadedImageKey(imageLoadKey);
     setFailedImageSignature("");

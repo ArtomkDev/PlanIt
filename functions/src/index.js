@@ -22,10 +22,13 @@ import {
   SMTP_PORT,
   SMTP_USER,
 } from './accountEmailConfig.js';
+import { syncScheduleWidgets as widgetSyncHandler } from './widgetSync.js';
 
 if (getApps().length === 0) {
   initializeApp();
 }
+
+export const syncScheduleWidgets = widgetSyncHandler;
 
 const APPLE_CLIENT_ID = defineSecret('APPLE_CLIENT_ID');
 const APPLE_KEY_ID = defineSecret('APPLE_KEY_ID');
@@ -220,13 +223,7 @@ const claimAccountEmailRateLimit = async (key, {
 
 const getAccountActionContinueUrl = (locale, purpose) => {
   const configuredUrl = PASSWORD_RESET_CONTINUE_URL.value().trim();
-  const projectId =
-    process.env.GCLOUD_PROJECT
-    || process.env.GCP_PROJECT
-    || process.env.GOOGLE_CLOUD_PROJECT;
-  const fallbackUrl = projectId
-    ? 'https://' + projectId + '.firebaseapp.com/'
-    : '';
+  const fallbackUrl = ACCOUNT_ACTION_HANDLER_BASE_URL + '/';
 
   let continueUrl;
   try {

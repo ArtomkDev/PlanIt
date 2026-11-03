@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import TextInput from '../../../components/ui/AppTextInput';
 import {
   BookOpen,
   CalendarDots,
@@ -32,6 +31,7 @@ import SettingsActionRow from "../../../components/ui/SettingsKit/SettingsAction
 import SettingsGroup from "../../../components/ui/SettingsKit/SettingsGroup";
 import SettingsRow from "../../../components/ui/SettingsKit/SettingsRow";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
+import { useAppDialog } from "../../../context/AppDialogContext";
 import { getIconComponent } from "../../../config/subjectIcons";
 import themes from "../../../config/themes";
 import { generateId } from "../../../utils/idGenerator";
@@ -655,6 +655,7 @@ export default function TaskEditor({
 }) {
   const { global, schedule, schedules, lang, user } = useScheduleData();
   const { setGlobalDraft } = useScheduleActions();
+  const dialog = useAppDialog();
   const sheetRef = useRef(null);
 
   const [mode, accent] = global?.theme || ["light", "blue"];
@@ -1038,15 +1039,14 @@ export default function TaskEditor({
     dismissEditor();
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      t("common.warning", lang),
-      t("tasks.editor.delete_confirm", lang),
-      [
-        { text: t("common.cancel", lang), style: "cancel" },
-        { text: t("common.delete", lang), style: "destructive", onPress: deleteTask },
-      ]
-    );
+  const handleDelete = async () => {
+    const confirmed = await dialog.confirm({
+      title: t("common.warning", lang),
+      message: t("tasks.editor.delete_confirm", lang),
+      confirmLabel: t("common.delete", lang),
+      destructive: true,
+    });
+    if (confirmed) deleteTask();
   };
 
   const handleSaveLink = (updatedLink) => {

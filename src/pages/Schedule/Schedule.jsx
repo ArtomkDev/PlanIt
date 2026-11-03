@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from "react";
 import {
-  AppState,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -8,14 +7,13 @@ import {
 import Reanimated, { interpolateColor, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { Plus } from "phosphor-react-native"; 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import Header from "./components/Header";
 import WeekStrip from "./components/WeekStrip";
 import DayPager from "./components/DayPager";
 import DaySchedule from "./components/DaySchedule";
-import LessonEditor from "./components/LessonEditor";
 import LessonViewer from "./components/LessonViewer";
 import CalendarSheet from "../../components/CalendarSheet/CalendarSheet";
 import AppBlur from "../../components/ui/AppBlur";
@@ -27,8 +25,6 @@ import { NowTickProvider } from "../../hooks/useNowTick";
 import themes from "../../config/themes";
 import {
   buildLessonTimes,
-  calculateScheduleWeek,
-  getScheduleDayIndex,
   getScheduleDayLessons,
   prepareScheduleDays,
 } from "../../utils/scheduleTime";
@@ -85,6 +81,11 @@ const DayPage = memo(({
     && previous.handleAddLesson === next.handleAddLesson
 ));
 
+function ScheduleClock({ date, children }) {
+  const isFocused = useIsFocused();
+  return <NowTickProvider activeDate={date} enabled={isFocused}>{children}</NowTickProvider>;
+}
+
 export default function Schedule({ route, navigation }) {
   const { global: globalSettings, schedule, schedules, lang } = useScheduleData();
   const { drawerProgress } = useNotificationDrawer();
@@ -108,6 +109,10 @@ export default function Schedule({ route, navigation }) {
   }, [currentDate, dayProgress, schedule]);
   const handledLessonViewIntentRef = useRef(null);
   const requestedLessonScheduleSwitchRef = useRef(null);
+  const lessonOpenFrameRef = useRef(null);
+  useEffect(() => () => {
+    if (lessonOpenFrameRef.current !== null) cancelAnimationFrame(lessonOpenFrameRef.current);
+  }, []);
   const [pendingLessonViewIntent, setPendingLessonViewIntent] = useState(null);
   const lessonViewIntent = route?.params?.lessonViewIntent;
 
@@ -226,22 +231,26 @@ export default function Schedule({ route, navigation }) {
     const occurrence = resolveOccurrenceFromLessonRef(schedule, lessonRef);
     if (!occurrence) return false;
 
-    setViewerVisible(false);
+    setCalendarVisible(false);
+    setEditorVisible(false);
+    handleDateChange(targetDate);
     goToDate(targetDate, false);
-
-    setTimeout(() => {
-      setViewingLesson({
-        subjectId: occurrence.subjectId,
-        index: occurrence.lessonIndex,
-        timeInfo: occurrence.timeInfo,
-        data: occurrence.lessonData,
-        lesson: occurrence.lesson,
-      });
+    setViewingLesson({
+      subjectId: occurrence.subjectId,
+      index: occurrence.lessonIndex,
+      timeInfo: occurrence.timeInfo,
+      data: occurrence.lessonData,
+      lesson: occurrence.lesson,
+    });
+    // Let the selected page commit before presenting the sheet's native portal.
+    if (lessonOpenFrameRef.current !== null) cancelAnimationFrame(lessonOpenFrameRef.current);
+    lessonOpenFrameRef.current = requestAnimationFrame(() => {
+      lessonOpenFrameRef.current = null;
       setViewerVisible(true);
-    }, 120);
+    });
 
     return true;
-  }, [goToDate, schedule]);
+  }, [goToDate, handleDateChange, schedule]);
 
   useEffect(() => {
     const requestId = lessonViewIntent?.requestId;
@@ -375,70 +384,8 @@ export default function Schedule({ route, navigation }) {
     Linking.getInitialURL().then(url => { if (url) handleUrl({ url }); });
     const sub = Linking.addEventListener('url', handleUrl);
 
-    const checkWidgetIntent = async () => {
-        try {
-            const intentStr = await AsyncStorage.getItem('widget_intent');
-            if (intentStr) {
-                const intent = JSON.parse(intentStr);
-                
-                if (intent.action === 'OPEN_LESSON' && Date.now() - intent.timestamp < 5000) {
-                    await AsyncStorage.removeItem('widget_intent');
-                    const { targetDateStr, lessonIndex } = intent.data;
-
-                    const targetDate = new Date(targetDateStr);
-                    targetDate.setHours(0, 0, 0, 0); 
-
-                    setTimeout(() => {
-                        goToDate(targetDate, false);
-                    }, 100);
-
-                    if (schedule && schedule.schedule) {
-                        const dayIndex = getScheduleDayIndex(targetDate);
-                        
-                        const dayObj = schedule.schedule[dayIndex];
-                        if (dayObj) {
-                            const weekKey = `week${calculateScheduleWeek(schedule, targetDate)}`;
-                            const rawLessons = Array.isArray(dayObj[weekKey]) ? dayObj[weekKey] : [];
-                            const item = rawLessons[lessonIndex];
-                            
-                            if (item) {
-                                const isInstance = typeof item === 'object' && item !== null;
-                                const subjectId = isInstance ? (item.subjectId || item.subject || item.id) : item;
-                                const lessonData = isInstance ? item : {};
-                                
-                                const { start_time = "08:30", duration = 45, breaks = [] } = schedule || {};
-                                const lessonTimes = buildLessonTimes(start_time, duration, breaks, rawLessons, schedule.slotDurations);
-                                const timeInfo = lessonTimes[lessonIndex] || {};
-
-                                setTimeout(() => {
-                                    openViewer({
-                                        subjectId,
-                                        index: lessonIndex,
-                                        timeInfo,
-                                        data: lessonData
-                                    });
-                                }, 300); 
-                            }
-                        }
-                    }
-                }
-            }
-        } catch(e) {
-            console.error(e);
-        }
-    };
-
-    checkWidgetIntent();
-    
-    const appStateSub = AppState.addEventListener('change', (nextAppState) => {
-        if (nextAppState === 'active') checkWidgetIntent();
-    });
-
-    return () => {
-        sub.remove();
-        appStateSub.remove();
-    };
-  }, [schedule, findLessonById, openViewer, goToDate]);
+    return () => sub.remove();
+  }, [schedule, findLessonById, openViewer]);
 
   const getPreparedDay = useMemo(() => prepareScheduleDays(schedule), [schedule]);
   const renderDay = useCallback((date, decorationsReady, moving) => (
@@ -453,8 +400,10 @@ export default function Schedule({ route, navigation }) {
       />
   ), [getPreparedDay, headerHeight, openViewer, openEditor, openNewLessonEditor]);
 
+  const LessonEditor = editorVisible ? require('./components/LessonEditor').default : null;
+
   return (
-    <NowTickProvider activeDate={currentDate}>
+    <ScheduleClock date={currentDate}>
     <Reanimated.View style={[styles.container, screenColorStyle, { paddingLeft: insets.left, paddingRight: insets.right }]}>
       <View style={{ flex: 1 }}>
       <View style={[styles.headerContainer, { height: headerHeight }]}>
@@ -544,7 +493,7 @@ export default function Schedule({ route, navigation }) {
 
       </View>
     </Reanimated.View>
-    </NowTickProvider>
+    </ScheduleClock>
   );
 }
 

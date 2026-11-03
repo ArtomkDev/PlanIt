@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import TextInput from './ui/AppTextInput';
 import { Palette, Shapes } from 'phosphor-react-native';
 import SettingsGroup from './ui/SettingsKit/SettingsGroup';
 import SettingsRow from './ui/SettingsKit/SettingsRow';

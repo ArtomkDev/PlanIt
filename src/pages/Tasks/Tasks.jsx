@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Easing,
   FlatList,
@@ -26,12 +25,15 @@ import {
   Square,
 } from "phosphor-react-native";
 import tinycolor from "tinycolor2";
+import Svg, { Defs, G, Use } from "react-native-svg";
 
 import AppBlur from "../../components/ui/AppBlur";
 import GradientBackground from "../../components/ui/GradientBackground";
+import SubjectPattern from "../../components/SubjectPattern";
 import ScheduleIcon from "../../components/ScheduleIcon";
 import LessonViewer from "../Schedule/components/LessonViewer";
 import { useAttachmentImagePreview } from "../../context/AttachmentImagePreviewContext";
+import { useAppDialog } from "../../context/AppDialogContext";
 import { useScheduleActions, useScheduleData, useScheduleLayout } from "../../context/ScheduleProvider";
 import themes from "../../config/themes";
 import { getIconComponent } from "../../config/subjectIcons";
@@ -65,7 +67,6 @@ import {
   getAppHeaderHeight,
   getAppHeaderTopInset,
 } from "../../config/layoutMetrics";
-import TaskEditor from "./components/TaskEditor";
 import TaskScheduleFilterSheet from "./components/TaskScheduleFilterSheet";
 import { triggerHaptic } from "../../utils/haptics";
 import useReducedMotionPreference from "../../hooks/useReducedMotionPreference";
@@ -465,15 +466,18 @@ function TaskTodayMarker({ label, themeColors }) {
   );
 }
 
-const TaskIconPattern = React.memo(({ Icon, color, width, height, collapseProgress }) => {
+const TaskIconPattern = React.memo(({ Icon, icon, color, width, height, collapseProgress }) => {
+  const id = useId();
+  const patternId = `task-pattern-${id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const patternWidth = Math.round(width);
   const patternHeight = Math.max(TASK_ICON_PATTERN_MIN_HEIGHT, Math.round(height));
   const positions = useMemo(() => {
+    if (Platform.OS === 'android') return [];
     if (patternWidth <= 0 || patternHeight <= 0) return [];
     return getTaskIconPatternPositions(patternWidth, patternHeight);
   }, [patternHeight, patternWidth]);
 
-  if (!Icon || positions.length === 0) return null;
+  if (!Icon || patternWidth <= 0) return null;
 
   const motionStyle = collapseProgress
     ? {
@@ -511,25 +515,22 @@ const TaskIconPattern = React.memo(({ Icon, color, width, height, collapseProgre
         motionStyle,
       ]}
     >
-      {positions.map((position) => (
-        <View
-          key={position.key}
-          style={[
-            styles.cardIconPatternItem,
-            {
-              top: position.top,
-              left: position.left,
-            },
-          ]}
-        >
-          <Icon
-            size={TASK_ICON_SIZE}
-            color={color}
-            weight="regular"
-            style={Platform.OS === "web" ? { overflow: "visible" } : undefined}
-          />
-        </View>
-      ))}
+      {Platform.OS === 'android' ? <SubjectPattern
+        icon={icon}
+        color={color}
+        width={patternWidth}
+        height={patternHeight}
+      /> : <Svg width={patternWidth} height={patternHeight}>
+        <Defs>
+          <G id={patternId}>
+            <Icon size={TASK_ICON_SIZE} color={color} weight="regular" />
+          </G>
+        </Defs>
+        {positions.map((position) => (
+          <Use key={position.key} href={`#${patternId}`}
+            transform={`translate(${position.left} ${position.top}) rotate(-12 ${TASK_ICON_SIZE / 2} ${TASK_ICON_SIZE / 2})`} />
+        ))}
+      </Svg>}
     </Animated.View>
   );
 });
@@ -606,7 +607,7 @@ function TaskCheckboxIcon({ checked, checkedColor, uncheckedColor, reduceMotion 
   );
 }
 
-function TaskCard({
+const TaskCard = React.memo(function TaskCard({
   entry,
   themeColors,
   themeMode,
@@ -618,7 +619,9 @@ function TaskCard({
 }) {
   const { task, subject, links, attachments, scheduleId, scheduleColor, activeGradient } = entry;
   const completed = task?.completed === true;
+  const previousCompleted = useRef(completed);
   const { openImagePreview } = useAttachmentImagePreview();
+  const dialog = useAppDialog();
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   const collapseProgress = useRef(new Animated.Value(completed ? 1 : 0)).current;
   const normalizedLessonRef = normalizeLessonRef(task?.lessonRef, scheduleId);
@@ -712,11 +715,11 @@ function TaskCard({
 
   useEffect(() => {
     let active = true;
+    const completionChanged = previousCompleted.current !== completed;
+    previousCompleted.current = completed;
 
-    if (completed) setRenderCompletedIcon(true);
-    else setRenderPattern(Boolean(SubjectIcon));
-
-    if (reduceMotion) {
+    if (reduceMotion || !completionChanged) {
+      collapseProgress.stopAnimation();
       collapseProgress.setValue(completed ? 1 : 0);
       setRenderPattern(Boolean(SubjectIcon && !completed));
       setRenderCompletedIcon(completed);
@@ -725,6 +728,8 @@ function TaskCard({
       };
     }
 
+    if (completed) setRenderCompletedIcon(true);
+    else setRenderPattern(Boolean(SubjectIcon));
     collapseProgress.stopAnimation();
     Animated.timing(collapseProgress, {
       toValue: completed ? 1 : 0,
@@ -752,12 +757,12 @@ function TaskCard({
         await Linking.openURL(link.url);
       } else {
         triggerHaptic("error");
-        Alert.alert(t("common.error", lang), t("tasks.errors.link_open_failed", lang));
+        dialog.alert({ title: t("common.error", lang), message: t("tasks.errors.link_open_failed", lang) });
       }
     } catch (error) {
       triggerHaptic("error");
       console.warn("Could not open task link", error);
-      Alert.alert(t("common.error", lang), t("tasks.errors.link_open_failed", lang));
+      dialog.alert({ title: t("common.error", lang), message: t("tasks.errors.link_open_failed", lang) });
     }
   };
 
@@ -776,25 +781,25 @@ function TaskCard({
       await openAttachment(attachment);
     } catch (error) {
       triggerHaptic("error");
-      Alert.alert(t("common.error", lang), t("attachments.errors.open_failed", lang));
+      dialog.alert({ title: t("common.error", lang), message: t("attachments.errors.open_failed", lang) });
     }
   };
 
   const handleCardPress = () => {
     triggerHaptic("open");
-    onPress?.();
+    onPress?.(entry);
   };
 
   const handleToggle = (event) => {
     event?.stopPropagation?.();
     triggerHaptic(completed ? "selection" : "success");
-    onToggle?.();
+    onToggle?.(entry);
   };
 
   const handleLinkedLessonPress = (event) => {
     event?.stopPropagation?.();
     triggerHaptic("open");
-    onLinkedLessonPress?.();
+    onLinkedLessonPress?.(entry);
   };
 
   const handleCardLayout = useCallback((event) => {
@@ -826,6 +831,7 @@ function TaskCard({
       {renderPattern && (
         <TaskIconPattern
           Icon={SubjectIcon}
+          icon={subject?.icon}
           color={withAlpha(textOnCard, iconPatternOpacity)}
           width={cardSize.width}
           height={cardSize.height}
@@ -972,7 +978,7 @@ function TaskCard({
       </View>
     </GradientBackground>
   );
-}
+});
 
 export default function Tasks({ route, navigation }) {
   const { global, schedule, schedules, lang } = useScheduleData();
@@ -1398,9 +1404,9 @@ export default function Tasks({ route, navigation }) {
         themeMode={mode}
         lang={lang}
         reduceMotion={reduceMotion}
-        onPress={() => openTask(entry)}
-        onToggle={() => toggleCompleted(entry)}
-        onLinkedLessonPress={() => openLinkedLesson(entry)}
+        onPress={openTask}
+        onToggle={toggleCompleted}
+        onLinkedLessonPress={openLinkedLesson}
       />
     );
   }, [lang, mode, openLinkedLesson, openTask, reduceMotion, themeColors, toggleCompleted]);
@@ -1436,6 +1442,9 @@ export default function Tasks({ route, navigation }) {
         extraData={`${taskListVersion}:${normalizedSelectedScheduleIds.join(",")}:${mode}:${accent}`}
         renderItem={renderTask}
         keyExtractor={(item) => item.key}
+        initialNumToRender={8}
+        maxToRenderPerBatch={5}
+        windowSize={7}
         onScrollToIndexFailed={handleScrollToIndexFailed}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -1448,6 +1457,8 @@ export default function Tasks({ route, navigation }) {
       />
     );
   };
+
+  const TaskEditor = editorVisible ? require('./components/TaskEditor').default : null;
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }, { paddingLeft: insets.left, paddingRight: insets.right }]}>
@@ -1747,14 +1758,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#000",
     zIndex: 2,
-  },
-  cardIconPatternItem: {
-    position: "absolute",
-    width: TASK_ICON_SIZE,
-    height: TASK_ICON_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
-    transform: [{ rotate: "-12deg" }],
   },
   checkboxButton: {
     width: 44,

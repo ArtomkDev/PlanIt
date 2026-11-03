@@ -108,7 +108,10 @@ export const initAds = () => {
       }
 
       return startMobileAds(consentInfo, adsModule);
-    })();
+    })().catch((error) => {
+      initializationPromise = null;
+      throw error;
+    });
   }
 
   return initializationPromise;

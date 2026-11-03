@@ -8,8 +8,11 @@ const LOCAL_BACKUP_SUFFIX = '.backup';
 const LOCAL_RECOVERY_SUFFIX = '.recovery';
 const LOCAL_SCOPE_OWNER_KEY = '_localScopeOwner';
 const MAX_RECOVERY_SNAPSHOTS = 5;
+const STORAGE_CHUNK_LENGTH = 256 * 1024;
+const CHUNK_FORMAT = 'planit/chunks/v1';
 const scheduleStorageOperations = new Map();
 const deletedAccountScopes = new Set();
+let chunkSequence = 0;
 
 const parseJson = (raw, fallback = null) => {
   if (raw === undefined || raw === null) return fallback;
@@ -22,6 +25,85 @@ const parseJson = (raw, fallback = null) => {
 };
 
 const serializeJson = (value) => JSON.stringify(value ?? null);
+
+const getChunkDescriptor = (raw) => {
+  const value = parseJson(raw);
+  return value?.format === CHUNK_FORMAT && typeof value.id === 'string'
+    && Number.isInteger(value.count) && value.count > 0 && value.count <= 10000
+    ? value : null;
+};
+
+const getChunkKeys = (key, descriptor) => descriptor
+  ? Array.from({ length: descriptor.count }, (_, index) => `${key}.chunks.${descriptor.id}.${index}`)
+  : [];
+
+const removeStorageKeys = async (keys) => {
+  const results = await Promise.allSettled(keys.map((key) => AsyncStorage.removeItem(key)));
+  const failure = results.find((result) => result.status === 'rejected');
+  if (failure) throw failure.reason;
+};
+
+const readStorageValue = async (key) => {
+  const raw = await AsyncStorage.getItem(key);
+  const descriptor = getChunkDescriptor(raw);
+  if (!descriptor) return raw;
+  const chunks = [];
+  for (const chunkKey of getChunkKeys(key, descriptor)) {
+    const chunk = await AsyncStorage.getItem(chunkKey);
+    if (chunk === null) {
+      const error = new Error('A local storage chunk is missing.');
+      error.code = 'local-storage/corrupt-data';
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+  return chunks.join('');
+};
+
+const writeStorageValue = async (key, value) => {
+  const previous = getChunkDescriptor(await AsyncStorage.getItem(key));
+  let descriptor = null;
+  const newKeys = [];
+  try {
+    if (value.length > STORAGE_CHUNK_LENGTH) {
+      const chunks = [];
+      for (let start = 0; start < value.length;) {
+        let end = Math.min(start + STORAGE_CHUNK_LENGTH, value.length);
+        const last = value.charCodeAt(end - 1);
+        const next = value.charCodeAt(end);
+        // A native UTF-8 conversion would replace a split surrogate pair.
+        if (last >= 0xD800 && last <= 0xDBFF && next >= 0xDC00 && next <= 0xDFFF) end -= 1;
+        chunks.push(value.slice(start, end));
+        start = end;
+      }
+      descriptor = {
+        format: CHUNK_FORMAT,
+        id: `${Date.now().toString(36)}-${++chunkSequence}-${Math.random().toString(36).slice(2, 10)}`,
+        count: chunks.length,
+      };
+      newKeys.push(...getChunkKeys(key, descriptor));
+      for (let index = 0; index < newKeys.length; index += 1) {
+        await AsyncStorage.setItem(newKeys[index], chunks[index]);
+      }
+    }
+    // The slot points at the new generation only after every chunk is durable.
+    await AsyncStorage.setItem(key, descriptor ? serializeJson(descriptor) : value);
+  } catch (error) {
+    try {
+      if (getChunkDescriptor(await AsyncStorage.getItem(key))?.id !== descriptor?.id) {
+        await Promise.allSettled(newKeys.map((chunkKey) => AsyncStorage.removeItem(chunkKey)));
+      }
+    } catch (_) {}
+    throw error;
+  }
+  await removeStorageKeys(getChunkKeys(key, previous));
+};
+
+const removeStorageValue = async (key) => {
+  const descriptor = getChunkDescriptor(await AsyncStorage.getItem(key));
+  await AsyncStorage.removeItem(key);
+  await removeStorageKeys(getChunkKeys(key, descriptor));
+};
 
 const getStorageKey = (userId) => {
   return userId ? `user_schedule_${userId}` : GUEST_KEY;
@@ -91,32 +173,39 @@ export async function getLocalSchedule(userId = null) {
     const keys = getScheduleStorageKeys(userId);
     const scope = getStorageScope(userId);
     try {
-      const [primaryRaw, pendingRaw, mirrorRaw, backupRaw, recoveryRaw] = await Promise.all([
-        AsyncStorage.getItem(keys.primary),
-        AsyncStorage.getItem(keys.pending),
-        AsyncStorage.getItem(keys.mirror),
-        AsyncStorage.getItem(keys.backup),
-        AsyncStorage.getItem(keys.recovery),
-      ]);
-      const recoverySnapshots = parseJson(recoveryRaw, []);
-      const recoveryData = Array.isArray(recoverySnapshots)
-        ? recoverySnapshots
-          .map((snapshot) => decodeScheduleCandidate(snapshot?.data, scope))
-          .find(Boolean)
-        : null;
-
       // A valid pending value means a previous write was interrupted after the
       // journal was durable but before the primary slot was confirmed.
-      const candidates = [
-        { source: 'pending', raw: pendingRaw, data: decodeScheduleCandidate(pendingRaw, scope) },
-        { source: 'primary', raw: primaryRaw, data: decodeScheduleCandidate(primaryRaw, scope) },
-        { source: 'mirror', raw: mirrorRaw, data: decodeScheduleCandidate(mirrorRaw, scope) },
-        { source: 'backup', raw: backupRaw, data: decodeScheduleCandidate(backupRaw, scope) },
-        { source: 'recovery', raw: null, data: recoveryData },
-      ];
-      const selected = candidates.find((candidate) => candidate.data);
+      let selected = null;
+      let failedRead = null;
+      let hasStoredData = false;
+      for (const source of ['pending', 'primary', 'mirror', 'backup', 'recovery']) {
+        let raw;
+        try {
+          raw = await readStorageValue(keys[source]);
+        } catch (error) {
+          // An unreadable journal or primary may contain a newer draft. Do not
+          // silently replace it with an older backup after a transient error.
+          if ((source === 'pending' || source === 'primary') && error?.code !== 'local-storage/corrupt-data') throw error;
+          failedRead ||= error;
+          continue;
+        }
+        if (raw !== null) hasStoredData = true;
+        let candidate = null;
+        if (source === 'recovery') {
+          const snapshots = parseJson(raw, []);
+          for (const snapshot of Array.isArray(snapshots) ? snapshots : []) {
+            candidate = decodeScheduleCandidate(snapshot?.data, scope);
+            if (candidate) break;
+          }
+        } else candidate = decodeScheduleCandidate(raw, scope);
+        if (candidate) {
+          selected = { source, data: candidate };
+          break;
+        }
+      }
       if (!selected) {
-        if ([primaryRaw, pendingRaw, mirrorRaw, backupRaw].some(raw => raw !== null) || recoveryRaw) {
+        if (failedRead) throw failedRead;
+        if (hasStoredData) {
           const error = new Error('Local schedule data is unreadable and has been preserved for recovery.');
           error.code = 'local-storage/corrupt-data';
           throw error;
@@ -127,10 +216,10 @@ export async function getLocalSchedule(userId = null) {
       if (selected.source !== 'primary') {
         try {
           const serialized = serializeJson(withLocalScope(selected.data, userId));
-          await AsyncStorage.setItem(keys.primary, serialized);
-          await AsyncStorage.setItem(keys.mirror, serialized);
+          await writeStorageValue(keys.primary, serialized);
+          await writeStorageValue(keys.mirror, serialized);
           if (selected.source === 'pending') {
-            await AsyncStorage.removeItem(keys.pending);
+            await removeStorageValue(keys.pending);
           }
         } catch (repairError) {
           console.warn(`Failed to repair local schedule for key: ${keys.primary}`, repairError);
@@ -157,25 +246,25 @@ export async function saveLocalSchedule(data, userId = null) {
     try {
       assertScheduleWritesAllowed(userId);
       const scope = getStorageScope(userId);
-      const currentRaw = await AsyncStorage.getItem(keys.primary);
+      const currentRaw = await readStorageValue(keys.primary);
 
       // Write-ahead journal: on a crash, getLocalSchedule prefers this complete
       // value. The previous valid primary is retained as a rollback copy.
-      await AsyncStorage.setItem(keys.pending, serialized);
+      await writeStorageValue(keys.pending, serialized);
       if (currentRaw && currentRaw !== serialized && decodeScheduleCandidate(currentRaw, scope)) {
-        await AsyncStorage.setItem(keys.backup, currentRaw);
+        await writeStorageValue(keys.backup, currentRaw);
       }
-      await AsyncStorage.setItem(keys.primary, serialized);
+      await writeStorageValue(keys.primary, serialized);
 
-      const persistedRaw = await AsyncStorage.getItem(keys.primary);
+      const persistedRaw = await readStorageValue(keys.primary);
       if (persistedRaw !== serialized || !decodeScheduleCandidate(persistedRaw, scope)) {
         const error = new Error(`Local schedule verification failed for key: ${keys.primary}`);
         error.code = 'local-storage/verification-failed';
         throw error;
       }
 
-      await AsyncStorage.setItem(keys.mirror, serialized);
-      await AsyncStorage.removeItem(keys.pending);
+      await writeStorageValue(keys.mirror, serialized);
+      await removeStorageValue(keys.pending);
       return true;
     } catch (e) {
       console.error(`Failed to save local schedule for key: ${keys.primary}`, e);
@@ -189,7 +278,7 @@ export async function saveScheduleRecoverySnapshot(data, userId = null, reason =
   return runScheduleStorageOperation(userId, async () => {
     assertScheduleWritesAllowed(userId);
     const { recovery } = getScheduleStorageKeys(userId);
-    const raw = await AsyncStorage.getItem(recovery);
+    const raw = await readStorageValue(recovery);
     const existing = parseJson(raw, []);
     const snapshots = Array.isArray(existing) ? existing : [];
     snapshots.unshift({
@@ -197,7 +286,7 @@ export async function saveScheduleRecoverySnapshot(data, userId = null, reason =
       reason: String(reason || 'sync'),
       data: withLocalScope(data, userId),
     });
-    await AsyncStorage.setItem(
+    await writeStorageValue(
       recovery,
       serializeJson(snapshots.slice(0, MAX_RECOVERY_SNAPSHOTS)),
     );
@@ -207,7 +296,7 @@ export async function saveScheduleRecoverySnapshot(data, userId = null, reason =
 export async function getScheduleRecoverySnapshots(userId = null) {
   return runScheduleStorageOperation(userId, async () => {
     const { recovery } = getScheduleStorageKeys(userId);
-    const snapshots = parseJson(await AsyncStorage.getItem(recovery), []);
+    const snapshots = parseJson(await readStorageValue(recovery), []);
     if (!Array.isArray(snapshots)) return [];
     const scope = getStorageScope(userId);
     return snapshots
@@ -224,13 +313,18 @@ export async function clearLocalSchedule(userId = null, options = {}) {
     const keys = getScheduleStorageKeys(userId);
     try {
       if (userId && options.preventWrites) deletedAccountScopes.add(getStorageScope(userId));
-      await Promise.all([
-        AsyncStorage.removeItem(keys.primary),
-        AsyncStorage.removeItem(keys.pending),
-        AsyncStorage.removeItem(keys.mirror),
-        AsyncStorage.removeItem(keys.backup),
-        AsyncStorage.removeItem(keys.recovery),
+      const removals = await Promise.allSettled([
+        removeStorageValue(keys.primary),
+        removeStorageValue(keys.pending),
+        removeStorageValue(keys.mirror),
+        removeStorageValue(keys.backup),
+        removeStorageValue(keys.recovery),
       ]);
+      const failure = removals.find((result) => result.status === 'rejected');
+      if (failure) throw failure.reason;
+      const allKeys = await AsyncStorage.getAllKeys();
+      const chunkPrefixes = Object.values(keys).map((key) => `${key}.chunks.`);
+      await removeStorageKeys(allKeys.filter((key) => chunkPrefixes.some((prefix) => key.startsWith(prefix))));
     } catch (e) {
       console.error(`Failed to clear local schedule for key: ${keys.primary}`, e);
       if (options.throwOnError) throw e;

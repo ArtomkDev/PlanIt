@@ -3,9 +3,26 @@ import { t } from "../utils/i18n";
 import { downloadWebFile } from "./fileSharingService";
 import { DOCUMENT_BRAND_NAME, getDocumentBranding } from "../config/documentBranding";
 
+let pdfMakePromise;
+const loadPdfMake = () => {
+  if (!pdfMakePromise) {
+    pdfMakePromise = Promise.all([
+      import("pdfmake/build/pdfmake"),
+      import("pdfmake/build/vfs_fonts"),
+    ]).then(([pdfModule, fonts]) => {
+      const pdfMake = pdfModule.default || pdfModule;
+      pdfMake.addVirtualFileSystem(fonts.default || fonts);
+      return pdfMake;
+    }).catch((error) => {
+      pdfMakePromise = null;
+      throw error;
+    });
+  }
+  return pdfMakePromise;
+};
+
 export const createSchedulePdfDocument = async (document) => {
-  const pdfMake = require("pdfmake/build/pdfmake");
-  pdfMake.addVirtualFileSystem(require("pdfmake/build/vfs_fonts"));
+  const pdfMake = await loadPdfMake();
   const { settings, lang } = document;
   const brand = getDocumentBranding(settings.color);
   const accent = settings.color ? "#176B78" : "#303030";

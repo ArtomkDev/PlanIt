@@ -32,7 +32,9 @@ function load(relative, mocks = {}) {
 }
 
 const { createCollegeTestSchedule } = load('src/config/development/collegeSchedule.js');
+const { createUniversityContentSchedule } = load('src/config/development/universityContentSchedule.js');
 const { buildScheduleSlots } = load('src/utils/scheduleTime.js');
+const { getLocalISODate, resolveOccurrenceFromLessonRef } = load('src/utils/taskLessonLinking.js');
 const { sanitizeSharedSchedule } = load('src/utils/scheduleValidation.js');
 const { SUBJECT_ICONS } = load('src/config/subjectIcons.js', {
   'phosphor-react-native': new Proxy({}, { get: (_, key) => key === '__esModule' ? false : key }),
@@ -83,59 +85,158 @@ test('source date conditions, streams, meeting credentials and distinct Saturday
   assert.equal(other.subjects.some(subject => schedule.subjects.some(existing => existing.id === subject.id)), false);
 });
 
-test('college lessons inherit valid subject icons and readable gradients across both weeks and sharing', () => {
-  const schedule = createCollegeTestSchedule();
-  const shared = sanitizeSharedSchedule(schedule);
-  assert.equal(schedule.gradients.length, schedule.subjects.length);
-  assert.equal(new Set(schedule.subjects.map(subject => subject.icon)).size, schedule.subjects.length);
-  assert.equal(new Set(schedule.gradients.map(gradient => JSON.stringify(gradient.colors))).size, schedule.subjects.length);
-  for (const model of [schedule, shared]) {
-    for (const subject of model.subjects) {
-      assert.ok(Object.hasOwn(SUBJECT_ICONS, subject.icon));
-      assert.equal(subject.typeColor, 'gradient');
-      const gradient = model.gradients.find(item => item.id === subject.colorGradient);
-      assert.ok(gradient, `${subject.name}: gradient reference must resolve`);
-      assert.equal(gradient.type, 'linear');
-      assert.deepEqual(gradient.colors.map(stop => stop.position), [0, 1]);
-      assert.equal(subject.color, gradient.colors[0].color);
-      const foreground = getReadableForeground(gradient);
-      for (const stop of createPerceptualGradientStops(gradient)) {
-        assert.ok(tinycolor.readability(foreground, stop.color) >= 4.5, `${subject.name}: text must stay readable throughout the gradient`);
+for (const [name, createSchedule] of [
+  ['college', createCollegeTestSchedule],
+  ['university content', createUniversityContentSchedule],
+]) {
+  test(`${name} lessons inherit valid subject icons and readable gradients across both weeks and sharing`, () => {
+    const schedule = createSchedule();
+    const shared = sanitizeSharedSchedule(schedule);
+    assert.equal(schedule.gradients.length, schedule.subjects.length);
+    assert.equal(new Set(schedule.subjects.map(subject => subject.icon)).size, schedule.subjects.length);
+    assert.equal(new Set(schedule.gradients.map(gradient => JSON.stringify(gradient.colors))).size, schedule.subjects.length);
+    for (const model of [schedule, shared]) {
+      for (const subject of model.subjects) {
+        assert.ok(Object.hasOwn(SUBJECT_ICONS, subject.icon));
+        assert.equal(subject.typeColor, 'gradient');
+        const gradient = model.gradients.find(item => item.id === subject.colorGradient);
+        assert.ok(gradient, `${subject.name}: gradient reference must resolve`);
+        assert.equal(gradient.type, 'linear');
+        assert.deepEqual(gradient.colors.map(stop => stop.position), [0, 1]);
+        assert.equal(subject.color, gradient.colors[0].color);
+        const foreground = getReadableForeground(gradient);
+        for (const stop of createPerceptualGradientStops(gradient)) {
+          assert.ok(tinycolor.readability(foreground, stop.color) >= 4.5, `${subject.name}: text must stay readable throughout the gradient`);
+        }
+      }
+      for (const lesson of model.schedule.flatMap(day => [...day.week1, ...day.week2])) {
+        const subject = model.subjects.find(item => item.id === lesson.subjectId);
+        assert.equal(getLessonColors(lesson, model).activeGrad?.id, subject.colorGradient);
       }
     }
-    for (const lesson of model.schedule.flatMap(day => [...day.week1, ...day.week2])) {
-      const subject = model.subjects.find(item => item.id === lesson.subjectId);
-      assert.equal(getLessonColors(lesson, model).activeGrad?.id, subject.colorGradient);
+    const other = createSchedule();
+    assert.equal(other.gradients.some(gradient => schedule.gradients.some(existing => existing.id === gradient.id)), false);
+    other.gradients[0].colors[0].color = '#000000';
+    assert.notEqual(schedule.gradients[0].colors[0].color, '#000000');
+  });
+}
+
+test('university content fills both weeks with four distinct subjects per weekday and fresh editable data', () => {
+  const now = new Date(2026, 9, 26, 15);
+  const schedule = createUniversityContentSchedule(now);
+  assert.equal(schedule.name, 'Університет · КН-31');
+  assert.equal(schedule.subjects.length, 7);
+  assert.equal(schedule.teachers.length, 7);
+  assert.equal(schedule.links.length, 7);
+  assert.equal(schedule.repeat, 2);
+  assert.equal(schedule.reminder.enabled, false);
+  assert.equal(new Date(schedule.starting_week).getDay(), 1);
+  assert.deepEqual(buildScheduleSlots(schedule.start_time, schedule.duration, schedule.breaks, schedule.slotDurations)
+    .map(slot => [slot.start, slot.end]), [
+    ['08:30', '09:50'], ['10:00', '11:20'], ['11:40', '13:00'], ['13:10', '14:30'],
+  ]);
+  for (const model of [schedule, sanitizeSharedSchedule(schedule)]) {
+    for (const subject of model.subjects) {
+      assert.ok(model.teachers.some(teacher => subject.teachers.includes(teacher.id)));
+      assert.ok(model.links.some(link => subject.links.includes(link.id)));
+      assert.ok(subject.room && subject.building && subject.note);
+    }
+    for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+      for (const weekKey of ['week1', 'week2']) {
+        const lessons = model.schedule[dayIndex][weekKey];
+        assert.equal(lessons.length, dayIndex < 5 ? 4 : 0);
+        assert.equal(new Set(lessons.map(lesson => lesson.subjectId)).size, lessons.length);
+        for (const lesson of lessons) assert.ok(model.subjects.some(subject => subject.id === lesson.subjectId));
+      }
     }
   }
-  const other = createCollegeTestSchedule();
-  assert.equal(other.gradients.some(gradient => schedule.gradients.some(existing => existing.id === gradient.id)), false);
-  other.gradients[0].colors[0].color = '#000000';
-  assert.notEqual(schedule.gradients[0].colors[0].color, '#000000');
+  const other = createUniversityContentSchedule(now);
+  assert.notEqual(other.id, schedule.id);
+  for (const key of ['subjects', 'teachers', 'links', 'gradients', 'tasks']) {
+    const originalIds = new Set(schedule[key].map(item => item.id));
+    assert.ok(other[key].every(item => !originalIds.has(item.id)), `${key}: repeated creation must have fresh IDs`);
+  }
+  other.tasks[0].text = 'Changed';
+  other.schedule[0].week1[0].recurrence.weeks.push(2);
+  assert.notEqual(schedule.tasks[0].text, 'Changed');
+  assert.deepEqual(schedule.schedule[0].week1[0].recurrence.weeks, [1]);
+});
+
+test('content tasks stay populated and linked to actual classes across weekends, year boundaries and time zones', () => {
+  const originalTimeZone = process.env.TZ;
+  try {
+    for (const timeZone of ['Europe/Kyiv', 'America/Los_Angeles', 'Pacific/Auckland']) {
+      process.env.TZ = timeZone;
+      for (const [year, month, day] of [[2026, 9, 26], [2026, 9, 31], [2026, 10, 1], [2027, 0, 1]]) {
+        const now = new Date(year, month, day, 23, 30);
+        const schedule = createUniversityContentSchedule(now);
+        const today = getLocalISODate(now);
+        assert.equal(new Date(schedule.starting_week).getDay(), 1);
+        assert.equal(schedule.tasks.length, 16);
+        assert.equal(schedule.tasks.filter(task => !task.completed).length, 12);
+        assert.equal(schedule.tasks.filter(task => task.completed).length, 4);
+        assert.equal(new Set(schedule.tasks.map(task => task.id)).size, 16);
+        assert.ok(new Set(schedule.tasks.map(task => task.subjectId)).size >= 6);
+        const todayTasks = schedule.tasks.filter(task => task.lessonRef.date === today);
+        assert.equal(todayTasks.length, [0, 6].includes(now.getDay()) ? 0 : 4);
+        for (const task of schedule.tasks) {
+          assert.ok(task.text.length >= 50);
+          assert.ok(Number.isFinite(task.createdAt) && task.createdAt <= now.getTime());
+          assert.equal(task.updatedAt, task.createdAt);
+          assert.equal(task.completed, task.lessonRef.date < today);
+          const occurrence = resolveOccurrenceFromLessonRef(schedule, task.lessonRef);
+          assert.ok(occurrence, `${timeZone}, ${today}: task must open an existing class`);
+          assert.equal(occurrence.subjectId, task.subjectId);
+          assert.equal(task.lessonRef.subjectId, task.subjectId);
+          assert.equal(task.lessonRef.scheduleId, schedule.id);
+          assert.equal(task.lessonRef.start, occurrence.timeInfo.start);
+          assert.equal(task.lessonRef.end, occurrence.timeInfo.end);
+          const subject = schedule.subjects.find(item => item.id === task.subjectId);
+          assert.deepEqual(task.links, subject.links);
+          assert.ok(task.links.every(id => schedule.links.some(link => link.id === id)));
+        }
+      }
+    }
+  } finally {
+    if (originalTimeZone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimeZone;
+  }
 });
 
 for (const lang of ['uk', 'en']) {
-  test(`${lang}: dev button creates and selects once through ScheduleProvider actions without authentication`, () => {
+  test(`${lang}: both dev buttons independently create and select once through ScheduleProvider without authentication`, () => {
     const added = [];
     let selected;
     let onCreated = 0;
     const Button = load('src/components/development/CreateTestScheduleButton.jsx', {
       'react-native': { View: 'View', Text: 'Text', StyleSheet: { create: value => value } },
-      'phosphor-react-native': { Flask: () => null },
+      'phosphor-react-native': { Flask: () => null, Camera: () => null },
       '../../context/ScheduleProvider': {
         useScheduleData: () => ({ lang, guest: true, user: null }),
-        useScheduleActions: () => ({ addSchedule: schedule => added.push(schedule), setGlobalDraft: update => { selected = update({}).currentScheduleId; } }),
+        useScheduleActions: () => ({ addSchedule: schedule => added.push(schedule), setGlobalDraft: update => { selected = update({ lang, existing: true }); } }),
       },
       '../ui/SettingsKit/SettingsRow': props => React.createElement('SettingsRow', props),
     }).default;
     let renderer;
     act(() => { renderer = create(React.createElement(Button, { themeColors: {}, onCreated: () => { onCreated += 1; } })); });
-    const press = renderer.root.findByType('SettingsRow').props.onPress;
-    act(() => { press(); press(); });
-    assert.equal(added.length, 1);
-    assert.equal(selected, added[0].id);
-    assert.equal(onCreated, 1);
-    assert.equal(renderer.root.findByType('SettingsRow').props.disabled, true);
+    assert.equal(renderer.root.findAllByType('SettingsRow').length, 2);
+    for (const index of [1, 0]) {
+      const rows = renderer.root.findAllByType('SettingsRow');
+      assert.equal(rows[index].props.disabled, false);
+      if (index === 1) assert.match(rows[index].props.label, lang === 'uk' ? /контенту/ : /content/);
+      const press = rows[index].props.onPress;
+      const before = added.length;
+      act(() => { press(); press(); });
+      assert.equal(added.length, before + 1);
+      assert.equal(onCreated, before + 1);
+      assert.deepEqual(selected, { lang, existing: true, currentScheduleId: added.at(-1).id });
+      assert.equal(renderer.root.findAllByType('SettingsRow')[index].props.disabled, true);
+      if (index === 1) {
+        assert.equal(added[0].tasks.length, 16);
+        assert.equal(added[0].name, 'Університет · КН-31');
+        assert.equal(renderer.root.findAllByType('SettingsRow')[0].props.disabled, false);
+      }
+    }
     act(() => renderer.unmount());
   });
 }
@@ -143,12 +244,14 @@ for (const lang of ['uk', 'en']) {
 test('release resolver refuses accidental dev imports, including assets, but allows them in dev', () => {
   const { resolveRequest } = require('../metro.config.js').resolver;
   for (const dev of [false, undefined, true]) {
-    for (const type of ['sourceFile', 'assetFiles']) {
-      const filePath = path.join(root, 'src/config/development/collegeSchedule.js');
-      const resolution = type === 'sourceFile' ? { type, filePath } : { type, filePaths: [filePath] };
-      const resolve = () => resolveRequest({ dev, resolveRequest: () => resolution }, './fixture', 'android');
-      if (dev === true) assert.equal(resolve(), resolution);
-      else assert.throws(resolve, /Development modules must be removed/);
+    for (const filename of ['collegeSchedule.js', 'universityContentSchedule.js']) {
+      for (const type of ['sourceFile', 'assetFiles']) {
+        const filePath = path.join(root, 'src/config/development', filename);
+        const resolution = type === 'sourceFile' ? { type, filePath } : { type, filePaths: [filePath] };
+        const resolve = () => resolveRequest({ dev, resolveRequest: () => resolution }, './fixture', 'android');
+        if (dev === true) assert.equal(resolve(), resolution);
+        else assert.throws(resolve, /Development modules must be removed/);
+      }
     }
   }
   const regular = { type: 'sourceFile', filePath: path.join(root, 'src/config/themes.js') };

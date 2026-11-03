@@ -102,9 +102,10 @@ test('every account email displays the complete copyable URL without adding char
   }
 });
 
-test('uses the Gmail color opt-out while retaining authored dark styles and portable text fonts', () => {
+test('lets mail apps darken the email while retaining authored dark styles and portable text fonts', () => {
   const message = createAccountActionEmailContent({ actionLink: 'https://example.com/action' });
-  assert.match(message.html, /<meta name="color-scheme" content="light only">/);
+  assert.match(message.html, /<meta name="color-scheme" content="light dark">/);
+  assert.doesNotMatch(message.html, /light only/);
   assert.match(message.html, /:root \{ color-scheme:light dark/);
   assert.match(message.html, /@media \(prefers-color-scheme:dark\)/);
   assert.match(message.html, /font-family:Arial,Helvetica,sans-serif/);
@@ -120,13 +121,17 @@ test('packages the logo inside the email without external image or font requests
     inlineLogo: true,
     actionLink: 'https://example.com/action',
   });
-  assert.equal(message.attachments.length, 1);
-  const logo = message.attachments[0];
-  assert.equal(logo.cid, 'planit-wordmark');
-  assert.equal(logo.contentType, 'image/png');
-  assert.equal(logo.contentDisposition, 'inline');
-  assert.equal(logo.content.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+  assert.deepEqual(message.attachments.map((logo) => logo.cid), ['planit-wordmark', 'planit-wordmark-dark']);
+  for (const logo of message.attachments) {
+    assert.equal(logo.contentType, 'image/png');
+    assert.equal(logo.contentDisposition, 'inline');
+    assert.equal(logo.content.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    assert.match(message.html, new RegExp(`<img src="cid:${logo.cid}" alt="PlanIt\\."`));
+  }
   assert.doesNotMatch(message.html, /<img[^>]+src="https?:/);
+  assert.match(message.html, /class="email-logo-dark"[^>]+style="display:none;max-height:0/);
+  assert.match(message.html, /\.email-logo-light \{ display:none !important; \}/);
+  assert.match(message.html, /\.email-logo-dark \{ display:block !important/);
 
   const transport = nodemailer.createTransport({ streamTransport: true, buffer: true });
   const result = await transport.sendMail({
@@ -142,5 +147,7 @@ test('packages the logo inside the email without external image or font requests
   const mime = result.message.toString();
   assert.match(mime, /Content-Type: multipart\/related/);
   assert.match(mime, /Content-ID: <planit-wordmark>/);
+  assert.match(mime, /Content-ID: <planit-wordmark-dark>/);
   assert.match(mime, /Content-Disposition: inline; filename=planit-wordmark\.png/);
+  assert.match(mime, /Content-Disposition: inline; filename=planit-wordmark-dark\.png/);
 });

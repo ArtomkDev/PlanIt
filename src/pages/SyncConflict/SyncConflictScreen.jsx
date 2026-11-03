@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
+import { BackHandler, View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GitBranch, DeviceMobile, CloudArrowDown, Copy, CaretRight } from 'phosphor-react-native';
 import useSystemThemeColors from '../../hooks/useSystemThemeColors';
 import AppBlur from '../../components/ui/AppBlur';
 import { t } from '../../utils/i18n';
 import { triggerHaptic } from '../../utils/haptics';
+import { useAppDialog } from '../../context/AppDialogContext';
 
 export default function SyncConflictScreen({ 
   conflictQueue, 
@@ -13,6 +14,7 @@ export default function SyncConflictScreen({
   lang = 'uk' 
 }) {
   const { colors } = useSystemThemeColors();
+  const dialog = useAppDialog();
   const insets = useSafeAreaInsets();
   const [headerHeight, setHeaderHeight] = useState(200);
   const [resolvingId, setResolvingId] = useState(null);
@@ -106,7 +108,7 @@ export default function SyncConflictScreen({
             try {
               if (await handleResolveConflict(conflictId, action) === false) {
                 setError(true);
-                Alert.alert(t('common.error', lang), t('common.action_failed', lang));
+                dialog.alert({ title: t('common.error', lang), message: t('common.action_failed', lang) });
               }
             } catch {
               setError(true);

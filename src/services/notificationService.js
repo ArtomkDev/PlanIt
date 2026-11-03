@@ -70,15 +70,25 @@ const CHANNELS_BY_TYPE = {
 };
 
 let configuredChannels = {};
+let localNotificationQueue = Promise.resolve();
+
+const runLocalNotificationOperation = (operation) => {
+  const result = localNotificationQueue.then(operation);
+  localNotificationQueue = result.catch(() => {});
+  return result;
+};
 
 if (Notifications?.setNotificationHandler) {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const visible = notification.request.content.data?.type !== 'widget_schedule_changed';
+      return {
+        shouldShowBanner: visible,
+        shouldShowList: visible,
+        shouldPlaySound: visible,
+        shouldSetBadge: false,
+      };
+    },
   });
 }
 
@@ -299,15 +309,6 @@ const dispatchLocalPushNotification = async (type, content, options = {}) => {
     return { id: null, status: unsupportedNotificationStatus };
   }
 
-  const permission = await ensureNotificationPushPermissionsForType(type, {
-    request: options.requestPermissions === true,
-    notificationPreferences: options.notificationPreferences,
-  });
-
-  if (!permission.granted) {
-    return { id: null, status: permission.status, permission };
-  }
-
   const trigger = await withAndroidChannel(type, options.trigger || null, options.lang);
   const id = await Notifications.scheduleNotificationAsync({
     identifier: options.identifier,
@@ -328,21 +329,21 @@ const dispatchLocalPushNotification = async (type, content, options = {}) => {
 const readLocalNotificationState = async () => {
   const emptyState = { schedules: {} };
 
+  const raw = await AsyncStorage.getItem(LOCAL_NOTIFICATION_STORAGE_KEY);
   try {
-    const raw = await AsyncStorage.getItem(LOCAL_NOTIFICATION_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        return { schedules: parsed.schedules || {} };
+      if (parsed?.schedules && typeof parsed.schedules === "object" && !Array.isArray(parsed.schedules)) {
+        return { schedules: parsed.schedules };
       }
     }
   } catch (error) {}
 
+  const legacyRaw = await AsyncStorage.getItem(LEGACY_LESSON_REMINDER_STORAGE_KEY);
   try {
-    const legacyRaw = await AsyncStorage.getItem(LEGACY_LESSON_REMINDER_STORAGE_KEY);
     if (legacyRaw) {
       const parsed = JSON.parse(legacyRaw);
-      if (parsed && typeof parsed === "object" && parsed.schedules) {
+      if (parsed?.schedules && typeof parsed.schedules === "object" && !Array.isArray(parsed.schedules)) {
         return { schedules: parsed.schedules };
       }
     }
@@ -352,18 +353,16 @@ const readLocalNotificationState = async () => {
 };
 
 const writeLocalNotificationState = async (state) => {
-  try {
-    await AsyncStorage.setItem(
-      LOCAL_NOTIFICATION_STORAGE_KEY,
-      JSON.stringify({
-        schedules: state.schedules || {},
-        updatedAt: Date.now(),
-      })
-    );
-  } catch (error) {}
+  await AsyncStorage.setItem(
+    LOCAL_NOTIFICATION_STORAGE_KEY,
+    JSON.stringify({
+      schedules: state.schedules || {},
+      updatedAt: Date.now(),
+    })
+  );
 };
 
-export const clearAllLocalNotifications = async () => {
+export const clearAllLocalNotifications = () => runLocalNotificationOperation(async () => {
   const failures = [];
 
   if (Notifications) {
@@ -391,7 +390,7 @@ export const clearAllLocalNotifications = async () => {
     error.cause = failures[0];
     throw error;
   }
-};
+});
 
 const safeIdentifierPart = (value) => (
   String(value || "unknown")
@@ -550,21 +549,32 @@ export const buildLessonReminderRequests = (schedule, options = {}) => {
   return requests;
 };
 
-export const cancelLessonRemindersForSchedule = async (scheduleId) => {
+const cancelLessonReminders = async (scheduleId) => {
   if (!scheduleId) return { canceled: 0 };
 
   const state = await readLocalNotificationState();
   const records = Array.isArray(state.schedules?.[scheduleId])
     ? state.schedules[scheduleId]
     : [];
-  const ids = records
+  const trackedIds = records
     .map((record) => (typeof record === "string" ? record : record?.id))
     .filter(Boolean);
+  // The app can be terminated between scheduling with the OS and saving ids.
+  const scheduled = Notifications ? await Notifications.getAllScheduledNotificationsAsync() : [];
+  const ids = [...new Set([
+    ...trackedIds,
+    ...scheduled.filter((notification) => (
+      notification.content?.data?.type === NOTIFICATION_TYPES.LESSON_REMINDER &&
+      notification.content?.data?.scheduleId === scheduleId
+    )).map((notification) => notification.identifier),
+  ])];
 
   if (Notifications && ids.length > 0) {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       ids.map((id) => Notifications.cancelScheduledNotificationAsync(id))
     );
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) throw failure.reason;
   }
 
   delete state.schedules[scheduleId];
@@ -576,6 +586,10 @@ export const cancelLessonRemindersForSchedule = async (scheduleId) => {
 
   return { canceled: ids.length };
 };
+
+export const cancelLessonRemindersForSchedule = (scheduleId) => (
+  runLocalNotificationOperation(() => cancelLessonReminders(scheduleId))
+);
 
 const saveScheduleRecords = async (scheduleId, records) => {
   const state = await readLocalNotificationState();
@@ -589,34 +603,36 @@ const saveScheduleRecords = async (scheduleId, records) => {
   await writeLocalNotificationState(state);
 };
 
-export const reconcileLessonRemindersForSchedule = async (schedule, options = {}) => {
+export const reconcileLessonRemindersForSchedule = (schedule, options = {}) => runLocalNotificationOperation(async () => {
   if (!schedule?.id) return { scheduled: 0, canceled: 0, status: "missing_schedule" };
 
-  const { canceled } = await cancelLessonRemindersForSchedule(schedule.id);
-
-  if (!isNotificationPushEnabled(
+  const pushEnabled = isNotificationPushEnabled(
     options.notificationPreferences,
-    NOTIFICATION_TYPES.LESSON_REMINDER
-  )) {
+    NOTIFICATION_TYPES.LESSON_REMINDER,
+  );
+  const supported = Platform.OS !== "web" && !!Notifications;
+  const requests = pushEnabled && supported ? buildLessonReminderRequests(schedule, options) : [];
+  const permission = requests.length > 0
+    ? await ensureNotificationPushPermissionsForType(NOTIFICATION_TYPES.LESSON_REMINDER, {
+      request: options.requestPermissions === true,
+      notificationPreferences: options.notificationPreferences,
+    })
+    : null;
+  if (permission?.error) throw permission.error;
+
+  const { canceled } = await cancelLessonReminders(schedule.id);
+
+  if (!pushEnabled) {
     return { scheduled: 0, canceled, status: "disabled_by_preference" };
   }
 
-  if (Platform.OS === "web" || !Notifications) {
+  if (!supported) {
     return { scheduled: 0, canceled, status: unsupportedNotificationStatus };
   }
 
-  const requests = buildLessonReminderRequests(schedule, options);
   if (requests.length === 0) {
     return { scheduled: 0, canceled, status: "no_reminders" };
   }
-
-  const permission = await ensureNotificationPushPermissionsForType(
-    NOTIFICATION_TYPES.LESSON_REMINDER,
-    {
-      request: options.requestPermissions === true,
-      notificationPreferences: options.notificationPreferences,
-    }
-  );
 
   if (!permission.granted) {
     return { scheduled: 0, canceled, status: "permission_denied" };
@@ -632,21 +648,25 @@ export const reconcileLessonRemindersForSchedule = async (schedule, options = {}
           identifier: request.identifier,
           lang: options.lang,
           trigger: request.trigger,
-          notificationPreferences: options.notificationPreferences,
         }
       );
       if (id) records.push({ id, ...request.metadata });
     } catch (error) {}
   }
 
-  await saveScheduleRecords(schedule.id, records);
+  try {
+    await saveScheduleRecords(schedule.id, records);
+  } catch (error) {
+    await Promise.allSettled(records.map(({ id }) => Notifications.cancelScheduledNotificationAsync(id)));
+    throw error;
+  }
 
   return {
     scheduled: records.length,
     canceled,
     status: records.length > 0 ? "scheduled" : "failed",
   };
-};
+});
 
 const sendAccountLoginPushToOtherDevices = async (userId, notification, options = {}) => {
   if (!userId || !notification?.id) return { sent: 0, status: "missing_notification" };

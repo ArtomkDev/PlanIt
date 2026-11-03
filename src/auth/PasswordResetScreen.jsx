@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import TextInput from '../components/ui/AppTextInput';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import MorphingLoader from '../components/ui/MorphingLoader';

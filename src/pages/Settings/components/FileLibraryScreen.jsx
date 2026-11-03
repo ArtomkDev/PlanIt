@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   findNodeHandle,
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import TextInput from '../../../components/ui/AppTextInput';
 import {
   Check,
   Cloud,
@@ -32,6 +31,7 @@ import StagedAttachmentImage from "../../../components/attachments/StagedAttachm
 import TabSwitcher from "../../../components/ui/TabSwitcher";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { useAttachmentImagePreview } from "../../../context/AttachmentImagePreviewContext";
+import { useAppDialog } from "../../../context/AppDialogContext";
 import themes from "../../../config/themes";
 import {
   cacheAttachmentFromLocalUri,
@@ -68,6 +68,11 @@ import { triggerHaptic } from "../../../utils/haptics";
 const getFileIcon = (file) => (
   String(file?.mimeType || "").startsWith("image/") ? ImageIcon : File
 );
+
+const queueCloudDeletion = (pending = [], file) => {
+  if (!file?.storagePath) return pending;
+  return [...pending.filter((item) => item.storagePath !== file.storagePath), { storagePath: file.storagePath }];
+};
 
 const getAttachmentPreviewUri = (file) => (
   file?.localUri || file?.uri || file?.downloadURL || file?.url || ""
@@ -170,6 +175,7 @@ const removeFileReferencesFromSchedule = (schedule, fileId, now) => {
 
 export default function FileLibraryScreen() {
   const { global, lang, user } = useScheduleData();
+  const dialog = useAppDialog();
   const { setData } = useScheduleActions();
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -306,8 +312,8 @@ export default function FileLibraryScreen() {
     };
   }, [activeFileTab, basePhotoFiles]);
 
-  const setLibraryFiles = useCallback((updater) => {
-    setData((prev) => {
+  const setLibraryFiles = useCallback((updater, deletedCloudFile = null) => {
+    return setData((prev) => {
       if (!prev) return prev;
       const currentFiles = normalizeAttachmentLibrary(prev.global?.fileLibrary);
       const nextFiles = typeof updater === "function" ? updater(currentFiles) : updater;
@@ -317,15 +323,19 @@ export default function FileLibraryScreen() {
         global: {
           ...(prev.global || {}),
           fileLibrary: normalizeAttachmentLibrary(nextFiles),
+          ...(deletedCloudFile?.storagePath ? {
+            attachmentDeletionQueue: queueCloudDeletion(prev.global?.attachmentDeletionQueue, deletedCloudFile),
+          } : {}),
           lastModified: Date.now(),
         },
       };
-    });
+    }, { persistLocally: !!deletedCloudFile });
   }, [setData]);
 
-  const setLibraryAndRemoveReferences = useCallback((fileId) => {
+  const setLibraryAndRemoveReferences = useCallback((file) => {
+    const fileId = file.id;
     const now = Date.now();
-    setData((prev) => {
+    return setData((prev) => {
       if (!prev) return prev;
       const nextFiles = normalizeAttachmentLibrary(prev.global?.fileLibrary)
         .filter((file) => String(file.id) !== String(fileId));
@@ -335,13 +345,16 @@ export default function FileLibraryScreen() {
         global: {
           ...(prev.global || {}),
           fileLibrary: nextFiles,
+          ...(file.storagePath ? {
+            attachmentDeletionQueue: queueCloudDeletion(prev.global?.attachmentDeletionQueue, file),
+          } : {}),
           lastModified: now,
         },
         schedules: Array.isArray(prev.schedules)
           ? prev.schedules.map((schedule) => removeFileReferencesFromSchedule(schedule, fileId, now))
           : prev.schedules,
       };
-    });
+    }, { persistLocally: true });
   }, [setData]);
 
   const setFileError = useCallback((nextError) => {
@@ -349,8 +362,8 @@ export default function FileLibraryScreen() {
     setError(nextError);
   }, []);
 
-  const updateFileRecord = useCallback((file) => {
-    setLibraryFiles((currentFiles) => upsertAttachmentLibraryFiles(currentFiles, [file]));
+  const updateFileRecord = useCallback((file, deletedCloudFile = null) => {
+    return setLibraryFiles((currentFiles) => upsertAttachmentLibraryFiles(currentFiles, [file]), deletedCloudFile);
   }, [setLibraryFiles]);
 
   const handleOpen = async (file, download = false) => {
@@ -624,7 +637,7 @@ export default function FileLibraryScreen() {
       if (!cacheState?.uri || (cacheState.status !== "local" && cacheState.status !== "source")) {
         throw makeFileLibraryAttachmentError("cache_unavailable", { name: file.name });
       }
-      updateFileRecord(cachedLocalFile);
+      await updateFileRecord(cachedLocalFile, file);
       rememberPhotoPreview(cachedLocalFile);
       triggerHaptic("success");
     } catch (localError) {
@@ -634,23 +647,14 @@ export default function FileLibraryScreen() {
     }
   };
 
-  const confirmMakeLocalOnly = (file) => {
-    if (Platform.OS === "web") {
-      if (window.confirm(t("settings.files.local_only_confirm", lang))) makeLocalOnly(file);
-      return;
-    }
-    Alert.alert(
-      t("settings.files.local_only_title", lang),
-      t("settings.files.local_only_confirm", lang),
-      [
-        { text: t("common.cancel", lang), style: "cancel" },
-        {
-          text: t("settings.files.make_local", lang),
-          style: "destructive",
-          onPress: () => makeLocalOnly(file),
-        },
-      ]
-    );
+  const confirmMakeLocalOnly = async (file) => {
+    const confirmed = await dialog.confirm({
+      title: t("settings.files.local_only_title", lang),
+      message: t("settings.files.local_only_confirm", lang),
+      confirmLabel: t("settings.files.make_local", lang),
+      destructive: true,
+    });
+    if (confirmed) makeLocalOnly(file);
   };
 
   const makeCloudSynced = async (file) => {
@@ -717,8 +721,8 @@ export default function FileLibraryScreen() {
     setBusyFileId(file.id);
     setError("");
     try {
+      await setLibraryAndRemoveReferences(file);
       await deleteLocalAttachmentCache(file);
-      setLibraryAndRemoveReferences(file.id);
       triggerHaptic("success");
     } catch (deleteError) {
       setFileError(formatAttachmentError(deleteError, lang));
@@ -727,25 +731,16 @@ export default function FileLibraryScreen() {
     }
   };
 
-  const confirmDeleteFile = (file) => {
-    if (Platform.OS === "web") {
-      if (window.confirm(t("settings.files.delete_confirm", lang, { name: file.name }))) deleteFile(file);
-      return;
-    }
-    Alert.alert(
-      t("settings.files.delete_title", lang),
-      interpolate(t("settings.files.delete_confirm", lang), {
+  const confirmDeleteFile = async (file) => {
+    const confirmed = await dialog.confirm({
+      title: t("settings.files.delete_title", lang),
+      message: interpolate(t("settings.files.delete_confirm", lang), {
         name: file?.name || t("attachments.file", lang),
       }),
-      [
-        { text: t("common.cancel", lang), style: "cancel" },
-        {
-          text: t("common.delete", lang),
-          style: "destructive",
-          onPress: () => deleteFile(file),
-        },
-      ]
-    );
+      confirmLabel: t("common.delete", lang),
+      destructive: true,
+    });
+    if (confirmed) deleteFile(file);
   };
 
   const renderIconButton = ({ icon: Icon, color, onPress, disabled, label, danger }) => (

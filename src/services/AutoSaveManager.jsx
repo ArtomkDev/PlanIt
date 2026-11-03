@@ -1,18 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet } from "react-native";
-import { useScheduleActions, useScheduleData, useScheduleSync } from "../context/ScheduleProvider";
+import { useScheduleData, useScheduleSync } from "../context/ScheduleProvider";
 import { t } from "../utils/i18n";
 
 export default function AutoSaveManager() {
-  const { saveNow } = useScheduleActions();
-  const { isCloudSaving, isDirty, isOnline, conflictQueue, cloudSyncState } = useScheduleSync();
-  const { user, global, schedule, schedules, lang } = useScheduleData();
+  const { isOnline } = useScheduleSync();
+  const { user, lang } = useScheduleData();
   
   const [statusMessage, setStatusMessage] = useState("");
   
   const prevOnlineRef = useRef(isOnline);
-  const debounceTimeoutRef = useRef(null);
-  const maxWaitTimeoutRef = useRef(null);
   const uiTimeoutRef = useRef(null);
   
   const heightAnim = useRef(new Animated.Value(0)).current;
@@ -20,48 +17,7 @@ export default function AutoSaveManager() {
   const colorAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!user || !isDirty || !isOnline || isCloudSaving || cloudSyncState !== 'synced' || conflictQueue.length > 0) {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-        debounceTimeoutRef.current = null;
-      }
-      return;
-    }
-
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    
-    debounceTimeoutRef.current = setTimeout(() => {
-      saveNow();
-    }, 2000);
-
-    return () => {
-      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    };
-  }, [schedule, schedules, global, isDirty, isOnline, isCloudSaving, cloudSyncState, conflictQueue.length, saveNow, user]);
-
-  useEffect(() => {
-    if (isDirty && isOnline && !isCloudSaving && cloudSyncState === 'synced' && conflictQueue.length === 0) {
-      if (!maxWaitTimeoutRef.current) {
-        maxWaitTimeoutRef.current = setTimeout(() => {
-          saveNow();
-          maxWaitTimeoutRef.current = null;
-        }, 60000);
-      }
-    } else {
-      if (maxWaitTimeoutRef.current) {
-        clearTimeout(maxWaitTimeoutRef.current);
-        maxWaitTimeoutRef.current = null;
-      }
-    }
-
-    return () => {
-      if (maxWaitTimeoutRef.current) clearTimeout(maxWaitTimeoutRef.current);
-    };
-  }, [isDirty, isOnline, isCloudSaving, cloudSyncState, conflictQueue.length, saveNow]);
-
-  useEffect(() => {
+    let active = true;
     if (uiTimeoutRef.current) {
       clearTimeout(uiTimeoutRef.current);
     }
@@ -73,7 +29,8 @@ export default function AutoSaveManager() {
       Animated.parallel([
         Animated.timing(heightAnim, { toValue: 64, duration: 300, useNativeDriver: false }),
         Animated.timing(textOpacityAnim, { toValue: 1, duration: 300, useNativeDriver: false })
-      ]).start(() => {
+      ]).start(({ finished }) => {
+        if (!active || !finished) return;
         uiTimeoutRef.current = setTimeout(() => {
           Animated.parallel([
             Animated.timing(heightAnim, { toValue: 6, duration: 300, useNativeDriver: false }),
@@ -88,7 +45,8 @@ export default function AutoSaveManager() {
       Animated.parallel([
         Animated.timing(heightAnim, { toValue: 64, duration: 300, useNativeDriver: false }),
         Animated.timing(textOpacityAnim, { toValue: 1, duration: 300, useNativeDriver: false })
-      ]).start(() => {
+      ]).start(({ finished }) => {
+        if (!active || !finished) return;
         uiTimeoutRef.current = setTimeout(() => {
           Animated.parallel([
             Animated.timing(heightAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
@@ -101,6 +59,10 @@ export default function AutoSaveManager() {
     prevOnlineRef.current = isOnline;
 
     return () => {
+      active = false;
+      heightAnim.stopAnimation();
+      textOpacityAnim.stopAnimation();
+      colorAnim.stopAnimation();
       if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
     };
   }, [isOnline, lang, heightAnim, textOpacityAnim, colorAnim]);

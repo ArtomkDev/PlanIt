@@ -183,7 +183,7 @@ test('does not initialize web Analytics before consent and disables it on withdr
   const previousDocument = global.document;
   const previousLocation = global.location;
   global.document = { cookie: '' };
-  global.location = { hostname: 'planit-hub.web.app' };
+  global.location = { hostname: 'planitflow.com' };
 
   const originalLoad = Module._load;
   const loadMock = function loadMock(request, parent, isMain) {

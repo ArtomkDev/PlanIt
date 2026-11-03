@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { useNavigation } from '@react-navigation/native';
 import { reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
 import { db, auth } from '../../../../../config/firebase';
 import { useScheduleData } from '../../../../../context/ScheduleProvider';
+import { useAppDialog } from '../../../../../context/AppDialogContext';
 import MorphingLoader from '../../../../../components/ui/MorphingLoader';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
@@ -14,6 +16,7 @@ import { requestEmailChange } from '../../../../../auth/accountEmailService';
 
 export default function ChangeEmailScreen() {
   const { global, lang} = useScheduleData();
+  const dialog = useAppDialog();
   const navigation = useNavigation();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
@@ -58,11 +61,10 @@ export default function ChangeEmailScreen() {
 
       const alertMsg = t('settings.account_settings.change_email_screen.alert_msg', lang, { newEmail: newEmail });
 
-      Alert.alert(
-        t('settings.account_settings.change_email_screen.alert_title', lang),
-        alertMsg,
-        [{ text: t('common.ok', lang), onPress: () => navigation.goBack() }]
-      );
+      dialog.alert({
+        title: t('settings.account_settings.change_email_screen.alert_title', lang),
+        message: alertMsg,
+      }).then(() => navigation.goBack());
 
     } catch (error) {
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {

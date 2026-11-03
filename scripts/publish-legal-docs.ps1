@@ -1,7 +1,7 @@
 param(
   [string]$WebsiteRoot = "",
   [string]$Project = "planit-hub",
-  [string]$Target = "legal",
+  [string]$Target = "website",
   [switch]$SkipDeploy
 )
 

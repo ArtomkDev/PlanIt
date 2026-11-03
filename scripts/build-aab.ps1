@@ -1,3 +1,10 @@
+param(
+    [ValidateSet("aab", "apk")]
+    [string]$ArtifactType = "aab",
+    [ValidateSet("production", "test")]
+    [string]$AdsMode = "production"
+)
+
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -30,24 +37,60 @@ try {
         }
     }
 
+    if ($ArtifactType -eq "aab" -and $AdsMode -ne "production") {
+        throw "Play Store app bundles require production ads. Use the test APK command for test ads."
+    }
+
     # Release artifacts must never inherit the local development test-ad switch.
     $env:EXPO_PUBLIC_FORCE_TEST_ADS = "false"
+    if ($AdsMode -eq "test") { $env:EXPO_PUBLIC_FORCE_TEST_ADS = "true" }
     $env:PLANIT_BUILD_PLATFORM = "android"
     $env:CI = "1"
     $env:NODE_ENV = "production"
 
     $packageJson = Get-Content -Raw -Path package.json | ConvertFrom-Json
     $version = $packageJson.version
-    $versionParts = $version.Split('.')
-    if ($versionParts.Count -ne 3) {
-        throw "Expected a semantic app version (major.minor.patch), got '$version'."
+    $versionCode = & node -p "require('./src/config/appVersion.cjs').getAndroidVersionCode(require('./package.json').version)"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Invalid Android app version."
+    }
+    $versionCode = [int]$versionCode
+    $date = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+    $buildsDir = Join-Path $projectRoot "builds"
+    $sourceKey = Join-Path $projectRoot "credentials\my-release-key.keystore"
+    if (!(Test-Path -LiteralPath $sourceKey)) {
+        throw "Release signing keystore is missing."
+    }
+    foreach ($variableName in @("ANDROID_KEYSTORE_ALIAS", "ANDROID_KEYSTORE_PASSWORD", "ANDROID_KEY_PASSWORD")) {
+        if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($variableName))) {
+            throw "Release signing setting '$variableName' is missing."
+        }
+    }
+    if (!$env:JAVA_HOME) { $env:JAVA_HOME = "D:\Android\Android Studio\jbr" }
+    if (!(Test-Path -LiteralPath (Join-Path $env:JAVA_HOME "bin\java.exe"))) {
+        throw "Set JAVA_HOME to an installed JDK before building."
     }
 
-    $versionCode = ([int]$versionParts[0] * 10000) +
-        ([int]$versionParts[1] * 100) +
-        [int]$versionParts[2]
-    $date = Get-Date -Format "yyyy-MM-dd_HH-mm"
-    $buildsDir = Join-Path $projectRoot "builds"
+    $androidSdkPath = $env:ANDROID_HOME
+    if (!$androidSdkPath) { $androidSdkPath = $env:ANDROID_SDK_ROOT }
+    $localProperties = Join-Path $projectRoot "android\local.properties"
+    if (!$androidSdkPath -and (Test-Path -LiteralPath $localProperties)) {
+        $sdkProperty = Select-String -LiteralPath $localProperties -Pattern '^\s*sdk\.dir\s*=' | Select-Object -First 1
+        if ($sdkProperty) {
+            $androidSdkPath = ($sdkProperty.Line -split '=', 2)[1].Trim().Replace('\\', '\').Replace('\:', ':')
+        }
+    }
+    if (!$androidSdkPath) {
+        foreach ($candidate in @((Join-Path $env:LOCALAPPDATA "Android\Sdk"), "D:\Android\Sdk")) {
+            if (Test-Path -LiteralPath $candidate -PathType Container) { $androidSdkPath = $candidate; break }
+        }
+    }
+    if (!$androidSdkPath -or !(Test-Path -LiteralPath (Join-Path $androidSdkPath "platform-tools\adb.exe"))) {
+        throw "Set ANDROID_HOME to an installed Android SDK before building."
+    }
+    # Prebuild --clean removes local.properties, so retain the SDK in the environment.
+    $env:ANDROID_HOME = (Resolve-Path -LiteralPath $androidSdkPath).Path
+    $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 
     Write-Host "1. Running Expo Prebuild (Generating Native Code & Widgets)..." -ForegroundColor Yellow
     & npx expo prebuild --platform android --clean
@@ -64,7 +107,6 @@ try {
         Copy-Item -Path $sourceAdi -Destination $targetAssets -Force
     }
 
-    $sourceKey = Join-Path $projectRoot "credentials\my-release-key.keystore"
     $targetKeyDir = Join-Path $projectRoot "android\app"
     if (Test-Path -Path $sourceKey) {
         Copy-Item -Path $sourceKey -Destination $targetKeyDir -Force
@@ -85,19 +127,21 @@ try {
             throw "Release configuration error: '$propertyName=true' is missing after Expo prebuild."
         }
     }
+    if ($gradleProperties -notmatch '(?m)^AsyncStorage_db_size_in_MB\s*=\s*64\s*$') {
+        throw "Release configuration error: the local schedule journal requires a 64 MiB AsyncStorage database."
+    }
     if ($gradleProperties -notmatch '(?m)^org\.gradle\.jvmargs=.*-Xmx4096m.*-XX:MaxMetaspaceSize=1024m.*$') {
         throw "Release configuration error: Gradle needs 4 GiB heap and 1 GiB metaspace for R8."
     }
 
-    Write-Host "2. Starting Gradle AAB (App Bundle) Build with R8..." -ForegroundColor Cyan
-    $env:JAVA_HOME = "D:\Android\Android Studio\jbr"
+    Write-Host "2. Starting Gradle $ArtifactType release build with R8..." -ForegroundColor Cyan
     $androidDir = Join-Path $projectRoot "android"
     $keystoreAbsPath = Join-Path $androidDir "app\my-release-key.keystore"
 
     Push-Location $androidDir
     try {
         $gradleArguments = @(
-            "bundleRelease",
+            $(if ($ArtifactType -eq "aab") { "bundleRelease" } else { "assembleRelease" }),
             "-Pandroid.injected.signing.store.file=$keystoreAbsPath",
             "-Pandroid.injected.signing.store.password=$env:ANDROID_KEYSTORE_PASSWORD",
             "-Pandroid.injected.signing.key.alias=$env:ANDROID_KEYSTORE_ALIAS",
@@ -114,17 +158,20 @@ try {
             $gradleExitCode = $LASTEXITCODE
         }
         if ($gradleExitCode -ne 0) {
-            throw "Gradle bundleRelease failed with exit code $gradleExitCode after one controlled retry."
+            throw "Gradle release build failed with exit code $gradleExitCode after one controlled retry."
         }
     } finally {
         Pop-Location
     }
 
     $aabSource = Join-Path $projectRoot "android\app\build\outputs\bundle\release\app-release.aab"
+    if ($ArtifactType -eq "apk") {
+        $aabSource = Join-Path $projectRoot "android\app\build\outputs\apk\release\app-release.apk"
+    }
     $mappingSource = Join-Path $projectRoot "android\app\build\outputs\mapping\release\mapping.txt"
 
     if (!(Test-Path -LiteralPath $aabSource)) {
-        throw "Build failed: release AAB was not generated at '$aabSource'."
+        throw "Build failed: release $ArtifactType was not generated at '$aabSource'."
     }
     if (!(Test-Path -LiteralPath $mappingSource)) {
         throw "Build failed: R8 mapping.txt was not generated at '$mappingSource'."
@@ -140,7 +187,8 @@ try {
     }
 
     $artifactBaseName = "PlanIt_v$version`_$date"
-    $aabDest = Join-Path $buildsDir "$artifactBaseName.aab"
+    if ($AdsMode -eq "test") { $artifactBaseName = "PlanIt-TestAds_v$version`_$date" }
+    $aabDest = Join-Path $buildsDir "$artifactBaseName.$ArtifactType"
     $mappingDest = Join-Path $buildsDir "$artifactBaseName-mapping.txt"
     $releaseManifestDest = Join-Path $buildsDir "$artifactBaseName.release.json"
 
@@ -159,6 +207,8 @@ try {
     $releaseManifest = [ordered]@{
         appVersion = $version
         versionCode = $versionCode
+        artifactType = $ArtifactType
+        adsMode = $AdsMode
         builtAtUtc = (Get-Date).ToUniversalTime().ToString('o')
         r8Enabled = $true
         mappingEmbeddedInBundle = $mappingEmbeddedInBundle
@@ -173,12 +223,14 @@ try {
     }
     $releaseManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $releaseManifestDest -Encoding UTF8
 
-    Write-Host "AAB build finished successfully:" -ForegroundColor Green
+    Write-Host "$ArtifactType build finished successfully:" -ForegroundColor Green
     Write-Host "  Bundle:  $aabDest" -ForegroundColor Green
     Write-Host "  R8 map:  $mappingDest" -ForegroundColor Green
     Write-Host "  Manifest: $releaseManifestDest" -ForegroundColor Green
 
-    if ($mappingEmbeddedInBundle) {
+    if ($ArtifactType -eq "apk") {
+        Write-Host "Keep the matching R8 mapping with this APK for crash deobfuscation." -ForegroundColor Green
+    } elseif ($mappingEmbeddedInBundle) {
         Write-Host "The R8 mapping is embedded in the AAB; Play should associate it automatically." -ForegroundColor Green
     } else {
         Write-Host "Upload the matching *-mapping.txt as the ReTrace mapping file for this AAB in Play Console." -ForegroundColor Yellow

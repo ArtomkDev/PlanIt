@@ -730,6 +730,11 @@ const revokeWebAttachmentObjectUrlsForCacheKey = (cacheKey) => {
   });
 };
 
+export const releaseAttachmentObjectUrls = () => {
+  webAttachmentObjectUrls.forEach(revokeWebAttachmentObjectUrl);
+  webAttachmentObjectUrls.clear();
+};
+
 const getWebAttachmentCachedObjectUrl = (entry) => {
   if (
     !entry?.blob
@@ -784,6 +789,7 @@ const writeWebAttachmentCacheRecord = async (attachment, blob) => {
     return null;
   });
 
+  revokeWebAttachmentObjectUrlsForCacheKey(cacheKey);
   return entry;
 };
 
@@ -810,6 +816,7 @@ const getWebAttachmentSourceBlob = async (attachment, sourceUri) => {
   if (!uri || typeof fetch !== "function") return null;
 
   const response = await fetch(uri);
+  if (!response.ok) throw makeAttachmentError("download_failed", { name: attachment?.name });
   return response.blob();
 };
 
@@ -835,8 +842,8 @@ const ensureDirectory = async (directory) => {
 const readAttachmentCacheManifest = async () => {
   if (!canUseNativeAttachmentCache()) return {};
 
+  const raw = await AsyncStorage.getItem(ATTACHMENT_CACHE_MANIFEST_KEY);
   try {
-    const raw = await AsyncStorage.getItem(ATTACHMENT_CACHE_MANIFEST_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
@@ -876,8 +883,36 @@ const writeAttachmentCacheEntry = async (attachment, localUri) => {
     cachedAt: Date.now(),
   };
 
-  await updateAttachmentCacheManifest((manifest) => ({ ...manifest, [cacheKey]: entry }));
+  let previousUri;
+  await updateAttachmentCacheManifest((manifest) => {
+    previousUri = manifest[cacheKey]?.uri;
+    return { ...manifest, [cacheKey]: entry };
+  });
+  if (previousUri && previousUri !== localUri && previousUri.startsWith(getAttachmentCacheDirectory(attachment))) {
+    await FileSystem.deleteAsync(previousUri, { idempotent: true }).catch(() => {});
+  }
   return entry;
+};
+
+const writeNativeAttachmentCache = async (attachment, writeFile) => {
+  const directory = getAttachmentCacheDirectory(attachment);
+  await ensureDirectory(directory);
+  // Publish a new file through the durable manifest only after it is complete.
+  // Replacing the old path first can destroy the offline copy on a failed read.
+  const revision = getAttachmentRevision(attachment) || "local";
+  const uri = `${directory}${revision}-${generateId()}-${sanitizeFileName(attachment?.name || "attachment")}`;
+  try {
+    await writeFile(uri);
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists || !info.size || info.size > MAX_ATTACHMENT_SIZE_BYTES || (Number(attachment.size) > 0 && info.size !== Number(attachment.size))) {
+      throw makeAttachmentError("file_read_failed", { name: attachment?.name });
+    }
+    await writeAttachmentCacheEntry(attachment, uri);
+    return uri;
+  } catch (error) {
+    await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+    throw error;
+  }
 };
 
 const getFreshAttachmentDownloadURL = async (attachment) => {
@@ -914,7 +949,7 @@ const canUseCachedAttachment = (attachment, cacheState) => (
 
 export const getAttachmentCacheState = async (attachment) => {
   const localSourceUri = attachment?.localUri || attachment?.uri || null;
-  if (localSourceUri && !attachment?.storagePath) {
+  if (localSourceUri && attachment?.storageMode !== "local" && !attachment?.storagePath) {
     return { status: "source", uri: localSourceUri, stale: false };
   }
 
@@ -971,6 +1006,21 @@ export const getAttachmentCacheState = async (attachment) => {
     } catch (error) {}
   }
 
+  // A lost manifest must not make complete local-only files unrecoverable.
+  const directory = getAttachmentCacheDirectory(attachment);
+  try {
+    const prefix = `${getAttachmentRevision(attachment) || "local"}-`;
+    const files = await FileSystem.readDirectoryAsync(directory);
+    for (const file of files.filter((name) => name.startsWith(prefix))) {
+      const uri = `${directory}${file}`;
+      const info = await FileSystem.getInfoAsync(uri);
+      if (!info.exists || !info.size || info.size > MAX_ATTACHMENT_SIZE_BYTES) continue;
+      if (Number(attachment.size) > 0 && info.size !== Number(attachment.size)) continue;
+      await writeAttachmentCacheEntry(attachment, uri);
+      return { status: "local", uri, stale: false };
+    }
+  } catch (error) {}
+
   return {
     status: attachment?.downloadURL || attachment?.url ? "remote" : "missing",
     uri: attachment?.downloadURL || attachment?.url || localSourceUri || null,
@@ -1002,20 +1052,14 @@ export const cacheAttachmentFromLocalUri = async (attachment, sourceUri, { requi
     return attachment;
   }
 
-  const cacheUri = getAttachmentCacheFileUri(attachment);
   const cacheDirectory = getAttachmentCacheDirectory(attachment);
-  if (!cacheUri || !cacheDirectory) return attachment;
+  if (!cacheDirectory) return attachment;
 
   try {
     await ensureDirectory(ATTACHMENT_CACHE_DIR);
-    await ensureDirectory(cacheDirectory);
-
-    if (sourceUri !== cacheUri) {
-      await FileSystem.deleteAsync(cacheUri, { idempotent: true });
-      await FileSystem.copyAsync({ from: sourceUri, to: cacheUri });
-    }
-
-    await writeAttachmentCacheEntry(attachment, cacheUri);
+    const cacheUri = await writeNativeAttachmentCache(attachment, (uri) => (
+      FileSystem.copyAsync({ from: sourceUri, to: uri })
+    ));
     return {
       ...attachment,
       localUri: cacheUri,
@@ -1030,7 +1074,7 @@ export const cacheAttachmentFromLocalUri = async (attachment, sourceUri, { requi
 
 export const ensureLocalAttachment = async (attachment, { forceDownload = false } = {}) => {
   const localSourceUri = attachment?.localUri || attachment?.uri || null;
-  if (localSourceUri && !attachment?.storagePath && !forceDownload) {
+  if (localSourceUri && attachment?.storageMode !== "local" && !attachment?.storagePath && !forceDownload) {
     return {
       ...attachment,
       localUri: localSourceUri,
@@ -1117,17 +1161,20 @@ export const ensureLocalAttachment = async (attachment, { forceDownload = false 
 
   try {
     await ensureDirectory(ATTACHMENT_CACHE_DIR);
-    await ensureDirectory(cacheDirectory);
-    const result = await FileSystem.downloadAsync(downloadURL, cacheUri);
+    const downloadedUri = await writeNativeAttachmentCache(attachment, async (uri) => {
+      const result = await FileSystem.downloadAsync(downloadURL, uri);
+      if (result.status < 200 || result.status >= 300) {
+        throw makeAttachmentError("download_failed", { name: attachment?.name });
+      }
+    });
     const cachedAttachment = {
       ...attachment,
       downloadURL,
-      localUri: result.uri || cacheUri,
-      openUri: result.uri || cacheUri,
+      localUri: downloadedUri,
+      openUri: downloadedUri,
       cacheState: "local",
       cacheRevision: getAttachmentRevision(attachment),
     };
-    await writeAttachmentCacheEntry(cachedAttachment, cachedAttachment.localUri);
     return cachedAttachment;
   } catch (error) {
     if (cacheState.uri && (cacheState.status === "local" || cacheState.status === "stale")) {
@@ -1432,7 +1479,7 @@ export const normalizeAttachmentDraftList = (attachments) => (
 );
 
 const getStoragePath = (userId, attachment) => (
-  `users/${userId}/attachments/${attachment.id}/${sanitizeFileName(attachment.name)}`
+  `users/${userId}/attachments/${attachment.id}/${generateId()}/${sanitizeFileName(attachment.name)}`
 );
 
 const getAttachmentUploadUserId = async (requestedUserId) => {
@@ -1943,8 +1990,15 @@ const uploadBodyWithProgress = (storageRef, uploadBody, attachment, metadata, on
 
 const getBlobFromUri = (uri, attachment) => new Promise((resolve, reject) => {
   const xhr = new XMLHttpRequest();
-  xhr.onload = () => resolve(xhr.response);
+  xhr.onload = () => {
+    if (xhr.status && (xhr.status < 200 || xhr.status >= 300)) {
+      reject(makeAttachmentError("file_read_failed", { name: attachment.name }));
+    } else resolve(xhr.response);
+  };
   xhr.onerror = () => reject(makeAttachmentError("file_read_failed", { name: attachment.name }));
+  xhr.ontimeout = xhr.onerror;
+  xhr.onabort = xhr.onerror;
+  xhr.timeout = 30000;
   xhr.responseType = "blob";
   xhr.open("GET", uri, true);
   xhr.send(null);
@@ -1954,6 +2008,7 @@ const uploadWebAttachment = async (storageRef, attachment, metadata, onProgress)
   let uploadBody = attachment.file;
   if (!uploadBody && attachment.localUri) {
     const response = await fetch(attachment.localUri);
+    if (!response.ok) throw makeAttachmentError("file_read_failed", { name: attachment.name });
     uploadBody = await response.blob();
   }
 
@@ -1968,13 +2023,16 @@ const uploadNativeAttachment = async (storageRef, attachment, metadata, onProgre
   let blob = null;
   try {
     blob = await getBlobFromUri(uri, attachment);
-    await uploadBodyWithProgress(storageRef, blob, attachment, metadata, onProgress);
   } catch (error) {
     const base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
     });
     await uploadString(storageRef, base64, "base64", metadata);
     onProgress?.(1);
+    return;
+  }
+  try {
+    await uploadBodyWithProgress(storageRef, blob, attachment, metadata, onProgress);
   } finally {
     blob?.close?.();
   }
@@ -2163,9 +2221,8 @@ export const deleteStoredAttachment = async (attachment) => {
     await deleteObject(ref(storage, attachment.storagePath));
   } catch (error) {
     if (error?.code !== "storage/object-not-found") throw error;
-  } finally {
-    await deleteLocalAttachmentCache(attachment);
   }
+  await deleteLocalAttachmentCache(attachment);
 };
 
 export const deleteCloudAttachmentObject = async (attachment) => {

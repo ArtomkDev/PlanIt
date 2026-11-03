@@ -6,8 +6,6 @@ import {
   Pressable,
   Animated,
   Easing,
-  Platform,
-  Alert
 } from "react-native";
 import {
   Check,
@@ -26,6 +24,7 @@ import { useNavigation } from "@react-navigation/native";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
+import { useAppDialog } from "../../../context/AppDialogContext";
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import MorphingLoader from "../../../components/ui/MorphingLoader";
 import ScheduleIcon from "../../../components/ScheduleIcon";
@@ -33,6 +32,7 @@ import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { generateId } from "../../../utils/idGenerator";
 import { createScheduleCopy } from "../../../utils/scheduleCopy";
+import { assignScheduleId } from "../../../utils/scheduleIdentity";
 import { copyScheduleAttachments, upsertAttachmentLibraryFiles } from "../../../services/attachmentService";
 import { getLocalSchedule, saveLocalSchedule } from "../../../utils/storage";
 import { triggerHaptic } from "../../../utils/haptics";
@@ -67,6 +67,7 @@ const ScheduleSwitcher = () => {
     addSchedule,
     removeSchedule,
   } = useScheduleActions();
+  const dialog = useAppDialog();
 
   const navigation = useNavigation();
   const [mode, accent] = global?.theme || ["light", "blue"];
@@ -143,48 +144,33 @@ const ScheduleSwitcher = () => {
     navigation.navigate("ScheduleEditorScreen", { isNew: true });
   };
 
-  const showScheduleAlert = (title, message, buttons) => {
-    if (Platform.OS === 'web') {
-      const confirmation = buttons?.find(button => button.style === 'destructive');
-      if (confirmation) {
-        if (window.confirm(message)) confirmation.onPress();
-      } else {
-        window.alert(message);
-      }
-      return;
-    }
-    Alert.alert(title, message, buttons);
-  };
-
   const handleShare = (scheduleData) => {
     triggerHaptic("open");
     setScheduleToShare(scheduleData);
     setShareModalVisible(true);
   };
 
-  const handleDelete = (scheduleId, scheduleName) => {
+  const handleDelete = async (scheduleId, scheduleName) => {
     if (schedules.filter(schedule => !schedule.isDeleted).length <= 1) {
       triggerHaptic("warning");
-      showScheduleAlert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
+      dialog.alert({ title: t('common.warning', lang), message: t('settings.schedule_switcher.last_schedule_error', lang) });
       return;
     }
 
     triggerHaptic("warning");
     const message = t('settings.schedule_switcher.delete_confirm_msg', lang, { name: scheduleName || t('common.untitled', lang) });
 
-    showScheduleAlert(
-      t('settings.schedule_switcher.delete_title', lang),
+    const confirmed = await dialog.confirm({
+      title: t('settings.schedule_switcher.delete_title', lang),
       message,
-      [
-        { text: t('common.cancel', lang), style: "cancel" },
-        { text: t('common.delete', lang), style: "destructive", onPress: () => {
-          enqueueOperation(scheduleId, async () => {
-            await removeSchedule(scheduleId);
-            triggerHaptic("success");
-          });
-        } }
-      ]
-    );
+      confirmLabel: t('common.delete', lang),
+      destructive: true,
+    });
+    if (!confirmed) return;
+    enqueueOperation(scheduleId, async () => {
+      await removeSchedule(scheduleId);
+      triggerHaptic("success");
+    });
   };
 
   const startProcessing = (id) => setProcessingIds(prev => new Set(prev).add(id));
@@ -232,17 +218,17 @@ const ScheduleSwitcher = () => {
       try {
         const guestData = await getLocalSchedule(null);
         const transferred = await copyScheduleAttachments(guestSchedule, guestData?.global?.fileLibrary);
-        const scheduleCopy = markScheduleAsAccountOwned(
+        let scheduleCopy = markScheduleAsAccountOwned(
           transferred.schedule,
         );
 
         const oldId = scheduleCopy.id;
-        scheduleCopy.id = generateId();
+        scheduleCopy = assignScheduleId(scheduleCopy, generateId());
         scheduleCopy.lastModified = Date.now();
         scheduleCopy.lastSynced = 0;
 
         setGlobalDraft((prev) => ({ ...prev, fileLibrary: upsertAttachmentLibraryFiles(prev.fileLibrary, transferred.files) }));
-        await addSchedule(scheduleCopy);
+        await addSchedule(scheduleCopy, { persistLocally: true });
 
         if (guestData) {
 
@@ -278,18 +264,18 @@ const ScheduleSwitcher = () => {
       try {
         if (schedulesRef.current.filter(schedule => !schedule.isDeleted).length <= 1) {
           triggerHaptic("warning");
-          showScheduleAlert(t('common.warning', lang), t('settings.schedule_switcher.last_schedule_error', lang));
+          dialog.alert({ title: t('common.warning', lang), message: t('settings.schedule_switcher.last_schedule_error', lang) });
           return;
         }
 
         const transferred = await copyScheduleAttachments(accountSchedule, global?.fileLibrary);
-        const scheduleCopy = markScheduleAsDeviceLocal(
+        let scheduleCopy = markScheduleAsDeviceLocal(
           transferred.schedule,
           { offerCloudMigration: false },
         );
 
         const oldId = scheduleCopy.id;
-        scheduleCopy.id = generateId();
+        scheduleCopy = assignScheduleId(scheduleCopy, generateId());
         scheduleCopy.lastModified = Date.now();
         scheduleCopy.lastSynced = 0;
 
@@ -316,45 +302,39 @@ const ScheduleSwitcher = () => {
     });
   };
 
-  const handleDeleteGuest = (scheduleId, scheduleName) => {
+  const handleDeleteGuest = async (scheduleId, scheduleName) => {
     triggerHaptic("warning");
     const untitledName = t('common.untitled', lang);
     const name = scheduleName || untitledName;
     const message = t('settings.schedule_switcher.delete_guest_msg', lang, { name: name });
 
-    showScheduleAlert(
-      t('common.delete', lang),
+    const confirmed = await dialog.confirm({
+      title: t('common.delete', lang),
       message,
-      [
-        { text: t('common.cancel', lang), style: "cancel" },
-        {
-          text: t('common.delete', lang),
-          style: "destructive",
-          onPress: () => {
-            enqueueOperation(scheduleId, async () => {
-              const guestData = await getLocalSchedule(null);
-              if (guestData) {
-                guestData.schedules = guestData.schedules.map(s => {
-                  if (s.id === scheduleId) {
-                    const deletedAt = Date.now();
-                    return {
-                      ...s,
-                      isDeleted: true,
-                      deletedAt,
-                      lastModified: deletedAt,
-                    };
-                  }
-                  return s;
-                });
-                await saveLocalSchedule(guestData, null);
-                setGuestSchedulesList(guestData.schedules.filter(s => !s.isDeleted));
-                triggerHaptic("success");
-              }
-            });
+      confirmLabel: t('common.delete', lang),
+      destructive: true,
+    });
+    if (!confirmed) return;
+    enqueueOperation(scheduleId, async () => {
+      const guestData = await getLocalSchedule(null);
+      if (guestData) {
+        guestData.schedules = guestData.schedules.map(s => {
+          if (s.id === scheduleId) {
+            const deletedAt = Date.now();
+            return {
+              ...s,
+              isDeleted: true,
+              deletedAt,
+              lastModified: deletedAt,
+            };
           }
-        }
-      ]
-    );
+          return s;
+        });
+        await saveLocalSchedule(guestData, null);
+        setGuestSchedulesList(guestData.schedules.filter(s => !s.isDeleted));
+        triggerHaptic("success");
+      }
+    });
   };
 
   const displaySchedules = (guest ? schedules : (activeTab === 'account' ? schedules : guestSchedulesList))

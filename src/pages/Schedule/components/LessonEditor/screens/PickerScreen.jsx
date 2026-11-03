@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { Plus, PencilSimple, Check, MagnifyingGlass, X, MinusCircle, ArrowsCounterClockwise } from 'phosphor-react-native';
 import { SheetFlatList, SheetScrollView } from '../../../../../components/ui/BottomSheet';
 import AppIconPickerGrid from '../../../../../components/ui/AppIconPickerGrid';

@@ -9,11 +9,11 @@ import {
   Keyboard,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
+import TextInput from './AppTextInput';
 import { Check, Palette, X } from "phosphor-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import tinycolor from "tinycolor2";

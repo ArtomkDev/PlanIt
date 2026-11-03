@@ -54,11 +54,16 @@ const createPage = (timestamp, position) => ({
   key: getCalendarDayKey(timestamp),
 });
 
+// Day gestures can travel two pages; week gestures need only the same weekday.
+const REQUIRED_PAGE_OFFSETS = [-2, -1, 0, 1, 2, -7, 7];
+
+export const isRequiredDayPosition = (window, position) => [window.center, window.target].some((anchor) => (
+  anchor != null && REQUIRED_PAGE_OFFSETS.includes(position - anchor)
+));
+
 export const createDayWindow = (date, center = 0, revision = 0, previousPages = []) => {
   const timestamp = normalizeCalendarDate(date).getTime();
-  // Keep day swipes and their adjacent weeks mounted before a gesture starts.
-  const offsets = [-2, -1, 0, 1, 2, -9, -8, -7, -6, -5, 5, 6, 7, 8, 9];
-  const pages = offsets.map((offset) => {
+  const pages = REQUIRED_PAGE_OFFSETS.map((offset) => {
     const pageTimestamp = addCalendarDays(timestamp, offset).getTime();
     const position = center + offset;
     return previousPages.find((page) => (
@@ -67,7 +72,7 @@ export const createDayWindow = (date, center = 0, revision = 0, previousPages = 
   });
   const required = new Set(pages.map((page) => page.timestamp));
   for (const page of previousPages) {
-    if (pages.length >= 45) break;
+    if (pages.length >= 12) break;
     if (required.has(page.timestamp)) continue;
     const position = center + getCalendarDayDistance(timestamp, page.timestamp);
     pages.push(page.position === position ? page : { ...page, position });

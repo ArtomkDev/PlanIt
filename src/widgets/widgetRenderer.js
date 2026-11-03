@@ -1,22 +1,21 @@
-import React from 'react';
-import {
-  getWidgetInfo,
-  requestWidgetUpdateById,
-} from 'react-native-android-widget';
-import { ScheduleWidget } from './ScheduleWidget';
+import { NativeModules } from 'react-native';
+import { getWidgetInfo } from 'react-native-android-widget';
 import {
   cancelWidgetRefresh,
-  getScheduleWidgetModel,
+  getScheduleWidgetSnapshot,
   readWidgetState,
   scheduleNextWidgetRefresh,
   SCHEDULE_WIDGET_NAME,
 } from './widgetCore';
 
-const createWidgetElement = (model) => <ScheduleWidget model={model} />;
+const renderModel = (widgetInfo, model) => NativeModules.ScheduleWidget.render(
+  widgetInfo.widgetId,
+  JSON.stringify(model),
+);
 
-export async function renderScheduleWidgetTask(widgetInfo, renderWidget) {
-  const model = await getScheduleWidgetModel(widgetInfo, new Date());
-  renderWidget(createWidgetElement(model));
+export async function renderScheduleWidgetTask(widgetInfo) {
+  const model = await getScheduleWidgetSnapshot(new Date());
+  await renderModel(widgetInfo, model);
   scheduleNextWidgetRefresh(model.nextRefreshAt);
   return model;
 }
@@ -31,21 +30,8 @@ export async function refreshScheduleWidgets() {
   // One storage read and one clock snapshot keep every instance consistent.
   const state = await readWidgetState();
   const now = new Date();
-  const models = await Promise.all(widgetInfos.map(
-    (widgetInfo) => getScheduleWidgetModel(widgetInfo, now, state),
-  ));
+  const model = await getScheduleWidgetSnapshot(now, state);
+  await Promise.all(widgetInfos.map((widgetInfo) => renderModel(widgetInfo, model)));
 
-  await Promise.all(widgetInfos.map((widgetInfo, index) => requestWidgetUpdateById({
-    widgetName: SCHEDULE_WIDGET_NAME,
-    widgetId: widgetInfo.widgetId,
-    renderWidget: () => createWidgetElement(models[index]),
-  })));
-
-  const nextRefreshAt = models.reduce((earliest, model) => {
-    if (!Number.isFinite(model.nextRefreshAt)) return earliest;
-    return earliest === null
-      ? model.nextRefreshAt
-      : Math.min(earliest, model.nextRefreshAt);
-  }, null);
-  scheduleNextWidgetRefresh(nextRefreshAt);
+  scheduleNextWidgetRefresh(model.nextRefreshAt);
 }

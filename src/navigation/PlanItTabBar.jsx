@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { startTransition, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useScheduleData } from '../context/ScheduleProvider';
 import themes from '../config/themes';
 import AppBlur from '../components/ui/AppBlur';
@@ -7,17 +7,9 @@ import { NAVIGATION_METRICS, resolveNavigationStyle } from './navigationMetrics'
 import { triggerHaptic } from '../utils/haptics';
 import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 
-const ACTIVE_SPRING = {
-  damping: 14,
-  stiffness: 150,
-  mass: 0.8,
-  useNativeDriver: true,
-};
-
-const BOUNCE_SPRING = {
-  damping: 12,
-  stiffness: 260,
-  mass: 0.45,
+const ACTIVE_TRANSITION = {
+  duration: 160,
+  easing: Easing.out(Easing.cubic),
   useNativeDriver: true,
 };
 
@@ -150,6 +142,7 @@ function TabItem({
 }) {
   const progress = useRef(new Animated.Value(focused ? 1 : 0)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
+  const previousFocused = useRef(focused);
   const { options } = descriptor;
 
   useEffect(() => () => {
@@ -157,20 +150,21 @@ function TabItem({
   }, [pressScale]);
 
   useEffect(() => {
-    if (!animationsEnabled) {
-      progress.stopAnimation();
+    const focusChanged = previousFocused.current !== focused;
+    previousFocused.current = focused;
+    progress.stopAnimation();
+    if (!animationsEnabled || !focusChanged) {
       progress.setValue(focused ? 1 : 0);
       return;
     }
 
-    Animated.spring(progress, {
-      ...ACTIVE_SPRING,
+    const animation = Animated.timing(progress, {
+      ...ACTIVE_TRANSITION,
       toValue: focused ? 1 : 0,
-    }).start();
+    });
+    animation.start();
 
-    return () => {
-      progress.stopAnimation();
-    };
+    return () => animation.stop();
   }, [animationsEnabled, focused, progress]);
 
   const label = typeof options.tabBarLabel === 'string'
@@ -181,24 +175,21 @@ function TabItem({
   const iconColor = focused ? themeColors.accentColor : themeColors.textColor2;
   const icon = options.tabBarIcon?.({ color: iconColor, size: metrics.iconSize, focused }) ?? null;
 
-  const runIconBounce = () => {
+  const animatePress = (pressed) => {
+    pressScale.stopAnimation();
     if (!animationsEnabled) {
+      pressScale.setValue(1);
       return;
     }
 
-    pressScale.stopAnimation();
-    pressScale.setValue(1);
-    Animated.sequence([
-      Animated.spring(pressScale, { ...BOUNCE_SPRING, toValue: 0.9 }),
-      Animated.spring(pressScale, { ...BOUNCE_SPRING, toValue: 1.1 }),
-      Animated.spring(pressScale, { ...BOUNCE_SPRING, toValue: 1 }),
-    ]).start();
+    Animated.timing(pressScale, {
+      toValue: pressed ? 0.96 : 1,
+      duration: pressed ? 80 : 120,
+      useNativeDriver: true,
+    }).start();
   };
 
   const onPress = () => {
-    triggerHaptic(focused ? "selection" : "tab");
-    runIconBounce();
-
     const event = navigation.emit({
       type: 'tabPress',
       target: route.key,
@@ -208,6 +199,7 @@ function TabItem({
     if (!focused && !event.defaultPrevented) {
       navigation.navigate(route.name, route.params);
     }
+    triggerHaptic(focused ? "selection" : "tab");
   };
 
   const onLongPress = () => {
@@ -235,6 +227,8 @@ function TabItem({
       accessibilityState={focused ? { selected: true } : {}}
       accessibilityLabel={options.tabBarAccessibilityLabel || label}
       hitSlop={6}
+      onPressIn={() => animatePress(true)}
+      onPressOut={() => animatePress(false)}
       onPress={onPress}
       onLongPress={onLongPress}
       style={styles.item}
@@ -287,6 +281,36 @@ function TabItem({
 }
 
 export default function PlanItTabBar({ state, descriptors, navigation, insets, onLayout }) {
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const initialState = navigation.getState();
+    const queue = initialState.routes.filter((_, index) => index !== initialState.index).map(route => route.name);
+    let cancelled = false;
+    let idleId;
+    let timeoutId;
+    const preloadNext = () => {
+      if (cancelled) return;
+      const nextName = queue.shift();
+      if (!nextName) return;
+      const currentState = navigation.getState();
+      const route = currentState.routes.find(item => item.name === nextName);
+      if (route && route.key !== currentState.routes[currentState.index].key
+        && !currentState.preloadedRouteKeys?.includes(route.key)) {
+        startTransition(() => navigation.preload(route.name, route.params));
+      }
+      if (queue.length) timeoutId = setTimeout(scheduleNext, 200);
+    };
+    const scheduleNext = () => {
+      if (!cancelled) idleId = requestIdleCallback(preloadNext, { timeout: 2000 });
+    };
+    timeoutId = setTimeout(scheduleNext, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      if (idleId !== undefined) cancelIdleCallback(idleId);
+    };
+  }, [navigation]);
+
   const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
   useEffect(() => {
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));

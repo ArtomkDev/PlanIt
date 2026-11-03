@@ -1,339 +1,176 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native";
-import { PencilSimple, Check } from "phosphor-react-native";
-import themes from "../../../../config/themes";
-import { useScheduleActions, useScheduleData } from "../../../../context/ScheduleProvider";
-import SettingsScreenLayout from "../../../../layouts/SettingsScreenLayout";
-import AdvancedColorPicker from "../../../../components/ui/AdvancedColorPicker";
-import AppSwitch from "../../../../components/ui/AppSwitch";
-import { t } from "../../../../utils/i18n";
-import { triggerHaptic } from "../../../../utils/haptics";
+import React, { useState } from 'react';
+import { StyleSheet, Text, Pressable, View, Platform } from 'react-native';
+import { PencilSimple, Check } from 'phosphor-react-native';
+import themes from '../../../../config/themes';
+import { useScheduleActions, useScheduleData } from '../../../../context/ScheduleProvider';
+import useAppTheme from '../../../../hooks/useAppTheme';
+import SettingsScreenLayout from '../../../../layouts/SettingsScreenLayout';
+import AdvancedColorPicker from '../../../../components/ui/AdvancedColorPicker';
+import AppSwitch from '../../../../components/ui/AppSwitch';
+import SettingsGroup from '../../../../components/ui/SettingsKit/SettingsGroup';
+import SettingsRow from '../../../../components/ui/SettingsKit/SettingsRow';
+import { t } from '../../../../utils/i18n';
+import { triggerHaptic } from '../../../../utils/haptics';
 
-const ThemeSettings = () => {
+const MODE_KEYS = ['light', 'dark', 'oled'];
+const COLOR_KEYS = Object.keys(themes.accentColors);
+
+export default function ThemeSettings() {
   const { global, lang } = useScheduleData();
   const { setGlobalDraft } = useScheduleActions();
-  
-  const [currentMode, currentAccent] = global?.theme || ["light", "blue"];
-  const currentBlur = global?.blur ?? true;
+  const { mode, colors } = useAppTheme();
+  const accent = global?.theme?.[1] || 'blue';
+  const blurEnabled = global?.blur ?? true;
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const accentValue = colors.accentColor;
+  const isCustomColor = !COLOR_KEYS.includes(accent);
+  const colorLabel = isCustomColor
+    ? t('settings.theme_screen.custom_color', lang)
+    : t(`settings.theme_screen.colors.${accent}`, lang);
 
-  const [selectedMode, setSelectedMode] = useState(currentMode);
-  const [selectedColor, setSelectedColor] = useState(currentAccent);
-  const [isBlurEnabled, setIsBlurEnabled] = useState(currentBlur);
-  const [isPickerVisible, setPickerVisible] = useState(false);
-
-  const themeColors = useMemo(
-    () => themes.getColors(selectedMode, selectedColor), 
-    [selectedMode, selectedColor]
-  );
-
-  useEffect(() => {
-    if (
-      currentMode !== selectedMode ||
-      currentAccent !== selectedColor ||
-      currentBlur !== isBlurEnabled
-    ) {
-      setGlobalDraft((prev) => ({
-        ...prev,
-        theme: [selectedMode, selectedColor],
-        blur: isBlurEnabled,
-      }));
-    }
-  }, [selectedMode, selectedColor, isBlurEnabled]);
-
-  const predefinedKeys = Object.keys(themes.accentColors);
-  const isCustomColor = !predefinedKeys.includes(selectedColor);
-
-  const handleCustomColorSave = (hex) => {
-    setSelectedColor(hex);
-    setPickerVisible(false);
+  const selectMode = (nextMode) => {
+    triggerHaptic(mode === nextMode ? 'selection' : 'success');
+    if (mode === nextMode) return;
+    setGlobalDraft(prev => ({ ...prev, theme: [nextMode, prev.theme?.[1] || accent] }));
   };
-
-  const handleSelectMode = (modeKey) => {
-    triggerHaptic(selectedMode === modeKey ? "selection" : "success");
-    setSelectedMode(modeKey);
+  const selectColor = (nextColor) => {
+    triggerHaptic(accent === nextColor ? 'selection' : 'success');
+    if (accent === nextColor) return;
+    setGlobalDraft(prev => ({ ...prev, theme: [prev.theme?.[0] || mode, nextColor] }));
   };
-
-  const handleSelectColor = (colorKey) => {
-    triggerHaptic(selectedColor === colorKey ? "selection" : "success");
-    setSelectedColor(colorKey);
-  };
-
-  const handleToggleBlur = (value) => {
-    triggerHaptic(value ? "toggleOn" : "toggleOff");
-    setIsBlurEnabled(value);
-  };
-
-  const handleOpenCustomPicker = () => {
-    triggerHaptic("open");
-    setPickerVisible(true);
-  };
-
-  const renderColorOption = (colorKey) => {
-    const colorValue = themes.accentColors[colorKey];
-    const isSelected = selectedColor === colorKey;
-    
-    return (
-      <TouchableOpacity
-        key={colorKey}
-        accessibilityRole="radio"
-        accessibilityLabel={colorKey}
-        accessibilityState={{ selected: isSelected, checked: isSelected }}
-        style={[
-          styles.colorTile,
-          { backgroundColor: colorValue },
-          isSelected && styles.colorTileSelected,
-        ]}
-        onPress={() => handleSelectColor(colorKey)}
-        activeOpacity={0.7}
-      >
-        {isSelected && (
-          <Check size={20} color={themes.getColors(selectedMode, colorKey).textOnAccent} weight="bold" style={styles.checkmarkIcon} />
-        )}
-      </TouchableOpacity>
-    );
+  const toggleBlur = (enabled) => {
+    triggerHaptic(enabled ? 'toggleOn' : 'toggleOff');
+    setGlobalDraft(prev => ({ ...prev, blur: enabled }));
   };
 
   return (
     <SettingsScreenLayout>
       <View style={styles.container}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          {t('settings.theme_screen.mode_title', lang)}
-        </Text>
-        
-        <View style={styles.themeContainer}>
-          {[
-            { key: "light", label: `☀️ ${t('settings.theme_screen.modes.light', lang)}` },
-            { key: "dark", label: `🌙 ${t('settings.theme_screen.modes.dark', lang)}` },
-            { key: "oled", label: `⚫ ${t('settings.theme_screen.modes.oled', lang)}` },
-          ].map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              accessibilityRole="radio"
-              accessibilityLabel={item.label}
-              accessibilityState={{ selected: selectedMode === item.key, checked: selectedMode === item.key }}
-              style={[
-                styles.themeCard,
-                { backgroundColor: themeColors.backgroundColor2 },
-                selectedMode === item.key && {
-                  borderColor: themeColors.accentColor,
-                  borderWidth: 2,
-                  ...Platform.select({
-                    web: { boxShadow: `0px 2px 6px ${themeColors.accentColor}80` },
-                    default: { shadowColor: themeColors.accentColor, elevation: 2 }
-                  })
-                },
-              ]}
-              onPress={() => handleSelectMode(item.key)}
-            >
-              <Text style={[styles.themeCardText, { color: themeColors.textColor }]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.section}>
+          <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.textColor }]}>
+            {t('settings.theme_screen.mode_title', lang)}
+          </Text>
+          <View style={styles.modes}>
+            {MODE_KEYS.map(key => {
+              const selected = mode === key;
+              const sample = themes.getColors(key, accent);
+              return (
+                <Pressable key={key} accessibilityRole="radio"
+                  accessibilityLabel={t(`settings.theme_screen.modes.${key}`, lang)}
+                  accessibilityState={{ checked: selected, selected }} onPress={() => selectMode(key)}
+                  style={({ pressed, focused }) => [styles.modeOption, {
+                    borderColor: selected ? colors.accentColor : colors.borderColor,
+                    opacity: pressed ? 0.7 : 1,
+                  }, Platform.OS === 'web' && focused && [styles.focusOutline, { outlineColor: colors.textColor }]]}>
+                  <View pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden
+                    style={[styles.modeSample, { backgroundColor: sample.backgroundColor, borderColor: sample.borderColor }]}>
+                    <View style={styles.sampleToolbar}>
+                      <View style={[styles.sampleAvatar, { backgroundColor: sample.accentColor }]} />
+                      <View style={[styles.sampleHeading, { backgroundColor: sample.textColor }]} />
+                      <View style={[styles.sampleAction, { backgroundColor: sample.textColor3 }]} />
+                    </View>
+                    <View style={[styles.sampleLesson, { backgroundColor: sample.accentColor }]}>
+                      <View style={[styles.sampleLessonTitle, { backgroundColor: sample.textOnAccent }]} />
+                      <View style={[styles.sampleLessonDetail, { backgroundColor: sample.textOnAccent }]} />
+                    </View>
+                    <View style={[styles.sampleNextLesson, { backgroundColor: sample.backgroundColor2, borderColor: sample.borderColor }]}>
+                      <View style={[styles.sampleNextTitle, { backgroundColor: sample.textColor2 }]} />
+                    </View>
+                  </View>
+                  <View style={styles.modeLabelRow}>
+                    <Text style={[styles.modeLabel, { color: colors.textColor }]}>{t(`settings.theme_screen.modes.${key}`, lang)}</Text>
+                    <View style={[styles.radio, { borderColor: selected ? colors.accentColor : colors.textColor3 }]}>
+                      {selected && <View style={[styles.radioDot, { backgroundColor: colors.accentColor }]} />}
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
-        {Platform.OS !== "android" && (
-          <View style={[styles.switchRow, { backgroundColor: themeColors.backgroundColor2 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.switchLabel, { color: themeColors.textColor }]}>
-                {t('settings.theme_screen.blur_title', lang)}
-              </Text>
-              <Text style={[styles.switchSubLabel, { color: themeColors.textColor2 }]}>
-                {selectedMode === 'oled'
-                  ? t('settings.theme_screen.blur_desc_oled', lang)
-                  : t('settings.theme_screen.blur_desc_normal', lang)}
-              </Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, styles.flexTitle, { color: colors.textColor }]}>
+              {t('settings.theme_screen.accent_title', lang)}
+            </Text>
+            <Text style={[styles.colorName, { color: colors.textColor2 }]}>{colorLabel}</Text>
+          </View>
+          <View style={[styles.paletteSurface, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
+            <View style={styles.palette}>
+              {COLOR_KEYS.map(key => {
+                const selected = accent === key;
+                return (
+                  <Pressable key={key} accessibilityRole="radio"
+                    accessibilityLabel={t(`settings.theme_screen.colors.${key}`, lang)}
+                    accessibilityState={{ checked: selected, selected }} onPress={() => selectColor(key)}
+                    style={({ pressed, focused }) => [styles.colorOption, { opacity: pressed ? 0.6 : 1 },
+                      Platform.OS === 'web' && focused && [styles.focusOutline, { outlineColor: colors.textColor }]]}>
+                    <View style={[styles.swatchRing, { borderColor: selected ? colors.accentColor : 'transparent' }]}>
+                      <View style={[styles.swatch, { backgroundColor: themes.accentColors[key] }]}>
+                        {selected && <Check size={18} color={colors.textOnAccent} weight="bold" />}
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
-            <AppSwitch
-              accessibilityLabel={t('settings.theme_screen.blur_title', lang)}
-              value={isBlurEnabled}
-              onValueChange={handleToggleBlur}
-              themeColors={themeColors}
-            />
-          </View>
-        )}
-
-        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          {t('settings.theme_screen.accent_title', lang)}
-        </Text>
-        
-        <View style={styles.colorsContainer}>
-          {predefinedKeys.map((colorName) => renderColorOption(colorName))}
-          <TouchableOpacity
-            accessibilityRole="radio"
-            accessibilityLabel={t('settings.theme_screen.accent_title', lang)}
-            accessibilityState={{ selected: isCustomColor, checked: isCustomColor }}
-            style={[
-              styles.colorTile,
-              styles.customTile,
-              { backgroundColor: themeColors.backgroundColor2 },
-              isCustomColor && {
-                backgroundColor: selectedColor,
-                borderWidth: 2,
-                borderColor: themeColors.textColor
-              }
-            ]}
-            onPress={handleOpenCustomPicker}
-          >
-            <PencilSimple
-              size={20}
-              color={isCustomColor ? themeColors.textOnAccent : themeColors.textColor}
-              weight="bold"
-            />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: themeColors.textColor }]}>
-          {t('settings.theme_screen.preview.title', lang)}
-        </Text>
-        
-        <View
-          style={[
-            styles.previewCard,
-            { backgroundColor: themeColors.backgroundColor2, borderLeftColor: themeColors.accentColor },
-          ]}
-        >
-          <Text style={[styles.previewHeader, { color: themeColors.accentTextColor }]}>
-            {t('settings.theme_screen.preview.header', lang)}
-          </Text>
-          <Text style={[styles.previewText, { color: themeColors.textColor }]}>
-            {Platform.OS !== "android" && (
-              <Text>
-                {t('settings.theme_screen.preview.blur_label', lang)} {isBlurEnabled ? t('common.enabled', lang) : t('common.disabled', lang)}.{"\n"}
-              </Text>
-            )}
-            {t('settings.theme_screen.preview.mode_label', lang)} {selectedMode.toUpperCase()}.
-          </Text>
-          
-          <View style={[styles.dummyButton, { backgroundColor: themeColors.accentColor }]}>
-             <Text style={{ color: themeColors.textOnAccent, fontWeight: 'bold' }}>{t('settings.theme_screen.preview.button', lang)}</Text>
+            <View style={[styles.divider, { backgroundColor: colors.borderColor }]} />
+            <SettingsRow label={t('settings.theme_screen.custom_color', lang)} value={accentValue.toUpperCase()}
+              valuePosition="below" icon={PencilSimple} themeColors={colors}
+              accessibilityLabel={`${t('settings.theme_screen.custom_color', lang)}: ${accentValue.toUpperCase()}`}
+              accessibilityState={{ expanded: pickerVisible }}
+              rightContent={<View style={[styles.customSwatch, { backgroundColor: accentValue, borderColor: colors.borderColor }]} />}
+              onPress={() => setPickerVisible(true)} />
           </View>
         </View>
+
+        {Platform.OS !== 'android' && <SettingsGroup themeColors={colors}>
+          <SettingsRow label={t('settings.theme_screen.blur_title', lang)}
+            desc={t(`settings.theme_screen.${mode === 'oled' ? 'blur_desc_oled' : 'blur_desc_normal'}`, lang)}
+            themeColors={colors} showCaret={false} skipHaptic accessibilityRole="switch"
+            accessibilityState={{ checked: blurEnabled }} rightContentPointerEvents="none" onPress={() => toggleBlur(!blurEnabled)}
+            rightContent={<AppSwitch accessibilityLabel={t('settings.theme_screen.blur_title', lang)} value={blurEnabled}
+              onValueChange={toggleBlur} themeColors={colors} interactive={false} />} />
+        </SettingsGroup>}
       </View>
 
-      <AdvancedColorPicker
-        visible={isPickerVisible}
-        initialColor={isCustomColor ? selectedColor : themes.accentColors.blue}
+      <AdvancedColorPicker visible={pickerVisible} initialColor={accentValue}
         onClose={() => setPickerVisible(false)}
-        onSave={handleCustomColorSave}
-      />
+        onSave={hex => { selectColor(hex); setPickerVisible(false); }} />
     </SettingsScreenLayout>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { 
-    padding: 20 
-  },
-  sectionTitle: { 
-    fontSize: 18, 
-    fontWeight: "700", 
-    marginBottom: 15, 
-    marginTop: 10 
-  },
-  themeContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    gap: 10,
-  },
-  themeCard: {
-    flex: 1,
-    minHeight: 52,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
-      default: { shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }
-    })
-  },
-  themeCardText: { 
-    fontSize: 14, 
-    fontWeight: "600" 
-  },
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 25,
-  },
-  switchLabel: { 
-    fontSize: 16, 
-    fontWeight: "600" 
-  },
-  switchSubLabel: { 
-    fontSize: 12, 
-    marginTop: 4 
-  },
-  colorsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 12,
-    marginBottom: 30,
-  },
-  colorTile: {
-    width: 70,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 2,
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 3px rgba(0,0,0,0.15)' },
-      default: { shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 2 } }
-    })
-  },
-  colorTileSelected: {
-    borderWidth: 3,
-    borderColor: "#fff",
-    ...Platform.select({
-      web: { boxShadow: '0px 0px 5px rgba(0,0,0,0.4)' },
-      default: { shadowOpacity: 0.4, shadowRadius: 5 }
-    })
-  },
-  customTile: {
-    borderWidth: 1,
-    borderColor: 'rgba(150,150,150,0.3)',
-    borderStyle: 'dashed',
-  },
-  checkmarkIcon: {
-     ...Platform.select({
-      web: { filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.3))' },
-      default: { textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 2 }
-    })
-  },
-  previewCard: {
-    borderRadius: 16,
-    padding: 20,
-    borderLeftWidth: 6,
-    elevation: 1,
-    ...Platform.select({
-      web: { boxShadow: '0px 0px 10px rgba(0,0,0,0.05)' },
-      default: { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 }
-    })
-  },
-  previewHeader: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    marginBottom: 8 
-  },
-  previewText: { 
-    fontSize: 14, 
-    lineHeight: 20, 
-    marginBottom: 15, 
-    opacity: 0.8 
-  },
-  dummyButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  }
+  container: { width: '100%', maxWidth: 600, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 4, gap: 28 },
+  section: { gap: 12 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
+  sectionTitle: { fontSize: 16, lineHeight: 22, fontWeight: '600' },
+  flexTitle: { flex: 1 },
+  colorName: { maxWidth: '48%', flexShrink: 1, fontSize: 13, lineHeight: 19, textAlign: 'right' },
+  modes: { flexDirection: 'row', gap: 10 },
+  modeOption: { flex: 1, minWidth: 0, borderWidth: 2, borderRadius: 16, padding: 6 },
+  focusOutline: { outlineStyle: 'solid', outlineWidth: 2, outlineOffset: 2 },
+  modeSample: { height: 92, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, padding: 8, gap: 7 },
+  sampleToolbar: { height: 10, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  sampleAvatar: { width: 8, height: 8, borderRadius: 3 },
+  sampleHeading: { width: '42%', height: 3, borderRadius: 2, opacity: 0.8 },
+  sampleAction: { width: 5, height: 5, borderRadius: 2, marginLeft: 'auto' },
+  sampleLesson: { height: 30, borderRadius: 5, padding: 6, justifyContent: 'center', gap: 5 },
+  sampleLessonTitle: { width: '80%', height: 4, borderRadius: 2, opacity: 0.9 },
+  sampleLessonDetail: { width: '48%', height: 3, borderRadius: 2, opacity: 0.55 },
+  sampleNextLesson: { height: 18, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 6, justifyContent: 'center' },
+  sampleNextTitle: { width: '64%', height: 3, borderRadius: 2, opacity: 0.7 },
+  modeLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, paddingHorizontal: 2, paddingTop: 10, paddingBottom: 4 },
+  modeLabel: { flexShrink: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  radio: { width: 16, height: 16, borderWidth: 1.5, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  radioDot: { width: 8, height: 8, borderRadius: 4 },
+  paletteSurface: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, paddingTop: 10, overflow: 'hidden' },
+  palette: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, paddingBottom: 8 },
+  colorOption: { flexBasis: '16.666%', minWidth: 44, minHeight: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  swatchRing: { width: 44, height: 44, padding: 3, borderWidth: 2, borderRadius: 22 },
+  swatch: { flex: 1, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 16 },
+  customSwatch: { width: 30, height: 30, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
 });
-
-export default ThemeSettings;

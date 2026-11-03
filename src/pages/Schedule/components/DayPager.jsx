@@ -2,8 +2,8 @@ import React, {
   forwardRef, memo, useCallback, useEffect, useImperativeHandle,
   useLayoutEffect, useMemo, useRef, useState,
 } from "react";
-import { StyleSheet, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Platform, StyleSheet, View } from "react-native";
+import { Gesture, GestureDetector, State } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI,
   useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming,
@@ -12,6 +12,7 @@ import Animated, {
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import {
   createDayWindow, prepareDayWindow, settleDayWindow, normalizeCalendarDate, getCalendarDayNumber,
+  isRequiredDayPosition,
 } from "../dayNavigation";
 
 const IDLE = 0;
@@ -19,43 +20,63 @@ const DRAGGING = 1;
 const PREPARING = 2;
 const SETTLING = 3;
 const COMMITTING = 4;
+const IS_ANDROID = Platform.OS === "android";
+const SWIPE_THRESHOLD = 0.22;
+const VERTICAL_TOLERANCE = 12;
+const DAY_BUFFER_RADIUS = 2;
+// Cached history pages outside the required window keep their state but drop
+// their native views once idle: every mounted view costs layout and ads SDK
+// viewability walks, and gestures can only reach required pages.
+const CONTENT_RELEASE_DELAY = 1500;
 
-const PagerPage = memo(function PagerPage({ page, camera, width, phase, moving, center, active, renderDay, onPageLayout, weekTransition, weekProgress }) {
+const PagerPage = memo(function PagerPage({ page, width, viewportWidth, phase, moving, center, active, retained, renderDay, onPageLayout, weekTransition, weekProgress }) {
   const { position, timestamp } = page;
   const day = getCalendarDayNumber(timestamp);
-  const [idle, setIdle] = useState(false);
   const [decorationsReady, setDecorationsReady] = useState(false);
+  const decorationsTimeout = useRef(null);
+  const prepareDecorations = useCallback((idle) => {
+    clearTimeout(decorationsTimeout.current);
+    if (idle) decorationsTimeout.current = setTimeout(() => setDecorationsReady(true), 140);
+  }, []);
+  const [contentReleased, setContentReleased] = useState(!retained);
   useAnimatedReaction(
-    () => phase.value === IDLE && center.value === position,
-    (next, previous) => { if (next !== previous) runOnJS(setIdle)(next); },
+    () => decorationsReady ? null : phase.value === IDLE && center.value === position,
+    (next, previous) => { if (next !== null && next !== previous) runOnJS(prepareDecorations)(next); },
   );
+  useEffect(() => () => clearTimeout(decorationsTimeout.current), []);
   useEffect(() => {
-    if (!idle || decorationsReady) return;
-    const timeout = setTimeout(() => setDecorationsReady(true), 140);
+    if (retained) {
+      setContentReleased(false);
+      return undefined;
+    }
+    const timeout = setTimeout(() => {
+      setContentReleased(true);
+      setDecorationsReady(false);
+    }, CONTENT_RELEASE_DELAY);
     return () => clearTimeout(timeout);
-  }, [decorationsReady, idle]);
+  }, [retained]);
   const date = useMemo(() => new Date(timestamp), [timestamp]);
   const style = useAnimatedStyle(() => {
     if (weekTransition?.value.active) {
       const offset = (day - weekTransition.value.origin) / 7;
       return {
         opacity: Number.isInteger(offset) ? 1 : 0,
-        transform: [{ translateX: (offset - weekProgress.value) * width.value }],
+        transform: [{ translateX: (offset - weekProgress.value + DAY_BUFFER_RADIUS) * width.value }],
       };
     }
-    return { opacity: 1, transform: [{ translateX: (position - camera.value) * width.value }] };
+    return { opacity: 1, transform: [{ translateX: (position - center.value + DAY_BUFFER_RADIUS) * width.value }] };
   });
 
   return (
     <Animated.View
       onLayout={(event) => onPageLayout(timestamp, event.nativeEvent.layout.width)}
-      style={[StyleSheet.absoluteFill, style]}
+      style={[styles.page, { width: viewportWidth }, style]}
       pointerEvents={active ? "auto" : "none"}
       accessibilityElementsHidden={!active}
       importantForAccessibility={active ? "auto" : "no-hide-descendants"}
       aria-hidden={!active}
     >
-      {renderDay(date, decorationsReady, moving)}
+      {retained || !contentReleased ? renderDay(date, decorationsReady, moving) : null}
     </Animated.View>
   );
 });
@@ -73,7 +94,10 @@ const DayPager = memo(forwardRef(function DayPager({ date, onDateChange, renderD
   const handlePageLayout = useCallback((timestamp, pageWidth) => {
     if (pageWidth <= 0 || measuredPages.current.get(timestamp) === pageWidth) return;
     measuredPages.current.set(timestamp, pageWidth);
-    setLayoutVersion((version) => version + 1);
+    const current = windowRef.current;
+    if (current.target !== null && current.pages.some((page) => page.timestamp === timestamp && page.position === current.target)) {
+      setLayoutVersion((version) => version + 1);
+    }
   }, []);
   const reduceMotion = useReducedMotionPreference();
 
@@ -95,11 +119,16 @@ const DayPager = memo(forwardRef(function DayPager({ date, onDateChange, renderD
   const pendingSteps = useSharedValue(0);
   const queuedGesture = useSharedValue(false);
   const gestureTranslation = useSharedValue(0);
+  const gestureTouchX = useSharedValue(0);
+  const gestureTouchY = useSharedValue(0);
   const layoutEpoch = useSharedValue(0);
   const gestureLayoutEpoch = useSharedValue(0);
   const readyWeekId = useSharedValue(0);
   const committedWeekId = useSharedValue(0);
   const weekOrigin = useSharedValue(0);
+  const trackStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: weekTransition?.value.active ? 0 : (center.value - camera.value) * width.value }],
+  }));
 
   useAnimatedReaction(
     () => {
@@ -184,20 +213,59 @@ const DayPager = memo(forwardRef(function DayPager({ date, onDateChange, renderD
       reduceMotion: ReduceMotion.System,
     }, (finished) => {
       if (!finished || revision.value !== sourceRevision) return;
+      if (position === center.value) {
+        phase.value = IDLE;
+        return;
+      }
       phase.value = COMMITTING;
       runOnJS(commitPage)(position, sourceRevision);
     });
-  }, [camera, commitPage, interruptible, motionReduced, phase, revision, settleTarget]);
+  }, [camera, center, commitPage, interruptible, motionReduced, phase, revision, settleTarget]);
+
+  const startDrag = useCallback((translation) => {
+    "worklet";
+    gestureBase.value = phase.value === SETTLING ? settleTarget.value : center.value;
+    gestureOrigin.value = camera.value;
+    cancelAnimation(camera);
+    gestureRevision.value = revision.value;
+    phase.value = DRAGGING;
+    camera.value = Math.max(center.value - DAY_BUFFER_RADIUS, Math.min(
+      center.value + DAY_BUFFER_RADIUS, gestureOrigin.value - translation / width.value,
+    ));
+  }, [camera, center, gestureBase, gestureOrigin, gestureRevision, phase, revision, settleTarget, width]);
 
   const navigateToDate = useCallback((input, options = {}) => {
     const target = normalizeCalendarDate(input);
     if (!target) return;
+    const id = ++commandIdRef.current;
+    const timestamp = target.getTime();
+    if (options.animated === false) {
+      // External jumps must commit even before the first layout or animation frame.
+      runOnUI(() => {
+        phase.value = COMMITTING;
+        handledCommand.value = id;
+        command.value = { id, timestamp, animated: false };
+        pendingSteps.value = 0;
+        queuedGesture.value = false;
+        gestureLayoutEpoch.value = -1;
+        cancelAnimation(camera);
+        if (weekTransition?.value.active) {
+          cancelAnimation(weekProgress);
+          weekTransition.value = { ...weekTransition.value, active: false };
+        }
+      })();
+      const current = windowRef.current;
+      const position = current.pages.find((page) => page.timestamp === timestamp)?.position ?? current.center;
+      publishWindow(createDayWindow(target, position, ++revisionRef.current, current.pages));
+      onDateChange(target);
+      return;
+    }
     command.value = {
-      id: ++commandIdRef.current,
-      timestamp: target.getTime(),
-      animated: options.animated !== false,
+      id,
+      timestamp,
+      animated: true,
     };
-  }, [command]);
+  }, [camera, command, gestureLayoutEpoch, handledCommand, onDateChange, pendingSteps, phase, publishWindow, queuedGesture, weekProgress, weekTransition]);
 
   useImperativeHandle(ref, () => ({ navigateToDate }), [navigateToDate]);
 
@@ -211,7 +279,7 @@ const DayPager = memo(forwardRef(function DayPager({ date, onDateChange, renderD
       handledCommand.value = next.id;
       pendingSteps.value = 0;
       const prepared = mountedPages.value.find((page) => page.timestamp === next.timestamp);
-      if (prepared && Math.abs(prepared.position - center.value) <= 2) {
+      if (prepared && Math.abs(prepared.position - center.value) <= DAY_BUFFER_RADIUS) {
         if (prepared.position !== center.value) animateTo(prepared.position, next.animated, false);
         return;
       }
@@ -221,11 +289,24 @@ const DayPager = memo(forwardRef(function DayPager({ date, onDateChange, renderD
   );
 
   useAnimatedReaction(
+    () => queuedGesture.value && !weekTransition?.value.active
+      && gestureLayoutEpoch.value === layoutEpoch.value
+      && command.value.id <= handledCommand.value
+      && (phase.value === IDLE || phase.value === SETTLING && interruptible.value),
+    (ready) => {
+      if (!ready) return;
+      queuedGesture.value = false;
+      // A finger held across React's acknowledgement must resume from its full translation.
+      startDrag(gestureTranslation.value);
+    },
+  );
+
+  useAnimatedReaction(
     () => phase.value === IDLE && !queuedGesture.value
       && command.value.id <= handledCommand.value ? pendingSteps.value : 0,
     (steps) => {
       if (!steps) return;
-      const advance = Math.max(-2, Math.min(2, steps));
+      const advance = Math.max(-DAY_BUFFER_RADIUS, Math.min(DAY_BUFFER_RADIUS, steps));
       pendingSteps.value -= advance;
       animateTo(center.value + advance);
     },
@@ -310,71 +391,86 @@ const DayPager = memo(forwardRef(function DayPager({ date, onDateChange, renderD
     .enabled(viewportWidth > 0)
     .averageTouches(true)
     .activeOffsetX([-10, 10])
-    .failOffsetY([-12, 12])
-    .onStart(() => {
+    .failOffsetY([-VERTICAL_TOLERANCE, VERTICAL_TOLERANCE])
+    .onBegin((event) => {
       gestureRevision.value = -1;
       queuedGesture.value = false;
       gestureLayoutEpoch.value = layoutEpoch.value;
       gestureTranslation.value = 0;
+      gestureTouchX.value = event.absoluteX;
+      gestureTouchY.value = event.absoluteY;
+    })
+    .onStart(() => {
       if (weekTransition?.value.active) { queuedGesture.value = true; return; }
       queuedGesture.value = phase.value !== IDLE && phase.value !== SETTLING
         || phase.value === SETTLING && !interruptible.value;
       if (queuedGesture.value) return;
-      gestureBase.value = phase.value === SETTLING ? settleTarget.value : center.value;
-      gestureOrigin.value = camera.value;
-      cancelAnimation(camera);
-      gestureRevision.value = revision.value;
-      phase.value = DRAGGING;
+      startDrag(0);
     })
     .onUpdate((event) => {
       gestureTranslation.value = event.translationX;
       if (phase.value !== DRAGGING || gestureRevision.value !== revision.value) return;
-      camera.value = Math.max(center.value - 2, Math.min(
-        center.value + 2, gestureOrigin.value - event.translationX / width.value,
+      camera.value = Math.max(center.value - DAY_BUFFER_RADIUS, Math.min(
+        center.value + DAY_BUFFER_RADIUS, gestureOrigin.value - event.translationX / width.value,
       ));
     })
-    .onEnd((event) => {
+    .onEnd((event, success) => {
+      if (!success) return;
       if (gestureLayoutEpoch.value !== layoutEpoch.value) return;
+      // Android may activate late or omit update frames while React mounts new days.
+      const projected = (gestureTouchX.value - event.absoluteX) / width.value - event.velocityX / width.value * 0.15;
       if (queuedGesture.value) {
         queuedGesture.value = false;
-        const projected = -gestureTranslation.value / width.value - event.velocityX / width.value * 0.15;
-        if (Math.abs(projected) >= 0.22) pendingSteps.value += Math.sign(projected);
+        if (Math.abs(projected) >= SWIPE_THRESHOLD) pendingSteps.value += Math.sign(projected);
         return;
       }
       if (phase.value !== DRAGGING || gestureRevision.value !== revision.value) return;
-      const projected = (camera.value - gestureOrigin.value) - event.velocityX / width.value * 0.15;
-      const direction = Math.abs(projected) >= 0.22 ? Math.sign(projected) : 0;
+      const direction = Math.abs(projected) >= SWIPE_THRESHOLD ? Math.sign(projected) : 0;
       const requested = gestureBase.value + pendingSteps.value + direction;
-      const available = Math.max(center.value - 2, Math.min(center.value + 2, requested));
+      const available = Math.max(center.value - DAY_BUFFER_RADIUS, Math.min(center.value + DAY_BUFFER_RADIUS, requested));
       pendingSteps.value = requested - available;
       animateTo(available);
     })
-    .onFinalize(() => {
+    .onFinalize((event, success) => {
       queuedGesture.value = false;
+      if (IS_ANDROID && !success && event.state === State.FAILED && event.oldState === State.BEGAN
+        && gestureRevision.value === -1 && gestureLayoutEpoch.value === layoutEpoch.value
+        && width.value > 0 && phase.value !== DRAGGING
+        && Math.abs(event.absoluteY - gestureTouchY.value) <= VERTICAL_TOLERANCE) {
+        const distance = (gestureTouchX.value - event.absoluteX) / width.value;
+        if (Math.abs(distance) >= SWIPE_THRESHOLD) pendingSteps.value += Math.sign(distance);
+      }
       if (phase.value === DRAGGING && gestureRevision.value === revision.value) {
         animateTo(gestureBase.value);
       }
-    }), [animateTo, camera, center, gestureBase, gestureLayoutEpoch, gestureOrigin, gestureRevision, gestureTranslation, interruptible, layoutEpoch, pendingSteps, phase, queuedGesture, revision, settleTarget, viewportWidth, weekTransition, width]);
+    }), [animateTo, camera, center, gestureBase, gestureLayoutEpoch, gestureOrigin, gestureRevision, gestureTouchX, gestureTouchY, gestureTranslation, interruptible, layoutEpoch, pendingSteps, phase, queuedGesture, revision, startDrag, viewportWidth, weekTransition, width]);
 
   return (
     <GestureDetector gesture={pan} touchAction="pan-y">
       <View style={styles.viewport} onLayout={handleLayout}>
-        {viewportWidth > 0 && window.pages.map((page) => (
-          <PagerPage
-            key={page.key}
-            page={page}
-            camera={camera}
-            width={width}
-            phase={phase}
-            moving={moving}
-            center={center}
-            active={page.position === window.center}
-            renderDay={renderDay}
-            onPageLayout={handlePageLayout}
-            weekTransition={weekTransition}
-            weekProgress={weekProgress}
-          />
-        ))}
+        <Animated.View testID="day-pager-track" pointerEvents="box-none" style={[
+          styles.track,
+          { left: -DAY_BUFFER_RADIUS * viewportWidth, width: (DAY_BUFFER_RADIUS * 2 + 1) * viewportWidth },
+          trackStyle,
+        ]}>
+          {viewportWidth > 0 && window.pages.map((page) => (
+            <PagerPage
+              key={page.key}
+              page={page}
+              width={width}
+              viewportWidth={viewportWidth}
+              phase={phase}
+              moving={moving}
+              center={center}
+              active={page.position === window.center}
+              retained={isRequiredDayPosition(window, page.position)}
+              renderDay={renderDay}
+              onPageLayout={handlePageLayout}
+              weekTransition={weekTransition}
+              weekProgress={weekProgress}
+            />
+          ))}
+        </Animated.View>
       </View>
     </GestureDetector>
   );
@@ -384,4 +480,6 @@ export default DayPager;
 
 const styles = StyleSheet.create({
   viewport: { flex: 1, overflow: "hidden" },
+  track: { position: "absolute", top: 0, bottom: 0 },
+  page: { position: "absolute", left: 0, top: 0, bottom: 0 },
 });

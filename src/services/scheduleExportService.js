@@ -14,7 +14,7 @@ const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 
 export const createScheduleWordDocument = async (document) => {
   const { Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, Packer,
-    ExternalHyperlink, Footer, PageNumber, TableLayoutType, BorderStyle, ImageRun, TabStopType } = require("docx");
+    ExternalHyperlink, Footer, PageNumber, TableLayoutType, BorderStyle, ImageRun, TabStopType } = await import("docx");
   const { settings } = document;
   const brand = getDocumentBranding(settings.color);
   const brandImage = () => new ImageRun({ type: "png", data: brand.image,

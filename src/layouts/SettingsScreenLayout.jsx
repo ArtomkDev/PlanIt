@@ -1,3 +1,4 @@
+import { StatusBar } from 'expo-status-bar';
 import React, { useRef } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
@@ -46,6 +47,7 @@ export default function SettingsScreenLayout({ children, contentContainerStyle, 
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor, paddingLeft: insets.left, paddingRight: insets.right }]}>
+      <StatusBar style={mode === 'light' ? 'dark' : 'light'} />
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <SettingsHeader title={title} scrollY={scrollY} />
         <Animated.ScrollView

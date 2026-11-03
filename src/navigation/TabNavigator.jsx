@@ -16,6 +16,7 @@ import Reanimated, {
   cancelAnimation,
   Easing,
   interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -28,26 +29,6 @@ import PlanItTabBar from './PlanItTabBar';
 import { LIQUID_GLASS_NAVIGATION_STYLE, resolveNavigationStyle } from './navigationMetrics';
 import { t } from '../utils/i18n';
 import Schedule from '../pages/Schedule/Schedule';
-import Tasks from '../pages/Tasks/Tasks';
-import Settings from '../pages/Settings/Settings';
-import ThemeSettings from '../pages/Settings/components/preferences/ThemeSettings';
-import LanguageSettings from '../pages/Settings/components/preferences/LanguageSettings';
-import ResetDB from '../pages/Settings/components/ResetDB';
-import AboutApp from '../pages/Settings/components/AboutApp';
-import LegalDocumentScreen from '../pages/Settings/components/LegalDocumentScreen';
-import ScheduleSwitcher from '../pages/Settings/components/ScheduleSwitcher';
-import DeviceManager from '../pages/Settings/components/managers/DeviceManagement';
-import NotificationsScreen from '../pages/Settings/components/NotificationsScreen';
-import ScheduleEditorScreen from '../pages/Settings/components/ScheduleEditorScreen';
-import FileLibraryScreen from '../pages/Settings/components/FileLibraryScreen';
-import AccountSettings from '../pages/Settings/components/AccountSettings/AccountSettings';
-import DeleteAccountScreen from '../pages/Settings/components/AccountSettings/components/DeleteAccountScreen';
-import ChangeNameScreen from '../pages/Settings/components/AccountSettings/components/ChangeNameScreen';
-import ChangeEmailScreen from '../pages/Settings/components/AccountSettings/components/ChangeEmailScreen';
-import ChangePasswordScreen from '../pages/Settings/components/AccountSettings/components/ChangePasswordScreen';
-import SharedSchedulesManager from '../pages/Settings/components/SharedSchedulesManager';
-import NavigationSettings from '../pages/Settings/components/preferences/NavigationSettings';
-import NotificationInboxPanel from '../pages/Schedule/components/NotificationInboxPanel';
 import { triggerHaptic } from '../utils/haptics';
 import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 
@@ -72,37 +53,41 @@ function SettingsStack({ screenProps }) {
         screenOptions={{
           headerShown: false,
           gestureEnabled: true,
+          freezeOnBlur: false,
           animation: 'slide_from_right',
           contentStyle: { backgroundColor: themeColors.backgroundColor },
         }}
       >
         <Stack.Screen name="SettingsOverview">
-          {props => <Settings {...props} {...screenProps} />}
+          {props => {
+            const Settings = require('../pages/Settings/Settings').default;
+            return <Settings {...props} {...screenProps} />;
+          }}
         </Stack.Screen>
         
-        <Stack.Screen name="ScheduleSwitcher" component={ScheduleSwitcher} />
-        <Stack.Screen name="ScheduleEditorScreen" component={ScheduleEditorScreen} />
-        <Stack.Screen name="Theme" component={ThemeSettings} />
-        <Stack.Screen name="Navigation" component={NavigationSettings} />
-        <Stack.Screen name="Language" component={LanguageSettings} />
-        <Stack.Screen name="ResetDB" component={ResetDB} />
-        <Stack.Screen name="AboutApp" component={AboutApp} />
-        <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
-        <Stack.Screen name="DeviceManagement" component={DeviceManager} />
-        <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
-        <Stack.Screen name="FileLibrary" component={FileLibraryScreen} />
-        <Stack.Screen name="AccountSettings" component={AccountSettings} />
-        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
-        <Stack.Screen name="ChangeName" component={ChangeNameScreen} />
-        <Stack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
-        <Stack.Screen name="SharedSchedulesManager" component={SharedSchedulesManager} />
+        <Stack.Screen name="ScheduleSwitcher" getComponent={() => require('../pages/Settings/components/ScheduleSwitcher').default} />
+        <Stack.Screen name="ScheduleEditorScreen" getComponent={() => require('../pages/Settings/components/ScheduleEditorScreen').default} />
+        <Stack.Screen name="Theme" getComponent={() => require('../pages/Settings/components/preferences/ThemeSettings').default} />
+        <Stack.Screen name="Navigation" getComponent={() => require('../pages/Settings/components/preferences/NavigationSettings').default} />
+        <Stack.Screen name="Language" getComponent={() => require('../pages/Settings/components/preferences/LanguageSettings').default} />
+        <Stack.Screen name="ResetDB" getComponent={() => require('../pages/Settings/components/ResetDB').default} />
+        <Stack.Screen name="AboutApp" getComponent={() => require('../pages/Settings/components/AboutApp').default} />
+        <Stack.Screen name="LegalDocument" getComponent={() => require('../pages/Settings/components/LegalDocumentScreen').default} />
+        <Stack.Screen name="DeviceManagement" getComponent={() => require('../pages/Settings/components/managers/DeviceManagement').default} />
+        <Stack.Screen name="NotificationsScreen" getComponent={() => require('../pages/Settings/components/NotificationsScreen').default} />
+        <Stack.Screen name="FileLibrary" getComponent={() => require('../pages/Settings/components/FileLibraryScreen').default} />
+        <Stack.Screen name="AccountSettings" getComponent={() => require('../pages/Settings/components/AccountSettings/AccountSettings').default} />
+        <Stack.Screen name="DeleteAccount" getComponent={() => require('../pages/Settings/components/AccountSettings/components/DeleteAccountScreen').default} />
+        <Stack.Screen name="ChangeName" getComponent={() => require('../pages/Settings/components/AccountSettings/components/ChangeNameScreen').default} />
+        <Stack.Screen name="ChangeEmail" getComponent={() => require('../pages/Settings/components/AccountSettings/components/ChangeEmailScreen').default} />
+        <Stack.Screen name="ChangePassword" getComponent={() => require('../pages/Settings/components/AccountSettings/components/ChangePasswordScreen').default} />
+        <Stack.Screen name="SharedSchedulesManager" getComponent={() => require('../pages/Settings/components/SharedSchedulesManager').default} />
       </Stack.Navigator>
     </View>
   );
 }
 
-export default function TabNavigator({ screenProps }) {
+export default function TabNavigator({ screenProps, onNotificationsVisibilityChange, onLayout }) {
   const { global: globalSettings, lang, isLoading } = useScheduleData();
   const { tabBarHeight, setTabBarHeight } = useScheduleLayout();
   const reduceMotion = useReducedMotionPreference();
@@ -152,11 +137,10 @@ export default function TabNavigator({ screenProps }) {
   }));
 
   const animateNotifications = useCallback((open) => {
+    if (open) onNotificationsVisibilityChange?.(true);
     triggerHaptic(open ? "open" : "sheetClose", { key: "notification-drawer" });
     if (open) {
       setNotificationsMounted(true);
-    } else {
-      setNotificationsMounted(false);
     }
 
     setNotificationsOpen(open);
@@ -167,8 +151,17 @@ export default function TabNavigator({ screenProps }) {
     drawerProgress.value = withTiming(toValue, {
       duration: motionDuration,
       easing: DRAWER_MOTION_EASING,
+    }, (finished) => {
+      if (finished && !open && onNotificationsVisibilityChange) {
+        runOnJS(onNotificationsVisibilityChange)(false);
+      }
     });
-  }, [drawerProgress, reduceMotion]);
+  }, [drawerProgress, onNotificationsVisibilityChange, reduceMotion]);
+
+  useEffect(() => () => {
+    cancelAnimation(drawerProgress);
+    onNotificationsVisibilityChange?.(false);
+  }, [drawerProgress, onNotificationsVisibilityChange]);
 
   const openNotifications = useCallback(() => {
     animateNotifications(true);
@@ -246,17 +239,22 @@ export default function TabNavigator({ screenProps }) {
     );
   }
 
+  const NotificationInboxPanel = notificationsMounted
+    ? require('../pages/Schedule/components/NotificationInboxPanel').default
+    : null;
+
   return (
     <NotificationDrawerProvider value={notificationDrawerValue}>
       <View
         style={[styles.drawerRoot, { backgroundColor: themeColors.backgroundColor }]}
-        {...(notificationsMounted ? drawerPanResponder.panHandlers : {})}
+        onLayout={onLayout}
+        {...(notificationsOpen ? drawerPanResponder.panHandlers : {})}
       >
         <View
           pointerEvents={notificationsOpen ? 'auto' : 'none'}
-          style={[styles.notificationLayer, { width: drawerWidth }]}
+          style={[styles.notificationLayer, { width: drawerWidth, bottom: insets.bottom }]}
         >
-          <NotificationInboxPanel backgroundColor="transparent" />
+          {notificationsMounted && <NotificationInboxPanel backgroundColor="transparent" />}
         </View>
 
         <Reanimated.View
@@ -298,7 +296,7 @@ export default function TabNavigator({ screenProps }) {
                 />
                 <NativeTab.Screen
                   name="TasksTab"
-                  component={Tasks}
+                  getComponent={() => require('../pages/Tasks/Tasks').default}
                   options={{
                     title: tasksTabLabel,
                     tabBarLabel: showLabels ? tasksTabLabel : '',
@@ -331,6 +329,9 @@ export default function TabNavigator({ screenProps }) {
                   tabBarHideOnKeyboard: true,
                   lazy: true,
                   animation: 'none',
+                  // Freezing suspends Reanimated views; UI-thread updates made meanwhile are
+                  // lost and the schedule pager shows stale positions after returning.
+                  freezeOnBlur: false,
                   headerShown: false,
                 }}
               >
@@ -346,7 +347,7 @@ export default function TabNavigator({ screenProps }) {
                 />
                 <Tab.Screen
                   name="TasksTab"
-                  component={Tasks}
+                  getComponent={() => require('../pages/Tasks/Tasks').default}
                   options={{
                     tabBarLabel: tasksTabLabel,
                     tabBarIcon: ({ color, size, focused }) => (
@@ -389,6 +390,20 @@ export default function TabNavigator({ screenProps }) {
             style={[styles.closeTapTarget, { width: drawerInset }]}
           />
         )}
+
+        {Platform.OS === 'android' && (
+          <View
+            pointerEvents="none"
+            testID="system-navigation-background"
+            style={[
+              styles.systemNavigationBackground,
+              {
+                height: insets.bottom,
+                backgroundColor: themeColors.backgroundColorTabNavigator,
+              },
+            ]}
+          />
+        )}
       </View>
     </NotificationDrawerProvider>
   );
@@ -425,5 +440,13 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 3,
     elevation: 17,
+  },
+  // Keep the system bar covered when Android rounds the transformed app shell.
+  systemNavigationBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 4,
   },
 });

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Platform,
   Linking,
-  Alert,
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -47,6 +46,7 @@ import {
 import { buildScheduleSlots, getLessonSlotNumber, calculateScheduleWeek, getScheduleDayIndex } from "../../../utils/scheduleTime";
 import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
 import { useAttachmentImagePreview } from "../../../context/AttachmentImagePreviewContext";
+import { useAppDialog } from "../../../context/AppDialogContext";
 import { triggerHaptic } from "../../../utils/haptics";
 import {
   deleteLocalAttachmentCaches,
@@ -78,6 +78,7 @@ export default function LessonViewer({
   const daySchedule = useOptionalDaySchedule();
   const insets = useSafeAreaInsets();
   const { openImagePreview } = useAttachmentImagePreview();
+  const dialog = useAppDialog();
   const suppressedContactPressRef = useRef(null);
   const { height } = useWindowDimensions();
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -159,9 +160,7 @@ export default function LessonViewer({
       await Linking.openURL(url);
     } catch {
       triggerHaptic("error");
-      const message = `${t('schedule.lesson_viewer.link_error', lang)}${url}`;
-      if (Platform.OS === 'web') window.alert(message);
-      else Alert.alert(t('common.error', lang), message);
+      dialog.alert({ title: t('common.error', lang), message: `${t('schedule.lesson_viewer.link_error', lang)}${url}` });
     }
   };
 
@@ -219,7 +218,7 @@ export default function LessonViewer({
       await openAttachment(attachment, { download });
     } catch (error) {
       triggerHaptic("error");
-      Alert.alert(t('common.error', lang), t('attachments.errors.open_failed', lang));
+      dialog.alert({ title: t('common.error', lang), message: t('attachments.errors.open_failed', lang) });
     }
   };
 
@@ -229,7 +228,7 @@ export default function LessonViewer({
       await shareAttachment(attachment);
     } catch (error) {
       triggerHaptic("error");
-      Alert.alert(t('common.error', lang), formatAttachmentError(error, lang));
+      dialog.alert({ title: t('common.error', lang), message: formatAttachmentError(error, lang) });
     }
   };
 
@@ -254,40 +253,32 @@ export default function LessonViewer({
     onClose();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     triggerHaptic("warning");
     const recurrenceWeeks = Array.isArray(instanceData.recurrence?.weeks)
       ? instanceData.recurrence.weeks
       : [];
     const isRepeating = !!instanceData.recurrence?.id && recurrenceWeeks.length > 1;
 
-    Alert.alert(
-      t('common.warning', lang),
-      isRepeating
-        ? t('schedule.lesson_editor.delete_series_confirm', lang)
-        : t('schedule.lesson_editor.delete_lesson_confirm', lang),
-      isRepeating
-        ? [
-          { text: t('common.cancel', lang), style: 'cancel' },
-          {
-            text: t('schedule.lesson_editor.delete_occurrence', lang),
-            onPress: () => deleteLessonWithScope("occurrence"),
-          },
-          {
-            text: t('schedule.lesson_editor.delete_series', lang),
-            style: 'destructive',
-            onPress: () => deleteLessonWithScope("series"),
-          },
-        ]
-        : [
-          { text: t('common.cancel', lang), style: 'cancel' },
-          {
-            text: t('common.delete', lang),
-            style: 'destructive',
-            onPress: () => deleteLessonWithScope("occurrence"),
-          },
+    if (isRepeating) {
+      const scope = await dialog.choose({
+        title: t('common.warning', lang),
+        message: t('schedule.lesson_editor.delete_series_confirm', lang),
+        options: [
+          { value: "occurrence", label: t('schedule.lesson_editor.delete_occurrence', lang) },
+          { value: "series", label: t('schedule.lesson_editor.delete_series', lang), destructive: true },
         ],
-    );
+      });
+      if (scope) deleteLessonWithScope(scope);
+      return;
+    }
+    const confirmed = await dialog.confirm({
+      title: t('common.warning', lang),
+      message: t('schedule.lesson_editor.delete_lesson_confirm', lang),
+      confirmLabel: t('common.delete', lang),
+      destructive: true,
+    });
+    if (confirmed) deleteLessonWithScope("occurrence");
   };
 
   const handleClose = () => {

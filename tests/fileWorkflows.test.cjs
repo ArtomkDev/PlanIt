@@ -13,12 +13,16 @@ global.IS_REACT_ACT_ENVIRONMENT = true;
 const compiled = new Map();
 function load(relative, mocks = {}) {
   const filename = path.resolve(__dirname, '..', relative);
-  if (!compiled.has(filename)) compiled.set(filename, babel.transformFileSync(filename).code);
+  if (!compiled.has(filename)) compiled.set(filename, babel.transformFileSync(filename, { plugins: ['@babel/plugin-transform-dynamic-import'] }).code);
   const loaded = new Module(filename, module);
   loaded.filename = filename;
   loaded.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = loaded.require.bind(loaded);
-  loaded.require = name => Object.hasOwn(mocks, name) ? mocks[name] : original(name);
+  loaded.require = name => {
+    if (Object.hasOwn(mocks, name)) return mocks[name];
+    if (name.endsWith('/ui/AppTextInput')) return 'Input';
+    return original(name);
+  };
   loaded._compile(compiled.get(filename), filename);
   return loaded.exports;
 }
@@ -158,6 +162,117 @@ test('concurrent native writes keep both manifest entries after files are rename
   for (const file of service.normalizeAttachmentLibrary(renamed)) assert.equal((await reloaded.getAttachmentCacheState(file)).status, 'local');
 });
 
+test('a failed cache replacement preserves the original local file and its manifest entry', async () => {
+  const env = environment();
+  const service = env.attachments();
+  const [existing] = await service.storeAttachmentDrafts([nativeDraft(env, 'replace')]);
+  const original = Buffer.from(env.files.get(existing.localUri));
+  env.failCopies();
+  await assert.rejects(
+    service.cacheAttachmentFromLocalUri(existing, 'file:///missing.pdf', { required: true }),
+    { attachmentCode: 'cache_unavailable' },
+  );
+  assert.deepEqual(env.files.get(existing.localUri), original);
+  assert.equal((await service.getAttachmentCacheState(existing)).uri, existing.localUri);
+});
+
+test('renamed local files remain recoverable when the native cache manifest is corrupted', async () => {
+  const env = environment();
+  const service = env.attachments();
+  const [existing] = await service.storeAttachmentDrafts([nativeDraft(env, 'recover')]);
+  const [renamed] = service.normalizeAttachmentLibrary([service.renameAttachmentDisplayName(existing, 'renamed.pdf')]);
+  env.settings.set('planit_attachment_cache_manifest_v1', '{broken');
+  const recovered = await env.attachments().ensureLocalAttachment(renamed);
+  assert.equal(recovered.localUri, existing.localUri);
+  assert.deepEqual(env.files.get(recovered.localUri), Buffer.from('%PDF-1.7 local bytes'));
+  assert.equal(JSON.parse(env.settings.get('planit_attachment_cache_manifest_v1'))[renamed.cacheKey].uri, existing.localUri);
+});
+
+test('a failed manifest read cannot replace the index with an empty manifest', async () => {
+  const env = environment();
+  const service = env.attachments();
+  const [existing] = await service.storeAttachmentDrafts([nativeDraft(env, 'keep')]);
+  const manifest = env.settings.get('planit_attachment_cache_manifest_v1');
+  env.mocks['@react-native-async-storage/async-storage'].getItem = async () => { throw new Error('Read failed'); };
+  await assert.rejects(service.storeAttachmentDrafts([nativeDraft(env, 'new')]), { attachmentCode: 'cache_unavailable' });
+  assert.equal(env.settings.get('planit_attachment_cache_manifest_v1'), manifest);
+  assert.ok(env.files.has(existing.localUri));
+});
+
+test('failed and truncated HTTP downloads preserve the usable offline attachment', async () => {
+  const env = environment();
+  const service = env.attachments();
+  const [local] = await service.storeAttachmentDrafts([nativeDraft(env, 'download')]);
+  const cloud = { ...local, storageMode: 'cloud', storagePath: 'users/account/attachments/download/file.pdf', downloadURL: 'https://example.com/file.pdf' };
+  const original = Buffer.from(env.files.get(local.localUri));
+  for (const [status, body] of [[403, Buffer.from('Forbidden')], [200, Buffer.from('short')]]) {
+    env.fs.downloadAsync = async (_url, uri) => { env.files.set(uri, body); return { uri, status }; };
+    const prepared = await service.ensureLocalAttachment(cloud, { forceDownload: true });
+    assert.equal(prepared.localUri, local.localUri);
+    assert.deepEqual(env.files.get(local.localUri), original);
+    assert.equal((await service.getAttachmentCacheState(cloud)).uri, local.localUri);
+    assert.equal([...env.files.keys()].filter(uri => uri.startsWith('file:///documents/')).length, 1);
+  }
+});
+
+test('a failed cloud deletion preserves the offline file, and a successful retry clears it', async () => {
+  const env = environment();
+  const [local] = await env.attachments().storeAttachmentDrafts([nativeDraft(env, 'delete')]);
+  let denied = true;
+  env.mocks['firebase/storage'] = {
+    ref: (_storage, location) => location,
+    deleteObject: async () => { if (denied) throw Object.assign(new Error('Offline'), { code: 'storage/retry-limit-exceeded' }); },
+  };
+  const service = env.attachments();
+  const cloud = { ...local, storageMode: 'cloud', storagePath: 'users/account/attachments/file/document.pdf', downloadURL: 'https://example.com/file.pdf' };
+  await assert.rejects(service.deleteStoredAttachment(cloud), /Offline/);
+  assert.ok(env.files.has(local.localUri));
+  denied = false;
+  await service.deleteStoredAttachment(cloud);
+  assert.equal(env.files.has(local.localUri), false);
+});
+
+test('local-only conversion queues cloud cleanup only after local bytes and their index are durable', async () => {
+  const env = environment();
+  const [local] = await env.attachments().storeAttachmentDrafts([nativeDraft(env, 'convert')]);
+  const bytes = Buffer.from(env.files.get(local.localUri));
+  const file = { ...local, storageMode: 'cloud', storagePath: 'users/account/attachments/file/document.pdf', downloadURL: 'https://example.com/file.pdf' };
+  let removed = false, updated, queued;
+  env.fs.downloadAsync = async (_url, uri) => { env.files.set(uri, bytes); return { uri, status: 200 }; };
+  env.mocks['firebase/storage'] = {
+    ref: (_storage, location) => location, getDownloadURL: async () => file.downloadURL,
+    deleteObject: async () => {
+      const entry = JSON.parse(env.settings.get('planit_attachment_cache_manifest_v1'))[file.cacheKey];
+      assert.equal(entry.storagePath, null);
+      assert.deepEqual(env.files.get(entry.uri), bytes);
+      removed = true;
+    },
+  };
+  const service = env.attachments();
+  const source = require('node:fs').readFileSync(path.resolve(__dirname, '../src/pages/Settings/components/FileLibraryScreen.jsx'), 'utf8');
+  const ast = babel.parseSync(source, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
+  let handler;
+  babel.traverse(ast, { VariableDeclarator({ node }) { if (node.id.name === 'makeLocalOnly') handler = source.slice(node.init.start, node.init.end); } });
+  const convert = require('node:vm').runInNewContext('(' + handler + ')', {
+    ...service, Date, setBusyFileId() {}, setError() {}, triggerHaptic() {}, rememberPhotoPreview() {},
+    updateFileRecord: (value, cloudFile) => {
+      const entry = JSON.parse(env.settings.get('planit_attachment_cache_manifest_v1'))[file.cacheKey];
+      assert.equal(entry.storagePath, null);
+      assert.deepEqual(env.files.get(entry.uri), bytes);
+      updated = value;
+      queued = cloudFile;
+    },
+    setFileError: error => { throw new Error(error); },
+  });
+  await convert(file);
+  assert.equal(updated.storageMode, 'local');
+  assert.equal(updated.storagePath, null);
+  assert.equal(updated.downloadURL, null);
+  assert.equal(removed, false);
+  assert.equal(queued.storagePath, file.storagePath);
+  assert.deepEqual(env.files.get((await service.ensureLocalAttachment(updated)).localUri), bytes);
+});
+
 test('failed local batches roll back only newly created files', async () => {
   const env = environment();
   const service = env.attachments();
@@ -175,6 +290,48 @@ test('cloud uploads require authentication; local storage failures never report 
   await assert.rejects(service.storeAttachmentDrafts([nativeDraft(env)], { storageMode: 'cloud' }), { attachmentCode: 'auth_required' });
   env.failCopies();
   await assert.rejects(service.storeAttachmentDrafts([nativeDraft(env)]), { attachmentCode: 'cache_unavailable' });
+});
+
+test('a rejected native upload closes its blob and does not retry the whole file as base64', async t => {
+  const env = environment();
+  const original = global.XMLHttpRequest;
+  let closed = 0, fallbackUploads = 0;
+  global.XMLHttpRequest = class {
+    open() {}
+    send() { this.response = { close: () => { closed++; } }; queueMicrotask(() => this.onload()); }
+  };
+  t.after(() => { if (original === undefined) delete global.XMLHttpRequest; else global.XMLHttpRequest = original; });
+  env.mocks['firebase/storage'] = {
+    ref: (_storage, location) => location,
+    uploadBytesResumable: () => ({ on: (_event, _progress, fail) => fail(Object.assign(new Error('Upload rejected'), { code: 'storage/unauthorized' })) }),
+    uploadString: async () => { fallbackUploads++; },
+  };
+  await assert.rejects(env.attachments().uploadAttachmentDraft(nativeDraft(env), { userId: 'account', skipAuthRefresh: true }), { code: 'storage/unauthorized' });
+  assert.equal(fallbackUploads, 0);
+  assert.equal(closed, 1);
+});
+
+test('reuploading the same attachment creates an immutable path for each cloud revision', async t => {
+  const env = environment();
+  const original = global.XMLHttpRequest;
+  global.XMLHttpRequest = class {
+    open() {}
+    send() { this.response = { close() {} }; queueMicrotask(() => this.onload()); }
+  };
+  t.after(() => { if (original === undefined) delete global.XMLHttpRequest; else global.XMLHttpRequest = original; });
+  env.mocks['firebase/storage'] = {
+    ref: (_storage, location) => location,
+    uploadBytesResumable: () => ({ on: (_event, _progress, _fail, done) => done() }),
+    getDownloadURL: async location => 'https://example.com/' + location,
+  };
+  const service = env.attachments();
+  const draft = nativeDraft(env);
+  const first = await service.uploadAttachmentDraft(draft, { userId: 'account', skipAuthRefresh: true });
+  const second = await service.uploadAttachmentDraft(draft, { userId: 'account', skipAuthRefresh: true });
+  assert.notEqual(first.storagePath, second.storagePath);
+  assert.ok(first.storagePath.startsWith('users/account/attachments/' + draft.id + '/'));
+  assert.ok(env.files.has(first.localUri));
+  assert.ok(env.files.has(second.localUri));
 });
 
 for (const platform of ['web', 'android']) {
@@ -935,7 +1092,7 @@ test('transferring a schedule copies local bytes so deleting the source cannot e
 
 const theme = { backgroundColor: '#ffffff', backgroundColor2: '#f2f5fa', backgroundColor3: '#e8edf3', borderColor: '#dde4ef', textColor: '#17283c', textColor2: '#576879', textColor3: '#768797', accentColor: '#3674ba', accentTextColor: '#2362a0', textOnAccent: '#ffffff' };
 const uiMocks = {
-  'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', TextInput: 'Input', Alert: {}, Platform: { OS: 'android' }, StyleSheet: { create: value => value, hairlineWidth: 1 } },
+  'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', TextInput: 'Input', Platform: { OS: 'android' }, StyleSheet: { create: value => value, hairlineWidth: 1 } },
   'phosphor-react-native': new Proxy({}, { get: (_, name) => name === '__esModule' ? false : name }),
 };
 
@@ -966,7 +1123,7 @@ function shareUIEnvironment({ user = null, lang = 'uk', platform = 'android' } =
     '../../config/themes': { getColors: () => theme }, '../../utils/i18n': i18n,
     '../../utils/haptics': { triggerHaptic() {} },
     '../../utils/analytics/crashlytics': { logCrashlyticsError() {} },
-    '../../services/shareService': { createSharedSchedule: async (...args) => { shared.push(args); return 'SHARE123'; }, createSharedScheduleLink: code => `https://planit.app/share/${code}` },
+    '../../services/shareService': { createSharedSchedule: async (...args) => { shared.push(args); return 'SHARE123'; }, createSharedScheduleLink: code => `https://planit-demo.web.app/share/${code}` },
     '../../services/scheduleExportService': { exportSchedule: async (...args) => exported.push(args) },
     '../../utils/scheduleValidation': { sanitizeSharedSchedule: value => value },
     '../../utils/scheduleExport': exportsUtil,
@@ -1128,6 +1285,7 @@ test('guest library UI adds, searches, and renames a local PDF without authentic
       useScheduleActions: () => ({ setData: React.useContext(Context).setData }),
     },
     '../../../context/AttachmentImagePreviewContext': { useAttachmentImagePreview: () => ({ openImagePreview() {} }) },
+    '../../../context/AppDialogContext': { useAppDialog: () => ({ confirm: async () => false }) },
     '../../../config/themes': { getColors: () => theme }, '../../../utils/i18n': i18n,
     '../../../utils/haptics': { triggerHaptic() {} },
     '../../../services/attachmentService': { ...service, pickAttachmentFiles: async () => ({ attachments: [draft] }) },

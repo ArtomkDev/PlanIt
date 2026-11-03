@@ -2,10 +2,13 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
+import { AppState } from "react-native";
 
 const NowTickContext = createContext(null);
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -29,6 +32,7 @@ export const isTimerRelevantDate = (targetDate, nowValue = new Date()) => {
 
 const createNowTickStore = () => {
   let nowMs = Date.now();
+  let activeDay = 0;
   let intervalId = null;
   const listeners = new Set();
 
@@ -39,6 +43,14 @@ const createNowTickStore = () => {
 
   return {
     getSnapshot: () => nowMs,
+    getActiveDay: () => activeDay,
+    // The active day lives in the store rather than in context, so moving between
+    // days re-renders only the consumers whose timer turns on or off.
+    setActiveDay: (day) => {
+      if (day === activeDay) return;
+      activeDay = day;
+      listeners.forEach((listener) => listener());
+    },
     subscribe: (listener) => {
       listeners.add(listener);
       return () => {
@@ -58,18 +70,27 @@ const createNowTickStore = () => {
   };
 };
 
-export function NowTickProvider({ activeDate, children }) {
+export function NowTickProvider({ activeDate, enabled = true, children }) {
   const storeRef = useRef(null);
+  const [appActive, setAppActive] = useState(() => (
+    AppState.currentState !== 'background' && AppState.currentState !== 'inactive'
+  ));
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => setAppActive(state === 'active'));
+    return () => subscription.remove();
+  }, []);
 
   if (!storeRef.current) {
     storeRef.current = createNowTickStore();
   }
 
-  const activeDateTime = activeDate ? new Date(activeDate).getTime() : 0;
-  const shouldRun = useMemo(
-    () => isTimerRelevantDate(activeDate),
-    [activeDateTime]
-  );
+  const activeDay = isTimerRelevantDate(activeDate) ? startOfDay(activeDate)?.getTime() : 0;
+  const shouldRun = enabled && appActive && activeDay !== 0;
+
+  useLayoutEffect(() => {
+    storeRef.current.setActiveDay(activeDay);
+  }, [activeDay]);
 
   useEffect(() => {
     const store = storeRef.current;
@@ -85,10 +106,7 @@ export function NowTickProvider({ activeDate, children }) {
     };
   }, [shouldRun]);
 
-  const contextValue = useMemo(() => ({
-    store: storeRef.current,
-    isRunning: shouldRun,
-  }), [shouldRun]);
+  const contextValue = useMemo(() => ({ store: storeRef.current }), []);
 
   return (
     <NowTickContext.Provider value={contextValue}>
@@ -97,27 +115,24 @@ export function NowTickProvider({ activeDate, children }) {
   );
 }
 
-export function useNowTick(targetDate, enabled = true) {
-  const context = useContext(NowTickContext);
-  const store = context?.store;
-  const targetDateTime = targetDate ? new Date(targetDate).getTime() : 0;
-  const shouldSubscribe = (
-    !!store &&
-    !!enabled &&
-    context?.isRunning &&
-    isTimerRelevantDate(targetDate)
-  );
+export function useNowTick(targetDate, enabled = true, precisionMs = 1000) {
+  const store = useContext(NowTickContext)?.store;
+  const targetDay = startOfDay(targetDate)?.getTime() ?? 0;
+  const shouldSubscribe = !!store && !!enabled && targetDay !== 0;
 
   const subscribe = useMemo(() => {
     if (!shouldSubscribe) return () => () => {};
     return (listener) => store.subscribe(listener);
   }, [shouldSubscribe, store]);
 
+  // The provider only activates a day that is timer-relevant, so matching it is enough.
   const getSnapshot = useMemo(() => {
     if (!shouldSubscribe) return () => 0;
-    return () => store.getSnapshot();
-  }, [shouldSubscribe, store, targetDateTime]);
+    return () => (store.getActiveDay() === targetDay
+      ? Math.floor(store.getSnapshot() / precisionMs) * precisionMs
+      : 0);
+  }, [shouldSubscribe, store, targetDay, precisionMs]);
 
   const nowMs = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return shouldSubscribe && nowMs ? new Date(nowMs) : null;
+  return nowMs ? new Date(nowMs) : null;
 }

@@ -105,7 +105,7 @@ const resolveLayer = (
   return { stops, backgroundImage };
 };
 
-export const getGradientSurfaceStyle = ({
+const computeGradientSurfaceStyle = ({
   gradient,
   layers,
   colors,
@@ -169,6 +169,20 @@ export const getGradientSurfaceStyle = ({
       // bright seam along rounded cards and small previews.
       experimental_backgroundRepeat: "no-repeat",
     };
+};
+
+// Schedules reuse a handful of gradients, while resolving their perceptual stops
+// costs dozens of colour parses on every card mount.
+const SURFACE_STYLE_CACHE_LIMIT = 256;
+const surfaceStyleCache = new Map();
+
+export const getGradientSurfaceStyle = (options = {}) => {
+  const key = JSON.stringify(options);
+  if (!surfaceStyleCache.has(key)) {
+    if (surfaceStyleCache.size >= SURFACE_STYLE_CACHE_LIMIT) surfaceStyleCache.clear();
+    surfaceStyleCache.set(key, computeGradientSurfaceStyle(options));
+  }
+  return surfaceStyleCache.get(key);
 };
 
 export const getGradientBackgroundStyle = (

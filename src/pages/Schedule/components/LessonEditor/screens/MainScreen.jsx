@@ -1,9 +1,10 @@
 import TabSwitcher from "../../../../../components/ui/TabSwitcher";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, Text, Platform, TouchableOpacity, TextInput, Alert, Modal } from "react-native";
+import { StyleSheet, View, Text, Platform, TouchableOpacity, Modal } from "react-native";
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { SheetScrollView } from "../../../../../components/ui/BottomSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from '../../../../../components/ui/AppDateTimePicker';
 import {
   BookOpen,
   Tag,
@@ -16,6 +17,7 @@ import {
   Clock,
   Bell,
   Plus,
+  PencilSimple,
   CalendarDots
 } from "phosphor-react-native";
 
@@ -27,6 +29,7 @@ import GradientBackground from "../../../../../components/ui/GradientBackground"
 import themes from "../../../../../config/themes";
 import { getIconComponent } from "../../../../../config/subjectIcons";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
+import { useAppDialog } from "../../../../../context/AppDialogContext";
 import { t, formatText as interpolate } from "../../../../../utils/i18n";
 import { triggerHaptic } from "../../../../../utils/haptics";
 import {
@@ -64,6 +67,9 @@ export default function LessonEditorMainScreen({
   defaultTime,
   onTimeChange,
   timeSlots = [],
+  nextSlot,
+  onAddSlot,
+  onEditSlot,
   onSlotChange,
   slotConflict,
   onConflictResolution,
@@ -88,6 +94,7 @@ export default function LessonEditorMainScreen({
   attachmentStorageLimitBytes
 }) {
   const { global, lang } = useScheduleData();
+  const dialog = useAppDialog();
   const insets = useSafeAreaInsets();
   const [expandedField, setExpandedField] = useState(null);
   const customTime = instanceData?.timeMode === "custom";
@@ -196,7 +203,7 @@ export default function LessonEditorMainScreen({
     );
     if (permission.disabledByPreference) return true;
     if (!permission.granted && permission.status !== "unsupported") {
-      Alert.alert(t('common.warning', lang), t('schedule.reminders.permission_denied', lang));
+      dialog.alert({ title: t('common.warning', lang), message: t('schedule.reminders.permission_denied', lang) });
       return false;
     }
     return true;
@@ -270,7 +277,6 @@ export default function LessonEditorMainScreen({
                 value={date}
                 mode="time"
                 is24Hour={true}
-                design="material"
                 positiveButton={{ textColor: themeColors.accentColor }}
                 negativeButton={{ textColor: themeColors.textColor2 }}
                 onChange={(event, selectedDate) => {
@@ -461,22 +467,49 @@ export default function LessonEditorMainScreen({
           </Text>
         </View>
         </View> : <View style={{ paddingHorizontal: 16, paddingBottom: 12, gap: 4 }}>
+          {timeSlots.length > 0 && timeSlots.every((slot) => slot.occupied) && (
+            <Text accessibilityLiveRegion="polite" style={[styles.slotHint, { color: themeColors.textColor2 }]}>
+              {t('schedule.lesson_editor.slots_full', lang, { count: timeSlots.length })}
+            </Text>
+          )}
           <View style={styles.slotGrid}>
             {timeSlots.map((slot) => (
-              <TouchableOpacity key={slot.number}
+              <View key={slot.number}
+                style={[styles.slotOption, { borderColor: instanceData.slotNumber === slot.number ? themeColors.accentColor : themeColors.borderColor, backgroundColor: slot.occupied ? themeColors.borderColor : themeColors.backgroundColor2 }]}>
+              <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={`${t('schedule.lesson_editor.slot_number', lang, { number: slot.number })}, ${slot.start} – ${slot.end}${slot.occupied ? ', ' + t('schedule.lesson_editor.slot_occupied', lang) : ''}`}
+                accessibilityHint={t('schedule.lesson_editor.slot_edit_hint', lang)}
                 accessibilityState={{ selected: instanceData.slotNumber === slot.number }}
                 onPress={() => onSlotChange(slot.number)}
-                style={[styles.slotOption, { borderColor: instanceData.slotNumber === slot.number ? themeColors.accentColor : themeColors.borderColor, backgroundColor: slot.occupied ? themeColors.borderColor : themeColors.backgroundColor2 }]}
+                onLongPress={() => onEditSlot(slot.number)}
+                style={styles.slotSelect}
               >
-                <Text style={{ color: instanceData.slotNumber === slot.number ? themeColors.accentTextColor : themeColors.textColor, fontWeight: '600' }}>{t('schedule.lesson_editor.slot_number', lang, { number: slot.number })}</Text>
+                <Text style={{ color: instanceData.slotNumber === slot.number ? themeColors.accentTextColor : themeColors.textColor, fontWeight: '600', paddingRight: 26 }}>{t('schedule.lesson_editor.slot_number', lang, { number: slot.number })}</Text>
                 <Text style={{ color: themeColors.textColor2, fontSize: 12 }}>{slot.start} – {slot.end}</Text>
                 {slot.occupied && <Text style={{ color: themeColors.textColor2, fontSize: 12 }}>{t('schedule.lesson_editor.slot_occupied', lang)}</Text>}
               </TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button"
+                accessibilityLabel={t('schedule.lesson_editor.slot_edit', lang, { number: slot.number })}
+                onPress={() => onEditSlot(slot.number)} style={styles.slotEdit}>
+                <PencilSimple size={16} color={themeColors.accentTextColor} />
+              </TouchableOpacity>
+              </View>
             ))}
           </View>
-          <Text style={{ color: themeColors.textColor, fontSize: 15, fontWeight: '600' }}>{currentStart || '—'} – {currentEnd || '—'}{duration ? ' · ' + duration + ' ' + t('schedule.main_screen.minutes', lang) : ''}</Text>
+          <Text style={[styles.slotHint, { color: themeColors.textColor2 }]}>{t('schedule.lesson_editor.slot_edit_hint', lang)}</Text>
+          {nextSlot ? <TouchableOpacity accessibilityRole="button"
+            accessibilityLabel={`${t('schedule.lesson_editor.slot_add', lang, { number: nextSlot.number })}, ${nextSlot.start} – ${nextSlot.end}`}
+            onPress={onAddSlot} activeOpacity={0.7}
+            style={[styles.addSlot, { borderColor: themeColors.accentColor }]}>
+            <Plus size={20} color={themeColors.accentTextColor} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={{ color: themeColors.accentTextColor, fontWeight: '600' }}>{t('schedule.lesson_editor.slot_add', lang, { number: nextSlot.number })}</Text>
+              <Text style={{ color: themeColors.textColor2 }}>{nextSlot.start} – {nextSlot.end}</Text>
+            </View>
+          </TouchableOpacity> : <Text style={[styles.slotHint, { color: themeColors.textColor2 }]}>{t('schedule.lesson_editor.slot_add_unavailable', lang)}</Text>}
+          {nextSlot && <Text style={[styles.slotHint, { color: themeColors.textColor2 }]}>{t('schedule.lesson_editor.slot_add_hint', lang)}</Text>}
+          <Text style={{ color: themeColors.textColor, fontSize: 15, fontWeight: '600' }}>{instanceData.slotNumber ? `${currentStart || '—'} – ${currentEnd || '—'}${duration ? ' · ' + duration + ' ' + t('schedule.main_screen.minutes', lang) : ''}` : t('schedule.lesson_editor.slot_choose_or_add', lang)}</Text>
           <Text style={{ color: themeColors.textColor2, fontSize: 12, lineHeight: 17 }}>{t('schedule.lesson_editor.time_default_hint', lang)}</Text>
         </View>}
       </SettingsGroup>
@@ -818,7 +851,11 @@ const styles = StyleSheet.create({
   slotActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   slotAction: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderWidth: 1, borderRadius: 10 },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 12 },
-  slotOption: { minHeight: 52, minWidth: 112, padding: 10, borderWidth: 1, borderRadius: 12, gap: 4 },
+  slotOption: { flexBasis: '45%', flexGrow: 1, minWidth: 0, borderWidth: 1, borderRadius: 12 },
+  slotSelect: { minHeight: 64, padding: 10, gap: 4 },
+  slotEdit: { position: 'absolute', top: 0, right: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  addSlot: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, padding: 12, borderWidth: 1, borderRadius: 12 },
+  slotHint: { fontSize: 13, lineHeight: 18, paddingVertical: 4 },
   content: { flex: 1 },
   introduction: { alignItems: 'center', padding: 24, gap: 12, marginBottom: 16 },
   introTitle: { fontSize: 21, lineHeight: 28, fontWeight: '600', textAlign: 'center' },

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { useNavigation } from '@react-navigation/native';
 import { updateProfile } from 'firebase/auth';
 
 import { auth } from '../../../../../config/firebase';
 import { useScheduleData } from '../../../../../context/ScheduleProvider';
+import { useAppDialog } from '../../../../../context/AppDialogContext';
 import MorphingLoader from '../../../../../components/ui/MorphingLoader';
 import themes from '../../../../../config/themes';
 import SettingsScreenLayout from '../../../../../layouts/SettingsScreenLayout';
@@ -12,6 +14,7 @@ import { t } from '../../../../../utils/i18n';
 
 export default function ChangeNameScreen() {
   const { global, lang } = useScheduleData();
+  const dialog = useAppDialog();
   const navigation = useNavigation();
   
   const [mode, accent] = global?.theme || ['light', 'blue'];
@@ -45,11 +48,10 @@ export default function ChangeNameScreen() {
       await updateProfile(user, { displayName: trimmedName });
       await user.reload();
       
-      Alert.alert(
-        t('common.success', lang),
-        t('settings.account_settings.change_name.success_msg', lang),
-        [{ text: t('common.ok', lang), onPress: () => navigation.goBack() }]
-      );
+      dialog.alert({
+        title: t('common.success', lang),
+        message: t('settings.account_settings.change_name.success_msg', lang),
+      }).then(() => navigation.goBack());
     } catch (error) {
       setErrorMsg(t('auth.errors.update_failed', lang));
     } finally {

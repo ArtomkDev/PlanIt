@@ -4,10 +4,10 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { Link as LinkIcon, TextT, Trash } from "phosphor-react-native";
 import { getLinkTypeMeta, LINK_TYPES } from "../../../../../config/contactTypes";
 import {

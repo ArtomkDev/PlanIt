@@ -18,6 +18,8 @@ function load(relative, mocks = {}) {
   const original = mod.require.bind(mod);
   mod.require = name => {
     if (name in mocks) return mocks[name];
+    if (name.endsWith('/ui/AppTextInput')) return 'Input';
+    if (name.endsWith('/ui/AppDateTimePicker')) return mocks['@react-native-community/datetimepicker'];
     if (!name.startsWith('.')) return original(name);
     const target = path.resolve(path.dirname(filename), name);
     const resolved = [target, target + '.js', target + '.jsx'].find(file => fs.existsSync(file) && fs.statSync(file).isFile());
@@ -30,11 +32,13 @@ function load(relative, mocks = {}) {
 const i18n = load('src/utils/i18n.js');
 const tr = key => i18n.t(key, 'uk');
 const mocks = {
-  'react-native': { Modal: 'Modal', View: 'View', Text: 'Text', TextInput: 'Input', Pressable: 'Button', TouchableOpacity: 'Button', KeyboardAvoidingView: 'Keyboard', Platform: { OS: 'ios' }, StyleSheet: { create: x => x, hairlineWidth: 1 }, Alert: { alert() {} } },
+  'react-native': { Modal: 'Modal', View: 'View', Text: 'Text', TextInput: 'Input', Pressable: 'Button', TouchableOpacity: 'Button', KeyboardAvoidingView: 'Keyboard', Platform: { OS: 'ios' }, StyleSheet: { create: x => x, hairlineWidth: 1 } },
   'phosphor-react-native': new Proxy({}, { get: (_, key) => key }),
+  'react-native-svg': { __esModule: true, default: 'Svg', Circle: 'Circle', Defs: 'Defs', LinearGradient: 'LinearGradient', Path: 'Path', Stop: 'Stop' },
   'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 24 }) },
   '@react-native-community/datetimepicker': 'TimePicker',
   '../../../../../context/ScheduleProvider': { useScheduleData: () => ({ lang: 'uk', global: {} }) },
+  '../../../../../context/AppDialogContext': { useAppDialog: () => ({ alert: async () => {} }) },
   '../../../../../utils/haptics': { triggerHaptic() {} },
   '../../../../../components/ui/BottomSheet': {
     SheetScrollView: 'Scroll',
@@ -282,7 +286,8 @@ test('occupied selection waits for a decision; cancellation retains timing and s
   assert.equal(state.resolution.action, 'swap');
   let screen;
   await editorHandler('handleSave', {
-    ...context, slotConflict: null, instanceData: state.instanceData,
+    ...context, slotConflict: null, timingDraft: null, instanceData: state.instanceData,
+    timeSlots: [{ number: 2 }],
     conflictResolution: { signature: 'stale' }, setCurrentScreen: value => screen = value,
   })();
   assert.equal(state.pending, conflict);
@@ -294,13 +299,149 @@ test('saving a custom time checks the selected weeks for overlaps before changin
   const alerts = [];
   let previewOptions;
   await editorHandler('handleSave', {
-    slotConflict: null, instanceData: { timeMode: 'custom', startTime: '09:00', endTime: '10:00' },
+    slotConflict: null, timingDraft: null, instanceData: { timeMode: 'custom', startTime: '09:00', endTime: '10:00' },
     parseTimeToMinutes: value => Number(value.slice(0, 2)) * 60 + Number(value.slice(3)),
     applyLessonRecurrence: (_schedule, options) => { previewOptions = options; return { conflicts: [{ week: 2 }] }; },
-    schedule: {}, placementOptions: { selection: { mode: 'selected', weeks: [2] } },
-    Alert: { alert: (...args) => alerts.push(args) }, t: key => key, lang: 'uk',
+    timingSchedule: {}, placementOptions: { selection: { mode: 'selected', weeks: [2] } },
+    dialog: { alert: async (options) => alerts.push(options) }, t: key => key, lang: 'uk',
   })();
   assert.equal(previewOptions.preview, true);
   assert.equal(previewOptions.selection.weeks[0], 2);
-  assert.equal(alerts[0][1], 'schedule.lesson_editor.custom_time_conflict');
+  assert.equal(alerts[0].message, 'schedule.lesson_editor.custom_time_conflict');
+});
+
+test('a full day keeps slot mode without silently choosing custom time or occupied period one', () => {
+  const timing = load('src/utils/scheduleTime.js');
+  const dataSource = { start_time: '08:30', duration: 45, slotDurations: [45, 45, 45, 45], breaks: [10, 10, 10],
+    schedule: [{ week1: [1, 2, 3, 4].map(slotNumber => ({ subjectId: 'math', timeMode: 'slot', slotNumber })) }] };
+  const initial = editorHandler('initialTimingData', { ...timing, dataSource, getDayIndex: () => 0,
+    calculateCurrentWeek: () => 1, currentDate: new Date(), lesson: null });
+  assert.equal(initial().timeMode, 'slot');
+  assert.equal(initial().slotNumber, undefined);
+  let instance = { timeMode: 'custom', startTime: '14:00', endTime: '15:00' };
+  const selectSlot = () => assert.fail('Occupied slots must be selected explicitly');
+  editorHandler('handleTimeModeChange', { instanceData: instance, timeSlots: [1, 2, 3, 4].map(number => ({ number, occupied: true })),
+    setSlotConflict() {}, setConflictResolution() {}, selectSlot, setInstanceData: updater => instance = updater(instance) })('slot');
+  assert.equal(instance.timeMode, 'slot');
+  assert.equal(instance.slotNumber, undefined);
+  assert.equal(instance.startTime, undefined);
+});
+
+test('switching from custom time chooses the first free slot instead of the first occupied one', () => {
+  let selected;
+  editorHandler('handleTimeModeChange', { instanceData: { timeMode: 'custom' },
+    timeSlots: [{ number: 1, occupied: true }, { number: 2, occupied: false }],
+    setSlotConflict() {}, setConflictResolution() {}, selectSlot: number => selected = number })('slot');
+  assert.equal(selected, 2);
+});
+
+test('a full day offers the next numbered slot with its proposed time and an explicit create action', async t => {
+  let additions = 0;
+  const root = await render(t, 'screens/MainScreen.jsx', mainProps({ instanceData: { timeMode: 'slot' }, defaultTime: {},
+    timeSlots: [1, 2, 3, 4].map(number => ({ number, start: '08:30', end: '09:15', occupied: true })),
+    nextSlot: { number: 5, start: '12:10', end: '12:55' }, onAddSlot: () => additions++ }));
+  assert.ok(root.findAllByType('Text').some(node => node.props.children === i18n.t('schedule.lesson_editor.slots_full', 'uk', { count: 4 })));
+  const add = root.findAllByType('Button').find(node => node.props.accessibilityLabel?.includes(i18n.t('schedule.lesson_editor.slot_add', 'uk', { number: 5 })));
+  assert.ok(add.props.accessibilityLabel.includes('12:10 – 12:55'));
+  await press(add);
+  assert.equal(additions, 1);
+  assert.equal(button(root, tr('schedule.main_screen.start_time')), undefined);
+});
+
+test('adding a slot stays local until saving, then persists timing and the fifth lesson together', async () => {
+  const timing = load('src/utils/scheduleTime.js');
+  const { applyLessonRecurrence } = load('src/utils/lessonRecurrence.js');
+  const original = { id: 'schedule', repeat: 2, start_time: '08:30', duration: 45, slotDurations: [45, 45, 45, 45], breaks: [10, 10, 10],
+    subjects: [{ id: 'math' }], teachers: [], links: [], gradients: [],
+    schedule: [{ week1: [1, 2, 3, 4].map(slotNumber => ({ subjectId: 'math', timeMode: 'slot', slotNumber })), week2: [] }] };
+  const before = JSON.stringify(original);
+  const nextTiming = timing.appendScheduleSlot(original);
+  const nextSlot = timing.buildScheduleSlots(nextTiming.start_time, nextTiming.duration, nextTiming.breaks, nextTiming.slotDurations).at(-1);
+  let timingDraft, instanceData, saved, closed = 0;
+  editorHandler('handleAddSlot', { nextTiming, nextSlot, setTimingDraft: value => timingDraft = value,
+    setSlotConflict() {}, setConflictResolution() {}, selectSlot: slotNumber => instanceData = { timeMode: 'slot', slotNumber } })();
+  assert.equal(saved, undefined);
+  assert.equal(JSON.stringify(original), before);
+  assert.equal(instanceData.slotNumber, 5);
+  const timingSchedule = { ...original, ...timingDraft };
+  const placementOptions = { dayIndex: 0, weekNumber: 1, lessonIndex: null, selection: { mode: 'all' } };
+  await editorHandler('handleSave', { ...timing, slotConflict: null, instanceData, timingDraft, timingSchedule, schedule: original, placementOptions,
+    timeSlots: timing.buildScheduleSlots(timingDraft.start_time, timingDraft.duration, timingDraft.breaks, timingDraft.slotDurations),
+    storedDefaultTime: nextSlot, getSlotConflict: () => applyLessonRecurrence(timingSchedule, { ...placementOptions, lesson: instanceData, preview: true }),
+    conflictResolution: null, effectiveAttachmentRefs: [], normalizeAttachmentDraftList: x => x, resolveAttachmentList: x => x,
+    fileLibrary: [], attachmentUploadState: { uploading: false }, localData: original, selectedSubjectId: 'math', lesson: null,
+    getDayIndex: () => 0, calculateCurrentWeek: () => 1, currentDate: new Date(), currentWeekNumber: 1,
+    scopes: { people: 'global', type: 'global', location: 'global', materials: 'global', attachments: 'global' },
+    applyLessonRecurrence, recurrenceSelection: { mode: 'all' }, initialRecurrenceSelection: { mode: 'selected', weeks: [1] }, swapTiming: {},
+    setScheduleDraft: updater => saved = updater(original), removedStoredAttachments: [], setRemovedStoredAttachments() {},
+    setAttachmentUploadState() {}, isMinimized: false, triggerHaptic() {}, sheetRef: { current: { close: () => closed++ } } })();
+  assert.equal(saved.slotDurations.length, 5);
+  assert.deepEqual(saved.breaks, [10, 10, 10, 10]);
+  assert.deepEqual(saved.schedule[0].week1.map(item => item.slotNumber), [1, 2, 3, 4, 5]);
+  assert.equal(saved.schedule[0].week2[0].slotNumber, 5);
+  assert.deepEqual(timing.buildLessonTimes(saved.start_time, saved.duration, saved.breaks, saved.schedule[0].week1, saved.slotDurations).at(-1),
+    { start: '12:10', end: '12:55' });
+  assert.equal(closed, 1);
+  assert.equal(JSON.stringify(original), before);
+});
+
+test('saving without choosing or creating a slot leaves the timetable unchanged', async () => {
+  const alerts = [];
+  let screen;
+  await editorHandler('handleSave', { slotConflict: null, timingDraft: null, instanceData: { timeMode: 'slot' }, timeSlots: [{ number: 1 }],
+    dialog: { alert: options => alerts.push(options) }, t: key => key, lang: 'uk', setCurrentScreen: value => screen = value })();
+  assert.equal(alerts[0].message, 'schedule.lesson_editor.slot_choose_or_add');
+  assert.equal(screen, 'main');
+});
+
+test('holding an occupied slot and its pencil edit that slot without selecting or replacing it', async t => {
+  const edits = [], selections = [];
+  const root = await render(t, 'screens/MainScreen.jsx', mainProps({
+    timeSlots: [{ number: 4, start: '13:10', end: '14:30', occupied: true }],
+    onEditSlot: number => edits.push(number), onSlotChange: number => selections.push(number),
+  }));
+  const slot = root.findAllByType('Button').find(node => node.props.onLongPress);
+  await act(async () => slot.props.onLongPress());
+  await press(button(root, i18n.t('schedule.lesson_editor.slot_edit', 'uk', { number: 4 })));
+  assert.deepEqual(edits, [4, 4]);
+  assert.deepEqual(selections, []);
+});
+
+test('slot editing opens the shared timing screen and keeps timing changes local', () => {
+  const result = {};
+  editorHandler('handleEditSlot', { goToScreen: (screen, number) => { result.screen = screen; result.slot = number; } })(6);
+  assert.deepEqual(result, { slot: 6, screen: 'slotTime' });
+  const timing = { start_time: '09:00', slotDurations: [80, 80], breaks: [10] };
+  editorHandler('handleTimingChange', { setTimingDraft: value => result.timing = value,
+    setSlotConflict: value => result.conflict = value, setConflictResolution: value => result.resolution = value })(timing);
+  assert.equal(result.timing, timing);
+  assert.equal(result.conflict, null);
+  assert.equal(result.resolution, null);
+});
+
+test('invalid slot timing remains editable instead of returning to an empty slot grid', () => {
+  const alerts = [];
+  editorHandler('handleBack', { triggerHaptic() {}, currentScreen: 'slotTime', timeSlots: [],
+    dialog: { alert: options => alerts.push(options) }, t: key => key, lang: 'uk' })();
+  assert.equal(alerts[0].message, 'settings.schedule_editor.timing.invalid');
+});
+
+test('saving a timing shift checks custom overlaps on other days and weeks before committing', async () => {
+  const timing = load('src/utils/scheduleTime.js');
+  const { applyLessonRecurrence } = load('src/utils/lessonRecurrence.js');
+  const schedule = { repeat: 2, start_time: '08:30', duration: 45, slotDurations: [45, 45], breaks: [10],
+    schedule: [{ week1: [] }, { week2: [{ subjectId: 'math', timeMode: 'slot', slotNumber: 1 },
+      { subjectId: 'other', timeMode: 'custom', startTime: '09:30', endTime: '10:00' }] }] };
+  const timingDraft = { ...timing.createScheduleTimingDraft(schedule), start_time: '09:00' };
+  const timingSchedule = { ...schedule, ...timingDraft };
+  const slots = timing.buildScheduleSlots(timingDraft.start_time, timingDraft.duration, timingDraft.breaks, timingDraft.slotDurations);
+  const alerts = [];
+  await editorHandler('handleSave', { ...timing, slotConflict: null, timingDraft, timingSchedule, schedule,
+    instanceData: { timeMode: 'slot', slotNumber: 2 }, timeSlots: slots, storedDefaultTime: slots[1],
+    getSlotConflict: () => ({ conflicts: [] }), selectedSubjectId: 'math', conflictResolution: null,
+    placementOptions: { dayIndex: 0, weekNumber: 1, lessonIndex: null, selection: { mode: 'selected', weeks: [1] } },
+    applyLessonRecurrence, dialog: { alert: options => alerts.push(options) }, lang: 'uk', t: (key, _lang, params) => ({ key, params }) })();
+  assert.equal(alerts[0].message.key, 'settings.schedule_editor.timing.conflict');
+  assert.equal(alerts[0].message.params.dayIndex, 1);
+  assert.equal(alerts[0].message.params.week, 2);
 });

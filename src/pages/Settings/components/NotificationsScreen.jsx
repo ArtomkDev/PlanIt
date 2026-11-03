@@ -1,11 +1,12 @@
 import React, { useCallback } from "react";
-import { Alert, Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { Bell, SignIn } from "phosphor-react-native";
 
 import SettingsScreenLayout from "../../../layouts/SettingsScreenLayout";
 import AppSwitch from "../../../components/ui/AppSwitch";
 import SettingsGroup from "../../../components/ui/SettingsKit/SettingsGroup";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
+import { useAppDialog } from "../../../context/AppDialogContext";
 import { NOTIFICATION_TYPE_CONFIG } from "../../../config/notificationTypes";
 import {
   createNotificationPreferencesWithPush,
@@ -27,6 +28,7 @@ const getTypeIcon = (type) => {
 export default function NotificationsScreen() {
   const { user, global, lang } = useScheduleData();
   const { setGlobalDraft } = useScheduleActions();
+  const dialog = useAppDialog();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
@@ -46,10 +48,10 @@ export default function NotificationsScreen() {
 
       if (!permission.granted && permission.status !== "unsupported") {
         triggerHaptic("warning");
-        Alert.alert(
-          t("common.warning", lang),
-          t("settings.notifications.permission_denied", lang)
-        );
+        dialog.alert({
+          title: t("common.warning", lang),
+          message: t("settings.notifications.permission_denied", lang),
+        });
         return;
       }
 
@@ -65,7 +67,7 @@ export default function NotificationsScreen() {
       },
     }));
     triggerHaptic(value ? "toggleOn" : "toggleOff");
-  }, [global?.notificationPreferences, lang, setGlobalDraft, user?.uid]);
+  }, [dialog, global?.notificationPreferences, lang, setGlobalDraft, user?.uid]);
 
   const renderTypeRow = (item) => {
     const Icon = getTypeIcon(item.type);

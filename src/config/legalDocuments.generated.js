@@ -25,8 +25,8 @@ export const LEGAL_DOCUMENTS = {
     "type": "privacy",
     "effectiveDateLine": "Effective and last updated: August 30, 2026",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/privacy",
-      "uk": "https://planit-hub.web.app/uk/wiki/privacy"
+      "en": "https://planitflow.com/en/wiki/privacy",
+      "uk": "https://planitflow.com/uk/wiki/privacy"
     },
     "sourceFile": "content/legal/privacy.mdx",
     "sections": [
@@ -558,8 +558,8 @@ export const LEGAL_DOCUMENTS = {
     "type": "terms",
     "effectiveDateLine": "Effective and last updated: August 30, 2026",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/terms",
-      "uk": "https://planit-hub.web.app/uk/wiki/terms"
+      "en": "https://planitflow.com/en/wiki/terms",
+      "uk": "https://planitflow.com/uk/wiki/terms"
     },
     "sourceFile": "content/legal/terms.mdx",
     "sections": [
@@ -969,8 +969,8 @@ export const LEGAL_DOCUMENTS = {
     "type": "cookies",
     "effectiveDateLine": "Effective and last updated: July 24, 2026",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/cookies",
-      "uk": "https://planit-hub.web.app/uk/wiki/cookies"
+      "en": "https://planitflow.com/en/wiki/cookies",
+      "uk": "https://planitflow.com/uk/wiki/cookies"
     },
     "sourceFile": "content/legal/cookies.mdx",
     "sections": [
@@ -1350,8 +1350,8 @@ export const LEGAL_DOCUMENTS = {
     "type": "delete",
     "effectiveDateLine": "Effective and last updated: July 24, 2026",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/delete",
-      "uk": "https://planit-hub.web.app/uk/wiki/delete"
+      "en": "https://planitflow.com/en/wiki/delete",
+      "uk": "https://planitflow.com/uk/wiki/delete"
     },
     "sourceFile": "content/legal/delete.mdx",
     "sections": [
@@ -1661,8 +1661,8 @@ export const LEGAL_DOCUMENTS = {
     "type": "licenses",
     "effectiveDateLine": "Effective and last updated: August 30, 2026",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/licenses",
-      "uk": "https://planit-hub.web.app/uk/wiki/licenses"
+      "en": "https://planitflow.com/en/wiki/licenses",
+      "uk": "https://planitflow.com/uk/wiki/licenses"
     },
     "sourceFile": "content/legal/licenses.mdx",
     "sections": [
@@ -2250,8 +2250,8 @@ export const LEGAL_DOCUMENTS_UK = {
     "type": "privacy",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 30 серпня 2026 року",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/privacy",
-      "uk": "https://planit-hub.web.app/uk/wiki/privacy"
+      "en": "https://planitflow.com/en/wiki/privacy",
+      "uk": "https://planitflow.com/uk/wiki/privacy"
     },
     "sourceFile": "content/legal/uk/privacy.mdx",
     "sections": [
@@ -2784,8 +2784,8 @@ export const LEGAL_DOCUMENTS_UK = {
     "type": "terms",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 30 серпня 2026 року",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/terms",
-      "uk": "https://planit-hub.web.app/uk/wiki/terms"
+      "en": "https://planitflow.com/en/wiki/terms",
+      "uk": "https://planitflow.com/uk/wiki/terms"
     },
     "sourceFile": "content/legal/uk/terms.mdx",
     "sections": [
@@ -3196,8 +3196,8 @@ export const LEGAL_DOCUMENTS_UK = {
     "type": "cookies",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 24 липня 2026 року",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/cookies",
-      "uk": "https://planit-hub.web.app/uk/wiki/cookies"
+      "en": "https://planitflow.com/en/wiki/cookies",
+      "uk": "https://planitflow.com/uk/wiki/cookies"
     },
     "sourceFile": "content/legal/uk/cookies.mdx",
     "sections": [
@@ -3578,8 +3578,8 @@ export const LEGAL_DOCUMENTS_UK = {
     "type": "delete",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 24 липня 2026 року",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/delete",
-      "uk": "https://planit-hub.web.app/uk/wiki/delete"
+      "en": "https://planitflow.com/en/wiki/delete",
+      "uk": "https://planitflow.com/uk/wiki/delete"
     },
     "sourceFile": "content/legal/uk/delete.mdx",
     "sections": [
@@ -3890,8 +3890,8 @@ export const LEGAL_DOCUMENTS_UK = {
     "type": "licenses",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 30 серпня 2026 року",
     "browserUrls": {
-      "en": "https://planit-hub.web.app/en/wiki/licenses",
-      "uk": "https://planit-hub.web.app/uk/wiki/licenses"
+      "en": "https://planitflow.com/en/wiki/licenses",
+      "uk": "https://planitflow.com/uk/wiki/licenses"
     },
     "sourceFile": "content/legal/uk/licenses.mdx",
     "sections": [

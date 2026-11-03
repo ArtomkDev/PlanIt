@@ -3,10 +3,10 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import TextInput from '../ui/AppTextInput';
 import {
   ArrowUpRight,
   Camera,

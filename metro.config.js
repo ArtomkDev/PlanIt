@@ -1,10 +1,11 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const exclusionList = require('metro-config/private/defaults/exclusionList').default;
 const path = require('path');
 
 const projectRoot = __dirname;
 
 const escapeForRegex = (value) => value.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+// Metro's watcher normalizes Windows paths before matching exclusions.
+const projectPathPattern = projectRoot.split(path.sep).map(escapeForRegex).join('[/\\\\]');
 
 const localOnlyFolders = [
   '.agents',
@@ -22,12 +23,14 @@ const localOnlyFolders = [
 ];
 
 const localOnlyBlockList = localOnlyFolders.map((folder) => {
-  const folderPath = escapeForRegex(path.join(projectRoot, folder));
-  return new RegExp(`${folderPath}\\\\.*`);
+  return new RegExp(`^${projectPathPattern}[/\\\\]${escapeForRegex(folder)}(?:[/\\\\].*)?$`);
 });
+const nativeDependencyBuilds = new RegExp(
+  `^${projectPathPattern}[/\\\\]node_modules[/\\\\].*[/\\\\]android[/\\\\](?:build|\\.cxx|\\.gradle)(?:[/\\\\].*)?$`
+);
 
 const config = getDefaultConfig(projectRoot);
-config.resolver.blockList = exclusionList(localOnlyBlockList);
+config.resolver.blockList = [config.resolver.blockList, ...localOnlyBlockList, nativeDependencyBuilds].flat();
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const resolution = context.resolveRequest(context, moduleName, platform);
   const files = resolution.type === 'sourceFile' ? [resolution.filePath]

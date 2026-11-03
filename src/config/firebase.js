@@ -16,6 +16,7 @@ import {
 } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 const normalizeStorageBucket = (value) => {
     if (!value) return "";
@@ -51,7 +52,9 @@ const db = initializeFirestore(app, {
   // The Firebase Web SDK persistentLocalCache relies on browser IndexedDB.
   // In Expo/React Native native runtimes that storage layer is not stable,
   // so schedule startup/offline state is persisted through AsyncStorage instead.
-  localCache: memoryLocalCache() 
+  localCache: memoryLocalCache(),
+  // Avoid buffered WebChannel streams during short Android background reads.
+  experimentalForceLongPolling: Platform.OS === 'android',
 });
 
 let auth;

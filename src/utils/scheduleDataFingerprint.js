@@ -50,5 +50,6 @@ export const getScheduleDataFingerprint = (data) => {
 };
 
 export const hasScheduleDataChanged = (previousData, nextData) => (
+  previousData !== nextData &&
   getScheduleDataFingerprint(previousData) !== getScheduleDataFingerprint(nextData)
 );

@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import TextInput from './ui/AppTextInput';
+import DateTimePicker from './ui/AppDateTimePicker';
 import { Clock, Hourglass, Plus, Minus, CaretDown } from 'phosphor-react-native';
 import SettingsGroup from './ui/SettingsKit/SettingsGroup';
 import SettingsRow from './ui/SettingsKit/SettingsRow';
 import TabSwitcher from './ui/TabSwitcher';
 import { t } from '../utils/i18n';
-import { buildScheduleSlots, MAX_LESSON_SLOTS, updateScheduleSlotTime } from '../utils/scheduleTime';
+import { appendScheduleSlot, buildScheduleSlots, MAX_LESSON_SLOTS, updateScheduleSlotTime } from '../utils/scheduleTime';
 import { triggerHaptic } from '../utils/haptics';
 
-export default function ScheduleTimeEditor({ value, onChange, themeColors, lang, mode = 'light', title, minimumSlots = 1, active = true }) {
+export default function ScheduleTimeEditor({ value, onChange, themeColors, lang, mode = 'light', title, minimumSlots = 1, active = true, slotNumber }) {
   const [bulkExpanded, setBulkExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [picker, setPicker] = useState(null);
@@ -17,7 +18,8 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
   const slots = buildScheduleSlots(value.start_time, value.duration, value.breaks, value.slotDurations);
   const preview = slots;
   const count = value.slotDurations.length;
-  const visibleCount = showAll ? count : Math.min(count, 6);
+  const singleSlot = Number.isInteger(slotNumber);
+  const visibleCount = singleSlot || showAll ? count : Math.min(count, 6);
   const uniformDuration = value.slotDurations.every((duration) => Number(duration) === Number(value.slotDurations[0]));
   const copy = (key, params) => t(`settings.schedule_editor.timing.${key}`, lang, params);
   const minutes = t('schedule.main_screen.minutes', lang);
@@ -64,15 +66,13 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
   const changeCount = (delta) => {
     const nextCount = count + delta;
     if (nextCount < minimumSlots || nextCount < 1 || nextCount > MAX_LESSON_SLOTS) return;
-    const next = delta > 0 ? {
-      ...value,
-      slotDurations: [...value.slotDurations, value.slotDurations.at(-1)],
-      breaks: [...value.breaks, value.breaks.at(-1) ?? 10],
-    } : { ...value, slotDurations: value.slotDurations.slice(0, -1), breaks: value.breaks.slice(0, -1) };
-    if (delta > 0 && !buildScheduleSlots(next.start_time, next.duration, next.breaks, next.slotDurations).length) {
+    const addedTiming = delta > 0 ? appendScheduleSlot(value) : null;
+    if (delta > 0 && !addedTiming) {
       setTimeError({ count: true });
       return;
     }
+    const next = delta > 0 ? { ...value, ...addedTiming }
+      : { ...value, slotDurations: value.slotDurations.slice(0, -1), breaks: value.breaks.slice(0, -1) };
     triggerHaptic('selection');
     setPicker(null);
     if (delta > 0) setShowAll(nextCount > 6);
@@ -106,7 +106,7 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
     const formatDate = (selected) => `${String(selected.getHours()).padStart(2, '0')}:${String(selected.getMinutes()).padStart(2, '0')}`;
     if (Platform.OS === 'android') return (
       <DateTimePicker
-        value={date} mode="time" is24Hour design="material"
+        value={date} mode="time" is24Hour
         positiveButton={{ textColor: themeColors.accentColor }}
         negativeButton={{ textColor: themeColors.textColor2 }}
         onChange={(event, selected) => {
@@ -149,6 +149,7 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
 
   return (
     <View style={styles.container}>
+      {!singleSlot && <>
       <SettingsGroup title={title} themeColors={themeColors}>
         <SettingsRow label={t('settings.menu.start_time.title', lang)} value={value.start_time} icon={Clock}
           themeColors={themeColors} onPress={() => openPicker(0, 'start', true)} />
@@ -191,10 +192,11 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
           </TouchableOpacity>
         ))}
       </View>
+      </>}
       {!slots.length && <Text accessibilityRole="alert" accessibilityLiveRegion="polite"
         style={[styles.error, { color: errorColor }]}>{copy('invalid')}</Text>}
       <Text style={[styles.hint, { color: themeColors.textColor2 }]}>{copy('hint')}</Text>
-      {value.slotDurations.slice(0, visibleCount).map((duration, index) => (
+      {value.slotDurations.slice(0, visibleCount).map((duration, index) => (!singleSlot || index === slotNumber - 1) && (
         <View key={index}>
           <View style={[styles.slot, { backgroundColor: themeColors.backgroundColor2, borderColor: themeColors.borderColor }]}>
             <View style={styles.slotHeading}>
@@ -228,14 +230,14 @@ export default function ScheduleTimeEditor({ value, onChange, themeColors, lang,
           )}
         </View>
       ))}
-      {count > 6 && (
+      {!singleSlot && count > 6 && (
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={copy(showAll ? 'show_less' : 'show_all', { count })}
           accessibilityState={{ expanded: showAll }} style={styles.showMore} onPress={() => setShowAll(!showAll)}>
           <Text style={[styles.buttonText, { color: themeColors.accentTextColor }]}>{copy(showAll ? 'show_less' : 'show_all', { count })}</Text>
           <CaretDown size={18} color={themeColors.accentTextColor} />
         </TouchableOpacity>
       )}
-      {minimumSlots > 1 && <Text style={[styles.hint, { color: themeColors.textColor2 }]}>{copy('used_slots', { count: minimumSlots })}</Text>}
+      {!singleSlot && minimumSlots > 1 && <Text style={[styles.hint, { color: themeColors.textColor2 }]}>{copy('used_slots', { count: minimumSlots })}</Text>}
       {timeError?.count && (
         <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.error, { color: errorColor }]}>{copy('invalid')}</Text>
       )}

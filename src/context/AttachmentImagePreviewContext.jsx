@@ -7,8 +7,6 @@ import React, {
   useState,
 } from "react";
 
-import AttachmentImagePreview from "../components/attachments/AttachmentImagePreview";
-
 const AttachmentImagePreviewContext = createContext(null);
 
 export function AttachmentImagePreviewProvider({ children }) {
@@ -29,12 +27,16 @@ export function AttachmentImagePreviewProvider({ children }) {
     currentRequest?.onClose?.();
   }, []);
 
-  const value = useMemo(() => ({ openImagePreview }), [openImagePreview]);
+  const isImagePreviewOpen = !!request?.attachment;
+  const value = useMemo(() => ({ openImagePreview, isImagePreviewOpen }), [openImagePreview, isImagePreviewOpen]);
+  const AttachmentImagePreview = isImagePreviewOpen
+    ? require('../components/attachments/AttachmentImagePreview').default
+    : null;
 
   return (
     <AttachmentImagePreviewContext.Provider value={value}>
       {children}
-      <AttachmentImagePreview
+      {AttachmentImagePreview && <AttachmentImagePreview
         visible={!!request?.attachment}
         attachment={request?.attachment || null}
         attachments={request?.attachments || []}
@@ -42,7 +44,7 @@ export function AttachmentImagePreviewProvider({ children }) {
         onCacheStateChange={request?.onCacheStateChange}
         themeColors={request?.themeColors}
         lang={request?.lang}
-      />
+      />}
     </AttachmentImagePreviewContext.Provider>
   );
 }

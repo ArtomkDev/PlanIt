@@ -314,6 +314,9 @@ export default function StagedAttachmentImage({
   const showScanner = loaderScanning && showOverlay && !imageFailed;
   const handleLoad = (event) => {
     loadedAttachmentImageKeys.add(imageLoadKey);
+    if (loadedAttachmentImageKeys.size > 512) {
+      loadedAttachmentImageKeys.delete(loadedAttachmentImageKeys.values().next().value);
+    }
     setFailedSignature("");
     setLoadVersion((value) => value + 1);
     if (!IS_IOS) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { Trash, XCircle, ArrowsCounterClockwise } from "phosphor-react-native";
 import { useScheduleData } from "../../../../../context/ScheduleProvider";
 import { t } from "../../../../../utils/i18n";

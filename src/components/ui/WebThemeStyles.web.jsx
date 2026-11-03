@@ -1,18 +1,12 @@
 import React from 'react';
-import { useColorScheme } from 'react-native';
-import { useScheduleData } from '../../context/ScheduleProvider';
-import themes from '../../config/themes';
+import useAppTheme from '../../hooks/useAppTheme';
 
 export default function WebThemeStyles() {
-  const { global } = useScheduleData();
-  const systemScheme = useColorScheme();
-  const [setting = systemScheme || 'light', accent = 'blue'] = global?.theme || [];
-  const mode = setting === 'system' ? systemScheme || 'light' : setting;
-  const colors = themes.getColors(mode, accent);
+  const { colorScheme, colors } = useAppTheme();
 
   return <style>{`
     :root {
-      color-scheme: ${mode === 'dark' || mode === 'oled' ? 'dark' : 'light'};
+      color-scheme: ${colorScheme};
       --planit-scrollbar-thumb: ${colors.textColor3};
       --planit-scrollbar-thumb-hover: ${colors.textColor2};
     }

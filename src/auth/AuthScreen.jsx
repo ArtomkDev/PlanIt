@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, 
+  View, Text, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, LayoutAnimation, UIManager,
   Animated, Easing, useWindowDimensions, BackHandler, PanResponder, Linking
 } from 'react-native';
+import TextInput from '../components/ui/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Planet, RocketLaunch, Compass, Fingerprint, IdentificationCard, ShieldCheck, 
   UserPlus, CalendarBlank, PencilSimple, EnvelopeOpen, PaperPlaneRight, CheckCircle,
-  GraduationCap, Eye, EyeClosed, CheckSquare, Square, ArrowLeft, User, EnvelopeSimple, LockKey, WarningCircle
+  Eye, EyeClosed, CheckSquare, Square, ArrowLeft, User, EnvelopeSimple, LockKey, WarningCircle
 } from 'phosphor-react-native';
 import { 
   signInWithEmailAndPassword, 
@@ -25,6 +26,7 @@ import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 import MorphingLoader from '../components/ui/MorphingLoader';
+import PlanItWordmark from '../components/ui/PlanItWordmark';
 import { setManualLogin } from '../utils/authFlags';
 import { triggerHaptic } from '../utils/haptics';
 import { getLegalDocumentBrowserUrl } from '../utils/legalDocumentLinks';
@@ -34,6 +36,7 @@ import {
 } from './accountEmailService';
 import PasswordStrengthBar from './components/PasswordStrengthBar';
 import {
+  MAX_PASSWORD_LENGTH,
   getPasswordPolicyMessage,
   isPasswordAllowed,
 } from './passwordPolicy';
@@ -60,6 +63,8 @@ const AUTH_LAYOUT_ANIMATION = {
     property: LayoutAnimation.Properties.opacity,
   },
 };
+
+const SOCIAL_AUTH_CANCEL_CODES = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
 
 const configureAuthLayoutAnimation = (reduceMotion = false) => {
   if (!reduceMotion) LayoutAnimation.configureNext(AUTH_LAYOUT_ANIMATION);
@@ -218,6 +223,7 @@ const AnimatedIconSlot = ({ targetConfig, isDark }) => {
 };
 
 const InputField = ({
+  ref,
   InputIcon,
   placeholder,
   accessibilityLabel,
@@ -233,69 +239,89 @@ const InputField = ({
   keyboardType="default",
   autoComplete,
   textContentType,
+  maxLength,
+  returnKeyType,
+  onSubmitEditing,
+  error,
+  hint,
+  children,
   colors,
   isDark,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
-  
+  const iconColor = error ? '#ef4444' : isFocused ? colors.accentColor : colors.textColor2;
+
   return (
-    <View style={[
-      styles.inputContainer, 
-      { 
-        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)', 
-        borderColor: isFocused ? colors.accentColor : (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)')
-      }
-    ]}>
-      {InputIcon && <InputIcon size={20} color={isFocused ? colors.accentColor : colors.textColor2} style={styles.inputIcon} weight={isFocused ? "fill" : "regular"} />}
-      <TextInput 
-        accessibilityLabel={accessibilityLabel || placeholder}
-        style={[styles.input, { color: colors.textColor }]} 
-        placeholder={placeholder} 
-        placeholderTextColor={colors.textColor2} 
-        secureTextEntry={secureTextEntry} 
-        autoCorrect={!secureTextEntry && keyboardType !== 'email-address'}
-        spellCheck={!secureTextEntry && keyboardType !== 'email-address'}
-        value={value} 
-        onChangeText={onChangeText} 
-        autoCapitalize={autoCapitalize} 
-        keyboardType={keyboardType}
-        autoComplete={autoComplete}
-        textContentType={textContentType}
-        onFocus={() => {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setIsFocused(true);
-        }}
-        onBlur={() => {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setIsFocused(false);
-        }}
-      />
-      {isPasswordButton && (
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={passwordToggleLabel}
-          accessibilityHint={passwordToggleHint}
-          onPress={() => {
-            triggerHaptic("selection");
-            setIsPasswordVisible(!isPasswordVisible);
+    <View>
+      <View style={[
+        styles.inputContainer,
+        {
+          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+          borderColor: error ? '#ef4444' : isFocused ? colors.accentColor : (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)')
+        }
+      ]}>
+        {InputIcon && <InputIcon size={20} color={iconColor} style={styles.inputIcon} weight={isFocused ? "fill" : "regular"} />}
+        <TextInput
+          ref={ref}
+          accessibilityLabel={accessibilityLabel || placeholder}
+          accessibilityHint={error || hint}
+          style={[styles.input, { color: colors.textColor }]}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textColor2}
+          secureTextEntry={secureTextEntry}
+          autoCorrect={!secureTextEntry && keyboardType !== 'email-address'}
+          spellCheck={!secureTextEntry && keyboardType !== 'email-address'}
+          value={value}
+          onChangeText={onChangeText}
+          autoCapitalize={autoCapitalize}
+          keyboardType={keyboardType}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          maxLength={maxLength}
+          returnKeyType={returnKeyType}
+          submitBehavior={returnKeyType === 'next' ? 'submit' : 'blurAndSubmit'}
+          onSubmitEditing={onSubmitEditing}
+          onFocus={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setIsFocused(true);
           }}
-          style={styles.eyeButton}
-        >
-          {isPasswordVisible ? 
-            <EyeClosed size={22} color={colors.textColor2} weight="regular" /> : 
-            <Eye size={22} color={colors.textColor2} weight="regular" />
-          }
-        </TouchableOpacity>
-      )}
+          onBlur={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setIsFocused(false);
+          }}
+        />
+        {isPasswordButton && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={passwordToggleLabel}
+            accessibilityHint={passwordToggleHint}
+            onPress={() => {
+              triggerHaptic("selection");
+              setIsPasswordVisible(!isPasswordVisible);
+            }}
+            style={styles.eyeButton}
+          >
+            {isPasswordVisible ?
+              <EyeClosed size={22} color={colors.textColor2} weight="regular" /> :
+              <Eye size={22} color={colors.textColor2} weight="regular" />
+            }
+          </TouchableOpacity>
+        )}
+      </View>
+      {children}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.fieldError}>{error}</Text>
+      ) : hint ? (
+        <Text style={[styles.fieldHint, { color: colors.textColor2 }]}>{hint}</Text>
+      ) : null}
     </View>
   );
 };
 
-const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormError, onOpenDocument }) => {
+const TermsCheckbox = ({ acceptedTerms, onToggle, error, colors, lang, onOpenDocument }) => {
   const toggleTerms = () => {
     triggerHaptic(acceptedTerms ? "toggleOff" : "toggleOn");
-    setAcceptedTerms(!acceptedTerms);
-    setFormError('');
+    onToggle();
   };
 
   const openDocument = (documentType) => {
@@ -304,30 +330,36 @@ const TermsCheckbox = ({ acceptedTerms, setAcceptedTerms, colors, lang, setFormE
   };
 
   return (
-    <View style={styles.checkboxContainer}>
-      <TouchableOpacity
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: acceptedTerms }}
-        accessibilityLabel={t('auth.terms.accept_label', lang)}
-        style={styles.checkboxButton}
-        onPress={toggleTerms}
-        activeOpacity={0.7}
-      >
-        {acceptedTerms ?
-          <CheckSquare size={22} color={colors.accentColor} weight="fill" /> :
-          <Square size={22} color={colors.textColor2} weight="regular" />
-        }
-      </TouchableOpacity>
-      <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
-        <Text onPress={toggleTerms}>{t('auth.terms.agree_prefix', lang)}</Text>
-        <Text style={{ color: colors.accentTextColor }} onPress={() => openDocument('privacy')}>
-          {t('auth.terms.privacy_policy', lang)}
+    <View>
+      <View style={styles.checkboxContainer}>
+        <TouchableOpacity
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: acceptedTerms }}
+          accessibilityLabel={t('auth.terms.accept_label', lang)}
+          accessibilityHint={error}
+          style={styles.checkboxButton}
+          onPress={toggleTerms}
+          activeOpacity={0.7}
+        >
+          {acceptedTerms ?
+            <CheckSquare size={22} color={colors.accentColor} weight="fill" /> :
+            <Square size={22} color={error ? '#ef4444' : colors.textColor2} weight={error ? "bold" : "regular"} />
+          }
+        </TouchableOpacity>
+        <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
+          <Text onPress={toggleTerms}>{t('auth.terms.agree_prefix', lang)}</Text>
+          <Text style={{ color: colors.accentTextColor }} onPress={() => openDocument('privacy')}>
+            {t('auth.terms.privacy_policy', lang)}
+          </Text>
+          <Text onPress={toggleTerms}>{t('auth.terms.and', lang)}</Text>
+          <Text style={{ color: colors.accentTextColor }} onPress={() => openDocument('terms')}>
+            {t('auth.terms.terms_conditions', lang)}
+          </Text>
         </Text>
-        <Text onPress={toggleTerms}>{t('auth.terms.and', lang)}</Text>
-        <Text style={{ color: colors.accentTextColor }} onPress={() => openDocument('terms')}>
-          {t('auth.terms.terms_conditions', lang)}
-        </Text>
-      </Text>
+      </View>
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={[styles.fieldError, styles.termsError]}>{error}</Text>
+      ) : null}
     </View>
   );
 };
@@ -360,11 +392,10 @@ const AuthMorphingLoader = ({ compact }) => {
   );
 };
 
-const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, setAcceptedTerms, isDark, setFormError, formError, onOpenLegalDocument }) => {
+const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, onToggleTerms, onTermsMissing, termsError, isDark, formError, onOpenLegalDocument }) => {
   const checkTerms = (action) => {
     if (!acceptedTerms) {
-      triggerHaptic("warning");
-      setFormError(t('auth.errors.accept_terms_strict', lang));
+      onTermsMissing();
       return;
     }
     action();
@@ -373,10 +404,7 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
   return (
     <View style={[styles.contentBlock, { paddingTop: insets.top + 40 }]}>
       <View style={styles.welcomeHeader}>
-        <View style={[styles.logoContainer, { backgroundColor: colors.accentColor }]}>
-           <GraduationCap size={54} color="#fff" weight="fill" />
-        </View>
-        <Text style={[styles.welcomeTitle, { color: colors.textColor }]}>PlanIt</Text>
+        <PlanItWordmark fontSize={52} color={colors.textColor} isDark={isDark} style={styles.welcomeTitle} />
         <Text style={[styles.welcomeSubtitle, { color: colors.textColor2 }]}>{t('auth.welcome.subtitle', lang)}</Text>
       </View>
       <View style={[styles.glassCard, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.4)', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
@@ -403,7 +431,7 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
           </TouchableOpacity>
         )}
         <View style={{ marginTop: 12 }}>
-          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} onOpenDocument={onOpenLegalDocument} />
+          <TermsCheckbox acceptedTerms={acceptedTerms} onToggle={onToggleTerms} error={termsError} colors={colors} lang={lang} onOpenDocument={onOpenLegalDocument} />
         </View>
       </View>
     </View>
@@ -432,27 +460,59 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
   const [passwordResetCooldown, setPasswordResetCooldown] = useState(0);
   
   const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
   const currentViewRef = useRef(currentView);
   currentViewRef.current = currentView;
+  const fieldRefs = {
+    name: useRef(null),
+    email: useRef(null),
+    password: useRef(null),
+  };
 
   const validateEmail = (emailText) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailText);
   };
 
-  const handleTextChange = (setter) => (text) => {
+  const clearMessages = () => {
+    setFormError('');
+    setSuccessMessage('');
+  };
+
+  const clearFieldError = (field) => {
+    if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const showFieldErrors = (errors) => {
+    triggerHaptic("warning");
+    configureAuthLayoutAnimation(reduceMotion);
+    clearMessages();
+    setFieldErrors(errors);
+    const firstInvalidField = ['name', 'email', 'password'].find((field) => errors[field]);
+    if (firstInvalidField) fieldRefs[firstInvalidField].current?.focus();
+  };
+
+  const handleTextChange = (field, setter) => (text) => {
     setter(text);
-    if (formError || successMessage) {
-      setFormError('');
-      setSuccessMessage('');
-    }
+    clearFieldError(field);
+    if (formError || successMessage) clearMessages();
+  };
+
+  const handleToggleTerms = () => {
+    setAcceptedTerms((accepted) => !accepted);
+    clearFieldError('terms');
+    setFormError('');
+  };
+
+  const handleTermsMissing = () => {
+    showFieldErrors({ terms: t('auth.errors.accept_terms', lang) });
   };
 
   const handleNavigate = (view) => {
     triggerHaptic(view === 'welcome' ? "navigateBack" : "navigation");
     configureAuthLayoutAnimation(reduceMotion);
-    setFormError('');
-    setSuccessMessage('');
+    clearMessages();
+    setFieldErrors({});
     setCurrentView(view);
   };
   const navigateRef = useRef(handleNavigate);
@@ -549,89 +609,85 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     })
   ).current;
 
+  const getFormErrors = (isSignUp) => {
+    const errors = {};
+    const trimmedEmail = email.trim();
+
+    if (isSignUp && !name.trim()) errors.name = t('auth.errors.name_required', lang);
+    if (!trimmedEmail) errors.email = t('auth.errors.email_required', lang);
+    else if (!validateEmail(trimmedEmail)) errors.email = t('auth.errors.invalid_email', lang);
+    if (!password) errors.password = t('auth.errors.password_required', lang);
+    else if (isSignUp && !isPasswordAllowed(password)) errors.password = getPasswordPolicyMessage(lang);
+    if (!acceptedTerms) errors.terms = t('auth.errors.accept_terms', lang);
+
+    return errors;
+  };
+
   const handleSignIn = async () => {
     if (isLoading) return;
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
-      triggerHaptic("warning");
-      return setFormError(t('auth.errors.fill_fields', lang));
-    }
-    if (!validateEmail(trimmedEmail)) {
-      triggerHaptic("warning");
-      return setFormError(t("auth.errors.invalid_email", lang));
-    }
-    if (!acceptedTerms) {
-      triggerHaptic("warning");
-      return setFormError(t('auth.errors.accept_terms_strict', lang));
-    }
-    
+    const errors = getFormErrors(false);
+    if (Object.keys(errors).length) return showFieldErrors(errors);
+
     configureAuthLayoutAnimation(reduceMotion);
+    setFieldErrors({});
     setIsLoading(true);
-    try { 
+    try {
       setManualLogin(true);
-      const cred = await signInWithEmailAndPassword(auth, trimmedEmail, password); 
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       triggerHaptic("success");
       if (!cred.user.emailVerified) {
         handleNavigate('verify');
       }
-    } catch (error) { 
+    } catch (error) {
       triggerHaptic("error");
       setManualLogin(false);
       let msg = t('auth.errors.wrong_credentials', lang);
       if (error.code === 'auth/too-many-requests') msg = t('auth.errors.too_many_requests', lang);
+      if (error.code === 'auth/network-request-failed') msg = t('auth.errors.network_failed', lang);
       setFormError(msg);
-    } finally { 
+    } finally {
       configureAuthLayoutAnimation(reduceMotion);
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
   const handleSignUp = async () => {
     if (isLoading) return;
-    const trimmedEmail = email.trim();
-    const trimmedName = name.trim();
-    
-    if (!trimmedName || !trimmedEmail || !password) {
-      triggerHaptic("warning");
-      return setFormError(t('auth.errors.fill_fields', lang));
-    }
-    if (!validateEmail(trimmedEmail)) {
-      triggerHaptic("warning");
-      return setFormError(t("auth.errors.invalid_email", lang));
-    }
-    if (!isPasswordAllowed(password)) {
-      triggerHaptic("warning");
-      return setFormError(getPasswordPolicyMessage(lang));
-    }
-    if (!acceptedTerms) {
-      triggerHaptic("warning");
-      return setFormError(t('auth.errors.accept_terms', lang));
-    }
-    
+    const errors = getFormErrors(true);
+    if (Object.keys(errors).length) return showFieldErrors(errors);
+
     configureAuthLayoutAnimation(reduceMotion);
+    setFieldErrors({});
     setIsLoading(true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-      await updateProfile(cred.user, { displayName: trimmedName });
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      await updateProfile(cred.user, { displayName: name.trim() });
       handleNavigate('verify');
       await requestEmailVerification({ user: cred.user, lang });
       setResendCooldown(60);
       triggerHaptic("success");
-    } catch (error) { 
+    } catch (error) {
+      if (error.code === 'auth/email-already-in-use') {
+        return showFieldErrors({ email: t('auth.errors.email_in_use', lang) });
+      }
+      if (error.code === 'auth/invalid-email') {
+        return showFieldErrors({ email: t('auth.errors.invalid_email', lang) });
+      }
+      if (error.code === 'auth/weak-password') {
+        return showFieldErrors({ password: getPasswordPolicyMessage(lang) });
+      }
       triggerHaptic("error");
       let msg = t('auth.errors.signup_failed', lang);
-      if (error.code === 'auth/email-already-in-use') msg = t('auth.errors.email_in_use', lang);
-      if (error.code === 'auth/invalid-email') msg = t('auth.errors.invalid_email', lang);
-      if (error.code === 'auth/weak-password') msg = getPasswordPolicyMessage(lang);
+      if (error.code === 'auth/network-request-failed') msg = t('auth.errors.network_failed', lang);
       if (error.code?.startsWith('account-email/')) msg = t('common.action_failed', lang);
       if (error.code === 'account-email/too-many-requests') {
         setResendCooldown(60);
         msg = t('auth.errors.too_many_requests', lang);
       }
       setFormError(msg);
-    } finally { 
+    } finally {
       configureAuthLayoutAnimation(reduceMotion);
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
@@ -641,13 +697,11 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       return;
     }
     if (!trimmedEmail) {
-      triggerHaptic("warning");
-      setFormError(t('auth.forgot_password.req_email', lang));
+      showFieldErrors({ email: t('auth.forgot_password.req_email', lang) });
       return;
     }
     if (!validateEmail(trimmedEmail)) {
-      triggerHaptic("warning");
-      setFormError(t("auth.errors.invalid_email", lang));
+      showFieldErrors({ email: t('auth.errors.invalid_email', lang) });
       return;
     }
 
@@ -660,21 +714,26 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       setPasswordResetCooldown(60);
       setSuccessMessage(t('auth.forgot_password.success_msg', lang));
     } catch (error) {
+      if (error.code === 'account-email/invalid-email') {
+        showFieldErrors({ email: t('auth.errors.invalid_email', lang) });
+        return;
+      }
       triggerHaptic("error");
       const isRateLimited = error.code === 'account-email/too-many-requests';
       if (isRateLimited) {
         setPasswordResetCooldown(60);
       }
-      const msg = error.code === 'account-email/invalid-email'
-        ? t('auth.errors.invalid_email', lang)
-        : isRateLimited
-          ? t('auth.errors.too_many_requests', lang)
-          : t('auth.errors.reset_failed', lang);
-      setFormError(msg);
+      setFormError(t(isRateLimited ? 'auth.errors.too_many_requests' : 'auth.errors.reset_failed', lang));
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleSocialAuthError = (error) => {
+    if (SOCIAL_AUTH_CANCEL_CODES.includes(error?.code)) return;
+    setFormError(t(error?.code === 'auth/network-request-failed' ? 'auth.errors.network_failed' : 'common.action_failed', lang));
+  };
+
   const handleCancelVerification = async () => {
     if (isLoading) return;
     setIsLoading(true);
@@ -799,7 +858,85 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
 
       elements.push(
         <View key="inputs" style={styles.formGroup}>
-          
+          {currentView === 'signup' && (
+            <InputField
+              ref={fieldRefs.name}
+              InputIcon={User}
+              placeholder={t('auth.fields.name', lang)}
+              value={name}
+              onChangeText={handleTextChange('name', setName)}
+              autoCapitalize="words"
+              autoComplete="name"
+              textContentType="name"
+              returnKeyType="next"
+              onSubmitEditing={() => fieldRefs.email.current?.focus()}
+              error={fieldErrors.name}
+              colors={colors}
+              isDark={isDark}
+            />
+          )}
+          <InputField
+            ref={fieldRefs.email}
+            InputIcon={EnvelopeSimple}
+            placeholder={t('auth.fields.email', lang)}
+            value={email}
+            onChangeText={handleTextChange('email', setEmail)}
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+            returnKeyType="next"
+            onSubmitEditing={() => fieldRefs.password.current?.focus()}
+            error={fieldErrors.email}
+            colors={colors}
+            isDark={isDark}
+          />
+          <InputField
+            ref={fieldRefs.password}
+            InputIcon={LockKey}
+            placeholder={t('auth.fields.password', lang)}
+            secureTextEntry={!isPasswordVisible}
+            value={password}
+            onChangeText={handleTextChange('password', setPassword)}
+            isPasswordButton
+            isPasswordVisible={isPasswordVisible}
+            setIsPasswordVisible={setIsPasswordVisible}
+            passwordToggleLabel={isPasswordVisible ? t('auth.fields.hide_password', lang) : t('auth.fields.show_password', lang)}
+            passwordToggleHint={t('auth.fields.password_visibility_hint', lang)}
+            autoComplete={currentView === 'signup' ? 'new-password' : 'current-password'}
+            textContentType={currentView === 'signup' ? 'newPassword' : 'password'}
+            maxLength={MAX_PASSWORD_LENGTH}
+            returnKeyType="go"
+            onSubmitEditing={currentView === 'signin' ? handleSignIn : handleSignUp}
+            error={fieldErrors.password}
+            hint={currentView === 'signup' ? getPasswordPolicyMessage(lang) : undefined}
+            colors={colors}
+            isDark={isDark}
+          >
+            {currentView === 'signup' && (
+              <PasswordStrengthBar password={password} isDark={isDark} />
+            )}
+          </InputField>
+
+          {currentView === 'signin' && (
+            <TouchableOpacity
+              style={styles.forgotPassword}
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.signin.forgot_password', lang)}
+              accessibilityState={{ disabled: isLoading || passwordResetCooldown > 0 }}
+              hitSlop={8}
+              onPress={handleForgotPassword}
+              disabled={isLoading || passwordResetCooldown > 0}
+            >
+              <Text style={[styles.forgotPasswordText, { color: colors.accentTextColor, opacity: passwordResetCooldown > 0 ? 0.6 : 1 }]}>
+                {passwordResetCooldown > 0
+                  ? `${t('auth.signin.forgot_password', lang)} (${passwordResetCooldown})`
+                  : t('auth.signin.forgot_password', lang)}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <TermsCheckbox acceptedTerms={acceptedTerms} onToggle={handleToggleTerms} error={fieldErrors.terms} colors={colors} lang={lang} onOpenDocument={openLegalDocument} />
+
           {formError ? (
             <View
               accessibilityRole="alert"
@@ -819,51 +956,6 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
               <Text style={styles.successText}>{successMessage}</Text>
             </View>
           ) : null}
-
-          {currentView === 'signup' && (
-            <InputField InputIcon={User} placeholder={t('auth.fields.name', lang)} value={name} onChangeText={handleTextChange(setName)} autoCapitalize="words" colors={colors} isDark={isDark} />
-          )}
-          <InputField InputIcon={EnvelopeSimple} placeholder={t('auth.fields.email', lang)} value={email} onChangeText={handleTextChange(setEmail)} keyboardType="email-address" colors={colors} isDark={isDark} />
-          <View>
-            <InputField 
-              InputIcon={LockKey} 
-              placeholder={t('auth.fields.password', lang)} 
-              secureTextEntry={!isPasswordVisible} 
-              value={password} 
-              onChangeText={handleTextChange(setPassword)} 
-              isPasswordButton 
-              isPasswordVisible={isPasswordVisible} 
-              setIsPasswordVisible={setIsPasswordVisible} 
-              passwordToggleLabel={isPasswordVisible ? t('auth.fields.hide_password', lang) : t('auth.fields.show_password', lang)}
-              passwordToggleHint={t('auth.fields.password_visibility_hint', lang)}
-              autoComplete="password"
-              textContentType="password"
-              colors={colors} 
-              isDark={isDark} 
-            />
-            {currentView === 'signup' && (
-              <PasswordStrengthBar password={password} isDark={isDark} />
-            )}
-          </View>
-          
-          <TermsCheckbox acceptedTerms={acceptedTerms} setAcceptedTerms={setAcceptedTerms} colors={colors} lang={lang} setFormError={setFormError} onOpenDocument={openLegalDocument} />
-          
-          {currentView === 'signin' && (
-            <TouchableOpacity
-              style={styles.forgotPassword}
-              accessibilityRole="button"
-              accessibilityLabel={t('auth.signin.forgot_password', lang)}
-              accessibilityState={{ disabled: isLoading || passwordResetCooldown > 0 }}
-              onPress={handleForgotPassword}
-              disabled={isLoading || passwordResetCooldown > 0}
-            >
-              <Text style={[styles.forgotPasswordText, { color: colors.accentTextColor }]}>
-                {passwordResetCooldown > 0
-                  ? `${t('auth.signin.forgot_password', lang)} (${passwordResetCooldown})`
-                  : t('auth.signin.forgot_password', lang)}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
       );
 
@@ -890,10 +982,9 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
           <View style={{ opacity: acceptedTerms ? 1 : 0.6 }}>
             <SocialAuthButtons disabled={isLoading} onBeforeAuth={() => {
               if (acceptedTerms) return true;
-              triggerHaptic('warning');
-              setFormError(t('auth.errors.accept_terms_strict', lang));
+              handleTermsMissing();
               return false;
-            }} onAuthError={() => setFormError(t('common.action_failed', lang))} />
+            }} onAuthError={handleSocialAuthError} />
           </View>
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.textColor2 }]}>
@@ -949,10 +1040,11 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
                 lang={lang} 
                 insets={insets} 
                 onGuestLogin={onGuestLogin} 
-                acceptedTerms={acceptedTerms} 
-                setAcceptedTerms={setAcceptedTerms} 
-                isDark={isDark} 
-                setFormError={setFormError} 
+                acceptedTerms={acceptedTerms}
+                onToggleTerms={handleToggleTerms}
+                onTermsMissing={handleTermsMissing}
+                termsError={fieldErrors.terms}
+                isDark={isDark}
                 formError={formError}
                 onOpenLegalDocument={openLegalDocument}
               />
@@ -995,8 +1087,7 @@ const styles = StyleSheet.create({
   glassCard: { padding: 20, borderRadius: 24, borderWidth: 1, backdropFilter: 'blur(20px)' },
   verifyFormBlock: { width: '100%', justifyContent: 'center', paddingVertical: 40 },
   welcomeHeader: { alignItems: 'center', marginTop: '15%', marginBottom: '10%' },
-  logoContainer: { width: 84, height: 84, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 20, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
-  welcomeTitle: { fontSize: 38, fontWeight: '800', marginBottom: 8, textAlign: 'center', letterSpacing: 0 },
+  welcomeTitle: { marginBottom: 18 },
   welcomeSubtitle: { fontSize: 16, textAlign: 'center', lineHeight: 24, maxWidth: '85%', marginHorizontal: 'auto' },
   primaryButton: { width: '100%', height: 56, borderRadius: 16, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
@@ -1011,9 +1102,13 @@ const styles = StyleSheet.create({
   formGroup: { gap: 14 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 54 },
   inputIcon: { marginRight: 10 },
-  input: { flex: 1, height: '100%', fontSize: 16 },
+  // The container border already shows focus; drop the browser's inner outline.
+  input: { flex: 1, height: '100%', fontSize: 16, ...Platform.select({ web: { outlineStyle: 'none' } }) },
   eyeButton: { width: 48, height: 48, marginRight: -12, alignItems: 'center', justifyContent: 'center' },
-  forgotPassword: { alignSelf: 'flex-end', marginTop: -4, marginBottom: 4 },
+  fieldError: { color: '#ef4444', fontSize: 13, lineHeight: 18, fontWeight: '500', marginTop: 6, marginHorizontal: 4 },
+  fieldHint: { fontSize: 13, lineHeight: 18, marginTop: 6, marginHorizontal: 4 },
+  termsError: { marginTop: -4, marginLeft: 35 },
+  forgotPassword: { alignSelf: 'flex-end', marginTop: -6 },
   forgotPasswordText: { fontSize: 14, fontWeight: '500' },
   checkboxContainer: { flexDirection: 'row', alignItems: 'center', paddingRight: 10, marginVertical: 2 },
   checkboxButton: { width: 48, height: 48, marginLeft: -13, alignItems: 'center', justifyContent: 'center' },

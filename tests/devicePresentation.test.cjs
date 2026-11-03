@@ -55,11 +55,12 @@ test('device screen groups sessions and preserves the current device; subscripti
   let receive, fail;
   const mocks = {
     react: React,
-    'react-native': { View: 'View', Text: 'Text', Pressable: 'Button', Platform: { OS: 'web' }, Alert: {}, ActivityIndicator: 'Spinner', StyleSheet: { create: (s) => s, hairlineWidth: 1 } },
+    'react-native': { View: 'View', Text: 'Text', Pressable: 'Button', Platform: { OS: 'web' }, ActivityIndicator: 'Spinner', StyleSheet: { create: (s) => s, hairlineWidth: 1 } },
     'phosphor-react-native': { Monitor: 'Monitor', DeviceMobile: 'DeviceMobile', SignOut: 'SignOut', X: 'X' },
     'firebase/firestore': { collection() {}, onSnapshot(_, next, error) { receive = next; fail = error; return () => {}; } },
     '../../../../utils/deviceService': { getDeviceId: async () => 'current' },
     '../../../../context/ScheduleProvider': { useScheduleData: () => ({ user: { uid: 'user' }, global: {}, lang: 'uk' }) },
+    '../../../../context/AppDialogContext': { useAppDialog: () => ({ confirm: async () => false }) },
     '../../../../layouts/SettingsScreenLayout': 'Layout',
     '../../../../config/firebase': {},
     '../../../../config/themes': { getColors: () => ({}), accentColors: { red: 'red' } },

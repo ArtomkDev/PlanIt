@@ -179,10 +179,10 @@ export const isTombstoneSafeToDelete = (data, watermark, now = Date.now()) => {
   return deletedAt <= safeWatermark;
 };
 
-const runDeviceSyncTimeAndCleanUp = async (userId) => {
+const runDeviceSyncTimeAndCleanUp = async (userId, isActive) => {
   try {
     const deviceId = await getDeviceId();
-    if (!deviceId) return;
+    if (!deviceId || !isActive()) return;
     
     const now = Date.now();
     const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
@@ -193,6 +193,7 @@ const runDeviceSyncTimeAndCleanUp = async (userId) => {
 
     // A stale watermark can only delay tombstone deletion; advancing it requires a rare device scan.
     const { globalRef, watermark, scannedDevices } = await getCleanupWatermark(userId, now);
+    if (!isActive()) return;
     const schedulesRef = collection(db, 'users', userId, 'schedules');
     const deletedSchedulesQuery = query(schedulesRef, where('isDeleted', '==', true));
     const schedulesSnap = await getDocsFromServer(deletedSchedulesQuery);
@@ -204,17 +205,23 @@ const runDeviceSyncTimeAndCleanUp = async (userId) => {
       const current = await transaction.get(snapshot.ref);
       // A different device can restore a schedule after the collection scan.
       // Recheck inside the transaction so cleanup cannot erase that restoration.
-      if (current.exists() && isTombstoneSafeToDelete(current.data(), watermark, now)) {
+      if (isActive() && current.exists() && isTombstoneSafeToDelete(current.data(), watermark, now)) {
         transaction.delete(snapshot.ref);
       }
     })));
 
-    if (scannedDevices) {
+    if (scannedDevices && isActive()) {
       await updateDoc(globalRef, { watermark, watermarkUpdatedAt: now });
     }
   } catch (error) {
     console.error(error);
   }
+};
+
+const cancelDeviceSyncCleanup = (userId) => {
+  const state = cleanupStateByUser.get(userId);
+  if (state?.timeoutId) clearTimeout(state.timeoutId);
+  cleanupStateByUser.delete(userId);
 };
 
 export const updateDeviceSyncTimeAndCleanUp = async (userId, options = {}) => {
@@ -236,9 +243,8 @@ export const updateDeviceSyncTimeAndCleanUp = async (userId, options = {}) => {
   if (!force && msSinceLastRun < DEVICE_SYNC_CLEANUP_THROTTLE_MS) {
     if (!state.timeoutId) {
       state.timeoutId = setTimeout(() => {
-        const latestState = cleanupStateByUser.get(userId) || {};
-        latestState.timeoutId = null;
-        cleanupStateByUser.set(userId, latestState);
+        if (cleanupStateByUser.get(userId) !== state) return;
+        state.timeoutId = null;
         updateDeviceSyncTimeAndCleanUp(userId, { force: true });
       }, DEVICE_SYNC_CLEANUP_THROTTLE_MS - msSinceLastRun);
     }
@@ -252,10 +258,10 @@ export const updateDeviceSyncTimeAndCleanUp = async (userId, options = {}) => {
   }
 
   state.lastStartedAt = now;
-  state.inFlight = runDeviceSyncTimeAndCleanUp(userId).finally(() => {
-    const latestState = cleanupStateByUser.get(userId) || state;
-    latestState.inFlight = null;
-    cleanupStateByUser.set(userId, latestState);
+  state.inFlight = runDeviceSyncTimeAndCleanUp(userId, () => (
+    cleanupStateByUser.get(userId) === state && !isAccountBeingDeleted
+  )).finally(() => {
+    state.inFlight = null;
   });
   cleanupStateByUser.set(userId, state);
 
@@ -356,23 +362,41 @@ export const subscribeToSchedule = (userId, onDataUpdate, onError) => {
 
   return () => {
     subscriptionActive = false;
+    cancelDeviceSyncCleanup(userId);
     unsubGlobal();
     unsubSchedules();
   };
 };
 
+export const getWidgetScheduleFromServer = async (userId, scheduleId) => {
+  const deviceId = await getDeviceId();
+  const [deviceSnap, scheduleSnap] = await Promise.all([
+    getDocFromServer(doc(db, 'users', userId, 'devices', deviceId)),
+    getDocFromServer(doc(db, 'users', userId, 'schedules', scheduleId)),
+  ]);
+  if (!deviceSnap.exists() || deviceSnap.data().status !== 'active') {
+    const error = new Error('The widget device session is no longer active.');
+    error.code = 'device/revoked';
+    throw error;
+  }
+  if (!scheduleSnap.exists()) return null;
+  const schedule = fromCloudDocument(scheduleSnap.data(), scheduleSnap.id);
+  return schedule.isDeleted ? null : schedule;
+};
+
 export const getSchedule = async (userId) => {
   try {
     const globalRef = doc(db, 'users', userId, 'global', 'settings');
-    const globalSnap = await getDoc(globalRef);
+    const schedulesRef = collection(db, 'users', userId, 'schedules');
+    const [globalSnap, schedulesSnap] = await Promise.all([
+      getDoc(globalRef),
+      getDocs(schedulesRef),
+    ]);
     
     let globalData = null;
     if (globalSnap.exists()) {
       globalData = fromCloudDocument(globalSnap.data());
     }
-
-    const schedulesRef = collection(db, 'users', userId, 'schedules');
-    const schedulesSnap = await getDocs(schedulesRef);
 
     const schedulesList = schedulesSnap.docs.map((docSnap) => (
       fromCloudDocument(docSnap.data(), docSnap.id)
@@ -395,15 +419,16 @@ export const getSchedule = async (userId) => {
 export const getScheduleFromServer = async (userId) => {
   try {
     const globalRef = doc(db, 'users', userId, 'global', 'settings');
-    const globalSnap = await getDocFromServer(globalRef);
+    const schedulesRef = collection(db, 'users', userId, 'schedules');
+    const [globalSnap, schedulesSnap] = await Promise.all([
+      getDocFromServer(globalRef),
+      getDocsFromServer(schedulesRef),
+    ]);
     
     let globalData = null;
     if (globalSnap.exists()) {
       globalData = fromCloudDocument(globalSnap.data());
     }
-
-    const schedulesRef = collection(db, 'users', userId, 'schedules');
-    const schedulesSnap = await getDocsFromServer(schedulesRef); 
 
     const schedulesList = schedulesSnap.docs.map((docSnap) => (
       fromCloudDocument(docSnap.data(), docSnap.id)
@@ -534,16 +559,16 @@ export const saveSchedule = async (userId, data, isPartialUpdate = false) => {
     }
   });
 
-  try {
-    const deviceId = await getDeviceId();
-    if (deviceId) {
-      await updateDoc(doc(db, 'users', userId, 'devices', deviceId), {
+  if (committed.global || committed.schedules.length > 0) {
+    // A device heartbeat can remain queued offline after the data transaction
+    // succeeds. It must not hold the save lock or delay its acknowledgement.
+    getDeviceId().then((deviceId) => {
+      if (!deviceId || isAccountBeingDeleted) return;
+      return updateDoc(doc(db, 'users', userId, 'devices', deviceId), {
         lastSyncTime: serverTimestamp(),
         lastSeenAt: serverTimestamp(),
       });
-    }
-  } catch (error) {
-    logCrashlyticsError(error, 'updateDeviceAfterSave_Firestore');
+    }).catch((error) => logCrashlyticsError(error, 'updateDeviceAfterSave_Firestore'));
   }
 
   if (conflicts.length > 0) {
@@ -672,6 +697,7 @@ export const resetUserSchedules = async (userId) => {
 
 export const deleteAllUserData = async (userId) => {
   const releaseDeletionLock = beginAccountDeletion();
+  cancelDeviceSyncCleanup(userId);
 
   try {
     // Flush writes already queued by listeners before server-side deletion starts.

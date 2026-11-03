@@ -112,6 +112,8 @@ service cloud.firestore {
           "lastLoginNotificationAt",
           "lastSyncTime",
           "expoPushToken",
+          "widgetPushToken",
+          "widgetScheduleId",
           "pushPermissionStatus",
           "pushTokenPlatform",
           "language",
@@ -127,6 +129,8 @@ service cloud.firestore {
         && optionalNullableStringWithMax(data, "model", 120)
         && optionalNullableStringWithMax(data, "lastIpAddress", 64)
         && optionalNullableStringWithMax(data, "expoPushToken", 256)
+        && optionalNullableStringWithMax(data, "widgetPushToken", 4096)
+        && optionalNullableStringWithMax(data, "widgetScheduleId", 128)
         && optionalNullableStringWithMax(data, "pushPermissionStatus", 80)
         && optionalNullableStringWithMax(data, "pushTokenPlatform", 40)
         && (!hasField(data, "language") || data.language in ["uk", "en"])

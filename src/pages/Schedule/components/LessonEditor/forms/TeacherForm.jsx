@@ -4,10 +4,10 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { CaretDown, Plus, Trash, User } from "phosphor-react-native";
 import {
   getContactIconComponent,

@@ -6,6 +6,7 @@ import { CloudArrowUp, CheckSquare, Square } from 'phosphor-react-native';
 
 import { saveSchedule } from '../../config/firestore';
 import { generateId } from '../../utils/idGenerator';
+import { assignScheduleId } from '../../utils/scheduleIdentity';
 import { getLocalSchedule, saveLocalSchedule } from '../../utils/storage';
 import {
   consumeCloudMigrationOffers,
@@ -121,10 +122,10 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
       }
       const pendingCopies = schedulesToMigrate
         .map((localSchedule) => {
-          const copy = markScheduleAsAccountOwned(
-            attachmentCopiesRef.current.get(localSchedule.id).schedule,
+          const copy = assignScheduleId(
+            markScheduleAsAccountOwned(attachmentCopiesRef.current.get(localSchedule.id).schedule),
+            migrationTargetIds[localSchedule.id] || generateId(),
           );
-          copy.id = migrationTargetIds[localSchedule.id] || generateId();
           copy.version = 0;
           copy.baseVersion = 0;
           copy.lastSynced = 0;

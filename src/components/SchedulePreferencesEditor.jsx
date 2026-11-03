@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import TextInput from './ui/AppTextInput';
 import { Bell, CheckSquare } from 'phosphor-react-native';
 import SettingsGroup from './ui/SettingsKit/SettingsGroup';
 import SettingsRow from './ui/SettingsKit/SettingsRow';
@@ -9,8 +10,10 @@ import { triggerHaptic } from '../utils/haptics';
 import { CUSTOM_REMINDER_FALLBACK_MINUTES, REMINDER_PRESET_MINUTES, clampReminderMinutes, getScheduleReminderSelectionId, normalizeScheduleReminder } from '../utils/reminderSettings';
 import { TASK_AUTO_LINK_MODES, getTaskAutoLinkMode } from '../utils/taskLessonLinking';
 import { NOTIFICATION_TYPES, ensureNotificationPushPermissionsForType } from '../services/notificationService';
+import { useAppDialog } from '../context/AppDialogContext';
 
 export default function SchedulePreferencesEditor({ value, onChange, themeColors, lang, notificationPreferences, active = true }) {
+  const dialog = useAppDialog();
   const [expanded, setExpanded] = useState(false);
   const [pending, setPending] = useState(false);
   const requestId = useRef(0);
@@ -38,7 +41,7 @@ export default function SchedulePreferencesEditor({ value, onChange, themeColors
       });
       if (request !== requestId.current) return;
       if (!permission.disabledByPreference && !permission.granted && permission.status !== 'unsupported') {
-        Alert.alert(t('common.warning', lang), t('schedule.reminders.permission_denied', lang));
+        dialog.alert({ title: t('common.warning', lang), message: t('schedule.reminders.permission_denied', lang) });
         return;
       }
       const minutesBefore = clampReminderMinutes(id === 'custom' ? customMinutes : id, CUSTOM_REMINDER_FALLBACK_MINUTES);
@@ -46,7 +49,7 @@ export default function SchedulePreferencesEditor({ value, onChange, themeColors
       triggerHaptic('toggleOn');
       onChange(prev => ({ ...prev, reminder: { enabled: true, minutesBefore } }));
     } catch (_error) {
-      if (request === requestId.current) Alert.alert(t('common.error', lang), t('common.action_failed', lang));
+      if (request === requestId.current) dialog.alert({ title: t('common.error', lang), message: t('common.action_failed', lang) });
     } finally {
       if (request === requestId.current) setPending(false);
     }

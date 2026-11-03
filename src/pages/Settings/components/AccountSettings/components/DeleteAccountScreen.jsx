@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import TextInput from '../../../../../components/ui/AppTextInput';
 import { deleteUser } from 'firebase/auth';
 
 import { auth } from '../../../../../config/firebase';
@@ -25,6 +24,7 @@ import { clearLocalAccountData } from '../../../../../services/localAccountDataS
 import { setIgnoreDeviceRemoval } from '../../../../../utils/deviceService';
 import { logCrashlyticsError } from '../../../../../utils/analytics/crashlytics';
 import { useScheduleData } from '../../../../../context/ScheduleProvider';
+import { useAppDialog } from '../../../../../context/AppDialogContext';
 import MorphingLoader from '../../../../../components/ui/MorphingLoader';
 import themes from '../../../../../config/themes';
 import { t } from '../../../../../utils/i18n';
@@ -70,6 +70,7 @@ const getDeletionErrorKey = (error) => {
 
 export default function DeleteAccountScreen() {
   const { global, lang } = useScheduleData();
+  const dialog = useAppDialog();
   const [mode, accent] = global?.theme || ['light', 'blue'];
   const themeColors = themes.getColors(mode, accent);
   const styles = getStyles(themeColors);
@@ -172,12 +173,7 @@ export default function DeleteAccountScreen() {
 
       await deleteAllUserData(currentUser.uid);
 
-      try {
-        await clearLocalAccountData(currentUser.uid);
-      } catch (error) {
-        logCrashlyticsError(error, 'deleteAccount_LocalCacheCleanup');
-      }
-
+      await clearLocalAccountData(currentUser.uid);
       await deleteUser(currentUser);
     } catch (error) {
       logCrashlyticsError(error, 'deleteAccount_Orchestration');
@@ -195,7 +191,7 @@ export default function DeleteAccountScreen() {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const currentUser = auth.currentUser;
     if (!isAccountDeletionVerificationValid(verification, currentUser)) {
       const error = new Error('Account deletion verification expired.');
@@ -205,36 +201,13 @@ export default function DeleteAccountScreen() {
       return;
     }
 
-    const confirmationMessage = t(
-      'settings.account_settings.delete_screen.alert_msg',
-      lang,
-    );
-
-    if (Platform.OS === 'web') {
-      if (
-        typeof window !== 'undefined' &&
-        window.confirm(confirmationMessage)
-      ) {
-        executeDeletion(verification);
-      }
-      return;
-    }
-
-    Alert.alert(
-      t('settings.account_settings.delete_screen.alert_title', lang),
-      confirmationMessage,
-      [
-        { text: t('common.cancel', lang), style: 'cancel' },
-        {
-          text: t(
-            'settings.account_settings.delete_screen.confirm_btn',
-            lang,
-          ),
-          style: 'destructive',
-          onPress: () => executeDeletion(verification),
-        },
-      ],
-    );
+    const confirmed = await dialog.confirm({
+      title: t('settings.account_settings.delete_screen.alert_title', lang),
+      message: t('settings.account_settings.delete_screen.alert_msg', lang),
+      confirmLabel: t('settings.account_settings.delete_screen.confirm_btn', lang),
+      destructive: true,
+    });
+    if (confirmed) executeDeletion(verification);
   };
 
   const renderProviderButton = (providerId) => {

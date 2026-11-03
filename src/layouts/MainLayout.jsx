@@ -1,38 +1,50 @@
 import { StatusBar } from 'expo-status-bar';
+import { requireOptionalNativeModule } from 'expo';
+import * as SystemUI from 'expo-system-ui';
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Animated, AppState } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Animated, AppState, Appearance, Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 
 import AutoSaveManager from '../services/AutoSaveManager';
-import TabNavigator from '../navigation/TabNavigator';
 import { useScheduleActions, useScheduleData, useScheduleSync } from '../context/ScheduleProvider';
-import themes from '../config/themes';
+import useAppTheme from '../hooks/useAppTheme';
 import { t } from '../utils/i18n';
 import MigrationModal from '../components/modals/MigrationModal';
 import AppBlur from '../components/ui/AppBlur';
 import MorphingLoader from '../components/ui/MorphingLoader';
 import AdBanner from '../components/AdBanner/AdBanner';
-import { useAds } from '../context/AdsContext';
+import { useBottomSheetPresentation } from '../context/BottomSheetPresentationContext';
+import { useAttachmentImagePreview } from '../context/AttachmentImagePreviewContext';
 
 import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
-import OnboardingWizard from '../pages/Onboarding/OnboardingWizard';
 import ImportScheduleModal from '../components/modals/ImportScheduleModal';
 import SchedulePickerSheet from '../pages/Schedule/components/SchedulePickerSheet';
 import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 
 const MainStack = createNativeStackNavigator();
 
+const updateAndroidSystemBars = async (backgroundColor, style) => {
+  if (AppState.currentState !== 'active') return;
+  try {
+    // Expo's public setStyle wrapper discards the native promise in this SDK.
+    const navigationBar = requireOptionalNativeModule('ExpoNavigationBar');
+    await Promise.all([
+      SystemUI.setBackgroundColorAsync(backgroundColor),
+      navigationBar?.setStyle(style),
+    ]);
+  } catch (error) {
+    if (error?.code !== 'ERR_MISSING_ACTIVITY') console.warn('Unable to update Android system bars:', error);
+  }
+};
+
 export default function MainLayout({ guest, onExitGuest }) {
-  const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotionPreference();
-  const { canShowAds, isLoading: adsLoading } = useAds();
   const {
     user,
-    global,
     schedule,
     schedules,
     isLoading,
@@ -51,6 +63,15 @@ export default function MainLayout({ guest, onExitGuest }) {
   } = useScheduleActions();
 
   const navigation = useNavigation();
+  const isBannerRoute = useNavigationState((state) => {
+    let route = state.routes[state.index ?? 0];
+    while (route?.state) {
+      route = route.state.routes[route.state.index ?? 0];
+    }
+    return route?.name === 'ScheduleTab' || route?.name === 'TasksTab';
+  });
+  const { hasPresentedSheets } = useBottomSheetPresentation();
+  const { isImagePreviewOpen } = useAttachmentImagePreview();
   const url = Linking.useURL();
 
   const [isFatalTimeout, setIsFatalTimeout] = useState(false);
@@ -59,6 +80,7 @@ export default function MainLayout({ guest, onExitGuest }) {
   const [showWidgetConfig, setShowWidgetConfig] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importCode, setImportCode] = useState("");
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
 
   const hasSchedules = schedules && schedules.length > 0;
   const hasUsableSchedule = hasSchedules && !!schedule;
@@ -89,6 +111,7 @@ export default function MainLayout({ guest, onExitGuest }) {
   const isErrorState = hasFatalDataError || isFatalTimeout;
 
   const [showOverlay, setShowOverlay] = useState(true);
+  const [hasContentLayout, setHasContentLayout] = useState(false);
   const overlayOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -145,7 +168,7 @@ export default function MainLayout({ guest, onExitGuest }) {
 
   useEffect(() => {
     let timer;
-    if (isBlocking) {
+    if (isBlocking || !hasContentLayout) {
       timer = setTimeout(() => {
         setIsFatalTimeout(true);
       }, 12000);
@@ -171,7 +194,7 @@ export default function MainLayout({ guest, onExitGuest }) {
       clearTimeout(timer);
       overlayOpacity.stopAnimation();
     };
-  }, [isBlocking, overlayOpacity, reduceMotion, retrySequence]);
+  }, [isBlocking, hasContentLayout, overlayOpacity, reduceMotion, retrySequence]);
 
   const handleRetry = () => {
     setIsFatalTimeout(false);
@@ -194,53 +217,68 @@ export default function MainLayout({ guest, onExitGuest }) {
     });
   };
 
-  const [currentTheme, currentAccent] = global?.theme || ['light', 'blue'];
-  const themeColors = themes.getColors(currentTheme, currentAccent);
-  const isLightMode = currentTheme === 'light';
-  const shouldReserveBannerSpace =
-    hasSchedules && !isBlocking && !showOverlay && (adsLoading || canShowAds);
+  const { colors: themeColors, colorScheme } = useAppTheme();
+  const isLightMode = colorScheme === 'light';
+  const shouldShowBanner = hasSchedules && isBannerRoute && !isBlocking && !showOverlay && conflictQueue.length === 0;
+  const bannerVisible = shouldShowBanner && !hasPresentedSheets && !isImagePreviewOpen
+    && !notificationsVisible && !importModalVisible && !showWidgetConfig;
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const apply = () => updateAndroidSystemBars(themeColors.backgroundColorTabNavigator, isLightMode ? 'dark' : 'light');
+    apply();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') apply();
+    });
+    return () => subscription.remove();
+  }, [themeColors.backgroundColorTabNavigator, isLightMode]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    return () => {
+      updateAndroidSystemBars(null, Appearance.getColorScheme() === 'dark' ? 'light' : 'dark');
+    };
+  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.backgroundColor }}>
       <StatusBar style={isLightMode ? 'dark' : 'light'} />
 
-      {shouldReserveBannerSpace ? (
-        <View
-          style={[
-            styles.adSafeArea,
-            {
-              paddingTop: insets.top,
-              backgroundColor: themeColors.backgroundColor,
-            },
-          ]}
-        >
-          <AdBanner />
-        </View>
-      ) : null}
+      <AdBanner visible={bannerVisible} reserveSpace={shouldShowBanner} />
 
-      <View style={styles.container} accessibilityElementsHidden={showOverlay || conflictQueue.length > 0}
+      <SafeAreaProvider style={styles.container} accessibilityElementsHidden={showOverlay || conflictQueue.length > 0}
         importantForAccessibility={showOverlay || conflictQueue.length > 0 ? 'no-hide-descendants' : 'auto'}>
         <View style={{ flex: 1 }}>
-          <MainStack.Navigator screenOptions={{ headerShown: false, animation: reduceMotion ? 'none' : 'fade', animationDuration: 220 }}>
+          <MainStack.Navigator
+            screenOptions={{ headerShown: false, animation: reduceMotion ? 'none' : 'fade', animationDuration: 220 }}
+          >
             {showOnboarding ? (
               <MainStack.Screen name="Onboarding">
-                {() => (
-                  <OnboardingWizard
+                {() => {
+                  const OnboardingWizard = require('../pages/Onboarding/OnboardingWizard').default;
+                  return <OnboardingWizard
+                    onLayout={() => setHasContentLayout(true)}
                     onImportSchedule={() => {
                       setImportCode("");
                       setImportModalVisible(true);
                     }}
-                  />
-                )}
+                  />;
+                }}
               </MainStack.Screen>
             ) : (
               <MainStack.Screen name="Tabs">
-                {() => <TabNavigator screenProps={{ guest, onExitGuest }} />}
+                {() => {
+                  const TabNavigator = require('../navigation/TabNavigator').default;
+                  return <TabNavigator screenProps={{ guest, onExitGuest }} onNotificationsVisibilityChange={setNotificationsVisible}
+                    onLayout={() => setHasContentLayout(true)} />;
+                }}
               </MainStack.Screen>
             )}
           </MainStack.Navigator>
         </View>
-      </View>
+      </SafeAreaProvider>
 
       <SchedulePickerSheet
         visible={showWidgetConfig}
@@ -313,7 +351,6 @@ export default function MainLayout({ guest, onExitGuest }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  adSafeArea: { width: '100%' },
   overlay: { zIndex: 1000, justifyContent: 'center', alignItems: 'center' },
   overlayContent: { padding: 24, borderRadius: 20, alignItems: 'center', justifyContent: 'center', width: '85%', maxWidth: 400, elevation: 10 },
   fatalBox: { alignItems: 'center', width: '100%' },

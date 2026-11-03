@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
-import { Coffee, Timer } from "phosphor-react-native";
+import { Animated, Platform, StyleSheet, Text, View } from "react-native";
+import { BlurView } from "expo-blur";
 import tinycolor from "tinycolor2";
 import GradientBackground from "../../../components/ui/GradientBackground";
 import { t } from "../../../utils/i18n";
@@ -9,8 +9,9 @@ import { createDateAtTime } from "../../../utils/scheduleTime";
 import { getLessonColors } from "../../../utils/scheduleColors";
 import { normalizeGradientStops } from "../../../utils/gradientColors";
 import useActivityTransition from "./useActivityTransition";
+import CardIcon from "./CardIcon";
 
-export default function BreakCard({ interval, previousLesson, schedule, targetDate, themeColors, lang }) {
+export default function BreakCard({ interval, previousLesson, schedule, targetDate, themeColors, lang, blurEnabled = true }) {
   const now = useNowTick(targetDate, !!targetDate);
   const start = createDateAtTime(targetDate, interval.start)?.getTime();
   const end = createDateAtTime(targetDate, interval.end)?.getTime();
@@ -31,12 +32,11 @@ export default function BreakCard({ interval, previousLesson, schedule, targetDa
   const countdown = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
   const duration = interval.duration + ' ' + t('schedule.main_screen.minutes', lang);
   const renderContent = (highlighted) => {
-    const Icon = highlighted ? Timer : Coffee;
     const foreground = highlighted ? '#FFFFFF' : themeColors.textColor;
     const muted = highlighted ? 'rgba(255,255,255,0.78)' : themeColors.textColor2;
     return <View style={styles.row}>
       <View style={styles.label}>
-        <Icon size={15} color={muted} />
+        <CardIcon name={highlighted ? "timer" : "coffee"} size={15} color={muted} />
         <Text style={[styles.title, { color: foreground }]}>
           {t(interval.type === 'free' ? 'schedule.day_schedule.free_time' : 'schedule.day_schedule.break', lang)}
         </Text>
@@ -50,17 +50,23 @@ export default function BreakCard({ interval, previousLesson, schedule, targetDa
   return (
     <View style={[styles.outline, { backgroundColor: themeColors.backgroundColor2 }]} testID="schedule-gap">
       <Animated.View style={{ opacity: inactiveOpacity }}
-        accessibilityElementsHidden={active} importantForAccessibility={active ? 'no-hide-descendants' : 'auto'}>
+        aria-hidden={active} accessibilityElementsHidden={active} importantForAccessibility={active ? 'no-hide-descendants' : 'auto'}>
         {renderContent(false)}
       </Animated.View>
       <Animated.View pointerEvents="none" testID="schedule-gap-active"
-        accessibilityElementsHidden={!active} importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
+        aria-hidden={!active} accessibilityElementsHidden={!active} importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
         style={[styles.activeLayer, { opacity: activeOpacity }]}>
-        <GradientBackground gradient={appearance.borderGradient} fallbackColor={appearance.border} style={styles.activeOutline}>
-          <GradientBackground gradient={appearance.fillGradient} fallbackColor={appearance.fill} style={styles.activeFill}>
-            {renderContent(true)}
+        <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+          style={StyleSheet.absoluteFill}>
+          <GradientBackground gradient={appearance.borderGradient} fallbackColor={appearance.border} style={styles.activeOutline}>
+            <View style={styles.backgroundClip}>
+              <GradientBackground gradient={appearance.fillGradient} fallbackColor={appearance.fill}
+                style={[styles.softBackground, blurEnabled && styles.backgroundBlur]} />
+              {blurEnabled && Platform.OS === 'ios' && <BlurView intensity={35} tint="systemUltraThinMaterialDark" style={StyleSheet.absoluteFill} />}
+            </View>
           </GradientBackground>
-        </GradientBackground>
+        </View>
+        {renderContent(true)}
       </Animated.View>
     </View>
   );
@@ -68,9 +74,11 @@ export default function BreakCard({ interval, previousLesson, schedule, targetDa
 
 const styles = StyleSheet.create({
   outline: { position: 'relative', marginHorizontal: 12, marginBottom: 8, padding: 1, borderRadius: 14, overflow: 'hidden' },
-  activeLayer: { ...StyleSheet.absoluteFill, borderRadius: 14 },
+  activeLayer: { ...StyleSheet.absoluteFill, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)' },
   activeOutline: { flex: 1, padding: 1, borderRadius: 14 },
-  activeFill: { flex: 1, borderRadius: 13 },
+  backgroundClip: { flex: 1, borderRadius: 13, overflow: 'hidden' },
+  softBackground: { position: 'absolute', top: -18, right: -18, bottom: -18, left: -18 },
+  backgroundBlur: Platform.select({ web: { filter: 'blur(16px)' }, android: { filter: [{ blur: 16 }] }, default: {} }),
   row: { minHeight: 36, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 13, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 4 },
   label: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   title: { fontSize: 12, lineHeight: 18, fontWeight: '600', flexShrink: 1 },

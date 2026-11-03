@@ -4,12 +4,125 @@ const Module = require('node:module');
 const path = require('node:path');
 const test = require('node:test');
 const babel = require('@babel/core');
+const React = require('react');
+const { act, create } = require('react-test-renderer');
+
+global.IS_REACT_ACT_ENVIRONMENT = true;
+global.__DEV__ = false;
 
 const servicePath = path.resolve(
   __dirname,
   '../src/utils/adInit/adInit.native.js',
 );
 const adConfigPath = path.resolve(__dirname, '../src/config/ads.js');
+
+const compiledComponents = new Map();
+const loadAdComponent = (relativePath, mocks, exportName = 'default') => {
+  const filename = path.resolve(__dirname, '..', relativePath);
+  if (!compiledComponents.has(filename)) {
+    compiledComponents.set(filename, babel.transformFileSync(filename, {
+      plugins: [
+        '@babel/plugin-transform-dynamic-import',
+        '@babel/plugin-transform-modules-commonjs',
+      ],
+    }).code);
+  }
+  const componentModule = new Module(filename, module);
+  componentModule.filename = filename;
+  componentModule.paths = Module._nodeModulePaths(path.dirname(filename));
+  const originalRequire = componentModule.require.bind(componentModule);
+  componentModule.require = (name) => Object.hasOwn(mocks, name)
+    ? mocks[name]()
+    : originalRequire(name);
+  componentModule._compile(compiledComponents.get(filename), filename);
+  return exportName ? componentModule.exports[exportName] : componentModule.exports;
+};
+
+const mountBanner = async (t, options = {}) => {
+  let canShowAds = options.canShowAds ?? true;
+  let width = options.width ?? 390;
+  let visible = options.visible ?? true;
+  let reserveSpace = options.reserveSpace ?? false;
+  let isPrivacyOptionsLoading = false;
+  let isDialogVisible = false;
+  const listeners = new Map();
+  const listen = (name, callback) => {
+    listeners.set(name, callback);
+    return { remove: () => listeners.delete(name) };
+  };
+  let imports = 0;
+  let mounts = 0;
+  let unmounts = 0;
+  const insets = { top: 24, bottom: 0, left: 0, right: 0, ...options.insets };
+  const BannerAd = (props) => {
+    const [loaded, setLoaded] = React.useState(false);
+    React.useEffect(() => {
+      mounts += 1;
+      return () => { unmounts += 1; };
+    }, []);
+    return React.createElement('BannerAd', {
+      ...props,
+      style: { width: loaded ? 320 : 0, height: loaded ? 50 : 0 },
+      onAdLoaded: () => {
+        setLoaded(true);
+        props.onAdLoaded?.({ width: 320, height: 50 });
+      },
+    });
+  };
+  const implementation = loadAdComponent('src/components/AdBanner/AdBannerImpl.jsx', {
+    'react-native': () => ({
+      View: 'View',
+      StyleSheet: { create: value => value, hairlineWidth: 0.5 },
+      useWindowDimensions: () => ({ width }),
+    }),
+    'react-native-safe-area-context': () => ({ useSafeAreaInsets: () => insets }),
+    'react-native-google-mobile-ads': () => ({
+      BannerAd,
+      BannerAdSize: { ANCHORED_ADAPTIVE_BANNER: 'ANCHORED_ADAPTIVE_BANNER' },
+    }),
+    '../../config/ads': () => ({ AD_UNITS: { BANNER: options.unitId === null ? null : 'ca-app-pub-3940256099942544/9214589741' } }),
+  });
+  const Component = loadAdComponent('src/components/AdBanner/AdBanner.native.jsx', {
+    'react-native': () => ({
+      AppState: { currentState: options.appState ?? 'active', addEventListener: listen },
+      Keyboard: { isVisible: () => false, addListener: listen },
+      Platform: { OS: options.platform ?? 'android' },
+    }),
+    expo: () => ({ isRunningInExpoGo: () => options.isExpoGo === true }),
+    '../../context/AdsContext': () => ({ useAds: () => ({ canShowAds, isPrivacyOptionsLoading }) }),
+    '../../context/AppDialogContext': () => ({ useIsAppDialogVisible: () => isDialogVisible }),
+    './AdBannerImpl': () => {
+      imports += 1;
+      if (options.importFails) throw new Error('Native ads unavailable');
+      return { __esModule: true, default: implementation };
+    },
+  });
+  let tree;
+  const element = () => React.createElement(Component, { visible, reserveSpace });
+  await act(async () => { tree = create(element()); });
+  t.after(async () => {
+    await act(async () => tree.unmount());
+    assert.equal(listeners.size, 0);
+  });
+  return {
+    tree,
+    counts: () => ({ imports, mounts, unmounts }),
+    async emit(name, value) {
+      await act(async () => listeners.get(name)?.(value));
+    },
+    async update(next = {}) {
+      canShowAds = next.canShowAds ?? canShowAds;
+      width = next.width ?? width;
+      visible = next.visible ?? visible;
+      reserveSpace = next.reserveSpace ?? reserveSpace;
+      isPrivacyOptionsLoading = next.isPrivacyOptionsLoading ?? isPrivacyOptionsLoading;
+      isDialogVisible = next.isDialogVisible ?? isDialogVisible;
+      await act(async () => tree.update(element()));
+    },
+  };
+};
+
+const flattenStyle = style => Object.assign({}, ...(Array.isArray(style) ? style : [style]));
 
 const loadAdConfig = ({
   platform = 'android',
@@ -141,10 +254,324 @@ const loadAdService = ({
   testModule._compile(transformed, servicePath);
   return {
     calls,
+    adsModule,
     getAdsModuleLoads: () => adsModuleLoads,
     service: testModule.exports,
   };
 };
+
+for (const [name, options] of [
+  ['consent is pending or ads are disabled', { canShowAds: false }],
+  ['running in Expo Go', { isExpoGo: true }],
+  ['the native module cannot load', { importFails: true }],
+  ['the banner unit is unavailable', { unitId: null }],
+  ['the screen is narrower than the banner', { width: 319 }],
+  ['landscape safe areas leave insufficient width', { width: 390, insets: { left: 44, right: 44 } }],
+]) {
+  test(`leaves no banner spacing when ${name}`, async t => {
+    const banner = await mountBanner(t, options);
+    assert.equal(banner.tree.toJSON(), null);
+    assert.equal(banner.counts().mounts, 0);
+    if (options.isExpoGo || options.canShowAds === false) {
+      assert.equal(banner.counts().imports, 0);
+    }
+  });
+}
+
+test('reserves a separate fixed banner slot before loading and keeps it stable after loading', async t => {
+  const banner = await mountBanner(t, { insets: { left: 12, right: 8 } });
+  const views = banner.tree.root.findAllByType('View');
+  const placement = flattenStyle(views[0].props.style);
+  const frame = flattenStyle(views[1].props.style);
+  assert.equal(placement.paddingTop, 24);
+  assert.equal(placement.paddingLeft, 12);
+  assert.equal(placement.paddingRight, 8);
+  assert.equal(placement.paddingBottom, 8);
+  assert.ok(placement.borderBottomWidth > 0);
+  assert.equal(placement.flexShrink, 0);
+  assert.equal(frame.width, 370);
+  assert.equal(frame.minHeight, 60);
+  assert.equal(frame.flexShrink, 0);
+  for (const style of [placement, frame]) {
+    assert.equal(style.position, undefined);
+    assert.equal(style.transform, undefined);
+    assert.equal(style.overflow, undefined);
+    assert.equal(style.opacity, undefined);
+  }
+  const ad = banner.tree.root.findByType('BannerAd');
+  assert.equal(ad.props.size, 'ANCHORED_ADAPTIVE_BANNER');
+  assert.equal(ad.props.width, 370);
+  assert.equal(ad.props.requestOptions.requestNonPersonalizedAdsOnly, true);
+  await act(async () => ad.props.onAdLoaded());
+  assert.deepEqual(flattenStyle(views[0].props.style), placement);
+  assert.deepEqual(flattenStyle(views[1].props.style), frame);
+  await banner.update();
+  assert.deepEqual(banner.counts(), { imports: 1, mounts: 1, unmounts: 0 });
+});
+
+for (const loaded of [false, true]) {
+  test(`unmounts the banner and releases its whole slot after ${loaded ? 'a refresh failure' : 'no fill or a network failure'}`, async t => {
+    const banner = await mountBanner(t);
+    const ad = banner.tree.root.findByType('BannerAd');
+    if (loaded) await act(async () => ad.props.onAdLoaded());
+    await act(async () => ad.props.onAdFailedToLoad(new Error('No ad available')));
+    assert.equal(banner.tree.toJSON(), null);
+    assert.deepEqual(banner.counts(), { imports: 1, mounts: 1, unmounts: 1 });
+    await banner.update();
+    assert.equal(banner.tree.toJSON(), null);
+    assert.equal(banner.counts().mounts, 1, 'a failed banner must not retry into the released slot');
+  });
+}
+
+test('removes the ad and its safe area immediately when consent is revoked', async t => {
+  const banner = await mountBanner(t, { canShowAds: false });
+  await banner.update({ canShowAds: true });
+  assert.equal(banner.tree.root.findAllByType('BannerAd').length, 1);
+  await banner.update({ canShowAds: false });
+  assert.equal(banner.tree.toJSON(), null);
+  assert.equal(banner.counts().unmounts, 1);
+});
+
+test('removes banners that no longer fit after a resize', async t => {
+  const banner = await mountBanner(t);
+  await banner.update({ width: 300 });
+  assert.equal(banner.tree.toJSON(), null);
+  assert.equal(banner.counts().unmounts, 1);
+  await banner.update({ width: 390 });
+  assert.equal(banner.tree.root.findAllByType('BannerAd').length, 1);
+});
+
+test('does not request the first banner behind an overlay or in the background', async t => {
+  const banner = await mountBanner(t, { visible: false, reserveSpace: true, appState: 'background' });
+  assert.equal(banner.tree.toJSON(), null);
+  await banner.update({ visible: true });
+  assert.equal(banner.counts().imports, 0);
+  await banner.emit('change', 'active');
+  assert.equal(banner.counts().mounts, 1);
+});
+
+test('hides the native banner with a stable measured slot and reuses it after overlays close', async t => {
+  const banner = await mountBanner(t);
+  await act(async () => banner.tree.root.findByType('BannerAd').props.onSizeChange({ height: 72 }));
+  await banner.update({ visible: false, reserveSpace: true });
+  const views = banner.tree.root.findAllByType('View');
+  assert.equal(flattenStyle(views[0].props.style).display, undefined);
+  assert.equal(views[0].props.pointerEvents, 'none');
+  assert.equal(views[0].props.importantForAccessibility, 'no-hide-descendants');
+  assert.equal(flattenStyle(views[1].props.style).minHeight, 72);
+  assert.equal(flattenStyle(views[2].props.style).display, 'none');
+  await banner.update({ reserveSpace: false });
+  assert.equal(flattenStyle(views[0].props.style).display, 'none');
+  await banner.update({ visible: true });
+  assert.equal(flattenStyle(views[0].props.style).display, undefined);
+  assert.equal(flattenStyle(views[2].props.style).display, undefined);
+  assert.equal(views[0].props.pointerEvents, 'box-none');
+  assert.deepEqual(banner.counts(), { imports: 1, mounts: 1, unmounts: 0 });
+});
+
+for (const platform of ['android', 'ios']) {
+  test(`hides banners during keyboard, privacy, and app interruptions on ${platform}`, async t => {
+    const banner = await mountBanner(t, { platform, reserveSpace: true });
+    const hidden = () => flattenStyle(banner.tree.root.findAllByType('View')[2].props.style).display === 'none';
+    await banner.emit(platform === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow');
+    assert.equal(hidden(), true);
+    await banner.update({ isPrivacyOptionsLoading: true });
+    await banner.emit('keyboardDidHide');
+    assert.equal(hidden(), true, 'closing one blocker cannot reveal a banner under another');
+    await banner.update({ isPrivacyOptionsLoading: false });
+    assert.equal(hidden(), false);
+    await banner.update({ isDialogVisible: true });
+    assert.equal(hidden(), true);
+    await banner.update({ isDialogVisible: false });
+    assert.equal(hidden(), false);
+    await banner.emit('change', 'inactive');
+    assert.equal(hidden(), true);
+    await banner.emit('change', 'active');
+    assert.equal(hidden(), false);
+    if (platform === 'android') {
+      await banner.emit('blur');
+      assert.equal(hidden(), true);
+      await banner.emit('focus');
+      assert.equal(hidden(), false);
+    }
+    assert.deepEqual(banner.counts(), { imports: 1, mounts: 1, unmounts: 0 });
+  });
+}
+
+for (const platform of ['web', 'android']) {
+test(`MainLayout scopes screen safe areas without reserving a missing banner on ${platform}`, async t => {
+  const wrapper = ({ children }) => React.createElement('Navigator', null, children);
+  class AnimatedValue {
+    stopAnimation() {}
+  }
+  let routeName = 'ScheduleTab';
+  let hasPresentedSheets = false;
+  let isImagePreviewOpen = false;
+  let conflictQueue = [];
+  let loading = false;
+  const barStyles = [];
+  const stateListeners = new Set();
+  const appState = {
+    currentState: 'active',
+    addEventListener: (_, callback) => { stateListeners.add(callback); return { remove: () => stateListeners.delete(callback) }; },
+  };
+  const Banner = () => null;
+  const mocks = {
+    'expo-status-bar': () => ({ StatusBar: 'StatusBar' }),
+    'expo': () => ({ requireOptionalNativeModule: () => ({ setStyle: async style => {
+      barStyles.push(style);
+      if (barStyles.length === 1) throw Object.assign(new Error('The current activity is no longer available'), { code: 'ERR_MISSING_ACTIVITY' });
+    } }) }),
+    'expo-system-ui': () => ({ setBackgroundColorAsync: async () => {} }),
+    'react-native': () => ({
+      View: 'View', Text: 'Text', TouchableOpacity: 'TouchableOpacity',
+      Appearance: { getColorScheme: () => 'light' },
+      Platform: { OS: platform },
+      StyleSheet: { create: value => value, absoluteFill: {} },
+      AppState: appState,
+      Animated: {
+        Value: AnimatedValue,
+        View: 'Overlay',
+        timing: () => ({ start: callback => callback?.({ finished: true }) }),
+      },
+    }),
+    '@react-navigation/native-stack': () => ({
+      createNativeStackNavigator: () => ({ Navigator: wrapper, Screen: ({ children }) => children() }),
+    }),
+    '@react-navigation/native': () => ({
+      useNavigation: () => ({}),
+      useNavigationState: (select) => select({ index: 0, routes: [{ name: 'MainLayout', state: {
+        index: 0, routes: [{ name: 'Tabs', state: { index: 0, routes: [{ name: routeName }] } }],
+      } }] }),
+    }),
+    'react-native-safe-area-context': () => ({
+      SafeAreaProvider: 'SafeAreaProvider',
+      useSafeAreaInsets: () => ({ top: 24 }),
+    }),
+    '@react-native-async-storage/async-storage': () => ({ getItem: async () => null }),
+    'expo-linking': () => ({ useURL: () => null }),
+    '../context/ScheduleProvider': () => ({
+      useScheduleData: () => ({ schedules: [{}], schedule: {}, global: {}, lang: 'uk', isLoading: loading }),
+      useScheduleActions: () => ({}),
+      useScheduleSync: () => ({ conflictQueue }),
+    }),
+    '../context/BottomSheetPresentationContext': () => ({ useBottomSheetPresentation: () => ({ hasPresentedSheets }) }),
+    '../context/AttachmentImagePreviewContext': () => ({ useAttachmentImagePreview: () => ({ isImagePreviewOpen }) }),
+    '../context/AdsContext': () => ({ useAds: () => ({ canShowAds: true, isLoading: true }) }),
+    '../hooks/useAppTheme': () => () => ({ colorScheme: 'light', colors: { backgroundColor: '#fff' } }),
+    '../utils/i18n': () => ({ t: key => key }),
+    '../hooks/useReducedMotionPreference': () => () => true,
+    '../components/AdBanner/AdBanner': () => Banner,
+  };
+  for (const relative of [
+    '../services/AutoSaveManager', '../navigation/TabNavigator',
+    '../components/modals/MigrationModal', '../components/ui/AppBlur',
+    '../components/ui/MorphingLoader', '../pages/SyncConflict/SyncConflictScreen',
+    '../pages/Onboarding/OnboardingWizard', '../components/modals/ImportScheduleModal',
+    '../pages/Schedule/components/SchedulePickerSheet',
+  ]) mocks[relative] = () => relative.split('/').at(-1);
+  mocks['../navigation/TabNavigator'] = () => ({ __esModule: true, default: 'TabNavigator' });
+  const MainLayout = loadAdComponent('src/layouts/MainLayout.jsx', mocks);
+  let tree;
+  await act(async () => { tree = create(React.createElement(MainLayout, { guest: true })); });
+  t.after(async () => { await act(async () => tree.unmount()); });
+  if (platform === 'android') {
+    assert.deepEqual(barStyles, ['dark'], 'a missing activity rejection is handled by the native promise consumer');
+    for (const state of ['background', 'active']) {
+      appState.currentState = state;
+      await act(async () => { stateListeners.forEach(listener => listener(state)); });
+    }
+    assert.deepEqual(barStyles, ['dark', 'dark'], 'resume reapplies the requested theme');
+  } else assert.deepEqual(barStyles, []);
+  const content = tree.toJSON().children[1];
+  assert.equal(content.type, 'SafeAreaProvider');
+  assert.deepEqual(content.props.style, { flex: 1 });
+  assert.equal(tree.root.findAllByType('Overlay').length, 1);
+  const props = () => tree.root.findByType(Banner).props;
+  assert.equal(props().visible, false, 'ready data cannot reveal a screen before its content has laid out');
+  await act(async () => tree.root.findByType('TabNavigator').props.onLayout());
+  assert.equal(tree.root.findAllByType('Overlay').length, 0);
+  const update = async () => { await act(async () => tree.update(React.createElement(MainLayout, { guest: true }))); };
+  assert.equal(props().visible, true);
+  hasPresentedSheets = true;
+  await update();
+  assert.equal(props().visible, false);
+  assert.equal(props().reserveSpace, true);
+  isImagePreviewOpen = true;
+  hasPresentedSheets = false;
+  await update();
+  assert.equal(props().visible, false);
+  isImagePreviewOpen = false;
+  await update();
+  assert.equal(props().visible, true);
+  const drawerVisibility = tree.root.findByType('TabNavigator').props.onNotificationsVisibilityChange;
+  await act(async () => drawerVisibility(true));
+  assert.equal(props().visible, false);
+  await act(async () => drawerVisibility(false));
+  assert.equal(props().visible, true);
+  for (const name of ['SettingsTab', 'Settings', 'LegalDocument', 'ScheduleEditorScreen', 'Onboarding', 'PasswordReset']) {
+    routeName = name;
+    await update();
+    assert.equal(props().visible, false, name);
+    assert.equal(props().reserveSpace, false, name);
+  }
+  routeName = 'TasksTab';
+  await update();
+  assert.equal(props().visible, true);
+  conflictQueue = [{}];
+  await update();
+  assert.equal(props().visible, false);
+  conflictQueue = [];
+  loading = true;
+  await update();
+  assert.equal(props().visible, false);
+  appState.currentState = 'background';
+  const count = barStyles.length;
+  await act(async () => tree.unmount());
+  assert.equal(barStyles.length, count, 'cleanup cannot access an unavailable background activity');
+  assert.equal(stateListeners.size, 0);
+});
+}
+
+test('image preview visibility follows open, replacement, and close requests', async t => {
+  let previewImports = 0;
+  const Preview = props => React.createElement('Preview', props);
+  const { AttachmentImagePreviewProvider, useAttachmentImagePreview } = loadAdComponent('src/context/AttachmentImagePreviewContext.jsx', {
+    '../components/attachments/AttachmentImagePreview': () => {
+      previewImports++;
+      return { __esModule: true, default: Preview };
+    },
+  }, null);
+  let state;
+  let closes = 0;
+  const Observer = () => { state = useAttachmentImagePreview(); return null; };
+  let tree;
+  await act(async () => { tree = create(React.createElement(AttachmentImagePreviewProvider, null, React.createElement(Observer))); });
+  t.after(async () => { await act(async () => tree.unmount()); });
+  assert.equal(state.isImagePreviewOpen, false);
+  assert.equal(previewImports, 0);
+  await act(async () => state.openImagePreview({}));
+  assert.equal(state.isImagePreviewOpen, false);
+  assert.equal(previewImports, 0);
+  await act(async () => state.openImagePreview({ attachment: { id: 'first' } }));
+  assert.equal(state.isImagePreviewOpen, true);
+  assert.equal(tree.root.findByType('Preview').props.attachment.id, 'first');
+  await act(async () => state.openImagePreview({ attachment: { id: 'second' }, onClose: () => closes++ }));
+  assert.equal(state.isImagePreviewOpen, true);
+  assert.equal(tree.root.findByType('Preview').props.attachment.id, 'second');
+  await act(async () => tree.root.findByType('Preview').props.onClose());
+  assert.equal(state.isImagePreviewOpen, false);
+  assert.equal(tree.root.findAllByType('Preview').length, 0);
+  assert.equal(closes, 1);
+});
+
+test('a transient consent failure can recover on the next initialization attempt', async () => {
+  const env = loadAdService({ consentError: new Error('Offline') });
+  await assert.rejects(env.service.initAds(), /Offline/);
+  env.adsModule.AdsConsent.gatherConsent = async () => ({ canRequestAds: true });
+  assert.equal((await env.service.initAds()).initialized, true);
+  assert.equal(env.calls.filter(([name]) => name === 'initialize').length, 1);
+});
 
 test('gathers UMP consent before configuring and initializing Mobile Ads', async () => {
   const { calls, service } = loadAdService({
@@ -244,7 +671,7 @@ test('uses a valid previous-session UMP decision after a refresh error', async (
 
 test('selects Google demo ads for forced-test and development builds', () => {
   const googleAndroidDemoBannerId =
-    'ca-app-pub-3940256099942544/6300978111';
+    'ca-app-pub-3940256099942544/9214589741';
 
   assert.equal(
     loadAdConfig({ forceTestAds: 'true', isDev: false }).BANNER,
@@ -314,7 +741,7 @@ test('keeps the banner out of the navigation controls and hardens build configur
   );
 
   assert.doesNotMatch(tabBar, /<AdBanner\b/);
-  assert.match(mainLayout, /<AdBanner\s*\/>/);
+  assert.match(mainLayout, /<AdBanner\s+visible=/);
   assert.match(adConfig, /GOOGLE_DEMO_BANNER_IDS/);
   assert.doesNotMatch(adConfig, /react-native-google-mobile-ads/);
   assert.match(adConfig, /PROD_BANNER_ID_PATTERN/);
@@ -333,11 +760,11 @@ test('keeps the banner out of the navigation controls and hardens build configur
   );
   assert.match(releaseAabScript, /EXPO_PUBLIC_FORCE_TEST_ADS\s*=\s*"false"/);
   assert.match(releaseApkScript, /AdsMode\s*=\s*"production"/);
-  assert.match(releaseApkScript, /AdsMode\s+-eq\s+"test"/);
-  assert.match(releaseApkScript, /PlanIt-TestAds/);
+  assert.match(releaseApkScript, /build-aab\.ps1[\s\S]+-ArtifactType apk -AdsMode \$AdsMode/);
+  assert.match(releaseAabScript, /AdsMode\s+-eq\s+"test"/);
+  assert.match(releaseAabScript, /PlanIt-TestAds/);
   assert.match(devBuildScript, /EXPO_PUBLIC_FORCE_TEST_ADS\s*=\s*"true"/);
   assert.match(releaseAabScript, /PLANIT_BUILD_PLATFORM\s*=\s*"android"/);
-  assert.match(releaseApkScript, /PLANIT_BUILD_PLATFORM\s*=\s*"android"/);
   assert.match(devBuildScript, /PLANIT_BUILD_PLATFORM\s*=\s*"android"/);
   assert.equal(
     packageConfig.scripts['build:apk'],

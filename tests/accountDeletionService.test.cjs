@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const Module = require('node:module');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const babel = require('@babel/core');
 
 const servicePath = path.resolve(
@@ -316,4 +317,35 @@ test('rejects an empty user id before touching persistence', async () => {
   );
   assert.equal(fakes.state.firestore.size, 0);
   assert.equal(fakes.state.storage.size, 0);
+});
+
+test('account deletion keeps authentication available when local cleanup fails, then succeeds on retry', async () => {
+  const filename = path.resolve(__dirname, '../src/pages/Settings/components/AccountSettings/components/DeleteAccountScreen.jsx');
+  const source = fs.readFileSync(filename, 'utf8');
+  const ast = babel.parseSync(source, { filename, configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
+  let handlerSource;
+  babel.traverse(ast, { VariableDeclarator({ node }) {
+    if (node.id.name === 'executeDeletion') handlerSource = source.slice(node.init.start, node.init.end);
+  } });
+  const calls = [];
+  const errors = [];
+  let failCleanup = true;
+  const handler = vm.runInNewContext('(' + handlerSource + ')', {
+    auth: { currentUser: { uid: 'account' } },
+    isAccountDeletionVerificationValid: () => true,
+    setVerification() {}, setDeleting() {}, setErrorMsg() {}, setIgnoreDeviceRemoval() {},
+    setLocalizedError: error => errors.push(error), logCrashlyticsError() {},
+    beginAccountDeletion: () => () => calls.push('release'),
+    revokeAppleAuthorizationForDeletion: async () => ({ status: 'not_required' }),
+    deleteAllUserData: async () => calls.push('cloud'),
+    clearLocalAccountData: async () => { calls.push('local'); if (failCleanup) throw new Error('Disk unavailable'); },
+    deleteUser: async () => calls.push('auth'),
+  });
+  await handler({});
+  assert.deepEqual(calls, ['cloud', 'local', 'release']);
+  assert.equal(errors[0].message, 'Disk unavailable');
+  failCleanup = false;
+  calls.length = 0;
+  await handler({});
+  assert.deepEqual(calls, ['cloud', 'local', 'auth', 'release']);
 });

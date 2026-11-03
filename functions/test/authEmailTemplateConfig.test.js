@@ -12,7 +12,7 @@ test('system email templates cover legacy sends and address recovery with brande
   assert.deepEqual(Object.keys(config), ['notification']);
   assert.equal(config.notification.defaultLocale, 'uk');
   const { sendEmail } = config.notification;
-  assert.equal(sendEmail.callbackUri, 'https://planit-hub.firebaseapp.com/auth/action');
+  assert.equal(sendEmail.callbackUri, 'https://planitflow.com/auth/action');
   assert.equal(sendEmail.smtp, undefined);
   for (const field of ['resetPasswordTemplate', 'legacyResetPasswordTemplate', 'verifyEmailTemplate', 'changeEmailTemplate']) {
     const template = sendEmail[field];

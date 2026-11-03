@@ -124,6 +124,40 @@ test('device language updates normalize tags without creating or reviving sessio
   assert.equal(updates[0].ref.at(-1), 'installation-12345678');
 });
 
+test('widget push registration updates only an active current installation and deduplicates tokens', async () => {
+  let device = { status: 'active' };
+  const auth = { currentUser: { uid: 'owner' } };
+  const writes = [];
+  const { exports: service } = compileWithMocks(path.resolve(__dirname, '../src/utils/deviceService.js'), new Map([
+    ['firebase/firestore', {
+      doc: (...parts) => parts,
+      runTransaction: async (_db, callback) => callback({
+        get: async () => ({ exists: () => device !== null, data: () => device }),
+        update: (ref, patch) => { writes.push({ ref, patch }); device = { ...device, ...patch }; },
+      }),
+    }],
+    ['../config/firebase', { db: {}, auth }],
+    ['./i18n', i18n], ['./storage', {}],
+    ['@react-native-async-storage/async-storage', { getItem: async () => 'installation-12345678' }],
+    ['expo-device', {}], ['react-native', { Platform: { OS: 'android' } }],
+    ['expo-crypto', {}], ['firebase/auth', {}], ['../services/notificationService', {}],
+  ]));
+  assert.equal(await service.syncWidgetPushRegistration('owner', 'schedule', 'token'), true);
+  await service.syncWidgetPushRegistration('owner', 'schedule', 'token');
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0].patch, { widgetPushToken: 'token', widgetScheduleId: 'schedule' });
+  assert.equal(writes[0].ref.at(-1), 'installation-12345678');
+  await service.syncWidgetPushRegistration('owner', null, null);
+  assert.deepEqual(writes.at(-1).patch, { widgetPushToken: null, widgetScheduleId: null });
+  device = { status: 'revoked' };
+  assert.equal(await service.syncWidgetPushRegistration('owner', 'schedule', 'token'), false);
+  device = null;
+  assert.equal(await service.syncWidgetPushRegistration('owner', 'schedule', 'token'), false);
+  auth.currentUser = { uid: 'other' };
+  await service.syncWidgetPushRegistration('owner', 'schedule', 'token');
+  assert.equal(writes.length, 2);
+});
+
 const loadNotificationService = () => {
   const filename = path.resolve(__dirname, '../src/services/notificationService.js');
   const committedBatches = [];
@@ -231,6 +265,119 @@ test('login notifications have a 90-day expiry and discard arbitrary metadata', 
   assert.equal(stored.expiresAt.toMillis() - stored.createdAt.toMillis(), 90 * 24 * 60 * 60 * 1000);
   assert.deepEqual(stored.metadata, { brand: 'Apple', model: 'Phone' });
   assert.equal(stored.readAt, null);
+});
+
+function reminderEnvironment(options = {}) {
+  const values = new Map();
+  const scheduled = new Map();
+  let cancelFailure = false;
+  let permissionChecks = 0;
+  const { exports: service } = compileWithMocks(path.resolve(__dirname, '../src/services/notificationService.js'), new Map([
+    ['react-native', { Platform: { OS: 'ios' } }],
+    ['@react-native-async-storage/async-storage', {
+      getItem: async key => values.get(key) || null,
+      setItem: async (key, value) => {
+        await new Promise(resolve => setImmediate(resolve));
+        if (options.failRecords && JSON.parse(value).schedules?.one?.length) throw new Error('Disk full');
+        values.set(key, value);
+      },
+      removeItem: async key => values.delete(key),
+      multiRemove: async keys => keys.forEach(key => values.delete(key)),
+    }],
+    ['expo', { isRunningInExpoGo: () => false }],
+    ['expo-constants', {}], ['firebase/firestore', {}], ['../config/firebase', {}],
+    ['../utils/i18n', i18n],
+    ['../utils/reminderSettings', { normalizeScheduleReminder: () => ({ enabled: true, minutesBefore: 5 }), normalizeSubjectReminder: () => null }],
+    ['../utils/scheduleTime', { buildLessonOccurrences: () => Array.from({ length: options.count || 1 }, (_, index) => ({ startAt: new Date(Date.now() + 3600000 * (index + 1)), timeInfo: { start: '10:00' }, subjectId: 'subject', subject: { name: 'Lesson' }, dayIndex: 0, lessonIndex: index })) }],
+    ['expo-notifications', {
+      setNotificationHandler() {}, getPermissionsAsync: async () => {
+        permissionChecks++;
+        if (options.permissionError) throw new Error('Permission service unavailable');
+        return { granted: true };
+      },
+      getAllScheduledNotificationsAsync: async () => [...scheduled.values()],
+      scheduleNotificationAsync: async request => {
+        await new Promise(resolve => setImmediate(resolve));
+        scheduled.set(request.identifier, request);
+        return request.identifier;
+      },
+      cancelScheduledNotificationAsync: async id => {
+        if (cancelFailure) throw new Error('Cancel failed');
+        scheduled.delete(id);
+      },
+      cancelAllScheduledNotificationsAsync: async () => scheduled.clear(),
+      dismissAllNotificationsAsync: async () => {},
+    }],
+  ]));
+  return { service, values, scheduled, permissionChecks: () => permissionChecks, failCancellation: value => { cancelFailure = value; } };
+}
+
+test('a reminder batch checks native permission once instead of once per lesson', async () => {
+  const env = reminderEnvironment({ count: 60 });
+  await env.service.reconcileLessonRemindersForSchedule({ id: 'one' });
+  assert.equal(env.scheduled.size, 60);
+  assert.equal(env.permissionChecks(), 1);
+});
+
+test('a transient permission check failure preserves previously scheduled reminders', async () => {
+  const options = {};
+  const env = reminderEnvironment(options);
+  await env.service.reconcileLessonRemindersForSchedule({ id: 'one' });
+  const previous = [...env.scheduled.keys()];
+  options.permissionError = true;
+  await assert.rejects(env.service.reconcileLessonRemindersForSchedule({ id: 'one' }), /Permission service unavailable/);
+  assert.deepEqual([...env.scheduled.keys()], previous);
+});
+
+test('overlapping reminder reconciliations retain both schedules in the durable index', async () => {
+  const { service, values, scheduled } = reminderEnvironment();
+  await Promise.all([
+    service.reconcileLessonRemindersForSchedule({ id: 'one' }),
+    service.reconcileLessonRemindersForSchedule({ id: 'two' }),
+  ]);
+  assert.deepEqual(Object.keys(JSON.parse(values.get('planit_local_notifications_v1')).schedules).sort(), ['one', 'two']);
+  assert.equal(scheduled.size, 2);
+  await Promise.all([
+    service.cancelLessonRemindersForSchedule('one'),
+    service.reconcileLessonRemindersForSchedule({ id: 'two' }),
+  ]);
+  assert.deepEqual(Object.keys(JSON.parse(values.get('planit_local_notifications_v1')).schedules), ['two']);
+  assert.equal(scheduled.size, 1);
+});
+
+test('account cleanup waits for reminder scheduling and leaves no later notifications', async () => {
+  const { service, values, scheduled } = reminderEnvironment();
+  await Promise.all([
+    service.reconcileLessonRemindersForSchedule({ id: 'one' }),
+    service.clearAllLocalNotifications(),
+  ]);
+  assert.equal(scheduled.size, 0);
+  assert.equal(values.has('planit_local_notifications_v1'), false);
+});
+
+test('OS reminders without a saved index are recovered and canceled after an interrupted write', async () => {
+  const { service, scheduled } = reminderEnvironment();
+  scheduled.set('orphan', { identifier: 'orphan', content: { data: { type: 'lesson_reminder', scheduleId: 'one' } } });
+  await service.reconcileLessonRemindersForSchedule({ id: 'one' });
+  assert.equal(scheduled.has('orphan'), false);
+  assert.equal(scheduled.size, 1);
+});
+
+test('a failed reminder index write rolls back newly scheduled OS notifications', async () => {
+  const { service, scheduled } = reminderEnvironment({ failRecords: true });
+  await assert.rejects(service.reconcileLessonRemindersForSchedule({ id: 'one' }), /Disk full/);
+  assert.equal(scheduled.size, 0);
+});
+
+test('failed cancellation preserves reminder tracking and can be retried', async () => {
+  const env = reminderEnvironment();
+  await env.service.reconcileLessonRemindersForSchedule({ id: 'one' });
+  env.failCancellation(true);
+  await assert.rejects(env.service.cancelLessonRemindersForSchedule('one'), /Cancel failed/);
+  assert.ok(JSON.parse(env.values.get('planit_local_notifications_v1')).schedules.one.length);
+  env.failCancellation(false);
+  await env.service.cancelLessonRemindersForSchedule('one');
+  assert.equal(env.scheduled.size, 0);
 });
 
 test('device revocation is durable and every sync path uses the same installation id', () => {

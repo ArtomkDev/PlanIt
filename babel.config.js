@@ -1,8 +1,9 @@
 module.exports = function(api) {
-  api.cache(true);
+  const isMetro = api.caller((caller) => caller?.name === 'metro');
   return {
     presets: ['babel-preset-expo'],
     plugins: [
+      ...(isMetro ? ['./plugins/babelPhosphorImports'] : []),
       'react-native-worklets/plugin',
     ],
   };

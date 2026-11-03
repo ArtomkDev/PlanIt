@@ -32,6 +32,7 @@ const makeStorage = () => {
       async getItem(key) {
         return values.has(key) ? values.get(key) : null;
       },
+      async getAllKeys() { return [...values.keys()]; },
       async setItem(key, value) {
         if (failNextSet.delete(key)) {
           const error = new Error(`Injected write failure: ${key}`);
@@ -342,4 +343,104 @@ test('account deletion rejects late autosave and unmount backups after clearing 
   assert.equal(fake.values.size, 0);
   await storage.saveLocalSchedule(makeData('guest'));
   await storage.saveLocalSchedule(makeData('other'), 'other-account');
+});
+
+test('large Unicode schedules and recovery history survive restarts without oversized SQLite rows', async () => {
+  const fake = makeStorage();
+  const originalSet = fake.api.setItem;
+  fake.api.setItem = async (key, value) => {
+    assert.ok(Buffer.byteLength(value, 'utf8') < 900000, 'each value must fit safely in the Android cursor window');
+    return originalSet(key, value);
+  };
+  const storage = loadStorageModule(fake);
+  const large = makeData('Large');
+  large.schedules[0].notes = 'я'.repeat(1200000);
+  await storage.saveLocalSchedule(large, 'large');
+  await storage.saveScheduleRecoverySnapshot(large, 'large', 'first');
+  await storage.saveScheduleRecoverySnapshot(large, 'large', 'second');
+  const restarted = loadStorageModule(fake);
+  assert.deepEqual(await restarted.getLocalSchedule('large'), large);
+  assert.equal((await restarted.getScheduleRecoverySnapshots('large')).length, 2);
+  fake.values.set('user_schedule_large.pending.chunks.orphan.0', 'interrupted bytes');
+  await restarted.clearLocalSchedule('large', { throwOnError: true });
+  assert.equal(fake.values.size, 0);
+});
+
+test('an interrupted large primary write is recovered from complete journal chunks', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  await storage.saveLocalSchedule(makeData('Original'), 'large');
+  const large = makeData('New large draft');
+  large.schedules[0].notes = 'x'.repeat(600000);
+  fake.failNextSet.add('user_schedule_large');
+  await assert.rejects(storage.saveLocalSchedule(large, 'large'));
+  assert.deepEqual(await storage.getLocalSchedule('large'), large);
+  assert.equal([...fake.values.keys()].some(key => key.startsWith('user_schedule_large.pending')), false);
+});
+
+test('chunk boundaries preserve emoji through the native UTF-8 storage bridge', async () => {
+  const fake = makeStorage();
+  const originalSet = fake.api.setItem;
+  fake.api.setItem = (key, value) => originalSet(key, Buffer.from(value, 'utf8').toString('utf8'));
+  const storage = loadStorageModule(fake);
+  for (const prefix of ['', 'x']) {
+    const large = makeData('Emoji');
+    large.schedules[0].notes = prefix + '📚'.repeat(300000);
+    await storage.saveLocalSchedule(large, 'emoji');
+    await storage.saveScheduleRecoverySnapshot(large, 'emoji');
+    const restarted = loadStorageModule(fake);
+    assert.equal((await restarted.getLocalSchedule('emoji')).schedules[0].notes, large.schedules[0].notes);
+    assert.equal((await restarted.getScheduleRecoverySnapshots('emoji'))[0].data.schedules[0].notes, large.schedules[0].notes);
+  }
+});
+
+test('a missing large primary chunk recovers from the complete mirror', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  const large = makeData('Mirror copy');
+  large.schedules[0].notes = 'x'.repeat(600000);
+  await storage.saveLocalSchedule(large, 'large');
+  const descriptor = JSON.parse(fake.values.get('user_schedule_large'));
+  fake.values.delete(`user_schedule_large.chunks.${descriptor.id}.0`);
+  assert.deepEqual(await storage.getLocalSchedule('large'), large);
+});
+
+test('unreadable optional recovery history does not block a healthy primary schedule', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  await storage.saveLocalSchedule(makeData('Healthy'), 'healthy');
+  const originalGet = fake.api.getItem;
+  fake.api.getItem = key => {
+    if (key.endsWith('.recovery')) throw new Error('Oversized legacy history');
+    return originalGet(key);
+  };
+  assert.equal((await storage.getLocalSchedule('healthy')).schedules[0].name, 'Healthy');
+});
+
+test('a failed deletion waits for every in-flight removal before the next save can start', async () => {
+  const fake = makeStorage();
+  const storage = loadStorageModule(fake);
+  await storage.saveLocalSchedule(makeData('Original'));
+  let releaseMirror, mirrorEntered;
+  const waiting = new Promise(resolve => { releaseMirror = resolve; });
+  const entered = new Promise(resolve => { mirrorEntered = resolve; });
+  const originalRemove = fake.api.removeItem;
+  let failPrimary = true, delayMirror = true;
+  fake.api.removeItem = async key => {
+    if (key === 'guest_schedule' && failPrimary) { failPrimary = false; throw new Error('Delete failed'); }
+    if (key === 'guest_schedule.mirror' && delayMirror) { delayMirror = false; mirrorEntered(); await waiting; }
+    return originalRemove(key);
+  };
+  const clearing = storage.clearLocalSchedule(null, { throwOnError: true });
+  const rejected = assert.rejects(clearing, /Delete failed/);
+  let settled = false;
+  clearing.then(() => { settled = true; }, () => { settled = true; });
+  await entered;
+  const saving = storage.saveLocalSchedule(makeData('New draft'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settled, false);
+  releaseMirror();
+  await rejected;
+  await saving;
+  assert.equal((await storage.getLocalSchedule()).schedules[0].name, 'New draft');
 });

@@ -42,9 +42,10 @@ async function mount(t, overrides = {}) {
     },
   };
   const Gap = load('src/pages/Schedule/components/BreakCard.jsx', {
-    'react-native': { Animated, Easing: { out: x => x, cubic: x => x }, View: 'View', Text: 'Text', StyleSheet: { create: x => x, absoluteFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } } },
+    'react-native': { Animated, Platform: { OS: 'ios', select: options => options.ios ?? options.default }, Easing: { out: x => x, cubic: x => x }, View: 'View', Text: 'Text', StyleSheet: { create: x => x, absoluteFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } } },
+    'expo-blur': { BlurView: 'BlurView' },
     '../../../hooks/useReducedMotionPreference': { __esModule: true, default: () => false },
-    'phosphor-react-native': { Coffee: 'Coffee', Timer: 'Timer' },
+    './CardIcon': { __esModule: true, default: 'CardIcon' },
     '../../../components/ui/GradientBackground': 'Gradient',
     '../../../hooks/useNowTick': { useNowTick: () => now },
   }).default;
@@ -106,13 +107,133 @@ test('free morning uses the theme accent when no previous lesson exists', async 
   assert.equal(gap.surfaces()[1].fallbackColor, tinycolor.mix('#DD3366', '#000', 65).toRgbString());
 });
 
+test('upcoming gaps stay neutral and fade the previous gradient in only while active', async t => {
+  const gradient = { type: 'linear', angle: 0, colors: ['#00872D', '#007789'] };
+  const overrides = { schedule: { subjects: [{ id: 'math', typeColor: 'gradient', colorGradient: 'g' }], gradients: [{ id: 'g', ...gradient }] } };
+  const gap = await mount(t, overrides);
+  await gap.tick(new Date(2026, 8, 28, 9));
+  assert.equal(gap.duration(), '10 хв');
+  const colorLayer = () => gap.root.findByProps({ testID: 'schedule-gap-active' });
+  assert.equal(colorLayer().props.style[1].opacity.value, 0);
+  assert.equal(colorLayer().props['aria-hidden'], true);
+  assert.equal(gap.root.findByProps({ testID: 'schedule-gap' }).props.style[1].backgroundColor, '#eee');
+  assert.equal(gap.surfaces().length, 2);
+  assert.equal(gap.surfaces()[1].children, undefined);
+  assert.equal(gap.surfaces()[1].gradient.colors[1].color, tinycolor.mix('#007789', '#000', 65).toRgbString());
+  assert.equal(gap.root.findAllByType('BlurView').length, 1);
+  assert.ok(colorLayer().findAllByType('Gradient').length === 2);
+  await gap.tick(new Date(2026, 8, 28, 9, 49, 59));
+  assert.equal(colorLayer().props.style[1].opacity.value, 0);
+  await gap.tick(new Date(2026, 8, 28, 9, 50));
+  assert.equal(colorLayer().props.style[1].opacity.value, 1);
+  assert.equal(colorLayer().props['aria-hidden'], false);
+  assert.equal(gap.animations.at(-1).config.duration, 220);
+  await gap.tick(new Date(2026, 8, 28, 9, 59, 59));
+  assert.equal(colorLayer().props.style[1].opacity.value, 1);
+  await gap.tick(new Date(2026, 8, 28, 10));
+  assert.equal(colorLayer().props.style[1].opacity.value, 0);
+  assert.equal(colorLayer().props['aria-hidden'], true);
+  assert.equal(gap.animations.at(-1).config.duration, 220);
+  const noBlur = await mount(t, { ...overrides, blurEnabled: false });
+  assert.equal(noBlur.root.findAllByType('BlurView').length, 0);
+});
+
+async function mountDay(t, options = {}) {
+  let now = new Date(2026, 8, 28, 8);
+  let reduceMotion = false;
+  const transition = name => ({ duration: duration => ({ name, duration, easing() { return this; } }) });
+  const schedule = { start_time: '08:30', duration: 80, breaks: [10, 20], subjects: [] };
+  const Day = load('src/pages/Schedule/components/DaySchedule.jsx', {
+    'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'TouchableOpacity', ScrollView: 'ScrollView', StyleSheet: { create: x => x }, useWindowDimensions: () => ({ height: 800 }) },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
+    'react-native-reanimated': { __esModule: true, default: { View: 'TimelineRow' }, Easing: { out: x => x, cubic: x => x }, LinearTransition: transition('layout'), FadeIn: transition('enter'), FadeOut: transition('exit') },
+    '../../../context/ScheduleProvider': { useScheduleData: () => ({ schedule, global: { theme: ['dark', 'blue'] }, lang: 'uk' }), useScheduleLayout: () => ({ tabBarHeight: 60 }) },
+    '../../../hooks/useNowTick': { useNowTick: () => now },
+    '../../../hooks/useReducedMotionPreference': { __esModule: true, default: () => reduceMotion },
+    '../../../utils/devicePerformance': { isLowEndDevice: false },
+    '../../../config/layoutMetrics': { APP_HEADER_CONTENT_GAP: 8, getScheduleHeaderHeight: () => 100 },
+    '../../../utils/haptics': { triggerHaptic() {} },
+    './LessonCard': 'LessonCard',
+    './BreakCard': 'BreakCard',
+  }).default;
+  const props = { targetDate: new Date(2026, 8, 28), dayData: { lessons: ['math', 'code', 'data'] }, ...options };
+  let tree;
+  await act(async () => { tree = create(React.createElement(Day, props)); });
+  t.after(async () => act(async () => tree.unmount()));
+  return {
+    root: tree.root,
+    gaps: () => tree.root.findAllByType('BreakCard'),
+    async tick(date, reduced = false) {
+      now = date;
+      reduceMotion = reduced;
+      await act(async () => tree.update(React.createElement(Day, { ...props })));
+    },
+  };
+}
+
+test('day shows one upcoming gap, keeps it through its final second and then advances', async t => {
+  const day = await mountDay(t);
+  const gapStart = () => day.gaps().map(gap => gap.props.interval.start);
+  assert.deepEqual(gapStart(), ['09:50']);
+  assert.equal(day.root.findAllByType('LessonCard').length, 3);
+  await day.tick(new Date(2026, 8, 28, 9, 50));
+  assert.deepEqual(gapStart(), ['09:50']);
+  await day.tick(new Date(2026, 8, 28, 9, 59, 59));
+  assert.deepEqual(gapStart(), ['09:50']);
+  await day.tick(new Date(2026, 8, 28, 10));
+  assert.deepEqual(gapStart(), ['11:20']);
+  assert.equal(day.gaps()[0].props.previousLesson.subjectId, 'code');
+  await day.tick(new Date(2026, 8, 28, 11, 20));
+  assert.deepEqual(gapStart(), ['11:20']);
+  await day.tick(new Date(2026, 8, 28, 11, 39, 59));
+  assert.deepEqual(gapStart(), ['11:20']);
+  await day.tick(new Date(2026, 8, 28, 11, 40));
+  assert.deepEqual(gapStart(), []);
+  assert.equal(day.root.findAllByType('LessonCard').length, 3);
+});
+
+test('day selection uses the viewed date and keeps the original gap after overlapping lessons', async t => {
+  const day = await mountDay(t, { dayData: { lessons: [
+    { subjectId: 'math', timeMode: 'custom', startTime: '08:30', endTime: '10:00' },
+    { subjectId: 'code', timeMode: 'custom', startTime: '09:00', endTime: '09:30' },
+    { subjectId: 'data', timeMode: 'custom', startTime: '10:20', endTime: '11:00' },
+  ] } });
+  await day.tick(new Date(2026, 8, 27, 20));
+  assert.deepEqual(day.gaps().map(gap => [gap.props.interval.start, gap.props.interval.end]), [['10:00', '10:20']]);
+  await day.tick(new Date(2026, 8, 28, 10, 10));
+  assert.equal(day.gaps().length, 1);
+  await day.tick(new Date(2026, 8, 29, 8));
+  assert.equal(day.gaps().length, 0);
+});
+
+test('gap changes animate together with lesson positions and respect reduced motion', async t => {
+  const day = await mountDay(t);
+  const gapRow = day.gaps()[0].parent;
+  assert.equal(gapRow.props.entering.duration, 180);
+  assert.equal(gapRow.props.exiting.duration, 140);
+  assert.equal(gapRow.props.layout.duration, 220);
+  assert.ok(day.root.findAllByType('LessonCard').every(lesson => lesson.parent.props.layout.duration === 220));
+  await day.tick(new Date(2026, 8, 28, 10), true);
+  assert.ok(day.root.findAllByType('TimelineRow').every(row => !row.props.layout && !row.props.entering && !row.props.exiting));
+});
+
+test('empty days and days without gaps keep their lessons and never show a break', async t => {
+  const empty = await mountDay(t, { dayData: { lessons: [] } });
+  assert.equal(empty.gaps().length, 0);
+  assert.equal(empty.root.findAllByType('LessonCard').length, 0);
+  const single = await mountDay(t, { dayData: { lessons: ['math'] } });
+  assert.equal(single.gaps().length, 0);
+  assert.equal(single.root.findAllByType('LessonCard').length, 1);
+});
+
 test('timer ticks do not restart activity animation and both layers stay mounted for the exit', async t => {
   const gap = await mount(t);
-  const firstAnimation = gap.animations[0];
+  assert.equal(gap.animations.length, 0, 'an active gap mounts highlighted without animating');
   await gap.tick(new Date(2026, 8, 28, 9, 55, 3));
-  assert.equal(gap.animations.length, 1);
+  assert.equal(gap.animations.length, 0);
   await gap.tick(new Date(2026, 8, 28, 10));
-  assert.equal(firstAnimation.stopped, true);
+  assert.equal(gap.animations.length, 1);
+  assert.equal(gap.animations.at(-1).config.toValue, 0);
   assert.equal(gap.animations.at(-1).config.duration, 220);
   assert.equal(gap.animations.at(-1).config.useNativeDriver, true);
   assert.equal(gap.surfaces().length, 2);
@@ -170,12 +291,14 @@ test('reversing an unfinished transition preserves its current opacity', async t
 test('an already active card mounts highlighted and reduced motion cancels transitions', async t => {
   const transition = await mountTransition(t, true);
   assert.equal(transition.progress.value, 1);
-  const entering = transition.animations.at(-1);
-  await transition.update(false, true);
-  assert.equal(entering.stopped, true);
-  assert.equal(transition.progress.value, 0);
-  assert.equal(transition.animations.length, 1);
+  assert.equal(transition.animations.length, 0, 'mounting never builds an animation');
+  await transition.update(false);
+  const leaving = transition.animations.at(-1);
   await transition.update(true, true);
+  assert.equal(leaving.stopped, true);
   assert.equal(transition.progress.value, 1);
+  assert.equal(transition.animations.length, 1);
+  await transition.update(false, true);
+  assert.equal(transition.progress.value, 0);
   assert.equal(transition.animations.length, 1);
 });

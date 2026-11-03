@@ -1,6 +1,8 @@
 import { doc, getDoc, collection, query, where, getDocs, deleteDoc, setDoc } from "firebase/firestore";
 import * as Crypto from "expo-crypto";
+import { Platform } from "react-native";
 import { db } from "../config/firebase";
+import { getShareLinkHost } from "../config/shareLinks.cjs";
 
 const SHARE_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const MIN_SHARE_CODE_LENGTH = 5;
@@ -8,7 +10,7 @@ const DEFAULT_SHARE_CODE_LENGTH = 16;
 const MAX_SHARE_CODE_LENGTH = 32;
 const SHARE_CODE_ATTEMPTS_PER_LENGTH = 5;
 const SHARE_CODE_RE = /^[A-Z0-9]{5,32}$/;
-const SHARE_URL_BASE = "https://planit.app/share";
+const SHARE_URL_BASE = `https://${getShareLinkHost(process.env.EXPO_PUBLIC_SHARE_LINK_DOMAIN, Platform.OS)}/share`;
 
 const normalizeCodeLength = (length) => {
   const numericLength = Math.floor(Number(length) || DEFAULT_SHARE_CODE_LENGTH);

@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { createHash } = require("crypto");
+const { WEBSITE_URL } = require("../src/config/website.cjs");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const DEFAULT_SOURCE_DIR = path.join(PROJECT_ROOT, "content", "legal");
@@ -12,7 +13,7 @@ const WEBSITE_LEGAL_DIR = process.env.PLANIT_LEGAL_WEBSITE_DIR
   ? path.resolve(process.env.PLANIT_LEGAL_WEBSITE_DIR)
   : path.resolve(PROJECT_ROOT, "..", "planit-website", "public", "content", "legal");
 const SHOULD_SYNC_WEBSITE = process.env.PLANIT_LEGAL_SYNC_WEBSITE !== "0";
-const LEGAL_SITE_URL = process.env.PLANIT_LEGAL_SITE_URL || "https://planit-hub.web.app";
+const LEGAL_SITE_URL = process.env.PLANIT_LEGAL_SITE_URL || WEBSITE_URL;
 
 const DOCUMENTS = [
   { type: "privacy", file: "privacy.mdx" },

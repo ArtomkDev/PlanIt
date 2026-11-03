@@ -1,22 +1,26 @@
 import React from 'react';
-import { View, Text, StyleSheet, Linking, Share, Alert, Platform } from 'react-native';
+import { View, StyleSheet, Linking, Share, Platform } from 'react-native';
 import { 
-  Cookie, EnvelopeSimple, FileText, Globe, ShareNetwork,
-  Package, ShieldCheck, Trash,
+  Certificate, Cookie, EnvelopeSimple, FileText, Globe, ShareNetwork,
+  ShieldCheck, Trash,
 } from 'phosphor-react-native';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
 
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import { useScheduleData } from '../../../context/ScheduleProvider';
+import { useAppDialog } from '../../../context/AppDialogContext';
 import themes from '../../../config/themes';
+import { WEBSITE_URL } from '../../../config/website.cjs';
 import { t } from '../../../utils/i18n';
 
 import SettingsGroup from '../../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../../components/ui/SettingsKit/SettingsRow';
+import PlanItWordmark from '../../../components/ui/PlanItWordmark';
 
 export default function AboutApp() {
   const { lang, global } = useScheduleData();
+  const dialog = useAppDialog();
   const navigation = useNavigation();
   const theme = global?.theme || ['light', 'blue'];
   const [mode, accent] = theme;
@@ -25,7 +29,6 @@ export default function AboutApp() {
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const appName = Constants.expoConfig?.name || 'PlanIt';
   
-  const WEBSITE_URL = 'https://planit-hub.web.app';
   const SUPPORT_EMAIL = 'planit.app.support@gmail.com';
 
   const platformName = Platform.select({
@@ -36,7 +39,7 @@ export default function AboutApp() {
   });
 
   const openLink = (url) => Linking.openURL(url).catch(() => {
-    Alert.alert(t('common.error', lang), t('settings.about_screen.link_open_failed', lang));
+    dialog.alert({ title: t('common.error', lang), message: t('settings.about_screen.link_open_failed', lang) });
   });
 
   const openLegalDocument = (documentType) => {
@@ -59,7 +62,7 @@ export default function AboutApp() {
       <View style={styles.container}>
         
         <View style={styles.header}>
-          <Text style={[styles.appName, { color: themeColors.textColor }]}>{appName}</Text>
+          <PlanItWordmark fontSize={52} color={themeColors.textColor} isDark={mode === 'dark' || mode === 'oled'} />
         </View>
 
         <SettingsGroup themeColors={themeColors}>
@@ -107,30 +110,35 @@ export default function AboutApp() {
           <SettingsRow 
             label={t('settings.about_screen.privacy_policy', lang)} 
             icon={ShieldCheck} 
+            iconWeight="bold"
             onPress={() => openLegalDocument('privacy')}
             themeColors={themeColors} 
           />
           <SettingsRow 
             label={t('settings.about_screen.terms_of_use', lang)} 
             icon={FileText} 
+            iconWeight="bold"
             onPress={() => openLegalDocument('terms')}
             themeColors={themeColors} 
           />
           <SettingsRow
             label={t('settings.about_screen.cookie_policy', lang)}
             icon={Cookie}
+            iconWeight="bold"
             onPress={() => openLegalDocument('cookies')}
             themeColors={themeColors}
           />
           <SettingsRow
             label={t('settings.about_screen.account_deletion', lang)}
             icon={Trash}
+            iconWeight="bold"
             onPress={() => openLegalDocument('delete')}
             themeColors={themeColors}
           />
           <SettingsRow
             label={t('settings.about_screen.open_source_licenses', lang)}
-            icon={Package}
+            icon={Certificate}
+            iconWeight="bold"
             onPress={() => openLegalDocument('licenses')}
             themeColors={themeColors}
           />
@@ -150,10 +158,5 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     marginBottom: 32, 
     marginTop: 10 
-  },
-  appName: { 
-    fontSize: 34, 
-    fontWeight: '800', 
-    letterSpacing: 0.5 
   }
 });

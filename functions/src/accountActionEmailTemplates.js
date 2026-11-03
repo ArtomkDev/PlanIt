@@ -1,6 +1,14 @@
 import { readFileSync } from 'node:fs';
 
-const wordmark = readFileSync(new URL('../assets/email-wordmark.png', import.meta.url));
+// Whole-word images of the website wordmark. The light variant sits on a white badge so it stays
+// legible when Gmail's dark mode inverts the header but leaves the image untouched.
+const WORDMARKS = [
+  { cid: 'planit-wordmark', filename: 'planit-wordmark.png', file: 'email-wordmark-light.png' },
+  { cid: 'planit-wordmark-dark', filename: 'planit-wordmark-dark.png', file: 'email-wordmark-dark.png' },
+].map(({ file, ...wordmark }) => ({
+  ...wordmark,
+  content: readFileSync(new URL(`../assets/${file}`, import.meta.url)),
+}));
 
 const escapeHtml = (value) => String(value || '')
   .replaceAll('&', '&amp;')
@@ -127,13 +135,11 @@ export const createAccountActionEmailContent = ({
   return {
     locale: normalizedLocale,
     subject: copy.subject,
-    attachments: inlineLogo ? [{
-      filename: 'planit-wordmark.png',
-      content: wordmark,
-      cid: 'planit-wordmark',
+    attachments: inlineLogo ? WORDMARKS.map((wordmark) => ({
+      ...wordmark,
       contentType: 'image/png',
       contentDisposition: 'inline',
-    }] : [],
+    })) : [],
     text: [
       'PlanIt.',
       copy.title,
@@ -154,7 +160,7 @@ export const createAccountActionEmailContent = ({
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="x-apple-disable-message-reformatting" content="true">
-    <meta name="color-scheme" content="light only">
+    <meta name="color-scheme" content="light dark">
     <meta name="supported-color-schemes" content="light dark">
     <title>${copy.subject}</title>
     <style>
@@ -164,12 +170,16 @@ export const createAccountActionEmailContent = ({
       a:focus-visible { outline:3px solid #b92f60;outline-offset:4px; }
       @media only screen and (max-width:600px) {
         .email-shell { padding:20px 12px !important; }
-        .email-header { padding:24px !important; }
+        .email-header { padding:20px 24px 20px 14px !important; }
         .email-content { padding:28px 24px !important; }
         .email-title { font-size:28px !important;line-height:1.15 !important; }
       }
       @media (prefers-color-scheme:dark) {
         .email-background { background-color:#09090b !important; }
+        .email-header { background-color:#18181b !important;border-color:#3f3f46 !important; }
+        .email-logo-light { display:none !important; }
+        .email-logo-dark { display:block !important;max-height:none !important; }
+        .email-logo-dot { color:#3ef7d2 !important; }
         .email-card { background-color:#18181b !important;border-color:#3f3f46 !important; }
         .email-heading { color:#fafafa !important; }
         .email-copy { color:#d4d4d8 !important; }
@@ -186,13 +196,14 @@ export const createAccountActionEmailContent = ({
       <tr><td align="center" class="email-shell" style="padding:40px 16px">
         <!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" class="email-card" style="max-width:600px;background-color:#ffffff;border:1px solid #dfe1e8;border-radius:24px;overflow:hidden">
-          <tr><td bgcolor="#18181b" class="email-header" style="padding:28px 36px;background-color:#18181b;border-radius:23px 23px 0 0">
+          <tr><td bgcolor="#ffffff" class="email-header" style="padding:24px 36px 24px 26px;background-color:#ffffff;border-bottom:1px solid #dfe1e8;border-radius:23px 23px 0 0">
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
               <tr>
-                <td height="44" style="height:44px;color:#fafafa;font-family:Arial,Helvetica,sans-serif;font-size:38px;font-weight:700;line-height:44px;letter-spacing:-2px;white-space:nowrap">${inlineLogo
-                  ? '<img src="cid:planit-wordmark" alt="PlanIt." width="132" height="32" style="display:block;width:132px;height:32px;border:0;color:#fafafa;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:700">'
-                  : 'PlanIt<span style="color:#3ef7d2">.</span>'}</td>
-                <td align="right" style="padding-left:16px;color:#d4d4d8;font-size:11px;font-weight:700;line-height:16px;letter-spacing:1.5px;text-transform:uppercase">${copy.account}</td>
+                <td height="47" class="email-heading" style="height:47px;${inlineLogo ? '' : 'padding-left:10px;'}color:#18181b;font-family:Arial,Helvetica,sans-serif;font-size:38px;font-weight:700;line-height:44px;letter-spacing:-2px;white-space:nowrap">${inlineLogo
+                  ? '<img src="cid:planit-wordmark" alt="PlanIt." class="email-logo-light" width="152" height="47" style="display:block;width:152px;height:47px;border:0;color:#18181b;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:700">'
+                    + '<!--[if !mso]><!--><img src="cid:planit-wordmark-dark" alt="PlanIt." class="email-logo-dark" width="152" height="47" style="display:none;max-height:0;overflow:hidden;width:152px;height:47px;border:0;color:#fafafa;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:700"><!--<![endif]-->'
+                  : 'PlanIt<span class="email-logo-dot" style="color:#f45b8a">.</span>'}</td>
+                <td align="right" class="email-muted" style="padding-left:16px;color:#666c78;font-size:11px;font-weight:700;line-height:16px;letter-spacing:1.5px;text-transform:uppercase">${copy.account}</td>
               </tr>
             </table>
           </td></tr>

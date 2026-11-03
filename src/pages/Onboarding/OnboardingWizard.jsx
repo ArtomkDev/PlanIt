@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Animated, KeyboardAvoidingView, Platform,
-  PanResponder, useColorScheme, useWindowDimensions, Alert, BackHandler, Keyboard
+  PanResponder, useColorScheme, useWindowDimensions, BackHandler, Keyboard
 } from 'react-native';
 import GradientBackground from '../../components/ui/GradientBackground';
 import {
@@ -12,6 +12,7 @@ import {
 } from 'phosphor-react-native';
 
 import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
+import { useAppDialog } from '../../context/AppDialogContext';
 import { t } from '../../utils/i18n';
 import themes from '../../config/themes';
 import defaultSchedule from '../../config/defaultSchedule';
@@ -44,13 +45,14 @@ const expandFirstOutputRange = (firstValue, restValue) => [
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-export default function OnboardingWizard({ onImportSchedule }) {
+export default function OnboardingWizard({ onImportSchedule, onLayout }) {
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const width = windowWidth - insets.left - insets.right;
   const reduceMotion = useReducedMotionPreference();
   const colorScheme = useColorScheme();
   const { lang, global } = useScheduleData();
+  const dialog = useAppDialog();
   const { addSchedule, setGlobalDraft } = useScheduleActions();
 
   const rawTheme = global?.theme?.[0];
@@ -190,7 +192,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
     
     if (newStep >= TOTAL_STEPS) {
       if (buildScheduleSlots(draft.start_time, draft.duration, draft.breaks, draft.slotDurations).length === 0) {
-        Alert.alert(t('schedule.main_screen.time', lang), t('settings.schedule_editor.timing.invalid', lang));
+        dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('settings.schedule_editor.timing.invalid', lang) });
         navigateToStepRef.current(3);
         return;
       }
@@ -397,6 +399,7 @@ export default function OnboardingWizard({ onImportSchedule }) {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: themeColors.backgroundColor, paddingLeft: insets.left, paddingRight: insets.right }]}
+      onLayout={onLayout}
       behavior="padding"
       enabled={Platform.OS === 'ios'}
       {...panResponder.panHandlers}

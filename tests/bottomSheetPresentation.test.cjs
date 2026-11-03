@@ -86,10 +86,16 @@ function runtime({ reduceMotion = false, platform = 'web', width = 390 } = {}) {
     '../../hooks/useReducedMotionPreference': () => reduceMotion,
   }).default;
   let renderer;
+  let presentation;
+  function Observer() {
+    presentation = provider.useBottomSheetPresentation();
+    return null;
+  }
   return {
     modals,
     async render(sheets) {
       const tree = React.createElement(provider.BottomSheetPresentationProvider, null,
+        React.createElement(Observer),
         sheets.map((props) => React.createElement(Sheet, { key: props.testID, ...props })));
       await act(async () => {
         if (renderer) renderer.update(tree);
@@ -97,6 +103,7 @@ function runtime({ reduceMotion = false, platform = 'web', width = 390 } = {}) {
       });
     },
     scene: () => renderer.root.findByType('AnimatedScene').props,
+    presentation: () => presentation,
     style: () => renderer.root.findByType('AnimatedScene').props.style[1].read(),
     async dismiss(name) {
       const modal = modals.get(name);
@@ -126,6 +133,7 @@ test('background follows the drag, clamps overshoot, and restores after dismissa
   const app = runtime();
   t.after(() => app.cleanup());
   await app.render([{ testID: 'editor' }]);
+  assert.equal(app.presentation().hasPresentedSheets, true);
   const index = app.modals.get('editor').props.animatedIndex;
   assert.equal(app.style().transform[1].scale, 1);
   assert.equal(app.scene().pointerEvents, 'none');
@@ -138,6 +146,7 @@ test('background follows the drag, clamps overshoot, and restores after dismissa
   index.value = -2;
   assert.equal(app.style().transform[1].scale, 1);
   await app.dismiss('editor');
+  assert.equal(app.presentation().hasPresentedSheets, false);
   assert.equal(app.scene().pointerEvents, 'auto');
   assert.equal(app.scene().accessibilityElementsHidden, false);
   assert.equal(app.scene().inert, false);
@@ -151,8 +160,10 @@ test('closing or unmounting a nested sheet keeps the underlying sheet depth', as
   app.modals.get('calendar').props.animatedIndex.value = -0.8;
   assert.equal(app.style().transform[1].scale, 0.94);
   await app.dismiss('calendar');
+  assert.equal(app.presentation().hasPresentedSheets, true);
   assert.equal(app.style().transform[1].scale, 0.94);
   await app.render([]);
+  assert.equal(app.presentation().hasPresentedSheets, false);
   assert.equal(app.style().transform[1].scale, 1);
   assert.equal(app.scene().pointerEvents, 'auto');
 });

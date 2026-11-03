@@ -1,0 +1,33 @@
+import React from 'react';
+import { View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+
+// planitflow.com sets the wordmark in the system sans at weight 900, which is Segoe UI Black on Windows.
+// Android and iOS ship no such face, so the wordmark is drawn from those glyph outlines (tracking -0.025em).
+const UNITS_PER_EM = 2048;
+const VIEW_BOX = { x: 141, y: -1516, width: 6090, height: 1541 };
+const LETTERS_PATH = 'M1313 -961Q1313 -814 1239 -700Q1164 -586 1026 -523Q888 -461 705 -461L573 -461L573 0L141 0L141 -1434L729 -1434Q1032 -1434 1173 -1319Q1313 -1204 1313 -961ZM856 -946Q856 -1034 805 -1079Q754 -1124 655 -1124L573 -1124L573 -770L670 -770Q856 -770 856 -946ZM1394 0L1394 -1516L1820 -1516L1820 0ZM2542 0L2542 -156L2538 -156Q2436 25 2226 25Q2081 25 1999 -61Q1917 -147 1917 -291Q1917 -593 2288 -641L2542 -674Q2542 -724 2497 -756Q2452 -788 2376 -788Q2204 -788 2013 -690L2013 -967Q2096 -1003 2221 -1026Q2346 -1049 2435 -1049Q2696 -1049 2813 -937Q2931 -826 2931 -565L2931 0ZM2290 -348Q2290 -306 2316 -279Q2343 -252 2392 -252Q2459 -252 2500 -302Q2542 -352 2542 -430L2542 -469L2398 -449Q2290 -431 2290 -348ZM3735 0L3735 -559Q3735 -654 3707 -695Q3678 -737 3614 -737Q3559 -737 3528 -694Q3497 -651 3497 -584L3497 0L3071 0L3071 -1024L3497 -1024L3497 -864L3501 -864Q3552 -952 3638 -1000Q3724 -1049 3825 -1049Q4161 -1049 4161 -625L4161 0ZM4341 0L4341 -1434L4773 -1434L4773 0ZM5686 -14Q5657 0 5591 13Q5525 25 5432 25Q5254 25 5154 -73Q5053 -171 5053 -352L5053 -729L4892 -729L4892 -1024L5053 -1024L5053 -1225L5473 -1341L5473 -1024L5686 -1024L5686 -729L5473 -729L5473 -422Q5473 -287 5580 -287Q5630 -287 5686 -309Z';
+const DOT_PATH = 'M6231 -178Q6231 -87 6167 -31Q6103 25 5990 25Q5887 25 5821 -33Q5756 -92 5756 -178Q5756 -266 5820 -320Q5885 -375 5994 -375Q6100 -375 6165 -320Q6231 -266 6231 -178Z';
+
+// Website accent colors: pink in light theme, teal in dark.
+const ACCENT_LIGHT = '#f45b8a';
+const ACCENT_DARK = '#3ef7d2';
+
+const PlanItWordmark = ({ fontSize, color, isDark, style }) => {
+  const scale = fontSize / UNITS_PER_EM;
+
+  return (
+    <View accessible accessibilityRole="header" accessibilityLabel="PlanIt" style={style}>
+      <Svg
+        width={VIEW_BOX.width * scale}
+        height={VIEW_BOX.height * scale}
+        viewBox={`${VIEW_BOX.x} ${VIEW_BOX.y} ${VIEW_BOX.width} ${VIEW_BOX.height}`}
+      >
+        <Path fill={color} d={LETTERS_PATH} />
+        <Path fill={isDark ? ACCENT_DARK : ACCENT_LIGHT} d={DOT_PATH} />
+      </Svg>
+    </View>
+  );
+};
+
+export default PlanItWordmark;

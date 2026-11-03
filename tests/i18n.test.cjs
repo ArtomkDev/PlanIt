@@ -9,7 +9,10 @@ const compile = (relative, mocks = {}) => {
   const filename = path.resolve(__dirname, '..', relative);
   const output = babel.transformSync(fs.readFileSync(filename, 'utf8'), {
     filename, configFile: false, babelrc: false,
-    plugins: ['@babel/plugin-transform-modules-commonjs'],
+    plugins: [
+      ...(filename.endsWith('.jsx') ? ['@babel/plugin-transform-react-jsx'] : []),
+      '@babel/plugin-transform-modules-commonjs',
+    ],
   }).code;
   const instance = new Module(filename, module);
   instance.filename = filename;
@@ -123,4 +126,144 @@ test('language selection reacts to device preference changes and ignores stale a
   assert.equal(current.lang, 'uk');
   assert.equal(current.isLangLoading, false);
   await renderer.act(async () => { tree.unmount(); });
+});
+
+async function mountLegalDocument(context, documentType = 'privacy') {
+  const React = require('react');
+  const { act, create } = require('react-test-renderer');
+  global.IS_REACT_ACT_ENVIRONMENT = true;
+  const state = {
+    route: { params: { documentType, lang: 'uk-UA' } },
+    focused: true,
+    data: { global: { language: 'uk', theme: ['light', 'blue'] }, lang: 'uk' },
+    openedUrls: [], alerts: [], scrolls: [], failLink: false,
+  };
+  const native = {
+    View: 'View', Text: 'Text', TouchableOpacity: 'TouchableOpacity',
+    StyleSheet: { create: value => value },
+    Linking: { openURL: async url => {
+      state.openedUrls.push(url);
+      if (state.failLink) throw new Error('Browser unavailable');
+    } },
+    Animated: {
+      Value: class { setValue() {} },
+      event: () => () => {},
+      View: 'AnimatedView',
+      ScrollView: React.forwardRef((props, ref) => {
+        React.useImperativeHandle(ref, () => ({ scrollTo: options => state.scrolls.push(options) }), []);
+        return React.createElement('ScrollView', props);
+      }),
+    },
+  };
+  const documents = compile('src/config/legalDocuments.generated.js', { '../utils/i18n': { normalizeLanguage } });
+  const links = compile('src/utils/legalDocumentLinks.js', {
+    '../config/legalDocuments.generated': documents, './i18n': { normalizeLanguage },
+  });
+  const TabSwitcher = compile('src/components/ui/TabSwitcher.jsx', {
+    'react-native': native,
+    '../../utils/haptics': { triggerHaptic() {} },
+    '../../hooks/useReducedMotionPreference': () => true,
+  }).default;
+  const Screen = compile('src/pages/Settings/components/LegalDocumentScreen.jsx', {
+    'react-native': native,
+    'expo-status-bar': { StatusBar: () => null },
+    'phosphor-react-native': { Globe: 'Globe' },
+    '@react-navigation/native': {
+      useRoute: () => state.route,
+      useFocusEffect: callback => React.useEffect(() => {
+        if (state.focused) return callback();
+      }, [callback, state.focused]),
+    },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) },
+    '../../../config/themes': { getColors: () => ({}) },
+    '../../../config/legalDocuments.generated': documents,
+    '../../../components/ui/SettingsHeader': ({ rightButton, ...props }) => React.createElement('SettingsHeader', props, rightButton),
+    '../../../components/ui/TabSwitcher': TabSwitcher,
+    '../../../context/ScheduleProvider': { useScheduleData: () => state.data },
+    '../../../context/AppDialogContext': { useAppDialog: () => ({ alert: async (options) => state.alerts.push(options) }) },
+    '../../../utils/i18n': { t },
+    '../../../utils/haptics': { triggerHaptic() {} },
+    '../../../utils/legalDocumentLinks': links,
+    '../../../config/layoutMetrics': { getSettingsHeaderHeight: () => 60 },
+  }).default;
+  let tree;
+  await act(async () => { tree = create(React.createElement(Screen)); });
+  context.after(async () => { await act(async () => tree.unmount()); });
+  return {
+    state,
+    async render() { await act(async () => tree.update(React.createElement(Screen))); },
+    async select(language) {
+      const label = language === 'uk' ? 'Українська' : 'English';
+      await act(async () => tree.root.findByProps({ accessibilityRole: 'tab', accessibilityLabel: label }).props.onPress());
+    },
+    async openBrowser(index = 0) {
+      await act(async () => tree.root.findAllByProps({ accessibilityRole: 'button' })[index].props.onPress());
+    },
+    assertLanguage(type, language) {
+      const document = documents.getLegalDocument(type, language);
+      const text = tree.root.findAllByType('Text').flatMap(node => node.props.children);
+      assert.equal(tree.root.findByType('SettingsHeader').props.title, document.title);
+      assert.ok(text.includes(document.title));
+      assert.ok(text.includes(document.sections[0].title));
+      assert.ok(text.includes(document.effectiveDateLine || document.effectiveDate));
+      assert.equal(text.includes(t('settings.about_screen.document_language_notice', 'uk')), language === 'uk');
+      const tabs = tree.root.findAllByProps({ accessibilityRole: 'tab' });
+      assert.equal(tabs.filter(tab => tab.props.accessibilityState.selected).length, 1);
+      assert.equal(tabs.find(tab => tab.props.accessibilityState.selected).props.accessibilityLabel, language === 'uk' ? 'Українська' : 'English');
+      for (const button of tree.root.findAllByProps({ accessibilityRole: 'button' })) {
+        assert.equal(button.props.accessibilityLabel, t('settings.about_screen.open_in_browser', language));
+      }
+    },
+    browserUrl: (type, language) => links.getLegalDocumentBrowserUrl(type, language),
+  };
+}
+
+for (const type of ['privacy', 'terms', 'cookies', 'delete', 'licenses']) {
+  test(`${type} opens in English despite app and route languages, with an independent translation switch`, async context => {
+    const ui = await mountLegalDocument(context, type);
+    ui.assertLanguage(type, 'en');
+    await ui.openBrowser();
+    assert.equal(ui.state.openedUrls.at(-1), ui.browserUrl(type, 'en'));
+    await ui.select('uk');
+    ui.assertLanguage(type, 'uk');
+    await ui.openBrowser(1);
+    assert.equal(ui.state.openedUrls.at(-1), ui.browserUrl(type, 'uk'));
+    await ui.select('en');
+    ui.assertLanguage(type, 'en');
+    assert.equal(ui.state.data.global.language, 'uk');
+  });
+}
+
+test('legal language survives app language changes and resets on refocus or a different document', async context => {
+  const ui = await mountLegalDocument(context);
+  await ui.select('uk');
+  for (const language of ['en', 'uk']) {
+    ui.state.data = { ...ui.state.data, lang: language, global: { language } };
+    await ui.render();
+    ui.assertLanguage('privacy', 'uk');
+  }
+  ui.state.focused = false;
+  await ui.render();
+  ui.state.focused = true;
+  await ui.render();
+  ui.assertLanguage('privacy', 'en');
+  await ui.select('uk');
+  ui.state.route = { params: { documentType: 'terms', lang: 'uk' } };
+  await ui.render();
+  ui.assertLanguage('terms', 'en');
+  assert.deepEqual(ui.state.scrolls, Array(3).fill({ y: 0, animated: false }));
+});
+
+test('browser failures use the explicitly selected legal language', async context => {
+  const ui = await mountLegalDocument(context);
+  ui.state.failLink = true;
+  for (const language of ['en', 'uk']) {
+    await ui.select(language);
+    await ui.openBrowser();
+    assert.deepEqual(ui.state.alerts.at(-1), {
+      title: t('common.error', language),
+      message: t('settings.about_screen.link_open_failed', language),
+      buttonLabel: t('common.ok', language),
+    });
+  }
 });

@@ -1,6 +1,6 @@
+import { StatusBar } from "expo-status-bar";
 import React from "react";
 import {
-  Alert,
   Animated,
   Linking,
   StyleSheet,
@@ -9,28 +9,45 @@ import {
   View,
 } from "react-native";
 import { Globe } from "phosphor-react-native";
-import { useRoute } from "@react-navigation/native";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import themes from "../../../config/themes";
 import { getLegalDocument } from "../../../config/legalDocuments.generated";
 import SettingsHeader from "../../../components/ui/SettingsHeader";
+import TabSwitcher from "../../../components/ui/TabSwitcher";
 import { useScheduleData } from "../../../context/ScheduleProvider";
+import { useAppDialog } from "../../../context/AppDialogContext";
 import { t } from "../../../utils/i18n";
 import { triggerHaptic } from "../../../utils/haptics";
 import { getLegalDocumentBrowserUrl } from "../../../utils/legalDocumentLinks";
 import { getSettingsHeaderHeight } from '../../../config/layoutMetrics';
 
+const DOCUMENT_LANGUAGES = [
+  { id: "en", label: "English" },
+  { id: "uk", label: "Українська" },
+];
+
 export default function LegalDocumentScreen() {
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const { global, lang } = useScheduleData();
+  const { global } = useScheduleData();
+  const dialog = useAppDialog();
+  const [documentLanguage, setDocumentLanguage] = React.useState("en");
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
-  const document = getLegalDocument(route.params?.documentType, lang);
+  const documentType = route.params?.documentType;
+  const document = getLegalDocument(documentType, documentLanguage);
   const scrollY = React.useRef(new Animated.Value(0)).current;
+  const scrollRef = React.useRef(null);
   const headerHeight = getSettingsHeaderHeight(insets.top);
-  const browserUrl = getLegalDocumentBrowserUrl(route.params?.documentType, lang);
+  const browserUrl = getLegalDocumentBrowserUrl(documentType, documentLanguage);
+
+  useFocusEffect(React.useCallback(() => {
+    setDocumentLanguage("en");
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    scrollY.setValue(0);
+  }, [documentType, scrollY]));
 
   const openInBrowser = () => {
     if (!browserUrl) {
@@ -39,7 +56,11 @@ export default function LegalDocumentScreen() {
 
     triggerHaptic("open");
     Linking.openURL(browserUrl).catch(() => {
-      Alert.alert(t("common.error", lang), t("settings.about_screen.link_open_failed", lang));
+      dialog.alert({
+        title: t("common.error", documentLanguage),
+        message: t("settings.about_screen.link_open_failed", documentLanguage),
+        buttonLabel: t("common.ok", documentLanguage),
+      });
     });
   };
 
@@ -119,6 +140,7 @@ export default function LegalDocumentScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: themeColors.backgroundColor, paddingLeft: insets.left, paddingRight: insets.right }]}>
+      <StatusBar style={mode === "light" ? "dark" : "light"} />
       <View style={{ flex: 1 }}>
       <SettingsHeader
         title={document.title}
@@ -126,7 +148,7 @@ export default function LegalDocumentScreen() {
         rightButton={(
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel={t("settings.about_screen.open_in_browser", lang)}
+            accessibilityLabel={t("settings.about_screen.open_in_browser", documentLanguage)}
             onPress={openInBrowser}
             activeOpacity={0.7}
             style={styles.headerAction}
@@ -137,6 +159,7 @@ export default function LegalDocumentScreen() {
       />
 
       <Animated.ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
@@ -151,12 +174,18 @@ export default function LegalDocumentScreen() {
         )}
         scrollEventThrottle={16}
       >
+        <TabSwitcher
+          tabs={DOCUMENT_LANGUAGES}
+          activeTab={documentLanguage}
+          onTabPress={setDocumentLanguage}
+          themeColors={themeColors}
+        />
         <Text style={[styles.title, { color: themeColors.textColor }]}>
           {document.title}
         </Text>
-        {lang !== "en" && (
+        {documentLanguage !== "en" && (
           <Text style={[styles.paragraph, { color: themeColors.textColor2 }]}>
-            {t("settings.about_screen.document_language_notice", lang)}
+            {t("settings.about_screen.document_language_notice", documentLanguage)}
           </Text>
         )}
         <Text style={[styles.meta, { color: themeColors.textColor2 }]}>
@@ -164,7 +193,7 @@ export default function LegalDocumentScreen() {
         </Text>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel={t("settings.about_screen.open_in_browser", lang)}
+          accessibilityLabel={t("settings.about_screen.open_in_browser", documentLanguage)}
           onPress={openInBrowser}
           activeOpacity={0.82}
           style={[
@@ -180,7 +209,7 @@ export default function LegalDocumentScreen() {
             numberOfLines={1}
             style={[styles.browserButtonText, { color: themeColors.accentTextColor }]}
           >
-            {t("settings.about_screen.open_in_browser", lang)}
+            {t("settings.about_screen.open_in_browser", documentLanguage)}
           </Text>
         </TouchableOpacity>
 

@@ -5,7 +5,7 @@ import {
   Radioactive, Microscope, Ruler, Shapes, Dna, Lightning, Thermometer, Fire,
 
   // IT та Технології (Dev & Tech)
-  Binary, Code, CodeSimple, CodesandboxLogo, GitPullRequest, GitDiff, 
+  Binary, Code, CodeSimple, Cube, GitPullRequest, GitDiff, 
   Terminal, Keyboard, Browsers, Bug, Network, Broadcast, Waveform, 
   Cpu, Database, Laptop, Brain, WifiHigh, HardDrives, DeviceMobile, GlobeHemisphereWest,
 
@@ -20,7 +20,7 @@ import {
 
   // Мистецтво та Музика (Arts & Music)
   Palette, PaintBrush, PaintBrushHousehold, Guitar, MusicNote, MusicNotes, 
-  VinylRecord, Playlist, Microphone, Headphones, Camera, Clapperboard,
+  VinylRecord, Playlist, Microphone, Headphones, Camera, FilmSlate,
 
   // Спорт та Здоров'я (Sport & Health)
   Barbell, Basketball, Baseball, PersonSimpleBike, PersonSimpleHike, 
@@ -67,7 +67,7 @@ export const SUBJECT_ICONS = {
   code_simple: CodeSimple,
   git_pull: GitPullRequest,
   git_diff: GitDiff,
-  sandbox: CodesandboxLogo,
+  sandbox: Cube,
   terminal: Terminal,
   keyboard: Keyboard,
   web: Browsers,
@@ -120,7 +120,7 @@ export const SUBJECT_ICONS = {
   vinyl: VinylRecord,
   playlist: Playlist,
   photo: Camera,
-  film: Clapperboard,
+  film: FilmSlate,
 
   // Спорт
   gym: Barbell,

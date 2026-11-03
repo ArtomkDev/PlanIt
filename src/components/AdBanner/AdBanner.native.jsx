@@ -1,56 +1,52 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { AppState, Keyboard, Platform } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 
 import { useAds } from '../../context/AdsContext';
+import { useIsAppDialogVisible } from '../../context/AppDialogContext';
 
 const isExpoGo = isRunningInExpoGo();
 
-export default function AdBanner() {
-  const { canShowAds } = useAds();
+export default function AdBanner({ visible = true, reserveSpace = false }) {
+  const { canShowAds, isPrivacyOptionsLoading } = useAds();
+  const isDialogVisible = useIsAppDialogVisible();
   const [RealAdComponent, setRealAdComponent] = useState(null);
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
+  const [windowFocused, setWindowFocused] = useState(true);
+  const [keyboardVisible, setKeyboardVisible] = useState(Keyboard.isVisible());
+  const bannerVisible = visible && appActive && windowFocused && !keyboardVisible && !isPrivacyOptionsLoading && !isDialogVisible;
 
   useEffect(() => {
-    let active = true;
-
-    if (!isExpoGo && canShowAds) {
-      import('./AdBannerImpl')
-        .then((module) => {
-          if (active) setRealAdComponent(() => module.default);
-        })
-        .catch((error) => {
-          if (__DEV__) {
-            console.warn('Failed to load the AdMob banner module:', error);
-          }
-        });
-    } else {
-      setRealAdComponent(null);
+    const subscriptions = [
+      AppState.addEventListener('change', (state) => setAppActive(state === 'active')),
+      Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true)),
+      Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false)),
+    ];
+    if (Platform.OS === 'android') {
+      subscriptions.push(
+        AppState.addEventListener('blur', () => setWindowFocused(false)),
+        AppState.addEventListener('focus', () => setWindowFocused(true)),
+      );
     }
+    return () => subscriptions.forEach((subscription) => subscription.remove());
+  }, []);
 
-    return () => {
-      active = false;
-    };
-  }, [canShowAds]);
+  useEffect(() => {
+    if (!canShowAds) {
+      setRealAdComponent(null);
+    } else if (!isExpoGo && bannerVisible && !RealAdComponent) {
+      try {
+        const { default: AdBannerImpl } = require('./AdBannerImpl');
+        setRealAdComponent(() => AdBannerImpl);
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('Failed to load the AdMob banner module:', error);
+        }
+      }
+    }
+  }, [canShowAds, bannerVisible, RealAdComponent]);
 
-  return (
-    <View
-      pointerEvents={canShowAds ? 'box-none' : 'none'}
-      style={styles.placement}
-    >
-      {RealAdComponent ? <RealAdComponent /> : null}
-    </View>
-  );
+  if (isExpoGo || !canShowAds || !RealAdComponent) return null;
+
+  return <RealAdComponent visible={bannerVisible} reserveSpace={reserveSpace} />;
 }
-
-const styles = StyleSheet.create({
-  placement: {
-    width: '100%',
-    minHeight: 75,
-    paddingTop: 12,
-    paddingBottom: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(127,127,127,0.32)',
-  },
-});

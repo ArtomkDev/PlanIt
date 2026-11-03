@@ -16,7 +16,8 @@ const stringCell = (ref, value, style) => `<c r="${ref}" s="${style}" t="inlineS
 const numberCell = (ref, value, style) => `<c r="${ref}" s="${style}"><v>${value}</v></c>`;
 
 export const createScheduleSpreadsheet = async (document) => {
-  const JSZip = require("jszip");
+  const zipModule = await import("jszip");
+  const JSZip = zipModule.default || zipModule;
   const zip = new JSZip();
   const brand = getDocumentBranding(document.settings.color);
   const calendar = document.weekCalendar;

@@ -1,22 +1,21 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState, useRef } from "react";
-import { NavigationContainer, DarkTheme } from "@react-navigation/native";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { StyleSheet, View } from 'react-native';
+import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onIdTokenChanged, signOut } from "firebase/auth";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetPresentationProvider } from "./context/BottomSheetPresentationContext";
+import { AppDialogProvider } from "./context/AppDialogContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as LinkingExpo from 'expo-linking';
 
 import { auth } from "./config/firebase";
 import { trackScreenView } from "./utils/analytics/analytics";
 import { setCrashlyticsUser, initGlobalErrorHandling } from "./utils/analytics/crashlytics";
-import AuthScreen from "./auth/AuthScreen"; 
-import MainLayout from "./layouts/MainLayout";
-import LegalDocumentScreen from "./pages/Settings/components/LegalDocumentScreen";
-import { ScheduleProvider } from "./context/ScheduleProvider";
+import { ScheduleProvider, useScheduleData } from "./context/ScheduleProvider";
 import { EditorProvider } from "./context/EditorProvider";
 import { AttachmentImagePreviewProvider } from "./context/AttachmentImagePreviewContext";
 import { registerDevice, listenForDeviceRemoval } from "./utils/deviceService";
@@ -25,16 +24,25 @@ import useAppLanguage from './hooks/useAppLanguage';
 import { AdsProvider } from './context/AdsContext';
 import CookieConsentBanner from './components/privacy/CookieConsentBanner';
 import WebThemeStyles from './components/ui/WebThemeStyles';
-import PasswordResetScreen from './auth/PasswordResetScreen';
+import NativeThemeStyles from './components/ui/NativeThemeStyles';
+import useAppTheme from './hooks/useAppTheme';
+import useSystemThemeColors from './hooks/useSystemThemeColors';
+import MorphingLoader from './components/ui/MorphingLoader';
+import { t } from './utils/i18n';
 import { createPasswordResetNavigationUrl } from './auth/accountEmailService';
+import { getLocalSchedule } from './utils/storage';
+import { releaseAttachmentObjectUrls } from './services/attachmentService';
+import { WEBSITE_URL, WEB_APP_URL } from './config/website.cjs';
+import mainLayoutLinking from './navigation/mainLayoutLinking';
+import { clearWidgetScheduleData, syncWidgetPushSubscription } from './widgets/widgetService';
 
 initGlobalErrorHandling();
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const Stack = createNativeStackNavigator();
 
 const linking = {
-  prefixes: [LinkingExpo.createURL('/'), 'planit://', 'https://planit.app'],
+  prefixes: [LinkingExpo.createURL('/'), 'planit://', WEB_APP_URL, WEBSITE_URL],
   getInitialURL: async () => {
     const url = await LinkingExpo.getInitialURL();
     return createPasswordResetNavigationUrl(url);
@@ -48,9 +56,7 @@ const linking = {
   },
   config: {
     screens: {
-      MainLayout: {
-        path: '*',
-      },
+      MainLayout: mainLayoutLinking,
       Auth: 'auth',
       PasswordReset: 'password-reset',
       LegalDocument: 'legal/:documentType',
@@ -58,51 +64,97 @@ const linking = {
   },
 };
 
-const AppDarkTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: '#000000',
-    card: '#121214',
-  },
-};
+const documentTitle = { formatter: () => 'PlanIt' };
+
+function StartupScreen({ colors, lang, style }) {
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={t('schedule.loading', lang)}
+      style={[{ flex: 1, backgroundColor: colors.backgroundColor, alignItems: 'center', justifyContent: 'center' }, style]}
+    >
+      <MorphingLoader size={80} />
+    </View>
+  );
+}
+
+const ThemedNavigationContainer = React.forwardRef(function ThemedNavigationContainer({ hasInitialLayout, ...props }, ref) {
+  const { colorScheme, colors } = useAppTheme();
+  const { isDevicePrefsReady, isLangLoading, lang } = useScheduleData();
+  const [navigationReady, setNavigationReady] = useState(false);
+  const [hasFirstFrame, setHasFirstFrame] = useState(false);
+  const canRenderNavigation = isDevicePrefsReady && !isLangLoading;
+  const navigationTheme = useMemo(() => {
+    const base = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+    return { ...base, colors: { ...base.colors, primary: colors.accentColor,
+      background: colors.backgroundColor, card: colors.backgroundColor2,
+      text: colors.textColor, border: colors.borderColor, notification: colors.accentColor } };
+  }, [colorScheme, colors]);
+  useEffect(() => {
+    if (!canRenderNavigation || !navigationReady || !hasInitialLayout || hasFirstFrame) return;
+    const frame = requestAnimationFrame(() => {
+      setHasFirstFrame(true);
+      SplashScreen.hideAsync().catch(() => {});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [canRenderNavigation, navigationReady, hasInitialLayout, hasFirstFrame]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.backgroundColor }}>
+      {canRenderNavigation && (
+        <NavigationContainer {...props} ref={ref} theme={navigationTheme} onReady={() => {
+          setNavigationReady(true);
+          props.onReady?.();
+        }} />
+      )}
+      {(!canRenderNavigation || !hasFirstFrame) && (
+        <StartupScreen colors={colors} lang={lang} style={StyleSheet.absoluteFill} />
+      )}
+    </View>
+  );
+});
 
 export default function RootApp() {
   const [user, setUser] = useState(null);
   const [guest, setGuest] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
+  const [hasInitialLayout, setHasInitialLayout] = useState(false);
   const { lang, isLangLoading } = useAppLanguage();
+  const { colors: systemColors } = useSystemThemeColors();
 
   const wasLoggedIn = useRef(false);
   const navigationRef = useRef();
   const routeNameRef = useRef();
 
-  const verifySession = async (currentUser) => {
-    if (!currentUser) return;
-    try {
-      await currentUser.getIdToken(true);
-    } catch (error) {
-      if (error.code !== 'auth/network-request-failed') {
-        await signOut(auth);
-      }
-    }
-  };
+  useEffect(() => () => releaseAttachmentObjectUrls(), [user?.uid, guest]);
 
   useEffect(() => {
     let deviceListenerUnsubscribe = () => {};
-    let currentUid = null;
-
-    const handleSignOut = () => {
-      signOut(auth).catch(console.error);
-    };
+    let active = true;
+    let sessionGeneration = 0;
 
     const authUnsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
+      const generation = ++sessionGeneration;
+      const isCurrentSession = () => active && generation === sessionGeneration;
       deviceListenerUnsubscribe();
+      deviceListenerUnsubscribe = () => {};
+
+      const handleSignOut = () => {
+        if (isCurrentSession() && auth.currentUser?.uid === firebaseUser?.uid) {
+          signOut(auth).catch(console.error);
+        }
+      };
+
+      const attachDeviceListener = async () => {
+        if (!isCurrentSession()) return;
+        const unsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
+        if (isCurrentSession()) deviceListenerUnsubscribe = unsubscribe;
+        else unsubscribe();
+      };
       
       if (firebaseUser) {
         if (firebaseUser.emailVerified) {
           wasLoggedIn.current = true;
-          currentUid = firebaseUser.uid;
           const shouldCreateLoginNotification = consumeManualLogin();
           setUser(firebaseUser);
           setGuest(false);
@@ -115,50 +167,51 @@ export default function RootApp() {
               allowReactivation: shouldCreateLoginNotification,
               lang,
             });
-            if (currentUid === firebaseUser.uid) {
-              deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut);
-            }
+            if (isCurrentSession()) syncWidgetPushSubscription();
+            await attachDeviceListener();
           } catch (error) {
+            if (!isCurrentSession()) return;
             if (error?.code === 'device/revoked') {
-              await signOut(auth).catch(() => {});
+              handleSignOut();
               return;
             }
             console.error(error);
-            if (currentUid === firebaseUser.uid) {
-              deviceListenerUnsubscribe = await listenForDeviceRemoval(firebaseUser.uid, handleSignOut)
-                .catch(() => () => {});
-            }
+            await attachDeviceListener().catch(console.error);
           }
         } else {
-          currentUid = null;
           setManualLogin(false);
           setUser(null);
           setGuest(false); 
           setAuthResolved(true);
         }
       } else {
-        currentUid = null;
         setUser(null);
         setCrashlyticsUser('');
         
         if (wasLoggedIn.current) {
+          clearWidgetScheduleData().catch(console.error);
           setGuest(false);
           wasLoggedIn.current = false;
           setAuthResolved(true);
         } else {
           try {
-            const localSchedule = await AsyncStorage.getItem("guest_schedule");
+            const localSchedule = await getLocalSchedule(null);
+            if (!isCurrentSession()) return;
             setGuest(!!localSchedule);
           } catch (e) {
+            if (!isCurrentSession()) return;
+            if (e?.code === 'local-storage/corrupt-data') setGuest(true);
             console.warn(e);
           } finally {
-            setAuthResolved(true);
+            if (isCurrentSession()) setAuthResolved(true);
           }
         }
       }
     });
 
     return () => {
+      active = false;
+      sessionGeneration += 1;
       authUnsubscribe();
       deviceListenerUnsubscribe();
     };
@@ -166,16 +219,8 @@ export default function RootApp() {
 
   const appIsReady = authResolved && !isLangLoading;
 
-  useEffect(() => {
-    if (appIsReady) {
-      setTimeout(() => {
-        SplashScreen.hideAsync().catch(() => {});
-      }, 100);
-    }
-  }, [appIsReady]);
-
   if (!appIsReady) {
-    return null;
+    return <StartupScreen colors={systemColors} lang={lang} />;
   }
 
   const handleExitGuest = () => {
@@ -183,8 +228,11 @@ export default function RootApp() {
   };
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: systemColors.backgroundColor }}>
       <SafeAreaProvider>
+        {/* Base of the status bar stack: system-themed screens such as Auth follow the device
+            theme, and screens with an app theme mount their own StatusBar on top of this one. */}
+        <StatusBar style="auto" />
         <AttachmentImagePreviewProvider key={user?.uid || (guest ? 'guest' : 'signed-out')}>
           <AdsProvider>
             <ScheduleProvider
@@ -192,16 +240,18 @@ export default function RootApp() {
               user={user}
             >
               <WebThemeStyles />
+              <NativeThemeStyles />
+              <AppDialogProvider>
               <BottomSheetPresentationProvider>
-                <NavigationContainer
+                <ThemedNavigationContainer
                 ref={navigationRef}
+                hasInitialLayout={hasInitialLayout}
                 linking={linking}
-                theme={AppDarkTheme}
+                documentTitle={documentTitle}
                 onReady={() => {
                   if (navigationRef.current) {
                     routeNameRef.current = navigationRef.current.getCurrentRoute().name;
                   }
-                  SplashScreen.hideAsync().catch(() => {});
                 }}
                 onStateChange={async () => {
                   const previousRouteName = routeNameRef.current;
@@ -213,41 +263,49 @@ export default function RootApp() {
                   routeNameRef.current = currentRouteName;
                 }}
                 >
-                  <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 500 }}>
+                  <Stack.Navigator
+                    screenOptions={{ headerShown: false, animation: hasInitialLayout ? 'fade' : 'none', animationDuration: 500 }}
+                    screenLayout={({ children }) => (
+                      <View style={{ flex: 1 }} onLayout={() => setHasInitialLayout(true)}>{children}</View>
+                    )}
+                  >
                   {user || guest ? (
                     <Stack.Screen name="MainLayout">
-                      {(props) => (
-                        <EditorProvider>
-                          <MainLayout
-                            {...props}
-                            guest={guest}
-                            onExitGuest={handleExitGuest}
-                          />
-                        </EditorProvider>
-                      )}
+                      {(props) => {
+                        const MainLayout = require('./layouts/MainLayout').default;
+                        return (
+                          <EditorProvider>
+                            <MainLayout
+                              {...props}
+                              guest={guest}
+                              onExitGuest={handleExitGuest}
+                            />
+                          </EditorProvider>
+                        );
+                      }}
                     </Stack.Screen>
                   ) : (
                     <Stack.Screen name="Auth">
-                      {(props) => (
-                        <AuthScreen
-                          {...props}
-                          onGuestLogin={() => setGuest(true)}
-                        />
-                      )}
+                      {(props) => {
+                        const AuthScreen = require('./auth/AuthScreen').default;
+                        return <AuthScreen {...props} onGuestLogin={() => setGuest(true)} />;
+                      }}
                     </Stack.Screen>
                   )}
                   <Stack.Screen name="PasswordReset">
-                    {(props) => (
-                      <PasswordResetScreen
+                    {(props) => {
+                      const PasswordResetScreen = require('./auth/PasswordResetScreen').default;
+                      return <PasswordResetScreen
                         {...props}
                         fallbackRoute={user || guest ? 'MainLayout' : 'Auth'}
-                      />
-                    )}
+                      />;
+                    }}
                   </Stack.Screen>
-                  <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
+                  <Stack.Screen name="LegalDocument" getComponent={() => require('./pages/Settings/components/LegalDocumentScreen').default} />
                   </Stack.Navigator>
-                </NavigationContainer>
+                </ThemedNavigationContainer>
               </BottomSheetPresentationProvider>
+              </AppDialogProvider>
             </ScheduleProvider>
           </AdsProvider>
           <CookieConsentBanner lang={lang} />

@@ -22,7 +22,7 @@ function load(relative, mocks = {}) {
   return loaded.exports;
 }
 
-async function renderViewer(t, { subject = {}, lesson = {}, readOnly = false, nativeOverrides = {}, ...props } = {}) {
+async function renderViewer(t, { subject = {}, lesson = {}, readOnly = false, nativeOverrides = {}, dialog = { alert: async () => {} }, ...props } = {}) {
   const native = {
     View: 'View', Text: 'Text', TouchableOpacity: 'Button',
     Platform: { OS: 'ios' },
@@ -54,6 +54,7 @@ async function renderViewer(t, { subject = {}, lesson = {}, readOnly = false, na
       SheetScrollView: 'ScrollView',
     },
     '../../../context/AttachmentImagePreviewContext': { useAttachmentImagePreview: () => ({}) },
+    '../../../context/AppDialogContext': { useAppDialog: () => dialog },
     '../../../utils/haptics': { triggerHaptic() {} },
     '../../../utils/gradientColors': colors,
     '../../../services/attachmentService': { resolveAttachmentList: () => [] },
@@ -91,13 +92,13 @@ test('a native link failure is reported without an unhandled promise rejection',
     sourceSchedule: { subjects: [{ id: 'subject', links: ['course'] }], links: [{ id: 'course', name: 'Course', url: 'https://example.com/course' }] },
     nativeOverrides: {
       Linking: { async openURL(url) { opened.push(url); throw new Error('Unavailable'); } },
-      Alert: { alert: (...args) => alerts.push(args) },
     },
+    dialog: { alert: async (options) => alerts.push(options) },
   });
   await act(async () => viewer.root().findByProps({ accessibilityRole: 'link' }).props.onPress());
   assert.deepEqual(opened, ['https://example.com/course']);
   assert.equal(alerts.length, 1);
-  assert.match(alerts[0][1], /https:\/\/example.com\/course/);
+  assert.match(alerts[0].message, /https:\/\/example.com\/course/);
 });
 
 test('missing place and time do not render placeholder information', async (t) => {

@@ -101,9 +101,9 @@ const getContrastSamples = (background) => {
     .map((position) => interpolateGradientColor(stops, position));
 };
 
-export const getReadableForeground = (background, fallback = LIGHT_FOREGROUND) => {
+const computeReadableForeground = (background) => {
   const samples = getContrastSamples(background);
-  if (samples.length === 0) return fallback;
+  if (samples.length === 0) return null;
 
   const whiteContrasts = samples.map((color) => tinycolor.readability(LIGHT_FOREGROUND, color));
   const darkContrasts = samples.map((color) => tinycolor.readability(DARK_FOREGROUND, color));
@@ -121,6 +121,20 @@ export const getReadableForeground = (background, fallback = LIGHT_FOREGROUND) =
   return whiteIsSeverelyWeakEverywhere && darkIsReadableEverywhere
     ? DARK_FOREGROUND
     : LIGHT_FOREGROUND;
+};
+
+// Every lesson card asks for the same few backgrounds, and sampling a gradient
+// costs dozens of colour parses on low-end devices.
+const READABLE_FOREGROUND_CACHE_LIMIT = 256;
+const readableForegroundCache = new Map();
+
+export const getReadableForeground = (background, fallback = LIGHT_FOREGROUND) => {
+  const key = typeof background === "string" ? background : JSON.stringify(background);
+  if (!readableForegroundCache.has(key)) {
+    if (readableForegroundCache.size >= READABLE_FOREGROUND_CACHE_LIMIT) readableForegroundCache.clear();
+    readableForegroundCache.set(key, computeReadableForeground(background));
+  }
+  return readableForegroundCache.get(key) ?? fallback;
 };
 
 export const colorWithAlpha = (color, alpha, fallback = color) => {

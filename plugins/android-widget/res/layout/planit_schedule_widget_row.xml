@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    <!-- A nested click target lets recycled break rows clear their listener on Android. -->
+    <LinearLayout
+        android:id="@+id/planit_widget_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:importantForAccessibility="yes">
+        <FrameLayout
+            android:id="@+id/planit_widget_strip"
+            android:layout_width="4dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="8dp" />
+        <LinearLayout
+            android:id="@+id/planit_widget_row_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/planit_widget_row_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:includeFontPadding="false"
+                    android:ellipsize="end"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/planit_widget_row_subtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:includeFontPadding="false"
+                    android:ellipsize="end"
+                    android:textColor="#8E8E93"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/planit_widget_now"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:background="@drawable/planit_widget_badge"
+                android:textColor="#32D74B"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

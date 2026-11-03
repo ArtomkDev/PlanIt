@@ -8,11 +8,11 @@ import {
   Easing,
   Platform,
   Animated,
-  Alert,
 } from "react-native";
 import { CaretLeft, X, PencilSimple, CheckCircle, XCircle } from "phosphor-react-native";
 import { useScheduleActions, useScheduleData } from "../../../context/ScheduleProvider";
 import { useDaySchedule } from "../../../context/DayScheduleProvider";
+import { useAppDialog } from "../../../context/AppDialogContext";
 import themes from "../../../config/themes";
 import { SUBJECT_ICONS } from "../../../config/subjectIcons";
 import {
@@ -23,7 +23,8 @@ import {
 } from "../../../config/contactTypes";
 import { getTeacherAppearance, normalizeTeacherContacts } from "../../../utils/contactData";
 
-import BottomSheet from "../../../components/ui/BottomSheet";
+import BottomSheet, { SheetScrollView } from "../../../components/ui/BottomSheet";
+import ScheduleTimeEditor from "../../../components/ScheduleTimeEditor";
 import AppBlur from "../../../components/ui/AppBlur";
 
 import LessonEditorMainScreen from "./LessonEditor/screens/MainScreen";
@@ -48,11 +49,15 @@ import {
 } from "../../../services/attachmentService";
 import {
   addMinutes,
+  appendScheduleSlot,
   buildLessonTimes,
   buildScheduleSlots,
+  createScheduleTimingDraft,
+  findScheduleTimingConflict,
   materializeScheduleLessons,
   getDurationMinutes,
   normalizeScheduleRepeat,
+  normalizeScheduleTiming,
   parseTimeToMinutes,
 } from "../../../utils/scheduleTime";
 import { removeScheduleEntity } from "../../../utils/scheduleDeletion";
@@ -105,12 +110,15 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   const { global, schedule, lang, user } = useScheduleData();
   const { setGlobalDraft, setScheduleDraft } = useScheduleActions();
   const { getDayIndex, calculateCurrentWeek, currentDate } = useDaySchedule();
+  const dialog = useAppDialog();
 
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
   const reduceMotion = useReducedMotionPreference();
 
   const dataSource = schedule;
+  const [timingDraft, setTimingDraft] = useState(null);
+  const timingSchedule = useMemo(() => timingDraft ? { ...normalizeScheduleTiming(schedule), ...timingDraft } : schedule, [schedule, timingDraft]);
 
   const [localData, setLocalData] = useState({
     subjects: deepClone(dataSource?.subjects),
@@ -133,7 +141,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     const slots = buildScheduleSlots(dataSource?.start_time || "08:30", Number(dataSource?.duration) || 45, dataSource?.breaks || [], dataSource?.slotDurations);
     const times = buildLessonTimes(dataSource?.start_time || "08:30", Number(dataSource?.duration) || 45, dataSource?.breaks || [], day, dataSource?.slotDurations);
     const available = slots.find((slot) => !times.some((time, index) => day[index] && time.start < slot.end && slot.start < time.end));
-    return available ? { timeMode: "slot", slotNumber: available.number } : { timeMode: "custom", startTime: "08:30", endTime: "09:15" };
+    return available ? { timeMode: "slot", slotNumber: available.number } : { timeMode: "slot" };
   };
   const [instanceData, setInstanceData] = useState(initialTimingData);
   const [swapTiming] = useState(initialTimingData);
@@ -148,25 +156,27 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   const [recurrenceSelection, setRecurrenceSelection] = useState(resolveInitialRecurrence);
   const [initialRecurrenceSelection, setInitialRecurrenceSelection] = useState(resolveInitialRecurrence);
 
-  const start_time_global = dataSource?.start_time || "08:30";
-  const duration_global = Number(dataSource?.duration) || 45;
-  const breaks_global = dataSource?.breaks || [];
+  const start_time_global = timingSchedule?.start_time || "08:30";
+  const duration_global = Number(timingSchedule?.duration) || 45;
+  const breaks_global = timingSchedule?.breaks || [];
 
   const placementOptions = {
     dayIndex, weekNumber: currentWeekNumber,
     lessonIndex: Number.isInteger(lesson?.index) ? lesson.index : null,
     selection: recurrenceSelection, previousSelection: initialRecurrenceSelection, swapTiming,
   };
-  const getSlotConflict = (slotNumber, source = schedule) => {
+  const getSlotConflict = (slotNumber, source = timingSchedule) => {
     const result = applyLessonRecurrence(source, {
       ...placementOptions, lesson: { timeMode: 'slot', slotNumber }, preview: true,
     });
     return { ...result, slotNumber, signature: JSON.stringify([slotNumber, recurrenceSelection, result.conflicts]) };
   };
-  const timeSlots = useMemo(() => buildScheduleSlots(start_time_global, duration_global, breaks_global, dataSource?.slotDurations).map(slot => ({
+  const timeSlots = useMemo(() => buildScheduleSlots(start_time_global, duration_global, breaks_global, timingSchedule?.slotDurations).map(slot => ({
     ...slot, occupied: getSlotConflict(slot.number).conflicts.length > 0,
-  })), [start_time_global, duration_global, breaks_global, dataSource?.slotDurations, schedule, dayIndex, currentWeekNumber, lesson?.index, recurrenceSelection, initialRecurrenceSelection, swapTiming]);
-  const storedDefaultTime = timeSlots.find((slot) => slot.number === instanceData.slotNumber) || timeSlots[0] || {};
+  })), [start_time_global, duration_global, breaks_global, timingSchedule, dayIndex, currentWeekNumber, lesson?.index, recurrenceSelection, initialRecurrenceSelection, swapTiming]);
+  const storedDefaultTime = timeSlots.find((slot) => slot.number === instanceData.slotNumber) || {};
+  const nextTiming = useMemo(() => timingSchedule ? appendScheduleSlot(timingSchedule) : null, [timingSchedule]);
+  const nextSlot = nextTiming ? buildScheduleSlots(nextTiming.start_time, nextTiming.duration, nextTiming.breaks, nextTiming.slotDurations).at(-1) : null;
   const selectSlot = (slotNumber) => setInstanceData((prev) => {
     const next = { ...prev, timeMode: "slot", slotNumber };
     delete next.startTime;
@@ -190,11 +200,36 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     }
     setSlotConflict(null);
   };
+  const handleAddSlot = () => {
+    if (!nextTiming || !nextSlot) return;
+    setTimingDraft(nextTiming);
+    setSlotConflict(null);
+    setConflictResolution(null);
+    selectSlot(nextSlot.number);
+  };
+  const handleTimingChange = (next) => {
+    setTimingDraft(next);
+    setSlotConflict(null);
+    setConflictResolution(null);
+  };
   const handleTimeModeChange = (mode) => {
     setSlotConflict(null);
     setConflictResolution(null);
-    if (mode === "slot") handleSlotChange(instanceData.slotNumber || timeSlots[0]?.number);
-    else setInstanceData((prev) => ({ ...prev, timeMode: "custom", startTime: prev.startTime || storedDefaultTime.start, endTime: prev.endTime || storedDefaultTime.end }));
+    if (mode === "slot") {
+      const available = timeSlots.find((slot) => slot.number === instanceData.slotNumber && !slot.occupied)
+        || timeSlots.find((slot) => !slot.occupied);
+      if (available) selectSlot(available.number);
+      else setInstanceData((prev) => {
+        const next = { ...prev, timeMode: "slot" };
+        delete next.slotNumber;
+        delete next.startTime;
+        delete next.endTime;
+        return next;
+      });
+    } else {
+      const fallbackTime = storedDefaultTime.start ? storedDefaultTime : nextSlot || timeSlots.at(-1) || {};
+      setInstanceData((prev) => ({ ...prev, timeMode: "custom", startTime: prev.startTime || fallbackTime.start, endTime: prev.endTime || fallbackTime.end }));
+    }
   };
 
   const [scopes, setScopes] = useState({
@@ -245,6 +280,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
   useEffect(() => {
     mainScrollOffset.current = 0;
+    setTimingDraft(null);
     setSelectedSubjectId(lesson?.subjectId || null);
 
     const initialInstanceData = initialTimingData();
@@ -367,6 +403,9 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     if (data !== null) setEditingItemData(data);
     setCurrentScreen(screenName);
   };
+  const handleEditSlot = (slotNumber) => {
+    goToScreen("slotTime", slotNumber);
+  };
 
   const openNewSubjectInput = () => {
     const newId = generateLocalId();
@@ -391,6 +430,10 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
   const handleBack = () => {
     triggerHaptic("navigateBack");
+    if (currentScreen === "slotTime" && !timeSlots.length) {
+      dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('settings.schedule_editor.timing.invalid', lang) });
+      return;
+    }
     if (!selectedSubjectId && (currentScreen === "picker" || (currentScreen === "input" && localData.subjects.length === 0))) {
       sheetRef.current?.close();
       return;
@@ -418,6 +461,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
   const getHeaderTitle = () => {
     switch (currentScreen) {
         case "main": return Number.isInteger(lesson?.index) ? t('schedule.lesson_editor.edit', lang) : t('schedule.lesson_editor.new_lesson', lang);
+        case "slotTime": return t('schedule.lesson_editor.slot_edit', lang, { number: editingItemData });
         case "subjectColor": return t('common.card_color', lang);
         case "gradientEdit": return t('schedule.lesson_editor.gradient_settings', lang);
         case "picker":
@@ -449,7 +493,16 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
 
   const handleSave = async () => {
     if (slotConflict) return;
+    if (timingDraft && !timeSlots.length) {
+      dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('settings.schedule_editor.timing.invalid', lang) });
+      return;
+    }
     if (instanceData.timeMode === 'slot') {
+      if (!timeSlots.some((slot) => slot.number === instanceData.slotNumber)) {
+        dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('schedule.lesson_editor.slot_choose_or_add', lang) });
+        setCurrentScreen('main');
+        return;
+      }
       const conflict = getSlotConflict(instanceData.slotNumber);
       if (conflict.conflicts.length && conflictResolution?.signature !== conflict.signature) {
         setSlotConflict(conflict);
@@ -460,13 +513,25 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     const start = parseTimeToMinutes(instanceData.timeMode === "slot" ? storedDefaultTime.start : instanceData.startTime);
     const end = parseTimeToMinutes(instanceData.timeMode === "slot" ? storedDefaultTime.end : instanceData.endTime);
     if (start === null || end === null || end <= start) {
-      Alert.alert(t('schedule.main_screen.time', lang), t('schedule.lesson_editor.invalid_time', lang));
+      dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('schedule.lesson_editor.invalid_time', lang) });
       return;
     }
     if (instanceData.timeMode === 'custom') {
-      const preview = applyLessonRecurrence(schedule, { ...placementOptions, lesson: instanceData, preview: true });
+      const preview = applyLessonRecurrence(timingSchedule, { ...placementOptions, lesson: instanceData, preview: true });
       if (preview.conflicts.length) {
-        Alert.alert(t('schedule.main_screen.time', lang), t('schedule.lesson_editor.custom_time_conflict', lang));
+        dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('schedule.lesson_editor.custom_time_conflict', lang) });
+        return;
+      }
+    }
+    if (timingDraft) {
+      const candidate = applyLessonRecurrence(timingSchedule, {
+        ...placementOptions, lesson: { ...instanceData, subjectId: selectedSubjectId },
+        conflictAction: instanceData.timeMode === 'slot' ? conflictResolution?.action : undefined,
+      });
+      const conflict = findScheduleTimingConflict(schedule, candidate);
+      if (conflict) {
+        const day = new Date(2024, 0, 1 + conflict.dayIndex).toLocaleDateString(lang, { weekday: 'long' });
+        dialog.alert({ title: t('schedule.main_screen.time', lang), message: t('settings.schedule_editor.timing.conflict', lang, { ...conflict, day }) });
         return;
       }
     }
@@ -491,7 +556,7 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     const persistedAttachments = normalizeAttachmentDraftList(draftAttachments);
 
     setScheduleDraft((prev) => {
-      const next = { ...prev };
+      const next = { ...prev, ...timingDraft };
       const removedEntities = ["subjects", "teachers", "links", "gradients"].flatMap((collection) => {
         const retainedIds = new Set((localData[collection] || []).map((item) => item.id));
         return (prev[collection] || [])
@@ -750,62 +815,56 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
     goToScreen("main");
   };
 
-  const handleDeleteEntity = (collection, id, name) => {
+  const handleDeleteEntity = async (collection, id, name) => {
     if (!id) return;
 
     triggerHaptic("warning");
-    Alert.alert(
-      t("common.warning", lang),
-      t("schedule.lesson_editor.delete_entity_confirm", lang, { name: name || t("common.untitled", lang) }),
-      [
-        { text: t("common.cancel", lang), style: "cancel" },
+    const confirmed = await dialog.confirm({
+      title: t("common.warning", lang),
+      message: t("schedule.lesson_editor.delete_entity_confirm", lang, { name: name || t("common.untitled", lang) }),
+      confirmLabel: t("common.delete", lang),
+      destructive: true,
+    });
+    if (!confirmed) return;
+    triggerHaptic("success");
+    setScheduleDraft((prev) => removeScheduleEntity(prev, collection, id));
+    setLocalData((prev) => {
+      const cleaned = removeScheduleEntity(
+        { ...prev, schedule: [], tasks: [] },
+        collection,
+        id,
+      );
+      return {
+        subjects: cleaned.subjects,
+        teachers: cleaned.teachers,
+        links: cleaned.links,
+        gradients: cleaned.gradients,
+      };
+    });
+    setInstanceData((prev) => {
+      const cleaned = removeScheduleEntity(
         {
-          text: t("common.delete", lang),
-          style: "destructive",
-          onPress: () => {
-            triggerHaptic("success");
-            setScheduleDraft((prev) => removeScheduleEntity(prev, collection, id));
-            setLocalData((prev) => {
-              const cleaned = removeScheduleEntity(
-                { ...prev, schedule: [], tasks: [] },
-                collection,
-                id,
-              );
-              return {
-                subjects: cleaned.subjects,
-                teachers: cleaned.teachers,
-                links: cleaned.links,
-                gradients: cleaned.gradients,
-              };
-            });
-            setInstanceData((prev) => {
-              const cleaned = removeScheduleEntity(
-                {
-                  subjects: [],
-                  teachers: [],
-                  links: [],
-                  gradients: [],
-                  schedule: [{ week1: [prev] }],
-                },
-                collection,
-                id,
-              );
-              return cleaned.schedule[0].week1[0];
-            });
-            if (collection === "subjects" && selectedSubjectId === id) {
-              setSelectedSubjectId(null);
-            }
-            setAttachAfterEdit(false);
-            if (collection === "subjects" && selectedSubjectId === id) {
-              setPickerType("subject");
-              goToScreen("picker");
-            } else {
-              goToScreen("main");
-            }
-          },
+          subjects: [],
+          teachers: [],
+          links: [],
+          gradients: [],
+          schedule: [{ week1: [prev] }],
         },
-      ],
-    );
+        collection,
+        id,
+      );
+      return cleaned.schedule[0].week1[0];
+    });
+    if (collection === "subjects" && selectedSubjectId === id) {
+      setSelectedSubjectId(null);
+    }
+    setAttachAfterEdit(false);
+    if (collection === "subjects" && selectedSubjectId === id) {
+      setPickerType("subject");
+      goToScreen("picker");
+    } else {
+      goToScreen("main");
+    }
   };
 
   const handleOpenPicker = (type, index = null) => {
@@ -1228,6 +1287,9 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                 defaultTime={storedDefaultTime}
                 onTimeChange={handleTimeChange}
                 timeSlots={timeSlots}
+                nextSlot={nextSlot}
+                onAddSlot={handleAddSlot}
+                onEditSlot={handleEditSlot}
                 onSlotChange={handleSlotChange}
                 slotConflict={slotConflict}
                 onConflictResolution={handleConflictResolution}
@@ -1251,6 +1313,19 @@ export default function LessonEditor({ lesson, initialEditTarget = null, onClose
                 onFileLibraryChange={handleFileLibraryChange}
                 attachmentStorageLimitBytes={MAX_ACCOUNT_ATTACHMENT_STORAGE_BYTES}
               />
+            )}
+
+            {currentScreen === "slotTime" && (
+              <SheetScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100, gap: 12 }}>
+                <Text style={{ color: themeColors.textColor2, fontSize: 14, lineHeight: 20 }}>{t('schedule.lesson_editor.slot_edit_scope', lang)}</Text>
+                <ScheduleTimeEditor value={timingDraft || createScheduleTimingDraft(schedule)} onChange={handleTimingChange}
+                  slotNumber={editingItemData} themeColors={themeColors} lang={lang} mode={mode} />
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('common.done', lang)}
+                  onPress={handleBack}
+                  style={{ minHeight: 48, padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: themeColors.accentColor }}>
+                  <Text style={{ color: themeColors.textOnAccent, fontWeight: '600', fontSize: 16 }}>{t('common.done', lang)}</Text>
+                </TouchableOpacity>
+              </SheetScrollView>
             )}
 
             {currentScreen === "subjectColor" && (

@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Warning } from 'phosphor-react-native';
 import { useScheduleActions, useScheduleData } from '../../../context/ScheduleProvider';
+import { useAppDialog } from '../../../context/AppDialogContext';
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import themes from '../../../config/themes';
 import MorphingLoader from '../../../components/ui/MorphingLoader';
@@ -49,6 +50,7 @@ export default function ResetDB() {
     resetApplication,
     deleteGuestSchedules,
   } = useScheduleActions();
+  const dialog = useAppDialog();
 
   const [isResetting, setIsResetting] = useState(false);
   const resettingRef = useRef(false);
@@ -57,7 +59,7 @@ export default function ResetDB() {
   const [mode, accent] = global?.theme || ["light", "blue"];
   const themeColors = themes.getColors(mode, accent);
 
-  const handleAction = (actionFn, confirmText) => {
+  const handleAction = async (actionFn, confirmText) => {
     if (isResetting || isLoading) return;
     triggerHaptic("warning");
     const title = t('settings.reset_db_screen.alert_title', lang);
@@ -84,15 +86,8 @@ export default function ResetDB() {
       }
     };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm(`${title}\n\n${msg}`)) onConfirm();
-      return;
-    }
-
-    Alert.alert(title, msg, [
-      { text: t('common.cancel', lang), style: "cancel" },
-      { text: confirmText, style: "destructive", onPress: onConfirm },
-    ]);
+    const confirmed = await dialog.confirm({ title, message: msg, confirmLabel: confirmText, destructive: true });
+    if (confirmed) onConfirm();
   };
 
   const handleResetBoth = async () => {

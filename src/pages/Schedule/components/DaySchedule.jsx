@@ -1,14 +1,24 @@
 import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { Easing, FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useScheduleData, useScheduleLayout } from "../../../context/ScheduleProvider";
 import LessonCard from "./LessonCard";
 import BreakCard from "./BreakCard";
-import { buildDayTimeline } from "../../../utils/scheduleTime";
+import { buildDayTimeline, createDateAtTime } from "../../../utils/scheduleTime";
+import { useNowTick } from "../../../hooks/useNowTick";
+import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
+import { isLowEndDevice } from "../../../utils/devicePerformance";
 import themes from "../../../config/themes";
 import { t } from "../../../utils/i18n";
 import { APP_HEADER_CONTENT_GAP, getScheduleHeaderHeight } from "../../../config/layoutMetrics";
 import { triggerHaptic } from "../../../utils/haptics";
+
+const timelineTransition = LinearTransition.duration(220).easing(Easing.out(Easing.cubic));
+const gapEnter = FadeIn.duration(180);
+const gapExit = FadeOut.duration(140);
+// Low-end devices never animate the timeline, so they skip the Reanimated wrapper cost per row.
+const TimelineRow = isLowEndDevice ? View : Animated.View;
 
 export default function DaySchedule({ 
   targetDate, 
@@ -33,6 +43,11 @@ export default function DaySchedule({
   const resolvedHeaderHeight = headerHeight ?? getScheduleHeaderHeight(insets.top);
 
   const timeline = dayData.timeline || buildDayTimeline(schedule, dayData.lessons || []);
+  const now = useNowTick(targetDate, timeline.some((entry) => entry.type !== "lesson"), 60000);
+  const reduceMotion = useReducedMotionPreference() || isLowEndDevice;
+  const nowTime = now?.getTime() ?? Date.now();
+  const visibleGapIndex = timeline.findIndex((entry) => entry.type !== "lesson"
+    && createDateAtTime(targetDate, entry.end)?.getTime() > nowTime);
 
   const handleEmptyLongPress = () => {
     triggerHaptic("longPress");
@@ -54,17 +69,23 @@ export default function DaySchedule({
       >
         {timeline.length > 0 ? (
           timeline.map((entry, index) => entry.type === "lesson" ? (
-            <LessonCard
-              key={'lesson-' + entry.lesson.index}
-              lesson={entry.lesson}
-              decorationsReady={decorationsReady}
-              moving={moving}
-              onPress={onLessonPress}
-              onLongPress={onLessonLongPress}
-            />
-          ) : (
-            <BreakCard key={'gap-' + index} interval={entry} previousLesson={timeline[index - 1]?.lesson} schedule={schedule} targetDate={targetDate} themeColors={themeColors} lang={lang} />
-          ))
+            <TimelineRow key={'lesson-' + entry.lesson.index} layout={reduceMotion ? undefined : timelineTransition}>
+              <LessonCard
+                lesson={entry.lesson}
+                decorationsReady={decorationsReady}
+                moving={moving}
+                onPress={onLessonPress}
+                onLongPress={onLessonLongPress}
+              />
+            </TimelineRow>
+          ) : index === visibleGapIndex ? (
+            <TimelineRow key={'gap-' + index} collapsable={false}
+              layout={reduceMotion ? undefined : timelineTransition}
+              entering={reduceMotion ? undefined : gapEnter} exiting={reduceMotion ? undefined : gapExit}>
+              <BreakCard interval={entry} previousLesson={timeline[index - 1]?.lesson} schedule={schedule}
+                targetDate={targetDate} themeColors={themeColors} lang={lang} blurEnabled={global?.blur ?? true} />
+            </TimelineRow>
+          ) : null)
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={[styles.noData, {color: themeColors.textColor2}]}>

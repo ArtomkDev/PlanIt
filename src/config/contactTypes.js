@@ -1,19 +1,21 @@
 import {
   ChatsCircle,
   EnvelopeSimple,
-  FacebookLogo,
   FileText,
   Globe,
-  GoogleLogo,
-  InstagramLogo,
   Link as LinkIcon,
-  MicrosoftTeamsLogo,
   Phone,
-  TelegramLogo,
   User,
+  UsersThree,
   VideoCamera,
-  WhatsappLogo,
 } from "phosphor-react-native";
+import {
+  FacebookIcon,
+  GoogleIcon,
+  InstagramIcon,
+  TelegramIcon,
+  WhatsAppIcon,
+} from "../components/ui/BrandIcons";
 import {
   CONTACT_COLOR_VALUES,
   CONTACT_ICON_IDS,
@@ -34,12 +36,13 @@ const ICONS = {
   globe: Globe,
   link: LinkIcon,
   video: VideoCamera,
-  telegram: TelegramLogo,
-  whatsapp: WhatsappLogo,
-  instagram: InstagramLogo,
-  facebook: FacebookLogo,
-  google: GoogleLogo,
-  teams: MicrosoftTeamsLogo,
+  telegram: TelegramIcon,
+  whatsapp: WhatsAppIcon,
+  instagram: InstagramIcon,
+  facebook: FacebookIcon,
+  google: GoogleIcon,
+  // No licensed Teams mark is bundled, so a neutral icon stands in for it.
+  teams: UsersThree,
   document: FileText,
   chat: ChatsCircle,
 };

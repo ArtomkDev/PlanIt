@@ -6,6 +6,7 @@ const babel = require('@babel/core');
 const React = require('react');
 const { act, create } = require('react-test-renderer');
 global.IS_REACT_ACT_ENVIRONMENT = true;
+global.__DEV__ = false;
 const compiled = new Map();
 function load(relative, mocks = {}) {
   const filename = path.resolve(__dirname, '..', relative);
@@ -32,7 +33,7 @@ function nativeMock() {
   return { calls, native: {
     View: 'View', Text: 'Text', TouchableOpacity: 'Button', Pressable: 'Button',
     StyleSheet: { create: s => s, hairlineWidth: 1 }, Platform: { OS: 'ios' },
-    Alert: { alert: (...args) => calls.alerts.push(args) }, Easing: { out: x => x, cubic: 1, quad: 2 },
+    Easing: { out: x => x, cubic: 1, quad: 2 },
     Animated: { View: 'AnimatedView', Value, timing: (_, config) => {
       calls.animations.push(config);
       return { start() {}, stop() { calls.stops++; } };
@@ -140,14 +141,26 @@ async function renderScreen(t, options = {}) {
     '../../../hooks/useReducedMotionPreference': () => !!options.reduced,
     '../../../context/ScheduleProvider': { useScheduleData: () => state, useScheduleActions: () => ({
       setGlobalDraft: update => { state.global = update(state.global); calls.selected.push(state.global.currentScheduleId); },
-      addSchedule: async s => { if (options.failCopy) throw new Error('failed'); calls.added.push(s); }, removeSchedule: async () => {},
+      addSchedule: async (s, flags) => {
+        if (options.failCopy) throw new Error('failed');
+        calls.added.push(s);
+        if (flags?.persistLocally) {
+          calls.persisted = true;
+          if (options.failPersist) throw new Error('Disk full');
+        }
+      }, removeSchedule: async () => {},
     }) },
+    '../../../context/AppDialogContext': { useAppDialog: () => ({ alert: async (options) => calls.alerts.push(options), confirm: async () => true }) },
     '../../../layouts/SettingsScreenLayout': 'Layout', '../../../components/ui/MorphingLoader': 'Loader',
     '../../../components/ScheduleIcon': 'ScheduleIcon', '../../../config/themes': { getColors: () => colors, accentColors: {} },
     '../../../utils/i18n': i18n, '../../../utils/idGenerator': ids, '../../../utils/scheduleCopy': copyUtils,
     '../../../utils/storage': { getLocalSchedule: async () => structuredClone(local), saveLocalSchedule: async data => calls.saved.push(data) },
     '../../../utils/haptics': { triggerHaptic() {} }, '../../../utils/scheduleDisplay': { getScheduleDisplayName: s => s.name },
     '../../../utils/scheduleOwnership': ownership,
+    '../../../services/attachmentService': {
+      copyScheduleAttachments: async schedule => ({ schedule: structuredClone(schedule), files: [] }),
+      upsertAttachmentLibraryFiles: (current = [], files) => [...current, ...files],
+    },
     '../../../utils/scheduleColors': { resolveScheduleColor: () => '#2458ad', scheduleColorWithAlpha: () => '#eef' },
     '../../../components/ui/TabSwitcher': 'Tabs', '../../../components/ui/SettingsKit/SettingsRow': 'Action',
     '../../../components/modals/ShareScheduleModal': 'ShareModal', '../../../components/modals/ImportScheduleModal': 'ImportModal',
@@ -205,4 +218,27 @@ test('guest copies use provider; copy failure unlocks UI and displays an error',
   await act(async () => failed.action('Створити копію').props.onPress());
   assert.match(failed.text(), /Не вдалося завершити дію/);
   assert.ok(failed.tree.root.findAllByType('Button').every(n => !n.props.disabled));
+});
+
+test('moving a local schedule cannot delete its source before the account copy is durable', async t => {
+  const ui = await renderScreen(t, { failPersist: true });
+  await ui.tab('local');
+  await ui.menu('Локальний');
+  await act(async () => ui.action('Перемістити до акаунта').props.onPress());
+  assert.equal(ui.calls.persisted, true);
+  assert.equal(ui.calls.saved.length, 0);
+  assert.match(ui.text(), /Не вдалося завершити дію/);
+});
+
+test('schedule identity changes retarget only task links to the transferred schedule', () => {
+  const { assignScheduleId } = load('src/utils/scheduleIdentity.js');
+  const source = { id: 'old', tasks: [
+    { id: 'one', lessonRef: { scheduleId: 'old', subjectId: 'math' } },
+    { id: 'two', lessonRef: { scheduleId: 'other' } },
+  ] };
+  const result = assignScheduleId(source, 'new');
+  assert.equal(result.tasks[0].lessonRef.scheduleId, 'new');
+  assert.equal(result.tasks[0].lessonRef.subjectId, 'math');
+  assert.equal(result.tasks[1].lessonRef.scheduleId, 'other');
+  assert.equal(source.tasks[0].lessonRef.scheduleId, 'old');
 });

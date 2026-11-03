@@ -1,8 +1,9 @@
 import pkg from './package.json';
 import nativeEnglish from './src/locales/native/en.json';
+import { getAndroidVersionCode } from './src/config/appVersion.cjs';
+import { getShareLinkHost } from './src/config/shareLinks.cjs';
 
-const versionParts = pkg.version.split('.');
-const versionCode = parseInt(versionParts[0]) * 10000 + parseInt(versionParts[1]) * 100 + parseInt(versionParts[2]);
+const versionCode = getAndroidVersionCode(pkg.version);
 
 const forceTestAds = process.env.EXPO_PUBLIC_FORCE_TEST_ADS === 'true';
 const activeBuildPlatform =
@@ -24,7 +25,7 @@ const firebaseAuthLinkHost = normalizeHost(
   || process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
   || (firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : ''),
 );
-const shareLinkHost = normalizeHost(process.env.EXPO_PUBLIC_SHARE_LINK_DOMAIN || 'planit.app');
+const shareLinkHost = getShareLinkHost(process.env.EXPO_PUBLIC_SHARE_LINK_DOMAIN);
 const authLinkIntentFilters = firebaseAuthLinkHost ? [{
   action: 'VIEW',
   autoVerify: true,
@@ -101,15 +102,6 @@ export default {
     icon: "./assets/icon.png",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
-    splash: {
-      image: "./assets/splash-icon.png",
-      resizeMode: "contain",
-      backgroundColor: "#ffffff",
-      dark: {
-        image: "./assets/splash-icon.png",
-        backgroundColor: "#121214"
-      }
-    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.artomk.planit",
@@ -138,10 +130,11 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff"
       },
-      edgeToEdgeEnabled: true,
       userInterfaceStyle: "automatic"
     },
     web: {
+      bundler: "metro",
+      output: "single",
       favicon: "./assets/favicon.png"
     },
     extra: {
@@ -160,9 +153,23 @@ export default {
     },
     plugins: [
       [
+        "expo-splash-screen",
+        {
+          image: "./assets/splash-icon.png",
+          imageWidth: 180,
+          resizeMode: "contain",
+          backgroundColor: "#F2F4F7",
+          dark: {
+            image: "./assets/splash-icon-dark.png",
+            backgroundColor: "#121214"
+          }
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
+            "kotlinVersion": "2.3.20",
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true
           }
@@ -170,6 +177,7 @@ export default {
       ],
       "expo-localization",
       "expo-notifications",
+      ["expo-navigation-bar", { "enforceContrast": false }],
       "expo-image",
       [
         "expo-image-picker",
@@ -180,6 +188,7 @@ export default {
         }
       ],
       "expo-document-picker",
+      "expo-sharing",
       "@react-native-google-signin/google-signin",
       "expo-apple-authentication",
       "@react-native-community/datetimepicker",

@@ -30,8 +30,8 @@ export function BottomSheetPresentationProvider({ children }) {
     sheetsRef.current[sheetsRef.current.length - 1]?.id === id
   ), []);
 
-  const value = useMemo(() => ({ registerSheet, unregisterSheet, isTopSheet }), [
-    registerSheet, unregisterSheet, isTopSheet,
+  const value = useMemo(() => ({ registerSheet, unregisterSheet, isTopSheet, hasPresentedSheets: sheets.length > 0 }), [
+    registerSheet, unregisterSheet, isTopSheet, sheets.length,
   ]);
 
   const sceneStyle = useAnimatedStyle(() => {

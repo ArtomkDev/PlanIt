@@ -6,6 +6,7 @@ const {
   withAppBuildGradle,
   withFinalizedMod,
   withGradleProperties,
+  withProjectBuildGradle,
 } = require('@expo/config-plugins');
 
 const MATERIAL_VERSION = '1.14.0';
@@ -83,6 +84,14 @@ const patchAppBuildGradle = (source) => {
   return `${RELEASE_DEPENDENCY_RULES}\n\n${patched}\n`;
 };
 
+const patchProjectBuildGradle = (source) => {
+  const configuredKotlin = 'classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${findProperty(\'android.kotlinVersion\')}")';
+  if (source.includes(configuredKotlin)) return source;
+  const defaultKotlin = /classpath\((["'])org\.jetbrains\.kotlin:kotlin-gradle-plugin\1\)/;
+  if (!defaultKotlin.test(source)) throw new Error('Unable to find the root Kotlin Gradle plugin dependency.');
+  return source.replace(defaultKotlin, configuredKotlin);
+};
+
 const withAndroidPlayCompliance = (config) => {
   config = withAndroidManifest(config, (manifestConfig) => {
     const mainActivity = AndroidConfig.Manifest.getMainActivityOrThrow(
@@ -98,6 +107,7 @@ const withAndroidPlayCompliance = (config) => {
       OPTIMIZED_RESOURCE_SHRINKING,
       'true',
     );
+    upsertGradleProperty(gradleConfig.modResults, 'AsyncStorage_db_size_in_MB', '64');
     // R8 processes the complete release graph and needs more metaspace than
     // Expo's default on this app. Keep this generated and reproducible.
     upsertGradleProperty(
@@ -115,6 +125,16 @@ const withAndroidPlayCompliance = (config) => {
     buildGradleConfig.modResults.contents = patchAppBuildGradle(
       buildGradleConfig.modResults.contents,
     );
+    return buildGradleConfig;
+  });
+
+  config = withProjectBuildGradle(config, (buildGradleConfig) => {
+    if (buildGradleConfig.modResults.language !== 'groovy') {
+      throw new Error('PlanIt Play compliance plugin expects Groovy build.gradle');
+    }
+    // The versionless Expo template otherwise loads React Native's older
+    // compiler before library projects can use android.kotlinVersion.
+    buildGradleConfig.modResults.contents = patchProjectBuildGradle(buildGradleConfig.modResults.contents);
     return buildGradleConfig;
   });
 
@@ -136,3 +156,4 @@ const withAndroidPlayCompliance = (config) => {
 
 module.exports = withAndroidPlayCompliance;
 module.exports.patchAppBuildGradle = patchAppBuildGradle;
+module.exports.patchProjectBuildGradle = patchProjectBuildGradle;

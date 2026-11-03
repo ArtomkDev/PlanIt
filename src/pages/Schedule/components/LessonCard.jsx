@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, useId } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Animated, Platform } from "react-native";
-import { Clock, Hourglass, User, MapPin } from "phosphor-react-native";
 import Svg, { Defs, G, Use, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
 import { cancelAnimation, createAnimatedComponent, Easing, runOnJS, useAnimatedProps, useAnimatedReaction, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 import { useScheduleData } from "../../../context/ScheduleProvider";
@@ -9,11 +8,13 @@ import { useNowTick } from "../../../hooks/useNowTick";
 import useSystemThemeColors from "../../../hooks/useSystemThemeColors";
 import useReducedMotionPreference from "../../../hooks/useReducedMotionPreference";
 import GradientBackground from "../../../components/ui/GradientBackground";
+import SubjectPattern from "../../../components/SubjectPattern";
 import { getIconComponent } from "../../../config/subjectIcons";
 import { triggerHaptic } from "../../../utils/haptics";
 import { t } from "../../../utils/i18n";
 import { getLessonColors } from "../../../utils/scheduleColors";
 import useActivityTransition from "./useActivityTransition";
+import CardIcon from "./CardIcon";
 import {
   colorWithAlpha,
   getGradientColors,
@@ -24,6 +25,7 @@ import {
 const ICON_SIZE = 18;
 const PATTERN_ICON_OPACITY = 0.2;
 const CARD_BORDER_RADIUS = 18;
+const CARD_PRESS_SLOP = 12;
 const PATTERN_REVEAL_DURATION = 1000;
 const PATTERN_CARD_STAGGER = 180;
 const PATTERN_WAVE_SOFTNESS = 0.8;
@@ -141,8 +143,9 @@ const BackgroundPattern = React.memo(({ MainIcon, color, width, height, order, m
   const patternId = `lesson-pattern-${id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const positions = useMemo(() => getPatternPositions(width, height), [width, height]);
   const reduceMotion = useReducedMotionPreference();
-  const progress = useSharedValue(reduceMotion ? 1 : 0);
-  const [revealed, setRevealed] = useState(reduceMotion);
+  const skipReveal = reduceMotion || Platform.OS === 'android';
+  const progress = useSharedValue(skipReveal ? 1 : 0);
+  const [revealed, setRevealed] = useState(skipReveal);
   const finishReveal = useCallback(() => setRevealed(true), []);
   useAnimatedReaction(
     () => moving?.value ?? false,
@@ -165,7 +168,7 @@ const BackgroundPattern = React.memo(({ MainIcon, color, width, height, order, m
     };
   });
   useEffect(() => {
-    if (revealed || reduceMotion || moving?.value) {
+    if (revealed || skipReveal || moving?.value) {
       progress.value = 1;
       setRevealed(true);
       return;
@@ -177,7 +180,7 @@ const BackgroundPattern = React.memo(({ MainIcon, color, width, height, order, m
       }),
     );
     return () => cancelAnimation(progress);
-  }, [finishReveal, moving, progress, reduceMotion, order, revealed]);
+  }, [finishReveal, moving, progress, skipReveal, order, revealed]);
   const iconColor = colorWithAlpha(color, PATTERN_ICON_OPACITY, color);
 
   return (
@@ -219,22 +222,49 @@ const BackgroundPattern = React.memo(({ MainIcon, color, width, height, order, m
   );
 });
 
+const LessonCountdown = React.memo(({ timeInfo, targetDate, enabled, lang, color }) => {
+  const now = useNowTick(targetDate, enabled);
+  const { timeLeft } = getTimerState(timeInfo?.start, timeInfo?.end, targetDate, now);
+  const label = timeLeft || '0:00';
+  return (
+    <Text accessibilityLabel={t("common.remaining_time", lang, { time: label })} style={[styles.timeText, { color }]} numberOfLines={1}>
+      {label}
+    </Text>
+  );
+});
+
 const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark, onPress, onLongPress, decorationsReady = true, moving }) => {
   const { 
     subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad,
     subjectColor, contentColor, activePillText,
   } = useLessonData(lesson, schedule, isDark);
 
-  const timerNow = useNowTick(targetDate, !!lesson?.timeInfo?.start && !!lesson?.timeInfo?.end);
+  const timerNow = useNowTick(targetDate, !!lesson?.timeInfo?.start && !!lesson?.timeInfo?.end, 60000);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
-  const { timeLeft, isActive } = useMemo(
+  const pressOrigin = useRef(null);
+  const { isActive } = useMemo(
     () => getTimerState(lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow),
     [lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow]
   );
 
   const { activeOpacity, inactiveOpacity } = useActivityTransition(isActive);
+  // Only the current lesson needs its countdown pill; it stays mounted afterwards so it can fade out.
+  const [countdownMounted, setCountdownMounted] = useState(isActive);
+  if (isActive && !countdownMounted) setCountdownMounted(true);
 
-  const handlePress = () => {
+  const handlePressIn = (event) => {
+    const { pageX, pageY, identifier } = event.nativeEvent;
+    pressOrigin.current = { pageX, pageY, identifier };
+  };
+
+  const handlePress = (event) => {
+    const origin = pressOrigin.current;
+    const point = event?.nativeEvent;
+    pressOrigin.current = null;
+    // Android can deliver a responder press after a pan that activated late.
+    if (Platform.OS === 'android' && origin && point && origin.identifier === point.identifier
+      && (Math.abs(point.pageX - origin.pageX) > CARD_PRESS_SLOP
+        || Math.abs(point.pageY - origin.pageY) > CARD_PRESS_SLOP)) return;
     triggerHaptic("open");
     onPress?.({ ...lesson, subject, teacher, displayType, displayRoom, displayBuilding });
   };
@@ -262,7 +292,6 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
   const mutedContentColor = colorWithAlpha(contentColor, 0.86, contentColor);
   const chipBackground = usesLightContent ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.24)';
   const subtleChipBackground = usesLightContent ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.18)';
-  const chipBorder = colorWithAlpha(contentColor, usesLightContent ? 0.28 : 0.22, contentColor);
   const titleShadowStyle = usesLightContent
     ? null
     : Platform.select({ web: { textShadow: 'none' }, default: { textShadowColor: 'transparent' } });
@@ -275,11 +304,19 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
       style={styles.cardContainer}
       activeOpacity={0.85}
       onPress={handlePress}
+      onPressIn={handlePressIn}
       onLongPress={handleLongPress}
       onLayout={handleCardLayout}
       delayLongPress={300}
     >
-      {decorationsReady && MainIcon && cardSize.width > 0 && cardSize.height > 0 && <BackgroundPattern
+      {decorationsReady && Platform.OS === 'android' && <SubjectPattern
+        icon={subject.icon}
+        color={contentColor}
+        opacity={PATTERN_ICON_OPACITY}
+        width={cardSize.width}
+        height={cardSize.height}
+      />}
+      {decorationsReady && Platform.OS !== 'android' && MainIcon && cardSize.width > 0 && cardSize.height > 0 && <BackgroundPattern
         MainIcon={MainIcon}
         color={contentColor}
         width={cardSize.width}
@@ -298,29 +335,27 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
             </Text>
           </View>}
 
+          {!!displayType && (
+            <View testID="lesson-type" style={[styles.timeContainer, styles.typeBadge, { backgroundColor: chipBackground }]}>
+              <Text style={[styles.typeText, { color: contentColor }]} numberOfLines={1}>{displayType}</Text>
+            </View>
+          )}
+
           <View style={[styles.timeContainer, styles.timePill, { backgroundColor: chipBackground }]}>
             <Animated.View style={[styles.timeRow, { opacity: inactiveOpacity }]}
               accessibilityElementsHidden={isActive} importantForAccessibility={isActive ? 'no-hide-descendants' : 'auto'}>
-              <Clock size={11} color={contentColor} weight="regular" />
+              <CardIcon name="clock" size={11} color={contentColor} />
               <Text style={[styles.timeText, { color: contentColor }]}>
                 {lesson?.timeInfo?.start || "—"} – {lesson?.timeInfo?.end || "—"}
               </Text>
             </Animated.View>
-            <Animated.View pointerEvents="none"
+            {countdownMounted && <Animated.View pointerEvents="none"
               accessibilityElementsHidden={!isActive} importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
               style={[styles.activeTimePill, styles.timeRow, { opacity: activeOpacity, backgroundColor: activePillBg }]}>
-              <Hourglass size={11} color={activePillText} weight="fill" />
-              <Text accessibilityLabel={t("common.remaining_time", lang, { time: timeLeft || '0:00' })} style={[styles.timeText, { color: activePillText }]} numberOfLines={1}>
-                {timeLeft || '0:00'}
-              </Text>
-            </Animated.View>
+              <CardIcon name="hourglass" size={11} color={activePillText} />
+              <LessonCountdown timeInfo={lesson?.timeInfo} targetDate={targetDate} enabled={isActive} lang={lang} color={activePillText} />
+            </Animated.View>}
           </View>
-
-          {!!displayType && (
-            <View style={[styles.typeBadge, { backgroundColor: subtleChipBackground, borderColor: chipBorder }]}>
-              <Text style={[styles.typeText, { color: contentColor }]}>{displayType}</Text>
-            </View>
-          )}
         </View>
 
         <View style={styles.mainInfo}>
@@ -332,7 +367,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
         <View style={styles.footerRow}>
           <View style={[styles.footerItem, { backgroundColor: subtleChipBackground }]}>
             <View style={styles.iconFixedContainer}>
-                <User size={11} color={mutedContentColor} weight="fill" />
+                <CardIcon name="user" size={11} color={mutedContentColor} />
             </View>
             <Text style={[styles.footerText, { color: mutedContentColor }]} numberOfLines={1}>{teacher?.name || "—"}</Text>
           </View>
@@ -340,7 +375,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
           {!!(displayRoom || displayBuilding) && (
             <View style={[styles.footerItem, { backgroundColor: subtleChipBackground }]}>
               <View style={styles.iconFixedContainer}>
-                  <MapPin size={11} color={mutedContentColor} weight="fill" />
+                  <CardIcon name="map-pin" size={11} color={mutedContentColor} />
               </View>
               <Text style={[styles.footerText, { color: mutedContentColor }]} numberOfLines={1}>
                   {displayBuilding ? `${displayBuilding} ` : ''}{displayRoom}
@@ -363,10 +398,10 @@ export default function LessonCard(props) {
 
 const styles = StyleSheet.create({
   activeOutline: { position: 'absolute', top: 1, right: 1, bottom: 1, left: 1, borderRadius: CARD_BORDER_RADIUS - 1, borderWidth: 2, zIndex: 10 },
-  timePill: { marginLeft: 'auto', justifyContent: 'center', overflow: 'hidden' },
+  timePill: { marginLeft: 'auto', flexShrink: 0, justifyContent: 'center', overflow: 'hidden' },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
   activeTimePill: { ...StyleSheet.absoluteFill, borderRadius: 6, paddingHorizontal: 6 },
-  numberBadge: { minWidth: 24, justifyContent: 'center' },
+  numberBadge: { minWidth: 24, flexShrink: 0, justifyContent: 'center' },
   cardContainer: { 
     marginBottom: 8, 
     minHeight: 90, 
@@ -394,7 +429,6 @@ const styles = StyleSheet.create({
   },
   headerRow: { 
     flexDirection: 'row', 
-    flexWrap: 'wrap',
     gap: 6,
     justifyContent: 'space-between', 
     alignItems: 'center', 
@@ -403,6 +437,7 @@ const styles = StyleSheet.create({
   timeContainer: { 
     flexDirection: 'row', 
     alignItems: 'center', 
+    minHeight: 20,
     backgroundColor: 'rgba(0,0,0,0.35)', 
     paddingVertical: 2, 
     paddingHorizontal: 6, 
@@ -418,20 +453,18 @@ const styles = StyleSheet.create({
   timeText: { 
     color: '#fff', 
     fontSize: 11, 
+    lineHeight: 14,
     fontWeight: '700', 
     fontVariant: ['tabular-nums'] 
   },
   typeBadge: { 
-    backgroundColor: 'rgba(255,255,255,0.15)', 
-    paddingHorizontal: 5, 
-    paddingVertical: 1, 
-    borderRadius: 5, 
-    borderWidth: 0.5, 
-    borderColor: 'rgba(255,255,255,0.3)' 
+    flexShrink: 1,
+    minWidth: 0,
   },
   typeText: { 
     color: '#fff', 
-    fontSize: 8, 
+    fontSize: 9,
+    lineHeight: 14,
     fontWeight: '800', 
     textTransform: 'uppercase', 
     letterSpacing: 0.3 

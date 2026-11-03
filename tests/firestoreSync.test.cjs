@@ -182,6 +182,72 @@ const flushAsyncWork = async (turns = 3) => {
   }
 };
 
+test('widget reads fetch only the selected server document and reject revoked device sessions', async () => {
+  const fakes = makeFakes([
+    { path: 'users/user-1/devices/device-1', data: { status: 'active' } },
+    { path: 'users/user-1/schedules/selected', data: { version: 4, lastModified: 10, name: 'Remote lesson' } },
+  ]);
+  const firestore = loadFirestore(fakes);
+  const paths = [];
+  const read = fakes.api.getDocFromServer;
+  fakes.api.getDocFromServer = async ref => { paths.push(ref.path); return read(ref); };
+  const schedule = await firestore.getWidgetScheduleFromServer('user-1', 'selected');
+  assert.equal(schedule.id, 'selected');
+  assert.equal(schedule.lastSynced, 10);
+  assert.deepEqual(paths.sort(), ['users/user-1/devices/device-1', 'users/user-1/schedules/selected']);
+  fakes.documents.set('users/user-1/schedules/selected', { version: 5, lastModified: 11, isDeleted: true });
+  assert.equal(await firestore.getWidgetScheduleFromServer('user-1', 'selected'), null);
+  assert.equal(await firestore.getWidgetScheduleFromServer('user-1', 'missing'), null);
+  fakes.documents.set('users/user-1/devices/device-1', { status: 'revoked' });
+  await assert.rejects(firestore.getWidgetScheduleFromServer('user-1', 'selected'), { code: 'device/revoked' });
+});
+
+for (const read of ['getSchedule', 'getScheduleFromServer']) {
+  test(`${read} starts independent settings and schedule reads together`, async () => {
+    const fakes = makeFakes();
+    const suffix = read === 'getScheduleFromServer' ? 'FromServer' : '';
+    let release, collectionStarted = false;
+    const settings = new Promise(resolve => { release = resolve; });
+    fakes.api[`getDoc${suffix}`] = () => settings;
+    fakes.api[`getDocs${suffix}`] = async () => { collectionStarted = true; return { docs: [] }; };
+    const firestore = loadFirestore(fakes);
+    const reading = firestore[read]('user-1');
+    await flushAsyncWork();
+    const startedBeforeSettingsFinished = collectionStarted;
+    release({ exists: () => false });
+    await reading;
+    assert.equal(startedBeforeSettingsFinished, true);
+  });
+}
+
+test('a stalled device heartbeat cannot hold an acknowledged schedule commit open', async () => {
+  const fakes = makeFakes();
+  let release, completed = false;
+  const heartbeat = new Promise(resolve => { release = resolve; });
+  fakes.api.updateDoc = () => heartbeat;
+  const firestore = loadFirestore(fakes);
+  const saving = firestore.saveSchedule('user-1', {
+    schedules: [{ id: 'new', name: 'Durable', version: 0, lastModified: 2, lastSynced: 0 }],
+  }, true).then(result => { completed = true; return result; });
+  await flushAsyncWork();
+  const completedBeforeHeartbeat = completed;
+  release();
+  const committed = await saving;
+  assert.equal(completedBeforeHeartbeat, true);
+  assert.equal(committed.schedules[0].name, 'Durable');
+});
+
+test('a failed save reports the network error without queuing a device heartbeat', async () => {
+  const fakes = makeFakes();
+  const failure = Object.assign(new Error('Offline'), { code: 'unavailable' });
+  fakes.setTransactionFailure(failure);
+  let heartbeats = 0;
+  fakes.api.updateDoc = async () => { heartbeats++; };
+  const firestore = loadFirestore(fakes);
+  await assert.rejects(firestore.saveSchedule('user-1', { schedules: [{ id: 'new' }] }), { code: 'unavailable' });
+  assert.equal(heartbeats, 0);
+});
+
 test('an open third device applies realtime snapshots in server order', async () => {
   const fakes = makeFakes();
   const firestore = loadFirestore(fakes);
@@ -586,6 +652,30 @@ test('cleanup cannot delete a schedule restored by another device after the tomb
   await firestore.updateDeviceSyncTimeAndCleanUp('cleanup-user', { force: true });
   assert.equal(fakes.documents.get(schedulePath)?.name, 'Restored by another device');
   assert.equal(fakes.documents.has('users/cleanup-user/schedules/expired'), false);
+});
+
+test('unsubscribing releases the delayed maintenance timer and rejects late callbacks', async t => {
+  const timers = [], cleared = [];
+  t.mock.method(global, 'setTimeout', callback => { timers.push(callback); return timers.length; });
+  t.mock.method(global, 'clearTimeout', id => cleared.push(id));
+  const fakes = makeFakes([
+    { path: 'users/old/devices/device-1', data: { status: 'active' } },
+    { path: 'users/old/global/settings', data: { version: 1, watermark: Date.now(), watermarkUpdatedAt: Date.now() } },
+  ]);
+  let writes = 0;
+  const update = fakes.api.updateDoc;
+  fakes.api.updateDoc = (...args) => { writes++; return update(...args); };
+  const firestore = loadFirestore(fakes);
+  const unsubscribe = firestore.subscribeToSchedule('old', () => {});
+  await firestore.updateDeviceSyncTimeAndCleanUp('old', { force: true });
+  await firestore.updateDeviceSyncTimeAndCleanUp('old');
+  assert.equal(timers.length, 1);
+  const completedWrites = writes;
+  unsubscribe();
+  assert.deepEqual(cleared, [1]);
+  timers[0]();
+  await flushAsyncWork();
+  assert.equal(writes, completedWrites);
 });
 
 test('security rules do not leave a broad user-subtree write bypass', () => {
