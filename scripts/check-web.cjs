@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { load } = require('@expo/env');
-const { WEB_APP_URL } = require('../src/config/website.cjs');
+const { WEBSITE_URL, WEB_APP_URL } = require('../src/config/website.cjs');
 
 const root = path.resolve(__dirname, '..');
 const readJson = file => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
@@ -32,6 +32,13 @@ async function checkExport(origin) {
   assert.equal(release.buildId, digest(JSON.stringify(release.files)));
   const html = fs.readFileSync(path.join(output, 'index.html'), 'utf8');
   assert.match(html, /<meta name="robots" content="noindex"/);
+  const head = html.split('</head>')[0];
+  assert.match(head, /<meta property="og:title" content="[^"]+"/);
+  assert.match(head, /<meta property="og:description" content="[^"]+"/);
+  const socialImage = head.match(/<meta property="og:image" content="([^"]+)"/)?.[1];
+  assert.ok(socialImage, 'Missing social preview image in the HTML head.');
+  assert.equal(new URL(socialImage).origin, WEBSITE_URL);
+  assert.match(head, /<meta name="twitter:card" content="summary_large_image"/);
   assert.match(fs.readFileSync(path.join(output, 'robots.txt'), 'utf8'), /Allow: \/\s*$/);
   const actualFiles = fs.readdirSync(output, { recursive: true })
     .filter(file => fs.statSync(path.join(output, file)).isFile())
@@ -62,6 +69,10 @@ async function checkExport(origin) {
     };
     const published = await (await get('/release.json')).json();
     assert.equal(published.buildId, release.buildId, 'Published release differs from local build.');
+    const preview = await fetch(socialImage, { signal: AbortSignal.timeout(30000) });
+    assert.equal(preview.status, 200, 'Social preview image must be publicly accessible.');
+    assert.match(preview.headers.get('content-type'), /^image\/png\b/);
+    await preview.body.cancel();
     for (const route of ['/', '/auth', '/password-reset', '/settings/about', '/share/DEPLOYTEST123']) {
       const response = await get(route);
       assert.match(response.headers.get('cache-control'), /no-cache/);

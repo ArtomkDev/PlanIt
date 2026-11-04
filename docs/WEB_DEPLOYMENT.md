@@ -21,6 +21,15 @@ limitations in the historical checkpoint below are separate from this cleanup.
 
 ## Application releases
 
+Open the release menu with `npm.cmd run build` in an interactive terminal.
+Use ↑ and ↓ to move, Enter to select, and Esc to go back or exit.
+It includes Android APK and AAB builds with current, patch, minor, and major
+version choices, a development client build, web build and publication, and
+legal document workflows.
+If a build fails after a version bump, select the current version to retry.
+Legal publication updates the separate website from the sibling
+`planit-website` checkout.
+
 Run from `D:\GitHub\ArtomkDev\PlanIt` with the existing public Firebase values
 in the Expo environment. Keep private credentials outside `EXPO_PUBLIC_*`.
 
@@ -31,7 +40,7 @@ npm.cmd run preview:web
 ```
 
 `build:web` checks the production project and target, checks the legal generation,
-exports with the installed Expo CLI (`expo export --platform web`), adds the
+exports with a fresh Metro cache (`expo export --platform web --clear`), adds the
 noindex directive, and records/verifies every exported file in `dist/release.json`.
 `check:web` rejects unhashed immutable assets, source maps, unexpected private files,
 and private environment values found in the export. Firebase's public client
