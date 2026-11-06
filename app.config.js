@@ -1,7 +1,7 @@
 import pkg from './package.json';
 import nativeEnglish from './src/locales/native/en.json';
 import { getAndroidVersionCode } from './src/config/appVersion.cjs';
-import { getShareLinkHost } from './src/config/shareLinks.cjs';
+import { WEB_APP_URL } from './src/config/website.cjs';
 
 const versionCode = getAndroidVersionCode(pkg.version);
 
@@ -25,7 +25,7 @@ const firebaseAuthLinkHost = normalizeHost(
   || process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
   || (firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : ''),
 );
-const shareLinkHost = getShareLinkHost(process.env.EXPO_PUBLIC_SHARE_LINK_DOMAIN);
+const shareLinkHost = new URL(WEB_APP_URL).hostname;
 const authLinkIntentFilters = firebaseAuthLinkHost ? [{
   action: 'VIEW',
   autoVerify: true,
@@ -44,18 +44,16 @@ const authLinkIntentFilters = firebaseAuthLinkHost ? [{
   category: ['BROWSABLE', 'DEFAULT'],
 }] : [];
 
-const shareLinkIntentFilters = shareLinkHost ? [{
+const shareLinkIntentFilters = [{
   action: 'VIEW',
   autoVerify: true,
-  data: [
-    {
-      scheme: 'https',
-      host: shareLinkHost,
-      pathPrefix: '/share',
-    },
-  ],
+  data: [{
+    scheme: 'https',
+    host: shareLinkHost,
+    pathPrefix: '/share',
+  }],
   category: ['BROWSABLE', 'DEFAULT'],
-}] : [];
+}];
 
 const resolveAdMobAppId = (platform, configuredId) => {
   if (forceTestAds) return googleDemoAppIds[platform];
@@ -112,7 +110,7 @@ export default {
         || "./GoogleService-Info.plist",
       associatedDomains: [
         ...(firebaseAuthLinkHost ? [`applinks:${firebaseAuthLinkHost}`] : []),
-        ...(shareLinkHost ? [`applinks:${shareLinkHost}`] : []),
+        `applinks:${shareLinkHost}`,
       ],
       infoPlist: {
         CFBundleAllowMixedLocalizations: true

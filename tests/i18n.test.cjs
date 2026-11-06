@@ -83,6 +83,19 @@ test('falls back to English for a missing localized key', () => {
 });
 
 
+test('legal browser links follow the configured website origin and normalized document language', () => {
+  const documents = compile('src/config/legalDocuments.generated.js', { '../utils/i18n': { normalizeLanguage } });
+  const links = compile('src/utils/legalDocumentLinks.js', {
+    '../config/legalDocuments.generated': documents, './i18n': { normalizeLanguage },
+    '../config/website.cjs': { WEBSITE_URL: 'https://new.example.com' },
+  });
+  for (const type of Object.keys(documents.LEGAL_DOCUMENTS)) {
+    assert.equal(links.getLegalDocumentBrowserUrl(type, 'uk-UA'), `https://new.example.com/uk/wiki/${type}`);
+    assert.equal(links.getLegalDocumentBrowserUrl(type, 'pl'), `https://new.example.com/en/wiki/${type}`);
+  }
+  assert.equal(links.getLegalDocumentBrowserUrl('missing', 'en'), 'https://new.example.com/en/wiki/privacy');
+});
+
 test('all legal documents are complete in both languages and use safe fallback lookup', () => {
   const { getLegalDocument, LEGAL_DOCUMENTS, LEGAL_DOCUMENTS_UK } = compile('src/config/legalDocuments.generated.js', {
     '../utils/i18n': { normalizeLanguage },

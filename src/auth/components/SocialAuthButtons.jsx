@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { AppleIcon, GoogleIcon } from '../../components/ui/BrandIcons';
@@ -36,12 +36,13 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
   const { lang } = useAppLanguage();
   const dialog = useAppDialog();
   const [loadingProvider, setLoadingProvider] = useState(null);
+  const busyRef = useRef(false);
   const providerPrefix = isLinking ? t('auth.settings.link_with', lang) : t('auth.common.continue_with', lang);
   const googleAccessibilityLabel = `${providerPrefix} Google`;
   const appleAccessibilityLabel = `${providerPrefix} Apple`;
 
   const handleGoogleAuth = async () => {
-    if (disabled || loadingProvider || onBeforeAuth?.() === false) return;
+    if (disabled || busyRef.current) return;
     if (isExpoGo && Platform.OS !== 'web') {
       triggerHaptic("warning");
       dialog.alert({
@@ -52,9 +53,11 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
     }
 
     triggerHaptic("open");
+    busyRef.current = true;
     setLoadingProvider('google');
     const shouldTrackLogin = !isLinking;
     try {
+      if (await onBeforeAuth?.() === false) return;
       if (shouldTrackLogin) setManualLogin(true);
 
       if (Platform.OS === 'web') {
@@ -92,12 +95,13 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
       if (shouldTrackLogin) setManualLogin(false);
       onAuthError?.(error);
     } finally {
+      busyRef.current = false;
       setLoadingProvider(null);
     }
   };
 
   const handleAppleAuth = async () => {
-    if (disabled || loadingProvider || onBeforeAuth?.() === false) return;
+    if (disabled || busyRef.current) return;
     if (isExpoGo && Platform.OS !== 'web') {
       triggerHaptic("warning");
       dialog.alert({
@@ -108,9 +112,11 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
     }
 
     triggerHaptic("open");
+    busyRef.current = true;
     setLoadingProvider('apple');
     const shouldTrackLogin = !isLinking;
     try {
+      if (await onBeforeAuth?.() === false) return;
       if (shouldTrackLogin) setManualLogin(true);
 
       if (Platform.OS === 'web') {
@@ -157,6 +163,7 @@ const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled 
         onAuthError?.(error);
       }
     } finally {
+      busyRef.current = false;
       setLoadingProvider(null);
     }
   };

@@ -333,6 +333,32 @@ export const createDateAtTime = (dateInput, timeStr) => {
   return date;
 };
 
+export const getInitialScheduleDate = (schedule, now = new Date(), autoSelect = true) => {
+  const today = normalizeScheduleDate(now);
+  if (!autoSelect) return today;
+
+  // Include the same weekday in the next cycle when today's lessons have ended.
+  const horizon = normalizeScheduleRepeat(schedule?.repeat) * 7;
+  for (let offset = 0; offset <= horizon; offset += 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + offset);
+    const lessons = getScheduleDayLessons(schedule, date);
+    const times = buildLessonTimes(schedule?.start_time || "08:30", schedule?.duration || 45,
+      schedule?.breaks || [], lessons, schedule?.slotDurations);
+    const hasLessons = lessons.some((lesson, index) => {
+      if (!getLessonSubjectId(lesson) && lesson?.subjectDeleted !== true) return false;
+      if (offset > 0) return true;
+      const start = createDateAtTime(date, times[index]?.start);
+      const end = createDateAtTime(date, times[index]?.end);
+      if (!start || !end) return false;
+      if (end < start) end.setDate(end.getDate() + 1);
+      return end.getTime() > now.getTime();
+    });
+    if (hasLessons) return date;
+  }
+  return today;
+};
+
 export const buildLessonOccurrences = (schedule, options = {}) => {
   if (!schedule || !Array.isArray(schedule.schedule)) return [];
 

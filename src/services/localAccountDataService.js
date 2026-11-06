@@ -5,10 +5,12 @@ import { clearAllLocalAttachmentCaches, getScheduleAttachmentFiles } from './att
 import { clearSharedFileCache } from './fileSharingService';
 import { clearAllLocalNotifications } from './notificationService';
 import { clearWidgetScheduleData } from '../widgets/widgetService';
+import { clearLegalAcceptance } from './legalAcceptanceService';
 
 const LOCAL_ACCOUNT_KEYS = [
   'app_device_settings',
   'widget_intent',
+  'planit_shared_schedule_import_v1',
 ];
 
 export const clearLocalAccountData = async (userId) => {
@@ -18,6 +20,7 @@ export const clearLocalAccountData = async (userId) => {
     ...(guestData?.schedules || []).flatMap((schedule) => getScheduleAttachmentFiles(schedule, guestData?.global?.fileLibrary)),
   ];
   const cleanupResults = await Promise.allSettled([
+    clearLegalAcceptance(userId),
     clearLocalSchedule(userId, { throwOnError: true, preventWrites: true }),
     clearAllLocalAttachmentCaches({ preserve }),
     clearSharedFileCache(),

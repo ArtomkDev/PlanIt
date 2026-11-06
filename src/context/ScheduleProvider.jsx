@@ -431,6 +431,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       prefsNeedSave = true;
     }
 
+    if (newPrefs.autoSelectLessonDay === undefined) {
+      newPrefs.autoSelectLessonDay = data.global?.autoSelectLessonDay ?? true;
+      prefsNeedSave = true;
+    }
+
     if (newPrefs.hapticsEnabled === undefined) {
       newPrefs.hapticsEnabled = data.global?.hapticsEnabled ?? true;
       prefsNeedSave = true;
@@ -692,6 +697,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       navigationAnimations: devicePrefs.navigationAnimations !== undefined
         ? devicePrefs.navigationAnimations
         : (baseGlobal.navigationAnimations ?? true),
+      autoSelectLessonDay: devicePrefs.autoSelectLessonDay ?? baseGlobal.autoSelectLessonDay ?? true,
       hapticsEnabled: devicePrefs.hapticsEnabled !== undefined
         ? devicePrefs.hapticsEnabled
         : (baseGlobal.hapticsEnabled ?? true),
@@ -910,6 +916,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       navigationAnimations: devicePrefsRef.current.navigationAnimations !== undefined
         ? devicePrefsRef.current.navigationAnimations
         : (currentPrev.global?.navigationAnimations ?? true),
+      autoSelectLessonDay: devicePrefsRef.current.autoSelectLessonDay ?? currentPrev.global?.autoSelectLessonDay ?? true,
       hapticsEnabled: devicePrefsRef.current.hapticsEnabled !== undefined
         ? devicePrefsRef.current.hapticsEnabled
         : (currentPrev.global?.hapticsEnabled ?? true),
@@ -948,6 +955,11 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       prefsChanged = true;
     }
 
+    if (nextGlobal.autoSelectLessonDay !== undefined && nextGlobal.autoSelectLessonDay !== currentMerged.autoSelectLessonDay) {
+      newPrefs.autoSelectLessonDay = nextGlobal.autoSelectLessonDay;
+      prefsChanged = true;
+    }
+
     if (nextGlobal.hapticsEnabled !== undefined && nextGlobal.hapticsEnabled !== currentMerged.hapticsEnabled) {
       newPrefs.hapticsEnabled = nextGlobal.hapticsEnabled;
       prefsChanged = true;
@@ -983,7 +995,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     });
   }, [setDataDraft, syncDevicePrefsUpdate]);
 
-  const addSchedule = useCallback((scheduleObj, { persistLocally = false } = {}) => {
+  const addSchedule = useCallback((scheduleObj, { persistLocally = false, select = false } = {}) => {
+    if (!dataRef.current) throw new Error('schedule_not_ready');
     setDataDraft((prev) => {
       if (!prev) return prev;
       if ((prev.schedules || []).some((item) => item.id === scheduleObj.id)) return prev;
@@ -1000,8 +1013,12 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       const nextData = { ...prev, schedules: [...(prev.schedules || []), newSchedule] };
       return nextData;
     });
-    if (persistLocally) return saveLocalScheduleIfChanged(dataRef.current, guest ? null : user?.uid || null);
-  }, [guest, user?.uid, setDataDraft, saveLocalScheduleIfChanged]);
+    if (select) setGlobalDraft(previous => ({ ...previous, currentScheduleId: scheduleObj.id }));
+    if (persistLocally) return Promise.all([
+      saveLocalScheduleIfChanged(dataRef.current, guest ? null : user?.uid || null),
+      ...(select ? [saveDevicePrefs(devicePrefsRef.current, { throwOnError: true })] : []),
+    ]);
+  }, [guest, user?.uid, setDataDraft, setGlobalDraft, saveLocalScheduleIfChanged]);
 
   const removeSchedule = useCallback(async (scheduleId) => {
     const prev = dataRef.current;
@@ -1473,7 +1490,8 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         navigationStyle: devicePrefsRef.current.navigationStyle,
         navigationLabels: devicePrefsRef.current.navigationLabels,
         navigationAnimations: devicePrefsRef.current.navigationAnimations,
-        hapticsEnabled: devicePrefsRef.current.hapticsEnabled
+        hapticsEnabled: devicePrefsRef.current.hapticsEnabled,
+        autoSelectLessonDay: devicePrefsRef.current.autoSelectLessonDay
       };
       syncDevicePrefsUpdate(retainedPrefs);
 

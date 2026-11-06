@@ -82,6 +82,7 @@ function SettingsStack({ screenProps }) {
         <Stack.Screen name="ChangeEmail" getComponent={() => require('../pages/Settings/components/AccountSettings/components/ChangeEmailScreen').default} />
         <Stack.Screen name="ChangePassword" getComponent={() => require('../pages/Settings/components/AccountSettings/components/ChangePasswordScreen').default} />
         <Stack.Screen name="SharedSchedulesManager" getComponent={() => require('../pages/Settings/components/SharedSchedulesManager').default} />
+        <Stack.Screen name="SharedScheduleDetails" getComponent={() => require('../pages/Settings/components/SharedScheduleDetails').default} />
       </Stack.Navigator>
     </View>
   );

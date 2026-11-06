@@ -194,7 +194,7 @@ const sanitizeTeacherContact = (contact) => {
 
   return result;
 };
-const sanitizeTeacher = (teacher) => {
+const sanitizeTeacher = (teacher, includeContacts = true) => {
   if (!isPlainObject(teacher)) return null;
   const id = cleanId(teacher.id);
   if (!id) return null;
@@ -208,6 +208,7 @@ const sanitizeTeacher = (teacher) => {
   };
 
   pushIfDefined(result, "shortName", cleanOptionalString(teacher.shortName, LIMITS.shortName));
+  if (!includeContacts) return result;
   pushIfDefined(result, "email", cleanOptionalString(teacher.email, LIMITS.email));
   pushIfDefined(result, "phone", cleanOptionalString(teacher.phone, LIMITS.phone));
 
@@ -549,7 +550,7 @@ const sanitizeScheduleCore = (input, options = {}, metadata) => {
       : [],
     teachers: options.shareTeachers === false || !Array.isArray(input.teachers)
       ? []
-      : input.teachers.slice(0, LIMITS.teachers).map(sanitizeTeacher).filter(Boolean),
+      : input.teachers.slice(0, LIMITS.teachers).map((teacher) => sanitizeTeacher(teacher, options.shareTeacherContacts !== false)).filter(Boolean),
     links: options.shareLinks === false || !Array.isArray(input.links)
       ? []
       : input.links.slice(0, LIMITS.links).map(sanitizeLink).filter(Boolean),
@@ -566,7 +567,7 @@ const sanitizeScheduleCore = (input, options = {}, metadata) => {
 };
 
 export const sanitizeSharedSchedule = (input, options = {}) => {
-  return sanitizeScheduleCore(input, options);
+  return sanitizeScheduleCore(input, { ...options, shareTeacherContacts: false });
 };
 
 const assertImportShape = (input) => {
@@ -586,6 +587,11 @@ const assertImportShape = (input) => {
   if (!Array.isArray(input.subjects)) {
     throw new Error("invalid_shared_schedule");
   }
+};
+
+export const sanitizeSharedScheduleForPreview = (input) => {
+  assertImportShape(input);
+  return sanitizeScheduleCore(input, { shareTeacherContacts: false });
 };
 
 export const sanitizeImportedSchedule = (input, now = Date.now()) => {

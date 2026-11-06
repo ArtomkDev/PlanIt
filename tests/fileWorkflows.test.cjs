@@ -311,6 +311,135 @@ test('a rejected native upload closes its blob and does not retry the whole file
   assert.equal(closed, 1);
 });
 
+for (const platform of ['android', 'web']) {
+  for (const [scenario, size, rejectWebp, expectedEncodes] of [
+    ['target reached', 300 * 1024, false, 1],
+    ['complex image', 2 * 1024 * 1024, false, 4],
+    ['JPEG fallback', 300 * 1024, true, 5],
+  ]) {
+    test(`${platform}: image preparation bounds expensive encodes (${scenario})`, async t => {
+      const env = environment(platform);
+      let encodes = 0;
+      const draft = { id: 'photo', name: 'private-name.png', mimeType: 'image/png', size: 4 * 1024 * 1024 };
+      if (platform === 'android') {
+        draft.localUri = 'file:///picker/photo.png';
+        env.files.set(draft.localUri, Buffer.from('original'));
+        env.mocks['react-native'].Image.getSize = (_uri, done) => done(4000, 3000);
+        env.mocks['expo-image-manipulator'] = {
+          SaveFormat: { WEBP: 'webp', JPEG: 'jpeg' },
+          manipulateAsync: async (_uri, _actions, options) => {
+            if (!options.base64) {
+              encodes++;
+              if (rejectWebp && options.format === 'webp') throw new Error('Unsupported codec');
+            }
+            const uri = 'file:///cache/encoded-' + encodes + (options.base64 ? '-preview' : '');
+            env.files.set(uri, Buffer.alloc(options.base64 ? 20 : size));
+            return { uri, width: 1800, height: 1350, ...(options.base64 ? { base64: 'cHJldmlldw==' } : {}) };
+          },
+        };
+      } else {
+        const previous = { indexedDB: global.indexedDB, window: global.window, document: global.document };
+        t.after(() => Object.assign(global, previous));
+        global.indexedDB = new IDBFactory();
+        global.window = { Image: class {
+          constructor() { this.naturalWidth = 4000; this.naturalHeight = 3000; }
+          set src(_value) { queueMicrotask(() => this.onload()); }
+        } };
+        global.document = { createElement: () => ({
+          getContext: () => ({ fillRect() {}, clearRect() {}, drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray(4000).fill(255) }) }),
+          toDataURL: () => 'data:image/jpeg;base64,cHJldmlldw==',
+          toBlob: (done, mimeType) => {
+            encodes++;
+            done(rejectWebp && mimeType === 'image/webp' ? null : new Blob([Buffer.alloc(size)], { type: mimeType }));
+          },
+        }) };
+        draft.file = new Blob(['original'], { type: 'image/png' });
+      }
+      const [saved] = await env.attachments().storeAttachmentDrafts([draft]);
+      assert.equal(encodes, expectedEncodes);
+      assert.equal(saved.privacySanitized, true);
+      assert.equal(saved.compression.metadataStripped, true);
+      assert.equal(saved.compression.codec, rejectWebp ? 'jpeg' : 'webp');
+      assert.ok(!saved.name.includes('private-name'));
+      assert.ok(saved.imagePreview);
+    });
+  }
+}
+
+test('cloud batches overlap two transfers, preserve input order, and reuse a valid auth token', async () => {
+  const env = environment('web');
+  const transfers = [], tokenRequests = [];
+  env.mocks['../config/firebase'].auth.currentUser = {
+    uid: 'account', reload: async () => { throw new Error('Unnecessary reload'); },
+    getIdTokenResult: async force => { tokenRequests.push(force); return { claims: { email_verified: true } }; },
+  };
+  env.mocks['firebase/storage'] = {
+    ref: (_storage, location) => location,
+    uploadBytesResumable: location => ({ on: (_event, _progress, fail, done) => transfers.push({ location, fail, done }) }),
+    getDownloadURL: async location => 'https://example.com/' + location,
+  };
+  const drafts = ['a', 'b', 'c'].map(id => ({ id, name: id + '.pdf', mimeType: 'application/pdf', size: 3, file: new Blob(['pdf']) }));
+  const pending = env.attachments().uploadAttachmentDrafts(drafts, { userId: 'account' });
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  await flush();
+  assert.equal(transfers.length, 2);
+  transfers[1].done();
+  await flush();
+  assert.equal(transfers.length, 3);
+  transfers[2].done();
+  transfers[0].done();
+  assert.deepEqual((await pending).map(file => file.id), ['a', 'b', 'c']);
+  assert.deepEqual(tokenRequests, [undefined]);
+});
+
+test('batch failure waits for the other transfer and removes its result without starting queued files', async () => {
+  const env = environment('web');
+  const transfers = [], removed = [];
+  env.mocks['../config/firebase'].auth.currentUser = { uid: 'account', getIdTokenResult: async () => ({ claims: { email_verified: true } }) };
+  env.mocks['firebase/storage'] = {
+    ref: (_storage, location) => location,
+    uploadBytesResumable: location => ({ on: (_event, _progress, fail, done) => transfers.push({ location, fail, done }) }),
+    getDownloadURL: async location => 'https://example.com/' + location,
+    deleteObject: async location => removed.push(location),
+  };
+  const drafts = ['a', 'b', 'c'].map(id => ({ id, name: id + '.pdf', size: 3, file: new Blob(['pdf']) }));
+  const failure = new Error('Transfer failed');
+  let finished = false;
+  const pending = env.attachments().uploadAttachmentDrafts(drafts, { userId: 'account' });
+  const rejected = assert.rejects(pending, failure).then(() => { finished = true; });
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  await flush();
+  transfers[0].fail(failure);
+  await flush();
+  assert.equal(finished, false);
+  transfers[1].done();
+  await rejected;
+  assert.equal(transfers.length, 2);
+  assert.deepEqual(removed, [transfers[1].location]);
+});
+
+test('upload auth refreshes an unverified cached claim but rejects a session changed during refresh', async () => {
+  for (const changeAccount of [false, true]) {
+    const env = environment('web');
+    const requests = [];
+    const config = env.mocks['../config/firebase'];
+    config.auth.currentUser = {
+      uid: 'account',
+      reload: async () => { if (changeAccount) config.auth.currentUser = { uid: 'other' }; },
+      getIdTokenResult: async force => { requests.push(force); return { claims: { email_verified: force === true } }; },
+    };
+    env.mocks['firebase/storage'] = {
+      ref: (_storage, location) => location,
+      uploadBytesResumable: () => ({ on: (_event, _progress, _fail, done) => done() }),
+      getDownloadURL: async location => 'https://example.com/' + location,
+    };
+    const pending = env.attachments().uploadAttachmentDraft({ id: 'a', name: 'a.pdf', size: 3, file: new Blob(['pdf']) }, { userId: 'account' });
+    if (changeAccount) await assert.rejects(pending, { attachmentCode: 'auth_required' });
+    else assert.equal((await pending).id, 'a');
+    assert.deepEqual(requests, [undefined, true]);
+  }
+});
+
 test('reuploading the same attachment creates an immutable path for each cloud revision', async t => {
   const env = environment();
   const original = global.XMLHttpRequest;
@@ -441,6 +570,7 @@ test('account cleanup keeps guest originals while clearing shared snapshots and 
       clearLocalSchedule: async (userId, options) => cleared.push({ userId, options }),
     },
     './attachmentService': service,
+    './legalAcceptanceService': { clearLegalAcceptance: async () => {} },
     './notificationService': { clearAllLocalNotifications: async () => {} },
     '../widgets/widgetService': { clearWidgetScheduleData: async () => {} },
     '@react-native-async-storage/async-storage': { multiRemove: async () => {} },
@@ -1123,7 +1253,11 @@ function shareUIEnvironment({ user = null, lang = 'uk', platform = 'android' } =
     '../../config/themes': { getColors: () => theme }, '../../utils/i18n': i18n,
     '../../utils/haptics': { triggerHaptic() {} },
     '../../utils/analytics/crashlytics': { logCrashlyticsError() {} },
-    '../../services/shareService': { createSharedSchedule: async (...args) => { shared.push(args); return 'SHARE123'; }, createSharedScheduleLink: code => `https://planit-demo.web.app/share/${code}` },
+    '../../services/shareService': {
+      createSharedSchedule: async (...args) => { shared.push(args); return 'SHARE123'; },
+      createSharedSchedulePath: code => `/share/${code}`,
+      createSharedScheduleLink: code => `${require('../src/config/website.cjs').WEB_APP_URL}/share/${code}`,
+    },
     '../../services/scheduleExportService': { exportSchedule: async (...args) => exported.push(args) },
     '../../utils/scheduleValidation': { sanitizeSharedSchedule: value => value },
     '../../utils/scheduleExport': exportsUtil,
@@ -1268,6 +1402,7 @@ test('share details and appearance remain editable, and code sharing keeps its p
   assert.equal(shared[0][0].displayName, 'Олена');
   assert.equal(shared[0][2], 30);
   assert.equal(tree.root.findAllByType('Text').some(item => item.props.children === 'SHARE123'), true);
+  assert.equal(button(i18n.t('share.view_link', 'en')).props.href, '/share/SHARE123');
 });
 
 test('guest library UI adds, searches, and renames a local PDF without authentication', async t => {
@@ -1309,4 +1444,92 @@ test('guest library UI adds, searches, and renames a local PDF without authentic
   assert.equal((await reloaded.getAttachmentCacheState(current.global.fileLibrary[0])).status, 'local');
   await act(async () => tree.root.findAllByType('Input').find(input => input.props.accessibilityLabel === i18n.t('settings.files.search', 'uk')).props.onChangeText('no-match'));
   assert.equal(tree.root.findAllByType('Text').some(text => text.props.children === i18n.t('settings.files.no_results', 'uk')), true);
+});
+
+for (const screen of ['library', 'attachments']) {
+  for (const mode of ['default', 'local', 'guest']) {
+    test(`${screen}: ${mode} upload destination is explicit and cloud is the account default`, async t => {
+      const env = environment();
+      const service = env.attachments();
+      const draft = nativeDraft(env);
+      const userId = mode === 'guest' ? null : 'account';
+      const uploads = [];
+      const attachmentService = { ...service,
+        pickAttachmentFiles: async () => ({ attachments: [draft] }),
+        storeAttachmentDrafts: async (_drafts, options) => { uploads.push(options); return []; },
+      };
+      const common = { ...uiMocks };
+      let Component, props = {};
+      if (screen === 'library') {
+        Component = load('src/pages/Settings/components/FileLibraryScreen.jsx', {
+          ...common,
+          '../../../layouts/SettingsScreenLayout': 'Layout', '../../../components/ui/SettingsKit/SettingsGroup': 'Group',
+          '../../../components/attachments/StagedAttachmentImage': 'Photo', '../../../components/ui/TabSwitcher': 'Tabs',
+          '../../../context/ScheduleProvider': { useScheduleData: () => ({ global: {}, lang: 'uk', user: userId ? { uid: userId } : null }), useScheduleActions: () => ({ setData() {} }) },
+          '../../../context/AttachmentImagePreviewContext': { useAttachmentImagePreview: () => ({}) },
+          '../../../context/AppDialogContext': { useAppDialog: () => ({}) },
+          '../../../config/themes': { getColors: () => theme }, '../../../utils/i18n': i18n,
+          '../../../utils/haptics': { triggerHaptic() {} }, '../../../services/attachmentService': attachmentService,
+        }).default;
+      } else {
+        Component = load('src/components/attachments/AttachmentManager.jsx', {
+          ...common,
+          '../ui/TabSwitcher': 'Tabs', '../../utils/i18n': i18n, '../../utils/haptics': { triggerHaptic() {} },
+          '../../context/AttachmentImagePreviewContext': { useAttachmentImagePreview: () => ({}) },
+          '../../services/attachmentService': attachmentService,
+        }).default;
+        props = { attachments: [], onChange() {}, userId, themeColors: theme, lang: 'uk' };
+      }
+      let tree;
+      await act(async () => { tree = create(React.createElement(Component, props)); });
+      t.after(async () => act(async () => tree.unmount()));
+      if (userId) {
+        const tabs = tree.root.findAllByType('Tabs').find(node => node.props.tabs.some(tab => tab.id === 'cloud'));
+        assert.equal(tabs.props.activeTab, 'cloud');
+        if (mode === 'local') await act(async () => tabs.props.onTabPress('local'));
+      }
+      const label = screen === 'library' ? 'Файли' : i18n.t('attachments.file', 'uk');
+      await act(async () => tree.root.findAllByType('Button').find(button => button.props.accessibilityLabel === label).props.onPress());
+      assert.equal(uploads.length, 1);
+      assert.equal(uploads[0].storageMode, mode === 'default' ? 'cloud' : 'local');
+    });
+  }
+}
+
+test('simultaneous attachment uploads retain separate progress and block opening both pending files', async t => {
+  const env = environment();
+  const service = env.attachments();
+  const drafts = [nativeDraft(env, 'first'), nativeDraft(env, 'second')];
+  let callbacks, finish;
+  const uploading = new Promise(resolve => { finish = resolve; });
+  const Manager = load('src/components/attachments/AttachmentManager.jsx', {
+    ...uiMocks, '../ui/TabSwitcher': 'Tabs', '../../utils/i18n': i18n,
+    '../../utils/haptics': { triggerHaptic() {} },
+    '../../context/AttachmentImagePreviewContext': { useAttachmentImagePreview: () => ({}) },
+    '../../services/attachmentService': { ...service,
+      pickAttachmentFiles: async () => ({ attachments: drafts }),
+      storeAttachmentDrafts: async (_drafts, options) => { callbacks = options; return uploading; },
+    },
+  }).default;
+  function Harness() {
+    const [attachments, onChange] = React.useState([]);
+    return React.createElement(Manager, { attachments, onChange, userId: 'account', themeColors: theme, lang: 'uk' });
+  }
+  let tree, picking;
+  await act(async () => { tree = create(React.createElement(Harness)); });
+  t.after(async () => act(async () => tree.unmount()));
+  await act(async () => {
+    picking = tree.root.findAllByType('Button').find(button => button.props.accessibilityLabel === i18n.t('attachments.file', 'uk')).props.onPress();
+  });
+  await act(async () => {
+    drafts.forEach(draft => callbacks.onAttachmentStart(draft));
+    callbacks.onAttachmentProgress(drafts[0], 0.25);
+    callbacks.onAttachmentProgress(drafts[1], 0.75);
+  });
+  const fileButtons = tree.root.findAllByType('Button').filter(button => drafts.some(draft => button.props.accessibilityLabel?.startsWith(draft.name + '.')));
+  assert.equal(fileButtons.length, 2);
+  assert.ok(fileButtons.every(button => button.props.disabled));
+  assert.match(fileButtons[0].props.accessibilityLabel, /25%/);
+  assert.match(fileButtons[1].props.accessibilityLabel, /75%/);
+  await act(async () => { finish([]); await picking; });
 });

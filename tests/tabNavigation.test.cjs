@@ -173,7 +173,8 @@ for (const platform of ['ios', 'web']) {
 async function mountSchedule(t, initialData = {}, initialIntent) {
   let focused = true, headerRenders = 0, calendarRenders = 0;
   const listeners = new Set();
-  const data = { schedule: null, schedules: [], global: { theme: ['dark', 'cyan'] }, lang: 'uk', ...initialData };
+  const data = { schedule: { id: 'current' }, schedules: [], isLoading: false, isDevicePrefsReady: true,
+    global: { theme: ['dark', 'cyan'] }, lang: 'uk', ...initialData };
   const selections = [], params = [], moves = [];
   const frames = new Map();
   let frameId = 0;
@@ -188,7 +189,8 @@ async function mountSchedule(t, initialData = {}, initialIntent) {
   const filename = path.resolve(__dirname, '../src/pages/Schedule/Schedule.jsx');
   const mocks = {
     react: React,
-    'react-native': { View: 'View', TouchableOpacity: 'Button', StyleSheet: { create: value => value } },
+    'react-native': { View: 'View', TouchableOpacity: 'Button', StyleSheet: { create: value => value },
+      AppState: { currentState: 'active', addEventListener: () => ({ remove() {} }) } },
     '@react-navigation/native': { useIsFocused: () => React.useSyncExternalStore(
       listener => { listeners.add(listener); return () => listeners.delete(listener); }, () => focused,
     ) },
@@ -214,7 +216,8 @@ async function mountSchedule(t, initialData = {}, initialIntent) {
     },
     '../../hooks/useNowTick': { NowTickProvider: ({ enabled, children }) => React.createElement('Clock', { enabled }, children) },
     '../../config/themes': { __esModule: true, default: { getColors: () => ({ backgroundColor: '#111', backgroundColor2: '#222' }) } },
-    '../../utils/scheduleTime': { prepareScheduleDays: () => () => ({}), getScheduleDayLessons: () => [] },
+    '../../utils/scheduleTime': { prepareScheduleDays: () => () => ({}), getScheduleDayLessons: () => [],
+      getInitialScheduleDate: (_schedule, now) => now },
     '../../utils/taskLessonLinking': {
       normalizeLessonRef: ref => ref,
       resolveOccurrenceFromLessonRef: (schedule, ref) => schedule.occurrences?.[ref.lessonIndex],
@@ -260,12 +263,13 @@ test('tab focus updates the schedule clock without rendering the schedule header
 
 test('lesson navigation waits for data, switches schedules once and commits the day before presenting the viewer', async t => {
   const intent = { requestId: 'widget-1', scheduleId: 'widget-schedule', lessonRef: { scheduleId: 'widget-schedule', date: '2026-10-30', lessonIndex: 1 } };
-  const screen = await mountSchedule(t, {}, intent);
+  const screen = await mountSchedule(t, { isLoading: true }, intent);
   const viewer = () => screen.tree.root.findByType('Viewer').props;
-  assert.equal(viewer().visible, false);
-  assert.deepEqual(screen.params, [{ lessonViewIntent: undefined }]);
+  assert.equal(screen.tree.root.findAllByType('Viewer').length, 0);
+  assert.deepEqual(screen.params, []);
   const target = { id: 'widget-schedule', occurrences: [null, { subjectId: 'physics', lessonIndex: 1, lessonData: { room: '301' } }] };
-  await screen.update({ schedule: { id: 'other' }, schedules: [{ id: 'other' }, target] });
+  await screen.update({ isLoading: false, schedule: { id: 'other' }, schedules: [{ id: 'other' }, target] });
+  assert.deepEqual(screen.params, [{ lessonViewIntent: undefined }]);
   assert.deepEqual(screen.selections, [{ currentScheduleId: 'widget-schedule' }]);
   await screen.update({ schedule: { id: 'other' } });
   assert.equal(screen.selections.length, 1);

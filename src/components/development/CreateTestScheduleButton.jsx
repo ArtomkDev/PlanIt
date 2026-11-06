@@ -16,9 +16,15 @@ const copy = {
     },
     content: {
       title: 'Створити розклад для контенту',
-      description: 'Університет · КН-31 · 7 предметів · 16 завдань',
-      note: 'Два тижні пар, контрастні градієнти, іконки й аудиторії. Завдання прив’язані до найближчих занять.',
+      description: 'Навчання · Група А · 7 предметів · 16 завдань',
+      note: 'Два тижні загальних предметів, контрастні градієнти, іконки й аудиторії. Завдання прив’язані до найближчих занять.',
       created: 'Розклад для контенту створено',
+    },
+    contentEn: {
+      title: 'Створити англомовний розклад',
+      description: 'School · Year 10 · 7 subjects · 16 tasks',
+      note: 'Британський шкільний приклад: місцеві імена, назви предметів, кабінети та домашні завдання. Два тижні з іконками й градієнтами.',
+      created: 'Англомовний розклад створено',
     },
   },
   en: {
@@ -30,9 +36,15 @@ const copy = {
     },
     content: {
       title: 'Create content timetable',
-      description: 'University · CS-31 · 7 subjects · 16 tasks',
-      note: 'Two weeks of classes, readable gradients, icons and rooms. Tasks are linked to nearby classes. Sample content is in Ukrainian.',
+      description: 'Studies · Group A · 7 subjects · 16 tasks',
+      note: 'Two weeks of general subjects, readable gradients, icons and rooms. Tasks are linked to nearby classes. Sample content is in Ukrainian.',
       created: 'Content timetable created',
+    },
+    contentEn: {
+      title: 'Create English school timetable',
+      description: 'School · Year 10 · 7 subjects · 16 tasks',
+      note: 'A British school example with local teacher names, classrooms and homework. Two weeks with subject icons and gradients.',
+      created: 'English content timetable created',
     },
   },
 };
@@ -40,6 +52,7 @@ const copy = {
 const presets = [
   { key: 'college', icon: Flask, createSchedule: createCollegeTestSchedule },
   { key: 'content', icon: Camera, createSchedule: createUniversityContentSchedule },
+  { key: 'contentEn', icon: Camera, createSchedule: () => createUniversityContentSchedule(new Date(), 'en') },
 ];
 
 export default function CreateTestScheduleButton({ themeColors, onCreated }) {

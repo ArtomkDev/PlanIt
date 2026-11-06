@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Share, Platform } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Share, Platform, Linking } from "react-native";
 import { ShareNetwork, Copy, CheckCircle, X, FilePdf, FileDoc, Table, ChatText, Check, CalendarBlank,
   Stack, SquaresFour, ListBullets, ListChecks, Translate, SlidersHorizontal, CaretDown, CaretUp } from "phosphor-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useScheduleData } from "../../context/ScheduleProvider";
-import { createSharedSchedule, createSharedScheduleLink } from "../../services/shareService";
+import { createSharedSchedule, createSharedScheduleLink, createSharedSchedulePath } from "../../services/shareService";
 import { exportSchedule } from "../../services/scheduleExportService";
 import { sanitizeSharedSchedule } from "../../utils/scheduleValidation";
 import TabSwitcher from "../ui/TabSwitcher";
@@ -335,6 +335,17 @@ export default function ShareScheduleModal({ visible, onClose, scheduleToShare }
             <Text selectable style={[styles.code, { color: themeColors.accentTextColor }]}>{generatedCode}</Text>
             <Text selectable style={[styles.link, { color: themeColors.textColor2 }]}>{shareUrl}</Text>
           </View>
+          <Text style={[styles.fieldHint, { color: themeColors.textColor2 }]}>{t("share.snapshot_hint", lang)}</Text>
+          <TouchableOpacity accessibilityRole="link" accessibilityLabel={t("share.view_link", lang)}
+            {...(Platform.OS === "web" ? { href: createSharedSchedulePath(generatedCode), hrefAttrs: { target: "_blank", rel: "noopener noreferrer" } } : {
+              onPress: () => {
+                close();
+                Linking.openURL(`planit://share/${generatedCode}`).catch(() => setErrorMessage(t("common.action_failed", lang)));
+              },
+            })}
+            style={[styles.actionBtn, { backgroundColor: themeColors.backgroundColor2, marginBottom: 12 }]}>
+            <Text style={[styles.buttonText, { color: themeColors.accentTextColor }]}>{t("share.view_link", lang)}</Text>
+          </TouchableOpacity>
           <View style={styles.actionRow}>
             <TouchableOpacity accessibilityRole="button" onPress={handleCopy} style={[styles.actionBtn, { backgroundColor: themeColors.backgroundColor2 }]}>
               {copied ? <CheckCircle size={22} color={themeColors.accentTextColor} /> : <Copy size={22} color={themeColors.textColor} />}

@@ -73,7 +73,7 @@ test('loading navigation defers secondary screens and every lazy route resolves 
       assert.ok(babel.parseSync(fs.readFileSync(target, 'utf8'), options).program.body.some(node => node.type === 'ExportDefaultDeclaration'), target);
     },
   });
-  assert.equal(routes, 19);
+  assert.equal(routes, 20);
 });
 
 for (const [file, deferred] of [

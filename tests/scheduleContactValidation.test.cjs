@@ -25,7 +25,7 @@ Module._extensions['.js'] = (targetModule, filename) => {
   targetModule._compile(transformed, filename);
 };
 
-const { sanitizeSharedSchedule } = require('../src/utils/scheduleValidation.js');
+const { sanitizeSharedSchedule, sanitizeImportedSchedule, sanitizeSharedScheduleForPreview } = require('../src/utils/scheduleValidation.js');
 Module._extensions['.js'] = originalLoader;
 Module._load = originalModuleLoad;
 
@@ -66,7 +66,7 @@ test('the shared payload, including flexible timing and an icon, fits the Firest
   assert.deepEqual(Object.keys(payload).filter(key => !allowed.has(key)), []);
 });
 
-test('shared schedule canonicalizes handles and whitelists appearance fields', () => {
+test('public sharing excludes teacher contacts and whitelists appearance fields', () => {
   const result = sanitizeSharedSchedule({
     ...baseSchedule,
     teachers: [{
@@ -92,13 +92,31 @@ test('shared schedule canonicalizes handles and whitelists appearance fields', (
     }],
   });
 
-  assert.equal(result.teachers[0].contacts[0].url, 'https://t.me/planit_test');
-  assert.equal(result.teachers[0].contacts[0].icon, 'telegram');
+  assert.equal(result.teachers[0].contacts, undefined);
   assert.equal(result.teachers[0].icon, 'chat');
   assert.equal(result.teachers[0].color, '#123ABC');
   assert.equal(result.links[0].type, 'meeting');
   assert.equal(result.links[0].icon, 'instagram');
   assert.equal(result.links[0].color, '#2563EB');
+});
+
+test('public snapshots omit contact fields without deleting them from the source or a legacy import', () => {
+  const source = { ...baseSchedule, subjects: [{ id: 'math', name: 'Math' }], teachers: [{
+    id: 'teacher', name: 'Teacher', email: 'teacher@example.com', phone: '+380501234567',
+    contacts: [{ id: 'contact', type: 'telegram', value: '@planit_test' }],
+  }], tasks: [{ title: 'Private task' }], attachments: [{ url: 'https://example.com/private-file' }] };
+  const original = JSON.stringify(source);
+  for (const sanitize of [sanitizeSharedSchedule, sanitizeSharedScheduleForPreview]) {
+    const safe = sanitize(source);
+    assert.equal(safe.teachers[0].name, 'Teacher');
+    for (const field of ['email', 'phone', 'contacts']) assert.equal(safe.teachers[0][field], undefined);
+    assert.equal(safe.tasks, undefined);
+    assert.equal(safe.attachments, undefined);
+  }
+  const imported = sanitizeImportedSchedule(source);
+  assert.equal(imported.teachers[0].email, 'teacher@example.com');
+  assert.ok(imported.teachers[0].contacts.some(contact => contact.url === 'https://t.me/planit_test'));
+  assert.equal(JSON.stringify(source), original);
 });
 
 test('shared schedules preserve an optional schedule icon', () => {

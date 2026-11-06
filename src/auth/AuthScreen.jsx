@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Planet, RocketLaunch, Compass, Fingerprint, IdentificationCard, ShieldCheck, 
   UserPlus, CalendarBlank, PencilSimple, EnvelopeOpen, PaperPlaneRight, CheckCircle,
-  Eye, EyeClosed, CheckSquare, Square, ArrowLeft, User, EnvelopeSimple, LockKey, WarningCircle
+  Eye, EyeClosed, ArrowLeft, User, EnvelopeSimple, LockKey, WarningCircle
 } from 'phosphor-react-native';
 import { 
   signInWithEmailAndPassword, 
@@ -26,10 +26,13 @@ import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 import MorphingLoader from '../components/ui/MorphingLoader';
+import TermsCheckbox from '../components/privacy/TermsCheckbox';
 import PlanItWordmark from '../components/ui/PlanItWordmark';
 import { setManualLogin } from '../utils/authFlags';
 import { triggerHaptic } from '../utils/haptics';
 import { getLegalDocumentBrowserUrl } from '../utils/legalDocumentLinks';
+import { hasLegalAcceptance, recordLegalAcceptance } from '../services/legalAcceptanceService';
+import { readSharedScheduleImport, clearSharedScheduleImport, prepareSharedScheduleImport } from '../services/shareService';
 import {
   requestEmailVerification,
   requestPasswordResetEmailForEmail,
@@ -318,52 +321,6 @@ const InputField = ({
   );
 };
 
-const TermsCheckbox = ({ acceptedTerms, onToggle, error, colors, lang, onOpenDocument }) => {
-  const toggleTerms = () => {
-    triggerHaptic(acceptedTerms ? "toggleOff" : "toggleOn");
-    onToggle();
-  };
-
-  const openDocument = (documentType) => {
-    triggerHaptic("open");
-    onOpenDocument?.(documentType);
-  };
-
-  return (
-    <View>
-      <View style={styles.checkboxContainer}>
-        <TouchableOpacity
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: acceptedTerms }}
-          accessibilityLabel={t('auth.terms.accept_label', lang)}
-          accessibilityHint={error}
-          style={styles.checkboxButton}
-          onPress={toggleTerms}
-          activeOpacity={0.7}
-        >
-          {acceptedTerms ?
-            <CheckSquare size={22} color={colors.accentColor} weight="fill" /> :
-            <Square size={22} color={error ? '#ef4444' : colors.textColor2} weight={error ? "bold" : "regular"} />
-          }
-        </TouchableOpacity>
-        <Text style={[styles.checkboxText, { color: colors.textColor2 }]}>
-          <Text onPress={toggleTerms}>{t('auth.terms.agree_prefix', lang)}</Text>
-          <Text style={{ color: colors.accentTextColor }} onPress={() => openDocument('privacy')}>
-            {t('auth.terms.privacy_policy', lang)}
-          </Text>
-          <Text onPress={toggleTerms}>{t('auth.terms.and', lang)}</Text>
-          <Text style={{ color: colors.accentTextColor }} onPress={() => openDocument('terms')}>
-            {t('auth.terms.terms_conditions', lang)}
-          </Text>
-        </Text>
-      </View>
-      {error ? (
-        <Text accessibilityLiveRegion="polite" style={[styles.fieldError, styles.termsError]}>{error}</Text>
-      ) : null}
-    </View>
-  );
-};
-
 const AuthMorphingLoader = ({ compact }) => {
   const scale = useRef(new Animated.Value(compact ? 0.58 : 1)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -392,7 +349,7 @@ const AuthMorphingLoader = ({ compact }) => {
   );
 };
 
-const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, onToggleTerms, onTermsMissing, termsError, isDark, formError, onOpenLegalDocument }) => {
+const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, onToggleTerms, onTermsMissing, termsError, isDark, formError, onOpenLegalDocument, busy }) => {
   const checkTerms = (action) => {
     if (!acceptedTerms) {
       onTermsMissing();
@@ -419,26 +376,26 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
           </View>
         ) : null}
 
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.signin.submit', lang)} style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signin'))}>
+        <TouchableOpacity accessibilityRole="button" disabled={!acceptedTerms || busy} accessibilityState={{ disabled: !acceptedTerms || busy }} accessibilityLabel={t('auth.signin.submit', lang)} style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signin'))}>
           <Text style={[styles.primaryButtonText, { color: colors.textOnAccent }]}>{t('auth.signin.submit', lang)}</Text>
         </TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.signup.title', lang)} style={[styles.secondaryButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
+        <TouchableOpacity accessibilityRole="button" disabled={!acceptedTerms || busy} accessibilityState={{ disabled: !acceptedTerms || busy }} accessibilityLabel={t('auth.signup.title', lang)} style={[styles.secondaryButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
           <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>{t("auth.signup.title", lang)}</Text>
         </TouchableOpacity>
         {onGuestLogin && (
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.welcome.guest_btn', lang)} style={styles.guestButton} onPress={() => checkTerms(onGuestLogin)}>
+          <TouchableOpacity accessibilityRole="button" disabled={!acceptedTerms || busy} accessibilityState={{ disabled: !acceptedTerms || busy }} accessibilityLabel={t('auth.welcome.guest_btn', lang)} style={styles.guestButton} onPress={() => checkTerms(onGuestLogin)}>
             <Text style={[styles.guestButtonText, { color: acceptedTerms ? colors.textColor2 : colors.textColor2 + '80' }]}>{t('auth.welcome.guest_btn', lang)}</Text>
           </TouchableOpacity>
         )}
         <View style={{ marginTop: 12 }}>
-          <TermsCheckbox acceptedTerms={acceptedTerms} onToggle={onToggleTerms} error={termsError} colors={colors} lang={lang} onOpenDocument={onOpenLegalDocument} />
+          <TermsCheckbox disabled={busy} acceptedTerms={acceptedTerms} onToggle={onToggleTerms} error={termsError} colors={colors} lang={lang} onOpenDocument={onOpenLegalDocument} />
         </View>
       </View>
     </View>
   );
 };
 
-const AuthScreen = ({ onGuestLogin, navigation }) => {
+const AuthScreen = ({ onGuestLogin, navigation, route }) => {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotionPreference();
   const { width: vw, height: vh } = useWindowDimensions(); 
@@ -455,6 +412,9 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
   const [name, setName] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [pendingImport, setPendingImport] = useState(null);
+  const [entryBusy, setEntryBusy] = useState(false);
+  const entryBusyRef = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [passwordResetCooldown, setPasswordResetCooldown] = useState(0);
@@ -464,6 +424,45 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const currentViewRef = useRef(currentView);
   currentViewRef.current = currentView;
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const intent = await readSharedScheduleImport();
+      if (!active || intent?.stage !== 'auth') return;
+      setPendingImport(intent);
+      const accepted = await hasLegalAcceptance('entry');
+      if (!active) return;
+      setAcceptedTerms(accepted);
+      if (!auth.currentUser || auth.currentUser.emailVerified) setCurrentView(intent.authView === 'signup' ? 'signup' : 'signin');
+    })().catch(() => { if (active) setFormError(t('common.action_failed', lang)); });
+    return () => { active = false; };
+  }, [route?.params?.importRequestId]);
+
+  const beforeAuth = async (scope = 'entry') => {
+    if (!acceptedTerms) { handleTermsMissing(); return false; }
+    try { await recordLegalAcceptance(lang, scope); return true; }
+    catch { setFormError(t('common.action_failed', lang)); return false; }
+  };
+  const enterGuest = async () => {
+    if (entryBusyRef.current) return;
+    entryBusyRef.current = true;
+    setEntryBusy(true);
+    try {
+      if (!await beforeAuth('guest')) return;
+      if (pendingImport) await prepareSharedScheduleImport(pendingImport.code, { stage: 'ready', scope: 'guest' });
+      onGuestLogin?.();
+    } catch { setFormError(t('common.action_failed', lang)); }
+    finally { entryBusyRef.current = false; setEntryBusy(false); }
+  };
+  const cancelImport = async () => {
+    try {
+      await clearSharedScheduleImport(pendingImport.copyId);
+      navigation.navigate('SharedSchedule', { code: pendingImport.code });
+    } catch { setFormError(t('common.action_failed', lang)); }
+  };
+  useEffect(() => navigation?.addListener?.('beforeRemove', event => {
+    if (pendingImport && ['POP', 'GO_BACK'].includes(event.data.action.type)) clearSharedScheduleImport(pendingImport.copyId).catch(console.error);
+  }), [navigation, pendingImport]);
   const fieldRefs = {
     name: useRef(null),
     email: useRef(null),
@@ -536,11 +535,12 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
         handleNavigate('welcome');
         return true; 
       }
+      if (pendingImport) { cancelImport(); return true; }
       return false;
     };
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => backHandler.remove();
-  }, [currentView]);
+  }, [currentView, pendingImport]);
 
   useEffect(() => {
     let interval;
@@ -632,6 +632,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     setFieldErrors({});
     setIsLoading(true);
     try {
+      if (!await beforeAuth()) return;
       setManualLogin(true);
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       triggerHaptic("success");
@@ -660,6 +661,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
     setFieldErrors({});
     setIsLoading(true);
     try {
+      if (!await beforeAuth()) return;
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       await updateProfile(cred.user, { displayName: name.trim() });
       handleNavigate('verify');
@@ -935,7 +937,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
             </TouchableOpacity>
           )}
 
-          <TermsCheckbox acceptedTerms={acceptedTerms} onToggle={handleToggleTerms} error={fieldErrors.terms} colors={colors} lang={lang} onOpenDocument={openLegalDocument} />
+          <TermsCheckbox disabled={isLoading} acceptedTerms={acceptedTerms} onToggle={handleToggleTerms} error={fieldErrors.terms} colors={colors} lang={lang} onOpenDocument={openLegalDocument} />
 
           {formError ? (
             <View
@@ -964,10 +966,10 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: isLoading || !acceptedTerms || (currentView === 'signup' && !isPasswordAllowed(password)) ? 0.6 : 1 }]}
             onPress={currentView === 'signin' ? handleSignIn : handleSignUp}
-            disabled={isLoading}
+            disabled={isLoading || !acceptedTerms}
             accessibilityRole="button"
             accessibilityLabel={currentView === 'signin' ? t('auth.signin.submit', lang) : t("auth.signup.title", lang)}
-            accessibilityState={{ disabled: isLoading, busy: isLoading }}
+            accessibilityState={{ disabled: isLoading || !acceptedTerms, busy: isLoading }}
           >
             {isLoading ? <MorphingLoader size={24} /> : null}
             <Text style={[styles.primaryButtonText, { color: colors.textOnAccent }]}>
@@ -980,11 +982,7 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
       elements.push(
         <View key="social" style={styles.socialGroup}>
           <View style={{ opacity: acceptedTerms ? 1 : 0.6 }}>
-            <SocialAuthButtons disabled={isLoading} onBeforeAuth={() => {
-              if (acceptedTerms) return true;
-              handleTermsMissing();
-              return false;
-            }} onAuthError={handleSocialAuthError} />
+            <SocialAuthButtons disabled={isLoading || !acceptedTerms} onBeforeAuth={() => beforeAuth()} onAuthError={handleSocialAuthError} />
           </View>
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.textColor2 }]}>
@@ -1033,13 +1031,20 @@ const AuthScreen = ({ onGuestLogin, navigation }) => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.responsiveContainer}>
+            {pendingImport && <View style={{ padding: 16, gap: 8 }}>
+              <Text style={{ color: colors.textColor2 }}>{t('share.auth_continue_hint', lang)}</Text>
+              <TouchableOpacity accessibilityRole="button" disabled={isLoading || entryBusy} onPress={cancelImport} style={{ minHeight: 44, justifyContent: 'center' }}>
+                <Text style={{ color: colors.accentTextColor }}>{t('share.back_to_preview', lang)}</Text>
+              </TouchableOpacity>
+            </View>}
             {currentView === 'welcome' && (
               <WelcomeContent 
                 onNavigate={handleNavigate} 
                 colors={colors} 
                 lang={lang} 
                 insets={insets} 
-                onGuestLogin={onGuestLogin} 
+                onGuestLogin={enterGuest}
+                busy={entryBusy}
                 acceptedTerms={acceptedTerms}
                 onToggleTerms={handleToggleTerms}
                 onTermsMissing={handleTermsMissing}
@@ -1107,12 +1112,8 @@ const styles = StyleSheet.create({
   eyeButton: { width: 48, height: 48, marginRight: -12, alignItems: 'center', justifyContent: 'center' },
   fieldError: { color: '#ef4444', fontSize: 13, lineHeight: 18, fontWeight: '500', marginTop: 6, marginHorizontal: 4 },
   fieldHint: { fontSize: 13, lineHeight: 18, marginTop: 6, marginHorizontal: 4 },
-  termsError: { marginTop: -4, marginLeft: 35 },
   forgotPassword: { alignSelf: 'flex-end', marginTop: -6 },
   forgotPasswordText: { fontSize: 14, fontWeight: '500' },
-  checkboxContainer: { flexDirection: 'row', alignItems: 'center', paddingRight: 10, marginVertical: 2 },
-  checkboxButton: { width: 48, height: 48, marginLeft: -13, alignItems: 'center', justifyContent: 'center' },
-  checkboxText: { marginLeft: -2, fontSize: 13, lineHeight: 18, flex: 1 },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   footerText: { fontSize: 14 },
   footerLink: { fontSize: 14, fontWeight: '600' },

@@ -124,10 +124,21 @@ test('public shares are immutable, expire, and cannot reveal another owner share
   await assertSucceeds(getDoc(doc(anonymous, location)));
   await assertFails(updateDoc(doc(db, location), { scheduleName: 'Replaced share' }));
   await assertFails(getDocs(collection(anonymous, 'shared_schedules')));
+  await assertFails(getDocs(query(collection(anonymous, 'shared_schedules'), where('ownerId', '==', 'owner'))));
+  await assertFails(setDoc(doc(anonymous, 'shared_schedules/ANONYMOUS1234567'), { ...share, id: 'ANONYMOUS1234567' }));
+  await assertFails(updateDoc(doc(anonymous, location), { scheduleName: 'Changed by visitor' }));
+  await assertFails(deleteDoc(doc(anonymous, location)));
   await assertSucceeds(getDocs(query(collection(db, 'shared_schedules'), where('ownerId', '==', 'owner'))));
   await environment.withSecurityRulesDisabled(async admin => {
     await updateDoc(doc(admin.firestore(), location), { expiresAt: Timestamp.fromMillis(Date.now() - 1000) });
   });
   await assertFails(getDoc(doc(anonymous, location)));
+  await assertSucceeds(getDoc(doc(db, location)));
+  await assertFails(getDoc(doc(context('other').firestore(), location)));
+  await environment.withSecurityRulesDisabled(async admin => {
+    await updateDoc(doc(admin.firestore(), location), { expiresAt: Timestamp.fromMillis(Date.now() + 86400000), isActive: false });
+  });
+  await assertFails(getDoc(doc(anonymous, location)));
+  await assertSucceeds(getDoc(doc(db, location)));
   await assertSucceeds(deleteDoc(doc(db, location)));
 });

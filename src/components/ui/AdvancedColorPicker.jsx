@@ -20,7 +20,7 @@ import tinycolor from "tinycolor2";
 
 import BottomSheet, { SheetScrollView } from "./BottomSheet";
 import ColorSpectrumPicker from "./ColorSpectrumPicker";
-import themes from "../../config/themes";
+import themes, { getTextOnAccent } from "../../config/themes";
 import { useScheduleData } from "../../context/ScheduleProvider";
 import { t } from "../../utils/i18n";
 import { triggerHaptic } from "../../utils/haptics";
@@ -36,6 +36,7 @@ function AdvancedColorPickerContent({
   onSave,
   onClose,
   themeColors,
+  mode,
   lang,
   bottomInset,
 }) {
@@ -66,7 +67,7 @@ function AdvancedColorPickerContent({
       setHexInput(currentColor.toUpperCase());
     }
   };
-  const contentColor = tinycolor(currentColor).isLight() ? "#111827" : "#FFFFFF";
+  const contentColor = getTextOnAccent(currentColor, mode);
   const title = t("color_picker.title", lang);
 
   const handleColorChange = useCallback((nextColor) => {
@@ -191,6 +192,7 @@ const AdvancedColorPickerSheet = React.memo(function AdvancedColorPickerSheet({
   onSave,
   onClose,
   themeColors,
+  mode,
   lang,
   bottomInset,
   snapPoints,
@@ -217,6 +219,7 @@ const AdvancedColorPickerSheet = React.memo(function AdvancedColorPickerSheet({
         onSave={onSave}
         onClose={onClose}
         themeColors={themeColors}
+        mode={mode}
         lang={lang}
         bottomInset={bottomInset}
       />
@@ -249,6 +252,7 @@ export default function AdvancedColorPicker({ visible, initialColor, onSave, onC
       onSave={handleSave}
       onClose={handleClose}
       themeColors={themeColors}
+      mode={mode}
       lang={lang}
       bottomInset={insets.bottom}
       snapPoints={snapPoints}

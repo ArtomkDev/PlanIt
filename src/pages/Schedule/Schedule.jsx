@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from "react";
 import {
   StyleSheet,
+  AppState,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -26,6 +27,7 @@ import themes from "../../config/themes";
 import {
   buildLessonTimes,
   getScheduleDayLessons,
+  getInitialScheduleDate,
   prepareScheduleDays,
 } from "../../utils/scheduleTime";
 import {
@@ -87,6 +89,12 @@ function ScheduleClock({ date, children }) {
 }
 
 export default function Schedule({ route, navigation }) {
+  const { schedule, isLoading, isDevicePrefsReady } = useScheduleData();
+  if (isLoading || !isDevicePrefsReady || !schedule) return <View style={styles.dayPage} />;
+  return <LoadedSchedule route={route} navigation={navigation} />;
+}
+
+function LoadedSchedule({ route, navigation }) {
   const { global: globalSettings, schedule, schedules, lang } = useScheduleData();
   const { drawerProgress } = useNotificationDrawer();
   const { setGlobalDraft } = useScheduleActions();
@@ -97,7 +105,7 @@ export default function Schedule({ route, navigation }) {
   const dynamicBottomOffset = safeTabBarHeight + 16;
   
   const [currentDate, setCurrentDate] = useState(() => (
-    normalizeCalendarDate(new Date())
+    getInitialScheduleDate(schedule, new Date(), globalSettings?.autoSelectLessonDay !== false)
   ));
   
   const dayPagerRef = useRef(null);
@@ -160,6 +168,17 @@ export default function Schedule({ route, navigation }) {
   const goToToday = useCallback(() => {
     goToDate(new Date(), true);
   }, [goToDate]);
+
+  useEffect(() => {
+    let previousState = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && previousState !== 'active' && globalSettings?.autoSelectLessonDay !== false) {
+        goToDate(getInitialScheduleDate(schedule), false);
+      }
+      previousState = state;
+    });
+    return () => subscription.remove();
+  }, [schedule, globalSettings?.autoSelectLessonDay, goToDate]);
 
   const openViewer = useCallback((lesson) => { setViewingLesson(lesson); setViewerVisible(true); }, []);
   const openEditor = useCallback((lesson, initialTarget = null) => {

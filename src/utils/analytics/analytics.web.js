@@ -1,11 +1,12 @@
 import {
-  getAnalytics,
+  initializeAnalytics,
   isSupported,
   logEvent,
   setAnalyticsCollectionEnabled,
   setConsent,
 } from 'firebase/analytics';
 import { app } from '../../config/firebase';
+import { WEB_APP_URL } from '../../config/website.cjs';
 import {
   readCookieConsent,
   subscribeToCookieConsent,
@@ -69,7 +70,11 @@ const initializeAnalyticsIfAllowed = async () => {
     if (!supported || !analyticsAllowed) return null;
 
     setConsent(GRANTED_ANALYTICS_CONSENT);
-    const analytics = getAnalytics(app);
+    const analytics = initializeAnalytics(app, { config: {
+      send_page_view: false,
+      page_location: WEB_APP_URL,
+      page_referrer: '',
+    } });
     setAnalyticsCollectionEnabled(analytics, true);
     webAnalytics = analytics;
     return analytics;

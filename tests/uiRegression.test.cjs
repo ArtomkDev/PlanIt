@@ -99,7 +99,8 @@ for (const mode of ['light', 'dark', 'oled']) {
       const chosenAccent = themes.accentColors[accent] || accent;
       assert.ok(tinycolor.equals(colors.accentColor, chosenAccent), `${accent}: accent must remain unchanged`);
       assert.ok(tinycolor.equals(colors.accentTextColor, chosenAccent), `${accent}: accent foreground must keep the chosen color`);
-      assert.ok(tinycolor.readability(colors.textOnAccent, colors.accentColor) >= 4.5, `${accent}: button label`);
+      const minimumContrast = mode === 'light' || !tinycolor.equals(colors.textOnAccent, '#ffffff') ? 4.5 : 1.8;
+      assert.ok(tinycolor.readability(colors.textOnAccent, colors.accentColor) >= minimumContrast, `${accent}: button label`);
       for (const background of [colors.backgroundColor, colors.backgroundColor2]) {
         assert.ok(tinycolor.readability(colors.textColor2, background) >= 4.5, `${mode}: secondary text on ${background}`);
         assert.ok(tinycolor.readability(colors.textColor3, background) >= 4.5, `${mode}: muted text on ${background}`);
@@ -131,7 +132,7 @@ async function mountProvider(t, options = {}) {
     },
     '../utils/storage': {
       getDevicePrefs: options.readPrefs || (async () => ({ language: 'uk', theme: ['light', 'blue'], blur: true, navigationStyle: 'classic', navigationLabels: true, navigationAnimations: true, hapticsEnabled: true, currentScheduleId: 'existing' })),
-      saveDevicePrefs: async prefs => { prefsWrites.push(prefs); },
+      saveDevicePrefs: async (prefs, config) => { prefsWrites.push(prefs); if (config?.throwOnError) await options.writePrefs?.(prefs); },
       getLocalSchedule: (...args) => options.readLocal?.(...args) ?? Promise.resolve(null),
       saveLocalSchedule: async (data, scope) => {
         writes.push({ data, scope });
@@ -166,6 +167,22 @@ const gate = () => {
   const promise = new Promise(done => { resolve = done; });
   return { promise, resolve };
 };
+
+test('automatic lesson-day preference survives unrelated edits and is saved on the device', async t => {
+  const provider = await mountProvider(t, {
+    guest: true,
+    readLocal: async () => fixture(),
+    readPrefs: async () => ({ currentScheduleId: 'existing', autoSelectLessonDay: false }),
+  });
+  assert.equal(provider.state().global.autoSelectLessonDay, false);
+  await act(async () => provider.state().setGlobalDraft(prev => ({ ...prev, autoSelectLessonDay: true })));
+  assert.equal(provider.state().global.autoSelectLessonDay, true);
+  assert.equal(provider.prefsWrites.at(-1).autoSelectLessonDay, true);
+  await act(async () => provider.state().setGlobalDraft(prev => ({ ...prev, blur: false })));
+  assert.equal(provider.state().global.autoSelectLessonDay, true);
+  await act(async () => provider.state().setGlobalDraft(prev => ({ ...prev, autoSelectLessonDay: false })));
+  assert.equal(provider.prefsWrites.at(-1).autoSelectLessonDay, false);
+});
 
 test('startup exposes saved preferences before a first cloud fetch finishes', async t => {
   const prefs = gate();
@@ -475,6 +492,32 @@ test('durable schedule addition waits for disk and retains settings edited in th
   assert.equal(finished, true);
 });
 
+test('saving and selecting an imported copy persists both the copy and its selection before completing', async t => {
+  const writing = gate();
+  const provider = await mountProvider(t, { guest: true, readLocal: async () => fixture(), writeLocal: () => writing.promise });
+  let saving, finished = false;
+  await act(async () => {
+    saving = provider.state().addSchedule({ id: 'shared-copy', name: 'Shared' }, { persistLocally: true, select: true }).then(() => { finished = true; });
+  });
+  assert.equal(finished, false);
+  assert.equal(provider.state().global.currentScheduleId, 'shared-copy');
+  assert.equal(provider.writes.at(-1).data.global.currentScheduleId, 'shared-copy');
+  assert.equal(provider.prefsWrites.at(-1).currentScheduleId, 'shared-copy');
+  assert.ok(provider.writes.at(-1).data.schedules.some(item => item.id === 'existing'));
+  await act(async () => { writing.resolve(); await saving; });
+  assert.equal(finished, true);
+});
+
+test('a failed selection write is retryable and cannot create a duplicate imported schedule', async t => {
+  let fail = true;
+  const provider = await mountProvider(t, { guest: true, readLocal: async () => fixture(), writePrefs: async () => { if (fail) throw new Error('Disk full'); } });
+  const copy = { id: 'shared-copy', name: 'Shared' };
+  await act(async () => assert.rejects(provider.state().addSchedule(copy, { persistLocally: true, select: true }), /Disk full/));
+  fail = false;
+  await act(async () => provider.state().addSchedule(copy, { persistLocally: true, select: true }));
+  assert.equal(provider.state().schedules.filter(item => item.id === copy.id).length, 1);
+});
+
 test('manual refresh defers reconciliation until an active cloud save finishes', async t => {
   const cloudSave = gate();
   let cloudReads = 0, outgoing;
@@ -653,7 +696,8 @@ async function mountImport(t, fetchSharedSchedule, initialCode = '') {
       useScheduleData: () => ({ global: {}, lang: 'uk' }),
       useScheduleActions: () => ({ addSchedule: value => added.push(value), setGlobalDraft: updater => active.push(updater({}).currentScheduleId) }),
     },
-    '../../services/shareService': { fetchSharedSchedule },
+    '../../services/shareService': { fetchSharedSchedule, getSharedScheduleErrorKey: () => 'common.action_failed' },
+    '../schedule/SharedSchedulePreview': 'SharedSchedulePreview',
     '../../utils/scheduleValidation': { sanitizeImportedSchedule: data => ({ ...data, id: 'imported' }) },
     '../../utils/haptics': { triggerHaptic() {} },
     '../ui/BottomSheet': { __esModule: true, default: 'Sheet', SheetScrollView: 'Scroll' },
@@ -866,6 +910,54 @@ async function mountThemeScreen(t, platform = 'ios', initial = { theme: ['light'
     async openCustom() { await act(async () => tree.root.findAllByType('Row').find(node => node.props.label === i18n.t('settings.theme_screen.custom_color', lang)).props.onPress()); },
   };
 }
+
+test('custom color preview and save controls use the same foreground as the applied accent', async t => {
+  const saved = [];
+  const Picker = load('src/components/ui/AdvancedColorPicker.jsx', {
+    'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', Keyboard: { dismiss() {} },
+      StyleSheet: { create: value => value }, useWindowDimensions: () => ({ height: 900 }) },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
+    'phosphor-react-native': { Check: 'Check', Palette: 'Palette', X: 'X' },
+    './AppTextInput': 'Input', './ColorSpectrumPicker': 'Spectrum',
+    './BottomSheet': { __esModule: true, default: 'Sheet', SheetScrollView: 'ScrollView' },
+    '../../context/ScheduleProvider': { useScheduleData: () => ({ global: { theme: ['dark', '#1FA4BC'] }, lang: 'uk' }) },
+    '../../utils/haptics': { triggerHaptic() {} },
+  }).default;
+  let tree;
+  await act(async () => { tree = create(React.createElement(Picker, {
+    visible: true, initialColor: '#1FA4BC', onSave: color => saved.push(color),
+  })); });
+  t.after(async () => act(async () => tree.unmount()));
+  const assertForeground = color => {
+    const expected = themes.getColors('dark', color).textOnAccent;
+    assert.ok(tree.root.findAllByType('Check').every(icon => icon.props.color === expected));
+    const label = tree.root.findAllByType('Text').find(node => node.props.children === i18n.t('color_picker.save', 'uk'));
+    assert.equal(Object.assign({}, ...label.props.style).color, expected);
+    assert.ok(tinycolor.readability(color, expected) >= 1.8);
+  };
+  assertForeground('#1FA4BC');
+  for (const color of ['#1e3a8a', '#fef08a', '#000000', '#ffffff', '#1fa4bc', '#27c7d5']) {
+    await act(async () => tree.root.findByType('Spectrum').props.onChange(color));
+    assertForeground(color);
+  }
+  await act(async () => tree.root.findByType('Input').props.onChangeText('#123456'));
+  await act(async () => tree.root.findByType('Input').props.onBlur());
+  assertForeground('#123456');
+  await act(async () => tree.root.findAllByType('Button').find(node => node.props.accessibilityLabel === i18n.t('color_picker.save', 'uk')).props.onPress());
+  assert.deepEqual(saved, ['#123456']);
+});
+
+test('dark and OLED themes prefer white on vivid accents and dark text only on pale accents', () => {
+  for (const mode of ['dark', 'oled']) {
+    for (const color of ['#1FA4BC', '#27C7D5', '#3B82F6', '#111827']) {
+      assert.equal(themes.getColors(mode, color).textOnAccent, '#ffffff');
+    }
+    for (const color of ['#ffffff', '#FBCFE8', '#FDE68A', '#BFDBFE']) {
+      assert.equal(themes.getColors(mode, color).textOnAccent, '#111827');
+    }
+  }
+  assert.equal(themes.getColors('light', '#27C7D5').textOnAccent, '#111827');
+});
 
 test('the theme picker renders selected colors and commits changes through the schedule provider', async t => {
   const screen = await mountThemeScreen(t);

@@ -69,6 +69,13 @@ export default function Settings({ guest, onExitGuest }) {
   const infoString = infoParts.join(' • ');
 
   const hapticsEnabled = global?.hapticsEnabled !== false;
+  const autoSelectLessonDay = global?.autoSelectLessonDay !== false;
+
+  const handleToggleLessonDay = useCallback(() => {
+    const nextValue = !autoSelectLessonDay;
+    triggerHaptic(nextValue ? "toggleOn" : "toggleOff");
+    setGlobalDraft((prev) => ({ ...prev, autoSelectLessonDay: nextValue }));
+  }, [autoSelectLessonDay, setGlobalDraft]);
 
   const handleToggleHaptics = useCallback(() => {
     const nextValue = !hapticsEnabled;
@@ -133,6 +140,25 @@ export default function Settings({ guest, onExitGuest }) {
           screen: 'ScheduleSwitcher',
           icon: Table,
           desc: t('settings.menu.global_schedule.desc', lang)
+        },
+        {
+          label: t('settings.menu.auto_lesson_day.title', lang),
+          desc: t('settings.menu.auto_lesson_day.desc', lang),
+          action: handleToggleLessonDay,
+          icon: Table,
+          showCaret: false,
+          skipHaptic: true,
+          accessibilityRole: "switch",
+          accessibilityState: { checked: autoSelectLessonDay },
+          rightContentPointerEvents: "none",
+          rightContent: (
+            <AppSwitch
+              value={autoSelectLessonDay}
+              onValueChange={handleToggleLessonDay}
+              themeColors={themeColors}
+              interactive={false}
+            />
+          ),
         },
         { label: t('settings.menu.files.title', lang), screen: 'FileLibrary', icon: Files, desc: t('settings.menu.files.desc', lang) },
         ...(user ? [{
@@ -228,6 +254,8 @@ export default function Settings({ guest, onExitGuest }) {
     schedule?.name,
     lang,
     hapticsEnabled,
+    autoSelectLessonDay,
+    handleToggleLessonDay,
     handleToggleHaptics,
     themeColors,
     privacyOptionsRequired,
@@ -327,6 +355,8 @@ export default function Settings({ guest, onExitGuest }) {
             </SettingsGroup>
           </View>
         ))}
+
+        {__DEV__ && Platform.OS !== 'web' && React.createElement(require('../../components/development/DevScreenshotToggles').default, { themeColors })}
 
         <View style={styles.appInfoFooter}>
           <Text style={[styles.appInfoText, { color: themeColors.textColor2 }]}>

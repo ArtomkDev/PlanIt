@@ -85,7 +85,7 @@ these HTTP checks.
 
 ## Domains, authentication, and caching
 
-Firebase issued `CNAME app.planitflow.com → planit-demo.web.app`. DNS was added
+Firebase issued the CNAME target for `app.planitflow.com`. DNS was added
 in Dynadot with a five-minute TTL. The apex A record and both existing TXT records
 are preserved. Following the user's updated two-domain requirement, the `www`
 custom-domain attachment and its CNAME were removed. Only `planitflow.com` and
@@ -99,9 +99,27 @@ remain. The default site ID cannot be changed or deleted. The user explicitly
 chose to retain Firebase Hosting with these two custom domains after reviewing
 that limitation; recreating sites would not remove the mandatory aliases.
 
-`src/config/website.cjs` separates `WEBSITE_URL` and `WEB_APP_URL`. Web sharing
-uses the application origin. Native share/app-link host configuration retains its
-previous behavior, and native identifiers/releases are unchanged.
+`src/config/website.cjs` is the source of truth for public origins:
+`WEBSITE_URL` serves the website and legal documents; `WEB_APP_URL` serves public
+share links and native share app links. Visitor-preview buttons use `/share/<code>`
+on the current web origin, including localhost. Copy/share buttons use the public
+`WEB_APP_URL` on every platform. Share records store codes, not domains.
+
+There is no separate share-domain environment variable or fallback Firebase host.
+Legal document browser addresses are assembled from `WEBSITE_URL`, language and
+document slug; generated legal content does not store domain copies.
+
+Firebase Functions deploys a separate package. `npm run config:sync` generates
+`functions/src/website.generated.cjs` from the canonical configuration; do not edit
+that file manually. `npm run config:check` detects stale generated configuration,
+and the Functions predeploy hook synchronizes it automatically.
+
+After changing an origin, synchronize configuration, rebuild the web/native apps,
+and redeploy affected Functions. Review DNS/Hosting, Firebase Authorized Domains,
+OAuth callbacks, `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`, and native association files
+on the new host. Existing installed native builds retain their old app-link hosts.
+Keep an old domain and redirect its share paths when existing external links must
+continue working; changing configuration alone cannot redirect those links.
 
 The Firebase client still targets `planit-hub`. Since 1 November 2026 the web
 build uses `authDomain=app.planitflow.com`, so the Google popup and its consent
@@ -113,7 +131,8 @@ Google Cloud web OAuth client next to the previous
 intent filters stay on `planit-hub.firebaseapp.com` through
 `EXPO_PUBLIC_FIREBASE_AUTH_LINK_DOMAIN`. Email/password and Google are enabled
 in the live project; Apple is not configured as a web provider.
-`app.planitflow.com` and `planit-demo.web.app` were added to Authorized Domains.
+The app domain and the Firebase Hosting alias were added to Authorized Domains
+during the initial deployment; the application no longer uses the alias for sharing.
 Register `https://<domain>/__/auth/handler` with every OAuth provider before
 changing `authDomain` again. Google shows the app name instead of the domain
 only after the OAuth branding is verified.

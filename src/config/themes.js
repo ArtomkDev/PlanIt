@@ -1,5 +1,13 @@
 import tinycolor from 'tinycolor2';
 
+export const getTextOnAccent = (accentColor, mode = 'light') => {
+  // Dark themes keep white on vivid accents; pale accents still need dark text.
+  if ((mode === 'dark' || mode === 'oled') && tinycolor.readability(accentColor, '#FFFFFF') >= 1.8) {
+    return '#ffffff';
+  }
+  return tinycolor.mostReadable(accentColor, ['#FFFFFF', '#111827'], { includeFallbackColors: true }).toHexString();
+};
+
 const themes = {
   light: {
     backgroundColor: '#F2F4F7',
@@ -89,7 +97,7 @@ const themes = {
         : this.accentColors.blue;
     }
 
-    const textOnAccent = tinycolor.mostReadable(accentColor, ['#FFFFFF', '#111827'], { includeFallbackColors: true }).toHexString();
+    const textOnAccent = getTextOnAccent(accentColor, mode);
 
     return {
       ...baseTheme,

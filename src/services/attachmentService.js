@@ -1490,11 +1490,14 @@ const getAttachmentUploadUserId = async (requestedUserId) => {
   }
 
   try {
-    await currentUser.reload();
-    const tokenResult = await currentUser.getIdTokenResult(true);
-    const tokenEmailVerified = tokenResult?.claims?.email_verified === true;
+    let tokenResult = await currentUser.getIdTokenResult();
+    if (tokenResult?.claims?.email_verified !== true) {
+      await currentUser.reload();
+      tokenResult = await currentUser.getIdTokenResult(true);
+    }
+    if (auth.currentUser?.uid !== currentUser.uid) throw makeAttachmentError("auth_required");
 
-    if (currentUser.emailVerified !== true && !tokenEmailVerified) {
+    if (tokenResult?.claims?.email_verified !== true) {
       throw makeAttachmentError("email_unverified");
     }
 
@@ -1751,33 +1754,36 @@ const compressNativeImageAttachment = async (attachment) => {
     ? getImageCompressionPlans(sourceDimensions.width, sourceDimensions.height)
     : [{ width: null, height: null, resized: false }];
   let uploadCandidate = null;
+  const targetBytes = getImageCompressionTargetBytes(attachment);
 
   for (const outputFormat of IMAGE_UPLOAD_OUTPUT_FORMATS) {
     let formatBestCandidate = null;
 
-    for (const dimensions of compressionPlans) {
+    const qualitySteps = getImageUploadQualitySteps(outputFormat);
+    for (let attempt = 0; attempt < qualitySteps.length; attempt += 1) {
+      const dimensions = compressionPlans[Math.min(attempt, compressionPlans.length - 1)];
+      const quality = qualitySteps[attempt];
       const actions = dimensions?.resized
         ? [{ resize: { width: dimensions.width, height: dimensions.height } }]
         : [];
 
-      for (const quality of getImageUploadQualitySteps(outputFormat)) {
-        const candidate = await createNativeCompressedImageCandidate(
-          sourceUri,
-          actions,
-          dimensions,
-          outputFormat,
-          quality,
-          sourceDimensions
-        );
-        if (!candidate) continue;
+      const candidate = await createNativeCompressedImageCandidate(
+        sourceUri,
+        actions,
+        dimensions,
+        outputFormat,
+        quality,
+        sourceDimensions
+      );
+      if (!candidate) continue;
 
-        if (isBetterImageUploadCandidate(candidate, formatBestCandidate)) {
-          await deleteNativeCompressionCandidate(formatBestCandidate);
-          formatBestCandidate = candidate;
-        } else {
-          await deleteNativeCompressionCandidate(candidate);
-        }
+      if (isBetterImageUploadCandidate(candidate, formatBestCandidate)) {
+        await deleteNativeCompressionCandidate(formatBestCandidate);
+        formatBestCandidate = candidate;
+      } else {
+        await deleteNativeCompressionCandidate(candidate);
       }
+      if (formatBestCandidate?.size <= targetBytes) break;
     }
 
     if (formatBestCandidate && shouldUseCompressedImage(attachment, formatBestCandidate.size)) {
@@ -1896,19 +1902,22 @@ const compressWebImageAttachment = async (attachment) => {
     const sourceHeight = image.naturalHeight || image.height;
     const compressionPlans = getImageCompressionPlans(sourceWidth, sourceHeight);
     let uploadCandidate = null;
+    const targetBytes = getImageCompressionTargetBytes(attachment);
 
     for (const outputFormat of IMAGE_UPLOAD_OUTPUT_FORMATS) {
       let formatBestCandidate = null;
 
-      for (const dimensions of compressionPlans) {
-        for (const quality of getImageUploadQualitySteps(outputFormat)) {
-          const candidate = await createWebCompressedImageCandidate(image, dimensions, outputFormat, quality);
-          if (!candidate) continue;
+      const qualitySteps = getImageUploadQualitySteps(outputFormat);
+      for (let attempt = 0; attempt < qualitySteps.length; attempt += 1) {
+        const dimensions = compressionPlans[Math.min(attempt, compressionPlans.length - 1)];
+        const quality = qualitySteps[attempt];
+        const candidate = await createWebCompressedImageCandidate(image, dimensions, outputFormat, quality);
+        if (!candidate) continue;
 
-          if (isBetterImageUploadCandidate(candidate, formatBestCandidate)) {
-            formatBestCandidate = candidate;
-          }
+        if (isBetterImageUploadCandidate(candidate, formatBestCandidate)) {
+          formatBestCandidate = candidate;
         }
+        if (formatBestCandidate?.size <= targetBytes) break;
       }
 
       if (formatBestCandidate && shouldUseCompressedImage(attachment, formatBestCandidate.size)) {
@@ -2165,7 +2174,7 @@ export const storeAttachmentDrafts = async (attachments, {
         { required: true },
       );
       stored.push({ ...file, localUri: cached.localUri });
-      options.onAttachmentProgress?.(attachment, 100);
+      options.onAttachmentProgress?.(attachment, 1);
       if (prepared.localUri && prepared.localUri !== cached.localUri && prepared.compression) {
         if (Platform.OS === "web") revokeWebObjectUrl(prepared.localUri);
         else await deleteNativeCompressionCandidate({ uri: prepared.localUri });
@@ -2191,17 +2200,30 @@ export const uploadAttachmentDrafts = async (attachments, {
     const hasNewAttachments = draftList.some((attachment) => normalizeAttachmentList([attachment]).length === 0);
     const uploadUserId = hasNewAttachments ? await getAttachmentUploadUserId(userId) : userId;
 
-    for (const attachment of draftList) {
-      const wasAlreadyStored = normalizeAttachmentList([attachment]).length > 0;
-      onAttachmentStart?.(attachment);
-      const nextAttachment = await uploadAttachmentDraft(attachment, {
-        userId: uploadUserId,
-        skipAuthRefresh: true,
-        onProgress: (progress) => onAttachmentProgress?.(attachment, progress),
-      });
-      uploaded.push(nextAttachment);
-      if (!wasAlreadyStored) uploadedDuringThisRun.push(nextAttachment);
-    }
+    let nextIndex = 0;
+    let uploadError = null;
+    const uploadNext = async () => {
+      while (!uploadError && nextIndex < draftList.length) {
+        const index = nextIndex++;
+        const attachment = draftList[index];
+        try {
+          const wasAlreadyStored = normalizeAttachmentList([attachment]).length > 0;
+          onAttachmentStart?.(attachment);
+          const nextAttachment = await uploadAttachmentDraft(attachment, {
+            userId: uploadUserId,
+            skipAuthRefresh: true,
+            onProgress: (progress) => onAttachmentProgress?.(attachment, progress),
+          });
+          uploaded[index] = nextAttachment;
+          if (!wasAlreadyStored) uploadedDuringThisRun.push(nextAttachment);
+        } catch (error) {
+          uploadError ||= error;
+        }
+      }
+    };
+    // Wait for both uploads before rollback so an in-flight success cannot leave an orphan.
+    await Promise.all(Array.from({ length: Math.min(2, draftList.length) }, uploadNext));
+    if (uploadError) throw uploadError;
   } catch (error) {
     logAttachmentUploadError(error);
     await deleteStoredAttachments(uploadedDuringThisRun);

@@ -2,7 +2,6 @@ const omitFromUrl = () => undefined;
 
 export default {
   path: '',
-  alias: ['share/:code'],
   screens: {
     Onboarding: 'welcome',
     Tabs: {
@@ -38,6 +37,7 @@ export default {
             ChangeEmail: 'account/email',
             ChangePassword: 'account/password',
             SharedSchedulesManager: 'shared',
+            SharedScheduleDetails: 'shared/:code',
           },
         },
       },

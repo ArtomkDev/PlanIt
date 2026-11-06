@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const { createHash } = require("crypto");
-const { WEBSITE_URL } = require("../src/config/website.cjs");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const DEFAULT_SOURCE_DIR = path.join(PROJECT_ROOT, "content", "legal");
@@ -13,7 +12,6 @@ const WEBSITE_LEGAL_DIR = process.env.PLANIT_LEGAL_WEBSITE_DIR
   ? path.resolve(process.env.PLANIT_LEGAL_WEBSITE_DIR)
   : path.resolve(PROJECT_ROOT, "..", "planit-website", "public", "content", "legal");
 const SHOULD_SYNC_WEBSITE = process.env.PLANIT_LEGAL_SYNC_WEBSITE !== "0";
-const LEGAL_SITE_URL = process.env.PLANIT_LEGAL_SITE_URL || WEBSITE_URL;
 
 const DOCUMENTS = [
   { type: "privacy", file: "privacy.mdx" },
@@ -253,13 +251,6 @@ function parseSections(content, metadata) {
   return sections;
 }
 
-function browserUrlsFor(slug) {
-  return {
-    en: `${LEGAL_SITE_URL}/en/wiki/${slug}`,
-    uk: `${LEGAL_SITE_URL}/uk/wiki/${slug}`,
-  };
-}
-
 function parseDocument(documentConfig, language = "en") {
   const sourceFile = path.join(SOURCE_DIR, language === "en" ? "" : language, documentConfig.file);
   const mdx = fs.readFileSync(sourceFile, "utf8");
@@ -269,7 +260,6 @@ function parseDocument(documentConfig, language = "en") {
     ...metadata,
     type: documentConfig.type,
     effectiveDateLine: `${metadata.effectiveDateLabel} ${metadata.effectiveDateDisplay}`,
-    browserUrls: browserUrlsFor(metadata.slug),
     sourceFile: path.relative(PROJECT_ROOT, sourceFile).replace(/\\/g, "/"),
     sections: parseSections(content, metadata),
   };

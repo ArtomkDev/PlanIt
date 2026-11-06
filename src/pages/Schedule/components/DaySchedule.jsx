@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
@@ -17,6 +17,7 @@ import { triggerHaptic } from "../../../utils/haptics";
 const timelineTransition = LinearTransition.duration(220).easing(Easing.out(Easing.cubic));
 const gapEnter = FadeIn.duration(180);
 const gapExit = FadeOut.duration(140);
+const GAP_PREVIEW_DURATION = 5000;
 // Low-end devices never animate the timeline, so they skip the Reanimated wrapper cost per row.
 const TimelineRow = isLowEndDevice ? View : Animated.View;
 
@@ -43,11 +44,41 @@ export default function DaySchedule({
   const resolvedHeaderHeight = headerHeight ?? getScheduleHeaderHeight(insets.top);
 
   const timeline = dayData.timeline || buildDayTimeline(schedule, dayData.lessons || []);
-  const now = useNowTick(targetDate, timeline.some((entry) => entry.type !== "lesson"), 60000);
+  const firstLessonIndex = timeline.findIndex((entry) => entry.type === "lesson");
+  const now =useNowTick(targetDate, timeline.some((entry) => entry.type !== "lesson"), 60000);
   const reduceMotion = useReducedMotionPreference() || isLowEndDevice;
   const nowTime = now?.getTime() ?? Date.now();
   const visibleGapIndex = timeline.findIndex((entry) => entry.type !== "lesson"
     && createDateAtTime(targetDate, entry.end)?.getTime() > nowTime);
+  const lastLessonEnd = timeline.reduce((latest, entry) => {
+    if (entry.type !== "lesson") return latest;
+    const start = createDateAtTime(targetDate, entry.lesson.timeInfo.start);
+    const end = createDateAtTime(targetDate, entry.lesson.timeInfo.end);
+    if (!start || !end) return latest;
+    if (end < start) end.setDate(end.getDate() + 1);
+    return Math.max(latest, end.getTime());
+  }, 0);
+  const dayCompleted = lastLessonEnd > 0 && nowTime >= lastLessonEnd;
+  const collapsedGapIndex = visibleGapIndex >= 0 ? visibleGapIndex : dayCompleted
+    ? timeline.findIndex((entry) => entry.type !== "lesson")
+    : -1;
+  const [previewGaps, setPreviewGaps] = useState(false);
+  const previewTimeout = useRef(null);
+  useEffect(() => {
+    setPreviewGaps(false);
+    return () => clearTimeout(previewTimeout.current);
+  }, [targetDate.getTime(), schedule?.id]);
+
+  const showAllGaps = previewGaps;
+  const toggleGaps = useCallback(() => {
+    clearTimeout(previewTimeout.current);
+    if (showAllGaps) {
+      setPreviewGaps(false);
+      return;
+    }
+    setPreviewGaps(true);
+    previewTimeout.current = setTimeout(() => setPreviewGaps(false), GAP_PREVIEW_DURATION);
+  }, [showAllGaps]);
 
   const handleEmptyLongPress = () => {
     triggerHaptic("longPress");
@@ -72,17 +103,19 @@ export default function DaySchedule({
             <TimelineRow key={'lesson-' + entry.lesson.index} layout={reduceMotion ? undefined : timelineTransition}>
               <LessonCard
                 lesson={entry.lesson}
+                firstOfDay={index === firstLessonIndex}
                 decorationsReady={decorationsReady}
                 moving={moving}
                 onPress={onLessonPress}
                 onLongPress={onLessonLongPress}
               />
             </TimelineRow>
-          ) : index === visibleGapIndex ? (
+          ) : showAllGaps || index === collapsedGapIndex ? (
             <TimelineRow key={'gap-' + index} collapsable={false}
               layout={reduceMotion ? undefined : timelineTransition}
               entering={reduceMotion ? undefined : gapEnter} exiting={reduceMotion ? undefined : gapExit}>
               <BreakCard interval={entry} previousLesson={timeline[index - 1]?.lesson} schedule={schedule}
+                onPress={toggleGaps} expanded={showAllGaps}
                 targetDate={targetDate} themeColors={themeColors} lang={lang} blurEnabled={global?.blur ?? true} />
             </TimelineRow>
           ) : null)

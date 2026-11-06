@@ -6,13 +6,14 @@ import {
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { DownloadSimple, X } from "phosphor-react-native";
 import { useScheduleActions, useScheduleData } from "../../context/ScheduleProvider";
-import { fetchSharedSchedule } from "../../services/shareService";
+import { fetchSharedSchedule, getSharedScheduleErrorKey } from "../../services/shareService";
 import { sanitizeImportedSchedule } from "../../utils/scheduleValidation";
 import themes from "../../config/themes";
 import { t } from "../../utils/i18n";
 import BottomSheet, { SheetScrollView } from "../ui/BottomSheet";
 import MorphingLoader from "../ui/MorphingLoader";
 import { triggerHaptic } from "../../utils/haptics";
+import SharedSchedulePreview from "../schedule/SharedSchedulePreview";
 
 export default function ImportScheduleModal({ visible, onClose, initialCode = "" }) {
   const { global, lang } = useScheduleData();
@@ -60,11 +61,7 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
       triggerHaptic("error");
-      if (err.message === "not_found") setError(t("share.error_not_found", lang));
-      else if (err.message === "invalid_code") setError(t("share.error_not_found", lang));
-      else if (err.message === "inactive") setError(t("share.error_inactive", lang));
-      else if (err.message === "expired") setError(t("share.error_expired", lang));
-      else setError(t("common.action_failed", lang));
+      setError(t(getSharedScheduleErrorKey(err), lang));
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
@@ -194,6 +191,8 @@ export default function ImportScheduleModal({ visible, onClose, initialCode = ""
                     <Text style={[styles.previewValue, { color: themeColors.textColor }]}>{previewData.ownerName}</Text>
                   </View>
 
+                  <Text style={[styles.previewHint, { color: themeColors.textColor2 }]}>{t("share.preview_hint", lang)}</Text>
+                  <SharedSchedulePreview key={previewData.id || code} schedule={previewData.scheduleData} lang={lang} themeColors={themeColors} />
                   <TouchableOpacity
                     accessibilityRole="button"
                     accessibilityLabel={t('share.add_to_account_btn', lang)}
@@ -223,6 +222,7 @@ const styles = StyleSheet.create({
   primaryBtn: { width: "100%", paddingVertical: 16, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 24 },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   previewContainer: { alignItems: "center" },
+  previewHint: { fontSize: 14, lineHeight: 21, marginVertical: 12 },
   previewCard: { width: "100%", padding: 24, borderRadius: 16, borderWidth: 1, marginBottom: 10 },
   previewLabel: { fontSize: 12, textTransform: "uppercase", fontWeight: "700", marginBottom: 6, letterSpacing: 0.5 },
   previewValue: { fontSize: 20, fontWeight: "700" },

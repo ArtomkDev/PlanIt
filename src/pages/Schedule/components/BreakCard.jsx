@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Animated, Platform, StyleSheet, Text, View } from "react-native";
+import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { BlurView } from "expo-blur";
 import tinycolor from "tinycolor2";
 import GradientBackground from "../../../components/ui/GradientBackground";
@@ -11,7 +11,7 @@ import { normalizeGradientStops } from "../../../utils/gradientColors";
 import useActivityTransition from "./useActivityTransition";
 import CardIcon from "./CardIcon";
 
-export default function BreakCard({ interval, previousLesson, schedule, targetDate, themeColors, lang, blurEnabled = true }) {
+export default function BreakCard({ interval, previousLesson, schedule, targetDate, themeColors, lang, blurEnabled = true, onPress, expanded = false }) {
   const now = useNowTick(targetDate, !!targetDate);
   const start = createDateAtTime(targetDate, interval.start)?.getTime();
   const end = createDateAtTime(targetDate, interval.end)?.getTime();
@@ -48,7 +48,11 @@ export default function BreakCard({ interval, previousLesson, schedule, targetDa
     </View>;
   };
   return (
-    <View style={[styles.outline, { backgroundColor: themeColors.backgroundColor2 }]} testID="schedule-gap">
+    <TouchableOpacity style={[styles.outline, { backgroundColor: themeColors.backgroundColor2 }]} testID="schedule-gap"
+      onPress={onPress} activeOpacity={0.8} accessibilityRole="button"
+      hitSlop={{ top: 4, bottom: 4 }} accessibilityState={{ expanded }}
+      accessibilityLabel={`${t(interval.type === 'free' ? 'schedule.day_schedule.free_time' : 'schedule.day_schedule.break', lang)}, ${interval.start} – ${interval.end}, ${duration}`}
+      accessibilityHint={t(expanded ? 'schedule.day_schedule.hide_other_breaks' : 'schedule.day_schedule.show_all_breaks', lang)}>
       <Animated.View style={{ opacity: inactiveOpacity }}
         aria-hidden={active} accessibilityElementsHidden={active} importantForAccessibility={active ? 'no-hide-descendants' : 'auto'}>
         {renderContent(false)}
@@ -68,7 +72,7 @@ export default function BreakCard({ interval, previousLesson, schedule, targetDa
         </View>
         {renderContent(true)}
       </Animated.View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

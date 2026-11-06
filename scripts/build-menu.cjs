@@ -3,18 +3,19 @@ const { emitKeypressEvents } = require('node:readline');
 const { styleText } = require('node:util');
 const { getAndroidVersionCode } = require('../src/config/appVersion.cjs');
 const { version } = require('../package.json');
+const { WEBSITE_URL, WEB_APP_URL } = require('../src/config/website.cjs');
 
 const legalOptions = [
   { label: 'Оновити згенеровані документи', script: 'legal:sync' },
   { label: 'Перевірити актуальність документів', script: 'legal:check' },
-  { label: 'Оновити документи й опублікувати сайт planitflow.com', script: 'legal:publish', publish: true },
+  { label: `Оновити документи й опублікувати сайт ${new URL(WEBSITE_URL).host}`, script: 'legal:publish', publish: true },
 ];
 
 const mainOptions = [
   { label: 'APK для Android', options: versionOptions('build:apk', 'release') },
   { label: 'AAB для Google Play', options: versionOptions('build:aab', 'playstore') },
   { label: 'Зібрати вебзастосунок локально', script: 'build:web' },
-  { label: 'Опублікувати вебзастосунок · app.planitflow.com', script: 'deploy:web', publish: true },
+  { label: `Опублікувати вебзастосунок · ${new URL(WEB_APP_URL).host}`, script: 'deploy:web', publish: true },
   { label: 'Юридичні документи · політика конфіденційності', options: legalOptions },
   { label: 'Зібрати Android Dev Client', script: 'build:dev' },
 ];

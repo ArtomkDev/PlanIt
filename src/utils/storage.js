@@ -343,10 +343,11 @@ export async function getDevicePrefs() {
   }
 }
 
-export async function saveDevicePrefs(prefs) {
+export async function saveDevicePrefs(prefs, { throwOnError = false } = {}) {
   try {
     await AsyncStorage.setItem(DEVICE_SETTINGS_KEY, serializeJson(prefs));
   } catch (e) {
+    if (throwOnError) throw e;
     console.error('Failed to save device settings', e);
   }
 }

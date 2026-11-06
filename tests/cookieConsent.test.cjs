@@ -159,8 +159,8 @@ test('does not initialize web Analytics before consent and disables it on withdr
   let consentListener = null;
   const analyticsInstance = { name: 'analytics' };
   const firebaseAnalytics = {
-    getAnalytics: () => {
-      calls.push(['getAnalytics']);
+    initializeAnalytics: (_app, options) => {
+      calls.push(['initializeAnalytics', options]);
       return analyticsInstance;
     },
     isSupported: async () => {
@@ -183,7 +183,7 @@ test('does not initialize web Analytics before consent and disables it on withdr
   const previousDocument = global.document;
   const previousLocation = global.location;
   global.document = { cookie: '' };
-  global.location = { hostname: 'planitflow.com' };
+  global.location = { hostname: 'app.planitflow.com', href: 'https://app.planitflow.com/share/PRIVATECODE12345?source=chat' };
 
   const originalLoad = Module._load;
   const loadMock = function loadMock(request, parent, isMain) {
@@ -206,7 +206,10 @@ test('does not initialize web Analytics before consent and disables it on withdr
     assert.equal(calls[1][0], 'setConsent');
     assert.equal(calls[1][1].analytics_storage, 'granted');
     assert.equal(calls[1][1].ad_storage, 'denied');
-    assert.equal(calls[2][0], 'getAnalytics');
+    assert.equal(calls[2][0], 'initializeAnalytics');
+    assert.deepEqual(calls[2][1].config, {
+      send_page_view: false, page_location: 'https://app.planitflow.com', page_referrer: '',
+    });
 
     analytics.trackScreenView('Settings');
     assert.equal(calls.at(-1)[0], 'logEvent');

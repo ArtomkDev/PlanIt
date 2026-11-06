@@ -5,7 +5,6 @@ const vm = require('node:vm');
 const babel = require('@babel/core');
 const { getStateFromPath, getPathFromState } = require('@react-navigation/core');
 const hosting = require('../firebase.json').hosting;
-const { getShareLinkHost } = require('../src/config/shareLinks.cjs');
 const { WEBSITE_URL, WEB_APP_URL } = require('../src/config/website.cjs');
 
 const compiled = babel.transformFileSync(require.resolve('../src/navigation/mainLayoutLinking.web.js'), {
@@ -13,7 +12,7 @@ const compiled = babel.transformFileSync(require.resolve('../src/navigation/main
 }).code;
 const context = { exports: {} };
 vm.runInNewContext(compiled, context);
-const navigationConfig = { screens: { MainLayout: context.exports.default } };
+const navigationConfig = { screens: { MainLayout: context.exports.default, SharedSchedule: 'share/:code' } };
 
 const focusedRoutes = state => {
   const routes = [];
@@ -45,7 +44,7 @@ test('application URLs use short public paths and restore the requested screen',
   assert.equal(editor.params.scheduleId, 'web-test');
   assert.equal(getStateFromPath('/MainLayout/Tabs/SettingsTab/AccountSettings', navigationConfig), undefined);
   const share = getStateFromPath('/share/DEPLOYTEST123', navigationConfig);
-  assert.equal(share.routes[0].name, 'MainLayout');
+  assert.equal(share.routes[0].name, 'SharedSchedule');
   assert.equal(share.routes[0].params.code, 'DEPLOYTEST123');
 });
 
@@ -117,6 +116,8 @@ test('leaving guest mode waits for durability and keeps the editor accessible on
 });
 
 test('SPA routes accept nested navigation but exclude missing assets and reserved Firebase helpers', () => {
+  const globalHeaders = hosting.headers.find(rule => rule.source === '**').headers;
+  assert.ok(globalHeaders.some(header => header.key === 'Referrer-Policy' && header.value === 'no-referrer'));
   const routes = hosting.rewrites.map(rule => new RegExp(rule.regex));
   const rewrites = path => routes.some(regex => regex.test(path));
   for (const path of ['/auth', '/password-reset', '/legal/privacy', '/share/SHARE123', '/tasks', '/welcome', '/settings', '/settings/account/password',
@@ -128,10 +129,27 @@ test('SPA routes accept nested navigation but exclude missing assets and reserve
   }
 });
 
-test('web sharing uses the application origin while native links retain their configured host', () => {
-  assert.equal(WEBSITE_URL, 'https://planitflow.com');
-  assert.equal(WEB_APP_URL, 'https://app.planitflow.com');
-  assert.equal(getShareLinkHost('native.example.com', 'web'), new URL(WEB_APP_URL).hostname);
-  assert.equal(getShareLinkHost('native.example.com', 'ios'), 'native.example.com');
-  assert.equal(getShareLinkHost(undefined, 'android'), 'planit-demo.web.app');
+test('native app links use the same application origin as public web shares', () => {
+  const code = babel.transformFileSync(require.resolve('../app.config.js'), {
+    plugins: ['@babel/plugin-transform-modules-commonjs'],
+  }).code;
+  const Module = require('node:module');
+  const filename = require.resolve('../app.config.js');
+  const mod = new Module(filename, module);
+  mod.filename = filename;
+  mod.paths = Module._nodeModulePaths(require('node:path').dirname(filename));
+  mod._compile(code, filename);
+  const config = mod.exports.default.expo;
+  const shareFilter = config.android.intentFilters.find(filter => filter.data.some(item => item.pathPrefix === '/share'));
+  const host = new URL(WEB_APP_URL).hostname;
+  assert.deepEqual(shareFilter.data, [{ scheme: 'https', host, pathPrefix: '/share' }]);
+  assert.ok(config.ios.associatedDomains.includes(`applinks:${host}`));
+});
+
+test('the separately deployed Functions package receives the canonical website configuration', async () => {
+  const website = require('../src/config/website.cjs');
+  assert.deepEqual(require('../functions/src/website.generated.cjs'), website);
+  const server = await import('../functions/src/accountEmailConfig.js');
+  assert.equal(server.ACCOUNT_ACTION_HANDLER_BASE_URL, WEBSITE_URL);
+  assert.ok(require('../firebase.json').functions.predeploy.includes('npm run config:sync'));
 });

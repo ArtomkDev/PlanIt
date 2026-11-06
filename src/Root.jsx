@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { StyleSheet, View } from 'react-native';
-import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DarkTheme, DefaultTheme, getStateFromPath } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onIdTokenChanged, signOut } from "firebase/auth";
 import * as SplashScreen from "expo-splash-screen";
@@ -35,6 +35,8 @@ import { releaseAttachmentObjectUrls } from './services/attachmentService';
 import { WEBSITE_URL, WEB_APP_URL } from './config/website.cjs';
 import mainLayoutLinking from './navigation/mainLayoutLinking';
 import { clearWidgetScheduleData, syncWidgetPushSubscription } from './widgets/widgetService';
+import { readSharedScheduleImport, clearSharedScheduleImport, resolveSharedScheduleImportUrl } from './services/shareService';
+import { claimEntryLegalAcceptance, hasLegalAcceptance } from './services/legalAcceptanceService';
 
 initGlobalErrorHandling();
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -42,7 +44,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 const Stack = createNativeStackNavigator();
 
 const linking = {
-  prefixes: [LinkingExpo.createURL('/'), 'planit://', WEB_APP_URL, WEBSITE_URL],
+  prefixes: [LinkingExpo.createURL('/'), 'planit://', WEBSITE_URL, WEB_APP_URL],
   getInitialURL: async () => {
     const url = await LinkingExpo.getInitialURL();
     return createPasswordResetNavigationUrl(url);
@@ -60,6 +62,7 @@ const linking = {
       Auth: 'auth',
       PasswordReset: 'password-reset',
       LegalDocument: 'legal/:documentType',
+      SharedSchedule: 'share/:code',
     },
   },
 };
@@ -125,6 +128,22 @@ export default function RootApp() {
   const wasLoggedIn = useRef(false);
   const navigationRef = useRef();
   const routeNameRef = useRef();
+  const sessionScope = user ? `user:${user.uid}` : guest ? 'guest' : null;
+  const [initialNavigation, setInitialNavigation] = useState(null);
+  useEffect(() => {
+    if (!authResolved) return;
+    let active = true;
+    (async () => {
+      const [url, intent] = await Promise.all([
+        linking.getInitialURL().catch(() => null), readSharedScheduleImport().catch(() => null),
+      ]);
+      const resolved = resolveSharedScheduleImportUrl(url, intent, sessionScope);
+      const initialState = resolved !== url && resolved?.startsWith('planit://')
+        ? getStateFromPath(resolved.slice('planit://'.length), linking.config) : undefined;
+      if (active) setInitialNavigation({ scope: sessionScope, initialState });
+    })();
+    return () => { active = false; };
+  }, [authResolved, sessionScope]);
 
   useEffect(() => () => releaseAttachmentObjectUrls(), [user?.uid, guest]);
 
@@ -154,6 +173,8 @@ export default function RootApp() {
       
       if (firebaseUser) {
         if (firebaseUser.emailVerified) {
+          await claimEntryLegalAcceptance(firebaseUser.uid).catch(console.error);
+          if (!isCurrentSession()) return;
           wasLoggedIn.current = true;
           const shouldCreateLoginNotification = consumeManualLogin();
           setUser(firebaseUser);
@@ -189,6 +210,7 @@ export default function RootApp() {
         setCrashlyticsUser('');
         
         if (wasLoggedIn.current) {
+          clearSharedScheduleImport().catch(console.error);
           clearWidgetScheduleData().catch(console.error);
           setGuest(false);
           wasLoggedIn.current = false;
@@ -196,8 +218,10 @@ export default function RootApp() {
         } else {
           try {
             const localSchedule = await getLocalSchedule(null);
+            const pendingImport = await readSharedScheduleImport().catch(() => null);
+            const resumeGuest = pendingImport?.stage === 'ready' && pendingImport.scope === 'guest' && await hasLegalAcceptance('guest').catch(() => false);
             if (!isCurrentSession()) return;
-            setGuest(!!localSchedule);
+            setGuest(!!localSchedule || resumeGuest);
           } catch (e) {
             if (!isCurrentSession()) return;
             if (e?.code === 'local-storage/corrupt-data') setGuest(true);
@@ -217,7 +241,7 @@ export default function RootApp() {
     };
   }, []);
 
-  const appIsReady = authResolved && !isLangLoading;
+  const appIsReady = authResolved && !isLangLoading && initialNavigation?.scope === sessionScope;
 
   if (!appIsReady) {
     return <StartupScreen colors={systemColors} lang={lang} />;
@@ -247,6 +271,7 @@ export default function RootApp() {
                 ref={navigationRef}
                 hasInitialLayout={hasInitialLayout}
                 linking={linking}
+                initialState={initialNavigation.initialState}
                 documentTitle={documentTitle}
                 onReady={() => {
                   if (navigationRef.current) {
@@ -302,6 +327,12 @@ export default function RootApp() {
                     }}
                   </Stack.Screen>
                   <Stack.Screen name="LegalDocument" getComponent={() => require('./pages/Settings/components/LegalDocumentScreen').default} />
+                  <Stack.Screen name="SharedSchedule">
+                    {(props) => {
+                      const SharedScheduleScreen = require('./pages/Schedule/SharedScheduleScreen').default;
+                      return <SharedScheduleScreen {...props} fallbackRoute={user || guest ? 'MainLayout' : 'Auth'} onGuestLogin={() => setGuest(true)} />;
+                    }}
+                  </Stack.Screen>
                   </Stack.Navigator>
                 </ThemedNavigationContainer>
               </BottomSheetPresentationProvider>

@@ -816,6 +816,8 @@ const styles = StyleSheet.create({
   },
   secondaryActionButton: {
     flex: 0,
+    flexBasis: 'auto',
+    flexShrink: 0,
     width: 52,
     paddingHorizontal: 0,
   },

@@ -62,7 +62,7 @@ export default function AttachmentManager({
   onRemoveStoredAttachment,
   onUploadedAttachments,
   onUploadStateChange,
-  fileLibrary = [],
+  fileLibrary,
   onFileLibraryChange,
   storageLimitBytes = MAX_ATTACHMENT_SIZE_BYTES,
   userId,
@@ -77,7 +77,7 @@ export default function AttachmentManager({
   const [renamingAttachmentId, setRenamingAttachmentId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [storageMode, setStorageMode] = useState("local");
+  const [storageMode, setStorageMode] = useState("cloud");
   const pickerBusyRef = useRef(false);
   const { openImagePreview } = useAttachmentImagePreview();
   const activeUploadState = uploadState || internalUploadState;
@@ -172,18 +172,19 @@ export default function AttachmentManager({
 
     const baseAttachments = normalizedAttachments;
     onChange?.([...baseAttachments, ...pickedAttachments]);
+    const attachmentProgress = {};
+    const updateAttachmentProgress = (attachment, progress) => {
+      attachmentProgress[attachment.id] = progress;
+      updateUploadState({ uploading: true, attachmentId: attachment.id, progress, attachmentProgress: { ...attachmentProgress }, error: "" });
+    };
 
     try {
       updateUploadState({ uploading: true, attachmentId: null, progress: 0, error: "" });
       const uploadedAttachments = await storeAttachmentDrafts(pickedAttachments, {
         userId,
         storageMode: userId ? storageMode : "local",
-        onAttachmentStart: (attachment) => {
-          updateUploadState({ uploading: true, attachmentId: attachment.id, progress: 0, error: "" });
-        },
-        onAttachmentProgress: (attachment, progress) => {
-          updateUploadState({ uploading: true, attachmentId: attachment.id, progress, error: "" });
-        },
+        onAttachmentStart: (attachment) => updateAttachmentProgress(attachment, 0),
+        onAttachmentProgress: updateAttachmentProgress,
       });
 
       if (
@@ -365,9 +366,11 @@ export default function AttachmentManager({
 
   const renderAttachment = (attachment) => {
     const Icon = getAttachmentKindIcon(attachment);
-    const isUploading = activeUploadState?.uploading && activeUploadState?.attachmentId === attachment.id;
+    const attachmentProgress = activeUploadState?.attachmentProgress?.[attachment.id]
+      ?? (activeUploadState?.attachmentId === attachment.id ? activeUploadState.progress : undefined);
+    const isUploading = activeUploadState?.uploading && attachmentProgress !== undefined;
     const isRenaming = renamingAttachmentId === attachment.id;
-    const progress = Math.round((activeUploadState?.progress || 0) * 100);
+    const progress = Math.round((attachmentProgress || 0) * 100);
     const cacheState = cacheStates[attachment.id]?.status;
     const cacheDetail = attachment?.status === "pending"
       ? null

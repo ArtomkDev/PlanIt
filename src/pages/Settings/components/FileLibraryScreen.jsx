@@ -186,7 +186,7 @@ export default function FileLibraryScreen() {
   const [activeFileTab, setActiveFileTab] = useState("photos");
   const [photoPreviewCache, setPhotoPreviewCache] = useState({});
   const [addingSource, setAddingSource] = useState(null);
-  const [storageMode, setStorageMode] = useState("local");
+  const [storageMode, setStorageMode] = useState("cloud");
   const [search, setSearch] = useState("");
   const [visibleLimit, setVisibleLimit] = useState(30);
   const photoPreviewLoadsRef = useRef(new Set());

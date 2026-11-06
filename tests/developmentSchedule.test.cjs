@@ -88,6 +88,7 @@ test('source date conditions, streams, meeting credentials and distinct Saturday
 for (const [name, createSchedule] of [
   ['college', createCollegeTestSchedule],
   ['university content', createUniversityContentSchedule],
+  ['English content', date => createUniversityContentSchedule(date, 'en')],
 ]) {
   test(`${name} lessons inherit valid subject icons and readable gradients across both weeks and sharing`, () => {
     const schedule = createSchedule();
@@ -124,7 +125,7 @@ for (const [name, createSchedule] of [
 test('university content fills both weeks with four distinct subjects per weekday and fresh editable data', () => {
   const now = new Date(2026, 9, 26, 15);
   const schedule = createUniversityContentSchedule(now);
-  assert.equal(schedule.name, 'Університет · КН-31');
+  assert.equal(schedule.name, 'Навчання · Група А');
   assert.equal(schedule.subjects.length, 7);
   assert.equal(schedule.teachers.length, 7);
   assert.equal(schedule.links.length, 7);
@@ -160,6 +161,35 @@ test('university content fills both weeks with four distinct subjects per weekda
   other.schedule[0].week1[0].recurrence.weeks.push(2);
   assert.notEqual(schedule.tasks[0].text, 'Changed');
   assert.deepEqual(schedule.schedule[0].week1[0].recurrence.weeks, [1]);
+});
+
+test('content schedule balances general subjects, matching icons and activities throughout both weeks', () => {
+  const schedule = createUniversityContentSchedule(new Date(2026, 9, 16, 12));
+  const subjectIcons = new Map(schedule.subjects.map(subject => [subject.name, subject.icon]));
+  assert.deepEqual(Object.fromEntries(subjectIcons), {
+    'Математика': 'math', 'Англійська мова': 'lang', 'Література': 'open_book',
+    'Біологія': 'micro', 'Географія': 'map', 'Мистецтво': 'art', 'Фізична культура': 'run',
+  });
+  const sport = schedule.subjects.find(subject => subject.icon === 'run');
+  assert.equal(sport.room, 'Спортзал');
+  assert.equal(sport.building, 'Спортивний корпус');
+  for (const weekKey of ['week1', 'week2']) {
+    const lessons = schedule.schedule.flatMap(day => day[weekKey]);
+    assert.equal(new Set(lessons.map(lesson => lesson.subjectId)).size, schedule.subjects.length);
+    for (const subject of schedule.subjects) {
+      const activities = lessons.filter(lesson => lesson.subjectId === subject.id);
+      assert.equal(activities.length, subject.id === sport.id ? 2 : 3);
+      if (subject.id === sport.id || subject.icon === 'lang') {
+        assert.ok(activities.every(lesson => lesson.type === 'практична'));
+      }
+      if (subject.icon === 'micro') assert.ok(activities.some(lesson => lesson.type === 'лабораторна'));
+    }
+  }
+  for (let offset = 0; offset < 14; offset += 1) {
+    const sample = createUniversityContentSchedule(new Date(2026, 9, 12 + offset, 12));
+    assert.equal(new Set(sample.tasks.map(task => task.subjectId)).size, sample.subjects.length,
+      `day ${offset}: tasks should showcase every subject`);
+  }
 });
 
 test('content tasks stay populated and linked to actual classes across weekends, year boundaries and time zones', () => {
@@ -203,8 +233,51 @@ test('content tasks stay populated and linked to actual classes across weekends,
   }
 });
 
+test('British school content uses local names and school terminology with valid task links', () => {
+  for (const day of [16, 26, 31]) {
+    const now = new Date(2026, 9, day, 12);
+    const uk = createUniversityContentSchedule(now);
+    const en = createUniversityContentSchedule(now, 'en');
+    assert.equal(en.name, 'School · Year 10');
+    assert.doesNotMatch(JSON.stringify(en), /\p{Script=Cyrillic}/u);
+    assert.deepEqual(en.subjects.map(subject => subject.name), [
+      'Maths', 'English Language', 'English Literature', 'Biology', 'Geography', 'Art & Design', 'PE',
+    ]);
+    assert.deepEqual(en.teachers.map(teacher => teacher.name), [
+      'Emily Carter', 'James Wilson', 'Olivia Bennett', 'Daniel Harris', 'Sophie Reed', 'Charlotte Evans', 'Thomas Brooks',
+    ]);
+    assert.deepEqual(en.subjects.map(subject => subject.room), ['M1', 'E2', 'E3', 'B1', 'G2', 'Art Studio', 'Sports Hall']);
+    assert.deepEqual(en.subjects.map(subject => subject.icon), uk.subjects.map(subject => subject.icon));
+    assert.deepEqual(en.gradients.map(gradient => gradient.colors), uk.gradients.map(gradient => gradient.colors));
+    assert.equal(en.subjects.at(-1).room, 'Sports Hall');
+    assert.equal(en.subjects.at(-1).building, 'Sports Centre');
+    const shape = schedule => schedule.schedule.map(day => ['week1', 'week2'].map(week => day[week].map(lesson => ({
+      subject: schedule.subjects.findIndex(subject => subject.id === lesson.subjectId), slot: lesson.slotNumber,
+    }))));
+    assert.deepEqual(shape(en), shape(uk));
+    const shared = sanitizeSharedSchedule(en);
+    assert.deepEqual(shape(shared), shape(en));
+    assert.doesNotMatch(JSON.stringify(shared), /\p{Script=Cyrillic}/u);
+    assert.equal(en.tasks.length, 16);
+    assert.equal(new Set(en.tasks.map(task => task.subjectId)).size, 7);
+    assert.equal(en.tasks.filter(task => task.completed).length, 4);
+    for (const task of en.tasks) {
+      assert.ok(task.text.length >= 50);
+      const occurrence = resolveOccurrenceFromLessonRef(en, task.lessonRef);
+      assert.equal(occurrence?.subjectId, task.subjectId);
+      assert.deepEqual(task.links, en.subjects.find(subject => subject.id === task.subjectId).links);
+    }
+    assert.ok(en.schedule.flatMap(day => [...day.week1, ...day.week2])
+      .every(lesson => ['Lesson', 'Workshop', 'Practical', 'Discussion', 'Practice'].includes(lesson.type)));
+    assert.ok(en.schedule.flatMap(day => [...day.week1, ...day.week2])
+      .filter(lesson => lesson.subjectId === en.subjects.at(-1).id).every(lesson => lesson.type === 'Practice'));
+    assert.notEqual(en.id, uk.id);
+    assert.ok(en.subjects.every(subject => !uk.subjects.some(original => original.id === subject.id)));
+  }
+});
+
 for (const lang of ['uk', 'en']) {
-  test(`${lang}: both dev buttons independently create and select once through ScheduleProvider without authentication`, () => {
+  test(`${lang}: all three dev buttons independently create and select once through ScheduleProvider without authentication`, () => {
     const added = [];
     let selected;
     let onCreated = 0;
@@ -219,8 +292,8 @@ for (const lang of ['uk', 'en']) {
     }).default;
     let renderer;
     act(() => { renderer = create(React.createElement(Button, { themeColors: {}, onCreated: () => { onCreated += 1; } })); });
-    assert.equal(renderer.root.findAllByType('SettingsRow').length, 2);
-    for (const index of [1, 0]) {
+    assert.equal(renderer.root.findAllByType('SettingsRow').length, 3);
+    for (const index of [1, 2, 0]) {
       const rows = renderer.root.findAllByType('SettingsRow');
       assert.equal(rows[index].props.disabled, false);
       if (index === 1) assert.match(rows[index].props.label, lang === 'uk' ? /контенту/ : /content/);
@@ -233,7 +306,13 @@ for (const lang of ['uk', 'en']) {
       assert.equal(renderer.root.findAllByType('SettingsRow')[index].props.disabled, true);
       if (index === 1) {
         assert.equal(added[0].tasks.length, 16);
-        assert.equal(added[0].name, 'Університет · КН-31');
+        assert.equal(added[0].name, 'Навчання · Група А');
+        assert.equal(renderer.root.findAllByType('SettingsRow')[0].props.disabled, false);
+      }
+      if (index === 2) {
+        assert.equal(added.at(-1).name, 'School · Year 10');
+        assert.equal(added.at(-1).tasks.length, 16);
+        assert.doesNotMatch(JSON.stringify(added.at(-1)), /\p{Script=Cyrillic}/u);
         assert.equal(renderer.root.findAllByType('SettingsRow')[0].props.disabled, false);
       }
     }

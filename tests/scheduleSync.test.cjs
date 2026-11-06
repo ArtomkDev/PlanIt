@@ -42,6 +42,7 @@ const shareService = compileModule(shareServicePath, new Map([
   ['firebase/firestore', {}],
   ['expo-crypto', {}],
   ['../config/firebase', { db: {} }],
+  ['../utils/scheduleValidation', { sanitizeSharedScheduleForPreview: value => value }],
 ]));
 
 test('new public shares use long random codes and do not expose the account email', async () => {
@@ -54,6 +55,7 @@ test('new public shares use long random codes and do not expose the account emai
     }],
     ['expo-crypto', { getRandomBytes: length => new Uint8Array(length).fill(17) }],
     ['../config/firebase', { db: {} }],
+    ['../utils/scheduleValidation', { sanitizeSharedScheduleForPreview: value => value }],
   ]));
   const code = await service.createSharedSchedule({ uid: 'owner', email: 'private@example.com' }, { name: 'Share' }, 7);
   assert.equal(code.length, 16);
@@ -96,7 +98,7 @@ test('initial data never creates a schedule before onboarding finishes', () => {
 test('friend schedule import accepts a raw code or a complete share link', () => {
   assert.equal(shareService.normalizeShareCodeInput('abc12'), 'ABC12');
   assert.equal(
-    shareService.normalizeShareCodeInput('https://planit-demo.web.app/share/Friend42?source=chat'),
+    shareService.normalizeShareCodeInput('https://old.example.com/share/Friend42?source=chat'),
     'FRIEND42',
   );
   assert.equal(
@@ -104,21 +106,21 @@ test('friend schedule import accepts a raw code or a complete share link', () =>
     'https://app.planitflow.com/share/FRIEND42',
   );
   assert.throws(
-    () => shareService.normalizeShareCodeInput('https://planit-demo.web.app/not-a-share-link'),
+    () => shareService.normalizeShareCodeInput('https://old.example.com/not-a-share-link'),
     /invalid_code/,
   );
 });
 
-test('web shares use the application domain and native app links retain their configurable HTTPS host', () => {
-  const { getShareLinkHost } = require('../src/config/shareLinks.cjs');
-  const hosting = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../.firebaserc'), 'utf8'));
-  assert.equal(getShareLinkHost(), `${hosting.targets['planit-hub'].hosting.app[0]}.web.app`);
-  assert.equal(getShareLinkHost(undefined, 'web'), 'app.planitflow.com');
-  assert.equal(getShareLinkHost('native.example.com', 'android'), 'native.example.com');
-  assert.equal(getShareLinkHost(' https://Share.Example.com/ '), 'share.example.com');
-  for (const value of ['http://example.com', 'https://user:secret@example.com', 'example.com/share', 'example.com:8080', 'example.com?redirect=bad']) {
-    assert.throws(() => getShareLinkHost(value));
+test('preview paths stay on the current origin while copied links use the configured public origin', () => {
+  const { WEB_APP_URL } = require('../src/config/website.cjs');
+  const path = shareService.createSharedSchedulePath('friend42');
+  assert.equal(path, '/share/FRIEND42');
+  for (const origin of ['http://localhost:8081', 'https://preview.example.com', WEB_APP_URL]) {
+    assert.equal(new URL(path, origin).origin, origin);
+    assert.equal(new URL(path, origin).pathname, path);
   }
+  assert.equal(shareService.createSharedScheduleLink('friend42'), `${WEB_APP_URL}${path}`);
+  assert.throws(() => shareService.createSharedSchedulePath('../auth'), /invalid_code/);
 });
 
 test('fingerprint covers arbitrary and nested user fields', () => {

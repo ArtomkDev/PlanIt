@@ -8,6 +8,7 @@ const React = require('react');
 const { act, create } = require('react-test-renderer');
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
+global.__DEV__ = false;
 const root = path.resolve(__dirname, '..');
 const compile = (relative, mocks = {}) => {
   const filename = path.join(root, relative);
@@ -1495,6 +1496,11 @@ test('card patterns reuse one icon and keep every rotated instance inside safe m
     tickNow = new Date(2026, 8, 7, 8, 40);
     await act(async () => renderer.update(React.createElement(LessonCard, { ...props, lesson: { ...props.lesson } })));
     assert.equal(renderer.root.findAllByProps({ name: 'hourglass' }).length, 1, 'the current lesson mounts its countdown');
+    const countdownIcon = renderer.root.findByProps({ name: 'hourglass' });
+    assert.equal(countdownIcon.props.color, '#111827');
+    assert.equal(Object.assign({}, ...countdownIcon.parent.props.style).backgroundColor, '#ffffff');
+    const countdownLabel = countdownIcon.parent.findByType('Text');
+    assert.equal(Object.assign({}, ...countdownLabel.props.style).color, '#111827');
     tickNow = new Date(2026, 8, 7, 9, 30);
     await act(async () => renderer.update(React.createElement(LessonCard, { ...props, lesson: { ...props.lesson } })));
     assert.equal(renderer.root.findAllByProps({ name: 'hourglass' }).length, 1, 'the countdown stays mounted to fade out');

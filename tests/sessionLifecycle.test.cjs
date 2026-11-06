@@ -42,7 +42,8 @@ async function mountRoot(t, options = {}) {
   const mocks = {
     'react-native': { View: host('View'), StyleSheet: { absoluteFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } } },
     'react-native-gesture-handler': { GestureHandlerRootView: wrapper },
-    '@react-navigation/native': { NavigationContainer: host('navigation'), DarkTheme: { colors: {} }, DefaultTheme: { colors: {} } },
+    '@react-navigation/native': { NavigationContainer: host('navigation'), DarkTheme: { colors: {} }, DefaultTheme: { colors: {} },
+      getStateFromPath: require('@react-navigation/core').getStateFromPath },
     './hooks/useAppTheme': () => ({ colorScheme: 'light', colors }),
     './hooks/useSystemThemeColors': () => ({ colors }),
     './components/ui/MorphingLoader': 'Loader',
@@ -50,13 +51,14 @@ async function mountRoot(t, options = {}) {
     './components/ui/NativeThemeStyles': wrapper,
     '@react-navigation/native-stack': { createNativeStackNavigator: () => ({
       Navigator: ({ screenLayout, children }) => screenLayout({ children }),
-      Screen: ({ name }) => React.createElement('screen', { name }),
+      Screen: ({ name, children }) => options.renderMainLayout && name === 'MainLayout'
+        ? children({ navigation: {} }) : React.createElement('screen', { name }),
     }) },
     'firebase/auth': { onIdTokenChanged: (_auth, callback) => { onAuth = callback; return noop; }, signOut: async () => { signouts.push(auth.currentUser?.uid); } },
     'expo-splash-screen': { preventAutoHideAsync: async () => {}, hideAsync: options.hideSplash || (async () => {}) },
     'expo-status-bar': { StatusBar: () => null },
     'react-native-safe-area-context': { SafeAreaProvider: wrapper },
-    'expo-linking': { createURL: () => 'planit://', getInitialURL: async () => null },
+    'expo-linking': { createURL: () => 'planit://', getInitialURL: async () => options.initialURL || null },
     './config/firebase': { auth },
     './utils/analytics/analytics': { trackScreenView: noop },
     './utils/analytics/crashlytics': { setCrashlyticsUser: noop, initGlobalErrorHandling: noop },
@@ -84,8 +86,12 @@ async function mountRoot(t, options = {}) {
     './context/AdsContext': { AdsProvider: wrapper },
     './auth/accountEmailService': { createPasswordResetNavigationUrl: value => value },
     './navigation/mainLayoutLinking': {},
+    './services/shareService': { readSharedScheduleImport: async () => options.pending || null,
+      clearSharedScheduleImport: async () => {}, resolveSharedScheduleImportUrl: options.resolveImportUrl || (url => url) },
+    './services/legalAcceptanceService': { claimEntryLegalAcceptance: async () => {}, hasLegalAcceptance: options.readAcceptance || (async () => true) },
   };
   for (const name of ['./auth/AuthScreen', './layouts/MainLayout', './pages/Settings/components/LegalDocumentScreen', './components/privacy/CookieConsentBanner', './components/ui/WebThemeStyles', './auth/PasswordResetScreen']) mocks[name] = wrapper;
+  mocks['./layouts/MainLayout'] = { default: host('private-layout') };
   const Root = load('src/Root.jsx', mocks).default;
   let tree;
   await act(async () => { tree = create(React.createElement(Root)); });
@@ -103,6 +109,108 @@ async function mountRoot(t, options = {}) {
     },
   };
 }
+
+test('main layout renders a loaded schedule and retains the manual onboarding import', async t => {
+  const noop = () => {};
+  const item = { id: 'existing' };
+  let state = { user: { uid: 'owner' }, schedule: item, schedules: [item], isLoading: false, lang: 'uk' };
+  class Value { stopAnimation() {} }
+  const Layout = load('src/layouts/MainLayout.jsx', {
+    'expo-status-bar': { StatusBar: 'StatusBar' },
+    expo: { requireOptionalNativeModule: () => null },
+    'expo-system-ui': {},
+    'react-native': {
+      View: 'View', Text: 'Text', TouchableOpacity: 'Button', Platform: { OS: 'web' },
+      StyleSheet: { create: value => value },
+      Animated: { Value, View: 'Overlay', timing: () => ({ start: callback => callback?.({ finished: true }) }) },
+      AppState: { addEventListener: () => ({ remove: noop }) },
+    },
+    '@react-navigation/native-stack': { createNativeStackNavigator: () => ({
+      Navigator: 'Stack', Screen: ({ children }) => children(),
+    }) },
+    '@react-navigation/native': { useNavigation: () => ({}), useNavigationState: selector => selector({ routes: [{ name: 'ScheduleTab' }] }) },
+    'react-native-safe-area-context': { SafeAreaProvider: 'SafeArea' },
+    '@react-native-async-storage/async-storage': { getItem: async () => null },
+    '../services/AutoSaveManager': 'AutoSave',
+    '../context/ScheduleProvider': {
+      useScheduleData: () => state,
+      useScheduleSync: () => ({ cloudSyncState: 'synced', conflictQueue: [] }),
+      useScheduleActions: () => ({}),
+    },
+    '../hooks/useAppTheme': () => ({ colors: {}, colorScheme: 'light' }),
+    '../hooks/useReducedMotionPreference': () => true,
+    '../utils/i18n': { t: key => key },
+    '../components/modals/MigrationModal': 'Migration',
+    '../components/modals/ImportScheduleModal': 'ImportSheet',
+    '../components/ui/AppBlur': 'Blur',
+    '../components/ui/MorphingLoader': 'Loader',
+    '../components/AdBanner/AdBanner': 'Banner',
+    '../context/BottomSheetPresentationContext': { useBottomSheetPresentation: () => ({ hasPresentedSheets: false }) },
+    '../context/AttachmentImagePreviewContext': { useAttachmentImagePreview: () => ({ isImagePreviewOpen: false }) },
+    '../pages/SyncConflict/SyncConflictScreen': 'Conflicts',
+    '../pages/Schedule/components/SchedulePickerSheet': 'Picker',
+    '../pages/Onboarding/OnboardingWizard': { default: 'Wizard' },
+    '../navigation/TabNavigator': { default: 'Tabs' },
+  }).default;
+  let tree;
+  const render = () => React.createElement(Layout, { guest: false });
+  await act(async () => { tree = create(render()); });
+  t.after(async () => act(async () => tree.unmount()));
+  await act(async () => tree.root.findByType('Tabs').props.onLayout());
+  assert.equal(tree.root.findByType('Banner').props.visible, true);
+  state = { ...state, schedule: null, schedules: [] };
+  await act(async () => tree.update(render()));
+  await act(async () => tree.root.findByType('Wizard').props.onImportSchedule());
+  assert.equal(tree.root.findByType('ImportSheet').props.visible, true);
+  state = { ...state, schedule: item, schedules: [item] };
+  await act(async () => tree.update(render()));
+  assert.equal(tree.root.findByType('Banner').props.visible, false);
+  await act(async () => tree.root.findByType('ImportSheet').props.onClose());
+  assert.equal(tree.root.findByType('ImportSheet').props.visible, false);
+  assert.equal(tree.root.findByType('Banner').props.visible, true);
+});
+
+test('shared schedules remain registered for signed-out visitors without entering guest mode', async t => {
+  const env = await mountRoot(t);
+  await act(async () => env.emit(null));
+  const names = env.tree.root.findAllByType('screen').map(node => node.props.name);
+  assert.ok(names.includes('SharedSchedule'));
+  assert.ok(names.includes('Auth'));
+  assert.equal(names.includes('MainLayout'), false);
+  assert.equal(env.tree.root.findByType('schedule-provider').props.guest, false);
+});
+
+for (const guest of [false, true]) {
+  test(`a restored ${guest ? 'guest' : 'account'} opens the main layout without requiring a new acceptance receipt`, async t => {
+    let reads = 0;
+    const env = await mountRoot(t, { renderMainLayout: true,
+      readGuest: async () => guest ? { schedules: [{ id: 'existing' }] } : null,
+      readAcceptance: async () => { reads++; throw new Error('receipt storage unavailable'); } });
+    await act(async () => env.emit(guest ? null : env.user('existing-user')));
+    assert.equal(env.tree.root.findAllByType('private-layout').length, 1);
+    assert.equal(reads, 0);
+    assert.equal(env.tree.root.findByType('schedule-provider').props.guest, guest);
+  });
+}
+
+test('authentication continuation provides an explicit initial route on web as well as native', async t => {
+  const env = await mountRoot(t, { initialURL: 'https://app.planitflow.com/auth', pending: { code: 'SHARED123', stage: 'auth' },
+    resolveImportUrl: (url, intent, scope) => scope ? `planit://share/${intent.code}` : url });
+  await act(async () => env.emit(null));
+  assert.equal(env.tree.root.findByType('navigation').props.initialState, undefined);
+  await act(async () => env.emit(env.user('one')));
+  const state = env.tree.root.findByType('navigation').props.initialState;
+  assert.equal(state.routes[0].name, 'SharedSchedule');
+  assert.equal(state.routes[0].params.code, 'SHARED123');
+});
+
+test('an explicitly chosen guest import survives a restart before its first schedule was written', async t => {
+  const env = await mountRoot(t, { pending: { code: 'SHARED123', stage: 'ready', scope: 'guest' },
+    resolveImportUrl: (url, intent, scope) => scope === 'guest' ? `planit://share/${intent.code}` : url });
+  await act(async () => env.emit(null));
+  assert.equal(env.tree.root.findByType('schedule-provider').props.guest, true);
+  assert.equal(env.tree.root.findByType('navigation').props.initialState.routes[0].name, 'SharedSchedule');
+});
 
 test('startup keeps the splash until session restoration, navigation and the themed layout are ready', async t => {
   const frames = [];

@@ -24,10 +24,6 @@ export const LEGAL_DOCUMENTS = {
     "version": "2.3",
     "type": "privacy",
     "effectiveDateLine": "Effective and last updated: August 30, 2026",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/privacy",
-      "uk": "https://planitflow.com/uk/wiki/privacy"
-    },
     "sourceFile": "content/legal/privacy.mdx",
     "sections": [
       {
@@ -557,10 +553,6 @@ export const LEGAL_DOCUMENTS = {
     "version": "2.4",
     "type": "terms",
     "effectiveDateLine": "Effective and last updated: August 30, 2026",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/terms",
-      "uk": "https://planitflow.com/uk/wiki/terms"
-    },
     "sourceFile": "content/legal/terms.mdx",
     "sections": [
       {
@@ -968,10 +960,6 @@ export const LEGAL_DOCUMENTS = {
     "version": "1.0",
     "type": "cookies",
     "effectiveDateLine": "Effective and last updated: July 24, 2026",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/cookies",
-      "uk": "https://planitflow.com/uk/wiki/cookies"
-    },
     "sourceFile": "content/legal/cookies.mdx",
     "sections": [
       {
@@ -1349,10 +1337,6 @@ export const LEGAL_DOCUMENTS = {
     "version": "2.2",
     "type": "delete",
     "effectiveDateLine": "Effective and last updated: July 24, 2026",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/delete",
-      "uk": "https://planitflow.com/uk/wiki/delete"
-    },
     "sourceFile": "content/legal/delete.mdx",
     "sections": [
       {
@@ -1660,10 +1644,6 @@ export const LEGAL_DOCUMENTS = {
     "version": "1.2",
     "type": "licenses",
     "effectiveDateLine": "Effective and last updated: August 30, 2026",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/licenses",
-      "uk": "https://planitflow.com/uk/wiki/licenses"
-    },
     "sourceFile": "content/legal/licenses.mdx",
     "sections": [
       {
@@ -2249,10 +2229,6 @@ export const LEGAL_DOCUMENTS_UK = {
     "translationSourceHash": "cfb9574a941dbc6581d6dc280477fa13b3afa9309b044e7cf60eba36f274b4bd",
     "type": "privacy",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 30 серпня 2026 року",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/privacy",
-      "uk": "https://planitflow.com/uk/wiki/privacy"
-    },
     "sourceFile": "content/legal/uk/privacy.mdx",
     "sections": [
       {
@@ -2783,10 +2759,6 @@ export const LEGAL_DOCUMENTS_UK = {
     "translationSourceHash": "43950f489c5f2e114178e5ff61dc4990e6468ff6f9f5784a56dc148a9b7018aa",
     "type": "terms",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 30 серпня 2026 року",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/terms",
-      "uk": "https://planitflow.com/uk/wiki/terms"
-    },
     "sourceFile": "content/legal/uk/terms.mdx",
     "sections": [
       {
@@ -3195,10 +3167,6 @@ export const LEGAL_DOCUMENTS_UK = {
     "translationSourceHash": "7acc0783e6f42094f4d75b07c0443de15c8197fc96ac924407d88c4398b2083d",
     "type": "cookies",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 24 липня 2026 року",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/cookies",
-      "uk": "https://planitflow.com/uk/wiki/cookies"
-    },
     "sourceFile": "content/legal/uk/cookies.mdx",
     "sections": [
       {
@@ -3577,10 +3545,6 @@ export const LEGAL_DOCUMENTS_UK = {
     "translationSourceHash": "cee8b495c5dde97435d08565b0ba7f5860a3f9d5858306687de8d4824d6c8a9c",
     "type": "delete",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 24 липня 2026 року",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/delete",
-      "uk": "https://planitflow.com/uk/wiki/delete"
-    },
     "sourceFile": "content/legal/uk/delete.mdx",
     "sections": [
       {
@@ -3889,10 +3853,6 @@ export const LEGAL_DOCUMENTS_UK = {
     "translationSourceHash": "f6d4384ac0095e67ed698f646304fe68fba04fe448fb03e2b255227c41812c33",
     "type": "licenses",
     "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 30 серпня 2026 року",
-    "browserUrls": {
-      "en": "https://planitflow.com/en/wiki/licenses",
-      "uk": "https://planitflow.com/uk/wiki/licenses"
-    },
     "sourceFile": "content/legal/uk/licenses.mdx",
     "sections": [
       {

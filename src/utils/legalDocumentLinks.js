@@ -1,4 +1,5 @@
 import { getLegalDocument } from "../config/legalDocuments.generated";
+import { WEBSITE_URL } from "../config/website.cjs";
 
 import { normalizeLanguage } from "./i18n";
 
@@ -8,5 +9,5 @@ export const getLegalDocumentBrowserUrl = (documentType, lang) => {
   const document = getLegalDocument(documentType);
   const locale = getLegalDocumentLocale(lang);
 
-  return document.browserUrls?.[locale] || document.browserUrls?.en;
+  return `${WEBSITE_URL}/${locale}/wiki/${document.slug}`;
 };

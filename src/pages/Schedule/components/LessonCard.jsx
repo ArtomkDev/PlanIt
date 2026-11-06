@@ -30,6 +30,10 @@ const PATTERN_REVEAL_DURATION = 1000;
 const PATTERN_CARD_STAGGER = 180;
 const PATTERN_WAVE_SOFTNESS = 0.8;
 const AnimatedWaveGradient = createAnimatedComponent(LinearGradient);
+// The development-only screenshot switch; release bundles drop the require together with the dead branch.
+const useDevActiveLessonTimeLeft = __DEV__
+  ? require('../../../config/development/screenshotMode').useDevActiveLessonTimeLeft
+  : () => null;
 
 const getPatternPositions = (width, height) => {
   if (width < 52 || height < 52) return [];
@@ -119,7 +123,7 @@ function useLessonData(lesson, schedule, isDark) {
       activeGrad,
       subjectColor,
       contentColor,
-      activePillText: isDark ? '#111827' : '#ffffff',
+      activePillText: '#111827',
     };
   }, [lesson, schedule, isDark]);
 }
@@ -222,10 +226,10 @@ const BackgroundPattern = React.memo(({ MainIcon, color, width, height, order, m
   );
 });
 
-const LessonCountdown = React.memo(({ timeInfo, targetDate, enabled, lang, color }) => {
-  const now = useNowTick(targetDate, enabled);
+const LessonCountdown = React.memo(({ timeInfo, targetDate, enabled, lang, color, fixedTimeLeft }) => {
+  const now = useNowTick(targetDate, enabled && !fixedTimeLeft);
   const { timeLeft } = getTimerState(timeInfo?.start, timeInfo?.end, targetDate, now);
-  const label = timeLeft || '0:00';
+  const label = fixedTimeLeft || timeLeft || '0:00';
   return (
     <Text accessibilityLabel={t("common.remaining_time", lang, { time: label })} style={[styles.timeText, { color }]} numberOfLines={1}>
       {label}
@@ -233,7 +237,7 @@ const LessonCountdown = React.memo(({ timeInfo, targetDate, enabled, lang, color
   );
 });
 
-const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark, onPress, onLongPress, decorationsReady = true, moving }) => {
+const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark, onPress, onLongPress, decorationsReady = true, moving, firstOfDay = false }) => {
   const { 
     subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad,
     subjectColor, contentColor, activePillText,
@@ -242,10 +246,13 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
   const timerNow = useNowTick(targetDate, !!lesson?.timeInfo?.start && !!lesson?.timeInfo?.end, 60000);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   const pressOrigin = useRef(null);
-  const { isActive } = useMemo(
+  const { isActive: isActiveNow } = useMemo(
     () => getTimerState(lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow),
     [lesson?.timeInfo?.start, lesson?.timeInfo?.end, targetDate, timerNow]
   );
+  const demoTimeLeft = useDevActiveLessonTimeLeft();
+  const fixedTimeLeft = firstOfDay ? demoTimeLeft : null;
+  const isActive = isActiveNow || !!fixedTimeLeft;
 
   const { activeOpacity, inactiveOpacity } = useActivityTransition(isActive);
   // Only the current lesson needs its countdown pill; it stays mounted afterwards so it can fade out.
@@ -287,7 +294,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
     ));
   }, []);
 
-  const activePillBg = isDark ? '#ffffff' : '#111111';
+  const activePillBg = '#ffffff';
   const usesLightContent = isLightForeground(contentColor);
   const mutedContentColor = colorWithAlpha(contentColor, 0.86, contentColor);
   const chipBackground = usesLightContent ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.24)';
@@ -353,7 +360,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
               accessibilityElementsHidden={!isActive} importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
               style={[styles.activeTimePill, styles.timeRow, { opacity: activeOpacity, backgroundColor: activePillBg }]}>
               <CardIcon name="hourglass" size={11} color={activePillText} />
-              <LessonCountdown timeInfo={lesson?.timeInfo} targetDate={targetDate} enabled={isActive} lang={lang} color={activePillText} />
+              <LessonCountdown timeInfo={lesson?.timeInfo} targetDate={targetDate} enabled={isActive} lang={lang} color={activePillText} fixedTimeLeft={fixedTimeLeft} />
             </Animated.View>}
           </View>
         </View>

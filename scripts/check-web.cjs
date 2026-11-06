@@ -104,7 +104,8 @@ async function checkExport(origin) {
 if (require.main === module) {
   const args = process.argv.slice(2);
   const urlIndex = args.indexOf('--url');
-  Promise.resolve(args.includes('--config') ? checkConfig() : checkExport(urlIndex >= 0 ? args[urlIndex + 1] : undefined))
+  const liveOrigin = args.includes('--live') ? WEB_APP_URL : undefined;
+  Promise.resolve(args.includes('--config') ? checkConfig() : checkExport(urlIndex >= 0 ? args[urlIndex + 1] : liveOrigin))
     .catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 

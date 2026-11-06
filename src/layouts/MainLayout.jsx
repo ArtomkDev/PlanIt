@@ -7,13 +7,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Linking from 'expo-linking';
 
 import AutoSaveManager from '../services/AutoSaveManager';
 import { useScheduleActions, useScheduleData, useScheduleSync } from '../context/ScheduleProvider';
 import useAppTheme from '../hooks/useAppTheme';
 import { t } from '../utils/i18n';
 import MigrationModal from '../components/modals/MigrationModal';
+import ImportScheduleModal from '../components/modals/ImportScheduleModal';
 import AppBlur from '../components/ui/AppBlur';
 import MorphingLoader from '../components/ui/MorphingLoader';
 import AdBanner from '../components/AdBanner/AdBanner';
@@ -21,7 +21,6 @@ import { useBottomSheetPresentation } from '../context/BottomSheetPresentationCo
 import { useAttachmentImagePreview } from '../context/AttachmentImagePreviewContext';
 
 import SyncConflictScreen from '../pages/SyncConflict/SyncConflictScreen';
-import ImportScheduleModal from '../components/modals/ImportScheduleModal';
 import SchedulePickerSheet from '../pages/Schedule/components/SchedulePickerSheet';
 import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
 
@@ -72,14 +71,12 @@ export default function MainLayout({ guest, onExitGuest }) {
   });
   const { hasPresentedSheets } = useBottomSheetPresentation();
   const { isImagePreviewOpen } = useAttachmentImagePreview();
-  const url = Linking.useURL();
 
   const [isFatalTimeout, setIsFatalTimeout] = useState(false);
   const [retrySequence, setRetrySequence] = useState(0);
   const [confirmedEmptyScope, setConfirmedEmptyScope] = useState(null);
   const [showWidgetConfig, setShowWidgetConfig] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
-  const [importCode, setImportCode] = useState("");
   const [notificationsVisible, setNotificationsVisible] = useState(false);
 
   const hasSchedules = schedules && schedules.length > 0;
@@ -113,20 +110,6 @@ export default function MainLayout({ guest, onExitGuest }) {
   const [showOverlay, setShowOverlay] = useState(true);
   const [hasContentLayout, setHasContentLayout] = useState(false);
   const overlayOpacity = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (url) {
-      let code = null;
-      if (url.includes("share/")) {
-        const parts = url.split("share/");
-        code = parts[1]?.split("?")[0]?.replace("/", "");
-      }
-      if (code && code.length >= 5) {
-        setImportCode(code.toUpperCase());
-        setImportModalVisible(true);
-      }
-    }
-  }, [url]);
 
   useEffect(() => {
     const checkIntent = async () => {
@@ -202,11 +185,6 @@ export default function MainLayout({ guest, onExitGuest }) {
     retryInitialization();
   };
 
-  const handleCloseImportModal = () => {
-    setImportModalVisible(false);
-    setImportCode("");
-  };
-
   const handleAddScheduleFromWidgetPicker = () => {
     navigation.navigate("Tabs", {
       screen: "SettingsTab",
@@ -261,7 +239,6 @@ export default function MainLayout({ guest, onExitGuest }) {
                   return <OnboardingWizard
                     onLayout={() => setHasContentLayout(true)}
                     onImportSchedule={() => {
-                      setImportCode("");
                       setImportModalVisible(true);
                     }}
                   />;
@@ -342,8 +319,7 @@ export default function MainLayout({ guest, onExitGuest }) {
 
       <ImportScheduleModal
         visible={importModalVisible}
-        onClose={handleCloseImportModal}
-        initialCode={importCode}
+        onClose={() => setImportModalVisible(false)}
       />
     </View>
   );

@@ -89,7 +89,10 @@ function sends through `smtp.gmail.com:465` as `planit.app.support@gmail.com`.
 
 The optional `PASSWORD_RESET_CONTINUE_URL` Firebase parameter can point to a
 custom HTTPS continue/state URL. When omitted, the function uses
-`https://planitflow.com/`. Existing `functions/.env.<project>` overrides must use
+the website origin from `src/config/website.cjs`. Run `npm run config:sync` in the
+repository root after changing it; Functions deploys `src/website.generated.cjs`,
+which is synchronized automatically by the Firebase predeploy hook.
+Existing `functions/.env.<project>` overrides must use
 this production website origin as well. The continue URL includes `passwordAction`
 (`addPassword` or `resetPassword`) for password links, plus `accountAction` and
 `lang` for all links so the website shows the right flow.

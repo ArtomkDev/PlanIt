@@ -42,7 +42,7 @@ async function mount(t, overrides = {}) {
     },
   };
   const Gap = load('src/pages/Schedule/components/BreakCard.jsx', {
-    'react-native': { Animated, Platform: { OS: 'ios', select: options => options.ios ?? options.default }, Easing: { out: x => x, cubic: x => x }, View: 'View', Text: 'Text', StyleSheet: { create: x => x, absoluteFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } } },
+    'react-native': { Animated, TouchableOpacity: 'TouchableOpacity', Platform: { OS: 'ios', select: options => options.ios ?? options.default }, Easing: { out: x => x, cubic: x => x }, View: 'View', Text: 'Text', StyleSheet: { create: x => x, absoluteFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } } },
     'expo-blur': { BlurView: 'BlurView' },
     '../../../hooks/useReducedMotionPreference': { __esModule: true, default: () => false },
     './CardIcon': { __esModule: true, default: 'CardIcon' },
@@ -163,6 +163,12 @@ async function mountDay(t, options = {}) {
   return {
     root: tree.root,
     gaps: () => tree.root.findAllByType('BreakCard'),
+    async pressGap(index = 0) { await act(async () => tree.root.findAllByType('BreakCard')[index].props.onPress()); },
+    async unmount() { await act(async () => tree.unmount()); },
+    async changeDate(targetDate) {
+      props.targetDate = targetDate;
+      await act(async () => tree.update(React.createElement(Day, { ...props })));
+    },
     async tick(date, reduced = false) {
       now = date;
       reduceMotion = reduced;
@@ -190,6 +196,12 @@ test('day shows one upcoming gap, keeps it through its final second and then adv
   await day.tick(new Date(2026, 8, 28, 11, 40));
   assert.deepEqual(gapStart(), []);
   assert.equal(day.root.findAllByType('LessonCard').length, 3);
+  await day.tick(new Date(2026, 8, 28, 12, 59, 59));
+  assert.deepEqual(gapStart(), []);
+  await day.tick(new Date(2026, 8, 28, 13));
+  assert.deepEqual(gapStart(), ['09:50']);
+  await day.tick(new Date(2026, 8, 29, 8));
+  assert.deepEqual(gapStart(), ['09:50']);
 });
 
 test('day selection uses the viewed date and keeps the original gap after overlapping lessons', async t => {
@@ -203,7 +215,80 @@ test('day selection uses the viewed date and keeps the original gap after overla
   await day.tick(new Date(2026, 8, 28, 10, 10));
   assert.equal(day.gaps().length, 1);
   await day.tick(new Date(2026, 8, 29, 8));
-  assert.equal(day.gaps().length, 0);
+  assert.equal(day.gaps().length, 1);
+});
+
+test('pressing any gap toggles all gaps and cancels the old preview timeout', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const day = await mountDay(t);
+  assert.equal(day.gaps().length, 1);
+  await day.pressGap();
+  assert.equal(day.gaps().length, 2);
+  assert.ok(day.gaps().every(gap => gap.parent.props.entering.duration === 180));
+  await act(async () => t.mock.timers.tick(4000));
+  await day.pressGap(1);
+  assert.equal(day.gaps().length, 1);
+  assert.equal(day.gaps()[0].props.expanded, false);
+  await act(async () => t.mock.timers.tick(500));
+  await day.pressGap();
+  await act(async () => t.mock.timers.tick(500));
+  assert.equal(day.gaps().length, 2, 'the cancelled timer cannot collapse the new preview');
+  await act(async () => t.mock.timers.tick(4499));
+  assert.equal(day.gaps().length, 2);
+  await day.tick(new Date(2026, 8, 28, 10));
+  await act(async () => t.mock.timers.tick(1));
+  assert.equal(day.gaps().length, 1);
+  assert.equal(day.gaps()[0].props.interval.start, '11:20', 'collapse follows the latest time');
+});
+
+test('completed days show only their first gap by default and collapse back to it', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const day = await mountDay(t);
+  await day.tick(new Date(2026, 8, 29, 8));
+  assert.equal(day.gaps().length, 1);
+  assert.equal(day.gaps()[0].props.interval.start, '09:50');
+  await day.pressGap();
+  assert.equal(day.gaps().length, 2);
+  await day.pressGap();
+  assert.equal(day.gaps().length, 1);
+  assert.equal(day.gaps()[0].props.interval.start, '09:50');
+  await act(async () => t.mock.timers.tick(5000));
+  assert.equal(day.gaps().length, 1);
+  await day.pressGap();
+  assert.equal(day.gaps().length, 2);
+  await act(async () => t.mock.timers.tick(5000));
+  assert.equal(day.gaps().length, 1);
+  assert.equal(day.gaps()[0].props.interval.start, '09:50');
+});
+
+test('completed days return to the first gap after a preview expires; date changes cancel previews', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const day = await mountDay(t);
+  await day.pressGap();
+  await day.tick(new Date(2026, 8, 28, 13));
+  await act(async () => t.mock.timers.tick(5000));
+  assert.equal(day.gaps().length, 1);
+  assert.equal(day.gaps()[0].props.interval.start, '09:50');
+  await day.tick(new Date(2026, 8, 28, 8));
+  await day.pressGap();
+  await day.changeDate(new Date(2026, 8, 29));
+  assert.equal(day.gaps().length, 1);
+  await act(async () => t.mock.timers.tick(5000));
+  await day.pressGap();
+  await day.unmount();
+  await act(async () => t.mock.timers.tick(5000));
+});
+
+test('a break card exposes an accessible press action without changing its countdown', async t => {
+  let presses = 0;
+  const gap = await mount(t, { onPress: () => presses++ });
+  const button = gap.root.findByProps({ testID: 'schedule-gap' });
+  assert.equal(button.props.accessibilityRole, 'button');
+  assert.equal(button.props.accessibilityState.expanded, false);
+  assert.match(button.props.accessibilityHint, /5/);
+  await act(async () => button.props.onPress());
+  assert.equal(presses, 1);
+  assert.equal(gap.duration(), '5:00');
 });
 
 test('gap changes animate together with lesson positions and respect reduced motion', async t => {
@@ -214,6 +299,8 @@ test('gap changes animate together with lesson positions and respect reduced mot
   assert.equal(gapRow.props.layout.duration, 220);
   assert.ok(day.root.findAllByType('LessonCard').every(lesson => lesson.parent.props.layout.duration === 220));
   await day.tick(new Date(2026, 8, 28, 10), true);
+  await day.pressGap();
+  assert.equal(day.gaps().length, 2);
   assert.ok(day.root.findAllByType('TimelineRow').every(row => !row.props.layout && !row.props.entering && !row.props.exiting));
 });
 

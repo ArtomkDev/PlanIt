@@ -6,10 +6,13 @@ import { useAds } from '../../context/AdsContext';
 import { useIsAppDialogVisible } from '../../context/AppDialogContext';
 
 const isExpoGo = isRunningInExpoGo();
+// The development-only settings switch; release bundles drop the require together with the dead branch.
+const useDevAdsHidden = __DEV__ ? require('../../config/development/screenshotMode').useDevAdsHidden : () => false;
 
 export default function AdBanner({ visible = true, reserveSpace = false }) {
   const { canShowAds, isPrivacyOptionsLoading } = useAds();
   const isDialogVisible = useIsAppDialogVisible();
+  const devAdsHidden = useDevAdsHidden();
   const [RealAdComponent, setRealAdComponent] = useState(null);
   const [appActive, setAppActive] = useState(AppState.currentState === 'active');
   const [windowFocused, setWindowFocused] = useState(true);
@@ -46,7 +49,7 @@ export default function AdBanner({ visible = true, reserveSpace = false }) {
     }
   }, [canShowAds, bannerVisible, RealAdComponent]);
 
-  if (isExpoGo || !canShowAds || !RealAdComponent) return null;
+  if (isExpoGo || !canShowAds || devAdsHidden || !RealAdComponent) return null;
 
   return <RealAdComponent visible={bannerVisible} reserveSpace={reserveSpace} />;
 }
