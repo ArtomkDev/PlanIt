@@ -376,14 +376,14 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
           </View>
         ) : null}
 
-        <TouchableOpacity accessibilityRole="button" disabled={!acceptedTerms || busy} accessibilityState={{ disabled: !acceptedTerms || busy }} accessibilityLabel={t('auth.signin.submit', lang)} style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signin'))}>
+        <TouchableOpacity accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} accessibilityLabel={t('auth.signin.submit', lang)} style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signin'))}>
           <Text style={[styles.primaryButtonText, { color: colors.textOnAccent }]}>{t('auth.signin.submit', lang)}</Text>
         </TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" disabled={!acceptedTerms || busy} accessibilityState={{ disabled: !acceptedTerms || busy }} accessibilityLabel={t('auth.signup.title', lang)} style={[styles.secondaryButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
+        <TouchableOpacity accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} accessibilityLabel={t('auth.signup.title', lang)} style={[styles.secondaryButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderColor: colors.borderColor, opacity: acceptedTerms ? 1 : 0.6 }]} onPress={() => checkTerms(() => onNavigate('signup'))}>
           <Text style={[styles.secondaryButtonText, { color: colors.textColor }]}>{t("auth.signup.title", lang)}</Text>
         </TouchableOpacity>
         {onGuestLogin && (
-          <TouchableOpacity accessibilityRole="button" disabled={!acceptedTerms || busy} accessibilityState={{ disabled: !acceptedTerms || busy }} accessibilityLabel={t('auth.welcome.guest_btn', lang)} style={styles.guestButton} onPress={() => checkTerms(onGuestLogin)}>
+          <TouchableOpacity accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} accessibilityLabel={t('auth.welcome.guest_btn', lang)} style={styles.guestButton} onPress={() => checkTerms(onGuestLogin)}>
             <Text style={[styles.guestButtonText, { color: acceptedTerms ? colors.textColor2 : colors.textColor2 + '80' }]}>{t('auth.welcome.guest_btn', lang)}</Text>
           </TouchableOpacity>
         )}
@@ -966,10 +966,10 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: colors.accentColor, opacity: isLoading || !acceptedTerms || (currentView === 'signup' && !isPasswordAllowed(password)) ? 0.6 : 1 }]}
             onPress={currentView === 'signin' ? handleSignIn : handleSignUp}
-            disabled={isLoading || !acceptedTerms}
+            disabled={isLoading}
             accessibilityRole="button"
             accessibilityLabel={currentView === 'signin' ? t('auth.signin.submit', lang) : t("auth.signup.title", lang)}
-            accessibilityState={{ disabled: isLoading || !acceptedTerms, busy: isLoading }}
+            accessibilityState={{ disabled: isLoading, busy: isLoading }}
           >
             {isLoading ? <MorphingLoader size={24} /> : null}
             <Text style={[styles.primaryButtonText, { color: colors.textOnAccent }]}>
@@ -982,7 +982,7 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
       elements.push(
         <View key="social" style={styles.socialGroup}>
           <View style={{ opacity: acceptedTerms ? 1 : 0.6 }}>
-            <SocialAuthButtons disabled={isLoading || !acceptedTerms} onBeforeAuth={() => beforeAuth()} onAuthError={handleSocialAuthError} />
+            <SocialAuthButtons disabled={isLoading} onBeforeAuth={() => beforeAuth()} onAuthError={handleSocialAuthError} />
           </View>
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.textColor2 }]}>

@@ -242,6 +242,7 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
     subject, teacher, displayType, displayRoom, displayBuilding, MainIcon, activeGrad,
     subjectColor, contentColor, activePillText,
   } = useLessonData(lesson, schedule, isDark);
+  const teacherName = teacher?.name?.trim();
 
   const timerNow = useNowTick(targetDate, !!lesson?.timeInfo?.start && !!lesson?.timeInfo?.end, 60000);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
@@ -372,12 +373,14 @@ const LessonCardPure = React.memo(({ lesson, schedule, lang, targetDate, isDark,
         </View>
 
         <View style={styles.footerRow}>
-          <View style={[styles.footerItem, { backgroundColor: subtleChipBackground }]}>
-            <View style={styles.iconFixedContainer}>
-                <CardIcon name="user" size={11} color={mutedContentColor} />
+          {!!teacherName && (
+            <View style={[styles.footerItem, { backgroundColor: subtleChipBackground }]}>
+              <View style={styles.iconFixedContainer}>
+                  <CardIcon name="user" size={11} color={mutedContentColor} />
+              </View>
+              <Text style={[styles.footerText, { color: mutedContentColor }]} numberOfLines={1}>{teacherName}</Text>
             </View>
-            <Text style={[styles.footerText, { color: mutedContentColor }]} numberOfLines={1}>{teacher?.name || "—"}</Text>
-          </View>
+          )}
 
           {!!(displayRoom || displayBuilding) && (
             <View style={[styles.footerItem, { backgroundColor: subtleChipBackground }]}>

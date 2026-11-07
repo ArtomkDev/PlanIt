@@ -514,7 +514,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: "center",
   },
   pickerContainer: {
     flex: 1,
@@ -522,7 +521,7 @@ const styles = StyleSheet.create({
   },
   gridWrapper: {
     flex: 1,
-    justifyContent: "center",
+    paddingTop: 8,
   },
   yearNavigation: {
     height: 54,

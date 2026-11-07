@@ -6,6 +6,7 @@ import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../..
 import { useAppDialog } from '../../../context/AppDialogContext';
 import themes from '../../../config/themes';
 import { t } from '../../../utils/i18n';
+import { DEFAULT_SCHEDULE_NAME_KEY, getScheduleDisplayName, isDefaultScheduleName } from '../../../utils/scheduleDisplay';
 import SettingsHeader from '../../../components/ui/SettingsHeader';
 import ScheduleIdentityEditor from '../../../components/ScheduleIdentityEditor';
 import ScheduleCycleEditor from '../../../components/ScheduleCycleEditor';
@@ -36,7 +37,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   [schedules, scheduleId, currentActiveSchedule, isNew]);
   const [localData, setLocalData] = useState(() => ({
     id: targetSchedule?.id || generateId(),
-    name: targetSchedule?.name || '',
+    name: isDefaultScheduleName(targetSchedule?.name) ? '' : targetSchedule?.name || '',
     icon: targetSchedule?.icon || null,
     color: resolveScheduleColor(targetSchedule, themeColors.accentColor),
     repeat: String(normalizeScheduleRepeat(targetSchedule?.repeat)),
@@ -68,7 +69,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
   const headerHeight = getSettingsHeaderHeight(insets.top);
   const handleFinalSave = () => {
     if (saveStarted.current) return;
-    const finalName = localData.name?.trim() || t("common.schedule_name", lang);
+    const finalName = localData.name?.trim() || t(DEFAULT_SCHEDULE_NAME_KEY, lang);
     const finalRepeat = normalizeScheduleRepeat(localData.repeat);
     const finalBreaks = localData.breaks.map(Number);
 
@@ -128,7 +129,7 @@ export default function ScheduleEditorScreen({ route: propsRoute, onFinish }) {
     Object.values(day || {}).flatMap(lessons => Array.isArray(lessons) ? lessons.map(lesson => lesson?.timeMode === 'slot' ? lesson.slotNumber : 0) : []))), [targetSchedule]);
 
   const displayTitle = isNew ? t('settings.schedule_switcher.add_new', lang)
-    : targetSchedule?.name || t('settings.schedule_editor.edit_schedule', lang);
+    : getScheduleDisplayName(targetSchedule, lang, t('settings.schedule_editor.edit_schedule', lang));
   const editorProps = { value: localData, onChange: setLocalData, themeColors, lang };
   const saveButton = (
     <TouchableOpacity accessibilityRole="button" accessibilityLabel={isInitialSetup ? t('common.done', lang) : t('common.save', lang)}

@@ -18,6 +18,7 @@ import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvi
 import { copyScheduleAttachments, upsertAttachmentLibraryFiles } from '../../services/attachmentService';
 import themes from '../../config/themes';
 import { t } from '../../utils/i18n';
+import { getScheduleDisplayName } from '../../utils/scheduleDisplay';
 import MorphingLoader from '../ui/MorphingLoader';
 import BottomSheet, { SheetFlatList } from '../ui/BottomSheet';
 import { triggerHaptic } from '../../utils/haptics';
@@ -213,10 +214,11 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
               keyExtractor={item => item.id}
               renderItem={({ item }) => {
                 const isSelected = selectedIds.has(item.id);
+                const scheduleName = getScheduleDisplayName(item, lang);
                 return (
                   <TouchableOpacity 
                     accessibilityRole="checkbox"
-                    accessibilityLabel={item.name || t('common.untitled', lang)}
+                    accessibilityLabel={scheduleName}
                     accessibilityState={{ checked: isSelected, disabled: isMigrating }}
                     disabled={isMigrating}
                     style={[
@@ -233,7 +235,7 @@ export default function MigrationModal({ userId, onComplete = () => {} }) {
                       <Square size={24} color={themeColors.textColor2} weight="regular" />
                     )}
                     <Text style={[styles.scheduleName, { color: themeColors.textColor }]} numberOfLines={1}>
-                      {item.name || t('common.untitled', lang)}
+                      {scheduleName}
                     </Text>
                   </TouchableOpacity>
                 );

@@ -12,6 +12,7 @@ import { useScheduleActions, useScheduleData, useScheduleLayout } from '../../co
 import themes from '../../config/themes';
 import SettingsHeader from '../../components/ui/SettingsHeader';
 import { t } from '../../utils/i18n';
+import { getScheduleDisplayName } from '../../utils/scheduleDisplay';
 import MorphingLoader from '../../components/ui/MorphingLoader';
 import SettingsGroup from '../../components/ui/SettingsKit/SettingsGroup';
 import SettingsRow from '../../components/ui/SettingsKit/SettingsRow';
@@ -132,7 +133,7 @@ export default function Settings({ guest, onExitGuest }) {
           params: { scheduleId: schedule.id },
           icon: Table,
           desc: t('settings.schedule_editor.current_schedule_hint', lang),
-          meta: schedule.name,
+          meta: getScheduleDisplayName(schedule, lang),
           valuePosition: 'below',
         }] : []),
         {

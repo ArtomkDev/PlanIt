@@ -9,10 +9,12 @@ import ScheduleIcon from './ScheduleIcon';
 import ScheduleIconPickerSheet from './ScheduleIconPickerSheet';
 import { scheduleColorWithAlpha } from '../utils/scheduleColors';
 import { t } from '../utils/i18n';
+import { DEFAULT_SCHEDULE_NAME_KEY } from '../utils/scheduleDisplay';
 
 export default function ScheduleIdentityEditor({ value, onChange, themeColors, lang, active = true }) {
   const [picker, setPicker] = useState(null);
   useEffect(() => { if (!active) setPicker(null); }, [active]);
+  const previewName = value.name?.trim() || t(DEFAULT_SCHEDULE_NAME_KEY, lang);
   return (
     <>
       <SettingsGroup title={t('settings.sections.general', lang)} themeColors={themeColors}>
@@ -29,14 +31,14 @@ export default function ScheduleIdentityEditor({ value, onChange, themeColors, l
           rightContent={<View style={[styles.swatch, { backgroundColor: value.color, borderColor: themeColors.borderColor }]} />} />
         <SettingsRow label={t('settings.schedule_editor.icon', lang)} desc={t('settings.schedule_editor.icon_hint', lang)}
           icon={Shapes} themeColors={themeColors} onPress={() => setPicker('icon')}
-          rightContent={<ScheduleIcon icon={value.icon} name={value.name || t('common.schedule_name', lang)}
+          rightContent={<ScheduleIcon icon={value.icon} name={previewName}
             size={36} iconSize={20} backgroundColor={scheduleColorWithAlpha(value.color, 0.16)} color={value.color} />} />
       </SettingsGroup>
       <AdvancedColorPicker visible={active && picker === 'color'} initialColor={value.color} onClose={() => setPicker(null)}
         onSave={color => { onChange({ ...value, color }); setPicker(null); }} />
       <ScheduleIconPickerSheet visible={active && picker === 'icon'} onClose={() => setPicker(null)}
         onSelect={icon => { onChange({ ...value, icon }); setPicker(null); }} selectedIcon={value.icon}
-        scheduleName={value.name || t('common.schedule_name', lang)} scheduleColor={value.color} themeColors={themeColors} lang={lang} />
+        scheduleName={previewName} scheduleColor={value.color} themeColors={themeColors} lang={lang} />
     </>
   );
 }

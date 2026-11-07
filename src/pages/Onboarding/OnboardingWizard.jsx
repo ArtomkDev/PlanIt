@@ -14,6 +14,7 @@ import {
 import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
 import { useAppDialog } from '../../context/AppDialogContext';
 import { t } from '../../utils/i18n';
+import { DEFAULT_SCHEDULE_NAME_KEY } from '../../utils/scheduleDisplay';
 import themes from '../../config/themes';
 import defaultSchedule from '../../config/defaultSchedule';
 import AppBlur from '../../components/ui/AppBlur';
@@ -173,7 +174,7 @@ export default function OnboardingWizard({ onImportSchedule, onLayout }) {
     addSchedule({
       ...draft,
       id: scheduleId,
-      name: draft.name.trim() || t('common.schedule_name', lang),
+      name: draft.name.trim() || t(DEFAULT_SCHEDULE_NAME_KEY, lang),
       repeat: finalRepeat,
       duration: Number(draft.slotDurations[0]),
       slotDurations: draft.slotDurations.map(Number),

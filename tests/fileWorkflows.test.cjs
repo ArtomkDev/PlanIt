@@ -35,6 +35,7 @@ const documentBranding = load('src/config/documentBranding.js');
 const exportsUtil = load('src/utils/scheduleExport.js', {
   './scheduleTime': scheduleTime, './i18n': i18n, './contactData': load('src/utils/contactData.js'),
   '../config/documentBranding': documentBranding,
+  './scheduleDisplay': load('src/utils/scheduleDisplay.js', { './i18n': i18n }),
 });
 const spreadsheetUtil = load('src/utils/scheduleSpreadsheet.js', {
   './i18n': i18n, './scheduleExport': exportsUtil, '../config/documentBranding': documentBranding,

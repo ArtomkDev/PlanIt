@@ -85,9 +85,30 @@ const TASK_ICON_PATTERN_MIN_HEIGHT = 132;
 const TASKS_TITLE_LINE_HEIGHT = 38;
 const TASKS_SUBTITLE_LINE_HEIGHT = 18;
 const TASKS_HEADER_TOP_PADDING = 14;
+const TASKS_HEADER_GAP = 12;
+const FILTER_BUTTON_MIN_EXPANDED_WIDTH = 112;
+const FILTER_BUTTON_MAX_WIDTH = 240;
+const FILTER_BUTTON_HEIGHT = 44;
+const FILTER_BUTTON_PADDING_LEFT = 8;
+const FILTER_BUTTON_PADDING_RIGHT = 10;
+const FILTER_BUTTON_CONTENT_GAP = 7;
+const FILTER_ICON_SIZE = 30;
+const FILTER_CARET_SIZE = 15;
+const FILTER_BUTTON_CHROME_WIDTH = FILTER_BUTTON_PADDING_LEFT + FILTER_ICON_SIZE
+  + FILTER_BUTTON_CONTENT_GAP * 2 + FILTER_CARET_SIZE + FILTER_BUTTON_PADDING_RIGHT + 2;
+const EMPTY_MEASUREMENT = { value: "", width: 0 };
+
+const getMeasuredWidth = (measurement, value) => (measurement.value === value ? measurement.width : 0);
+
+const handleMeasuredLayout = (setMeasurement, value) => (event) => {
+  const width = Math.ceil(event.nativeEvent.layout.width);
+  setMeasurement((current) => (
+    current.value === value && current.width === width ? current : { value, width }
+  ));
+};
 const TASKS_HEADER_BOTTOM_PADDING = APP_HEADER_BODY_HEIGHT
   - TASKS_HEADER_TOP_PADDING
-  - TASKS_TITLE_LINE_HEIGHT
+  - Math.max(TASKS_TITLE_LINE_HEIGHT, FILTER_BUTTON_HEIGHT)
   - 4
   - TASKS_SUBTITLE_LINE_HEIGHT;
 const TASK_CARD_GAP = 8;
@@ -646,11 +667,13 @@ const TaskCard = React.memo(function TaskCard({
   const borderColor = usesLightText
     ? (completed ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.24)")
     : (completed ? "rgba(17,24,39,0.26)" : "rgba(17,24,39,0.18)");
-  const titleLabel = subject?.name || t("tasks.no_subject", lang);
+  const subjectLabel = subject?.name || t("tasks.no_subject", lang);
+  const taskText = task?.text?.trim() || t("tasks.empty_text", lang);
   const SubjectIcon = getIconComponent(subject?.icon);
   const CompletedSubjectIcon = SubjectIcon || ClipboardText;
   const [renderPattern, setRenderPattern] = useState(Boolean(SubjectIcon && !completed));
   const [renderCompletedIcon, setRenderCompletedIcon] = useState(completed);
+  const titleLabel = renderCompletedIcon ? taskText : subjectLabel;
   const iconPatternOpacity = usesLightText ? 0.18 : 0.07;
   const textShadowStyle = usesLightText
     ? null
@@ -853,7 +876,7 @@ const TaskCard = React.memo(function TaskCard({
         hitSlop={10}
         style={styles.checkboxButton}
         accessibilityRole="checkbox"
-        accessibilityLabel={titleLabel}
+        accessibilityLabel={`${subjectLabel}: ${taskText}`}
         accessibilityState={{ checked: completed }}
       >
         <TaskCheckboxIcon
@@ -880,6 +903,7 @@ const TaskCard = React.memo(function TaskCard({
                 styles.subjectName,
                 { color: textOnCard },
                 styles.subjectNameSingle,
+                renderCompletedIcon && styles.completedTitle,
                 textShadowStyle,
               ]}
               numberOfLines={1}
@@ -1000,6 +1024,10 @@ export default function Tasks({ route, navigation }) {
   const [draftScheduleId, setDraftScheduleId] = useState(null);
   const [linkedLessonPreview, setLinkedLessonPreview] = useState(null);
   const [filterVisible, setFilterVisible] = useState(false);
+  const [headerRowWidth, setHeaderRowWidth] = useState(0);
+  const [titleMeasurement, setTitleMeasurement] = useState(EMPTY_MEASUREMENT);
+  const [summaryMeasurement, setSummaryMeasurement] = useState(EMPTY_MEASUREMENT);
+  const [filterLabelMeasurement, setFilterLabelMeasurement] = useState(EMPTY_MEASUREMENT);
   const headerTopInset = getAppHeaderTopInset(insets.top);
   const headerHeight = getAppHeaderHeight(insets.top);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState([]);
@@ -1131,7 +1159,7 @@ export default function Tasks({ route, navigation }) {
 
   const selectedCountLabel = useMemo(() => {
     if (singleSelectedSchedule) {
-      return singleSelectedSchedule.name || t("common.untitled", lang);
+      return getScheduleDisplayName(singleSelectedSchedule, lang);
     }
     return t("tasks.filter.selected_count", lang, { count: String(normalizedSelectedScheduleIds.length) });
   }, [lang, normalizedSelectedScheduleIds.length, singleSelectedSchedule]);
@@ -1459,6 +1487,21 @@ export default function Tasks({ route, navigation }) {
   };
 
   const TaskEditor = editorVisible ? require('./components/TaskEditor').default : null;
+  const tasksTitle = t("common.tasks", lang);
+  const titleWidth = getMeasuredWidth(titleMeasurement, tasksTitle);
+  const summaryWidth = getMeasuredWidth(summaryMeasurement, headerTaskSummary);
+  const filterLabelWidth = getMeasuredWidth(filterLabelMeasurement, selectedCountLabel);
+  const isFilterCompact = headerRowWidth > 0 && titleWidth > 0
+    && headerRowWidth - TASKS_HEADER_GAP - titleWidth < FILTER_BUTTON_MIN_EXPANDED_WIDTH;
+  const expandedFilterWidth = Math.min(FILTER_BUTTON_MAX_WIDTH, FILTER_BUTTON_CHROME_WIDTH + filterLabelWidth);
+  const isSummaryInline = !isFilterCompact && headerRowWidth > 0 && titleWidth > 0
+    && summaryWidth > 0 && filterLabelWidth > 0
+    && headerRowWidth - TASKS_HEADER_GAP - Math.max(titleWidth, summaryWidth) >= expandedFilterWidth;
+  const summaryText = (
+    <Text style={[styles.subtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
+      {headerTaskSummary}
+    </Text>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.backgroundColor }, { paddingLeft: insets.left, paddingRight: insets.right }]}>
@@ -1466,14 +1509,18 @@ export default function Tasks({ route, navigation }) {
       <View style={[styles.headerContainer, { height: headerHeight, borderBottomColor: themeColors.borderColor }]}>
         <AppBlur style={StyleSheet.absoluteFill} intensity={50} />
         <View style={[styles.header, { paddingTop: headerTopInset + TASKS_HEADER_TOP_PADDING }]}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerCopy}>
-              <Text style={[styles.title, { color: themeColors.textColor }]}>
-                {t("common.tasks", lang)}
+          <View
+            style={styles.headerRow}
+            onLayout={(event) => {
+              const nextWidth = Math.round(event.nativeEvent.layout.width);
+              setHeaderRowWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+            }}
+          >
+            <View style={[styles.headerCopy, !isFilterCompact && { minWidth: titleWidth }]}>
+              <Text style={[styles.title, { color: themeColors.textColor }]} numberOfLines={1}>
+                {tasksTitle}
               </Text>
-              <Text style={[styles.subtitle, { color: themeColors.textColor2 }]} numberOfLines={1}>
-                {headerTaskSummary}
-              </Text>
+              {isSummaryInline && summaryText}
             </View>
 
             <TouchableOpacity
@@ -1490,13 +1537,13 @@ export default function Tasks({ route, navigation }) {
                 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel={t("tasks.filter.title", lang)}
+              accessibilityLabel={`${t("tasks.filter.title", lang)}: ${selectedCountLabel}`}
             >
               {singleSelectedSchedule ? (
                 <ScheduleIcon
                   icon={singleSelectedSchedule.icon}
                   name={selectedCountLabel}
-                  size={30}
+                  size={FILTER_ICON_SIZE}
                   iconSize={18}
                   backgroundColor={scheduleColorWithAlpha(filterColor, 0.16)}
                   color={filterColor}
@@ -1506,12 +1553,47 @@ export default function Tasks({ route, navigation }) {
                   <CalendarDots size={18} color={filterColor} weight="bold" />
                 </View>
               )}
-              <Text style={[styles.filterLabel, { color: themeColors.textColor }]} numberOfLines={1}>
-                {selectedCountLabel}
-              </Text>
-              <CaretDown size={15} color={themeColors.textColor2} weight="bold" />
+              {!isFilterCompact && (
+                <Text style={[styles.filterLabel, { color: themeColors.textColor }]} numberOfLines={1}>
+                  {selectedCountLabel}
+                </Text>
+              )}
+              <CaretDown size={FILTER_CARET_SIZE} color={themeColors.textColor2} weight="bold" />
             </TouchableOpacity>
           </View>
+          {!isSummaryInline && summaryText}
+        </View>
+        <View
+          pointerEvents="none"
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.measurementLayer}
+        >
+          <Text
+            key={`tasks-title-measurement:${tasksTitle}`}
+            numberOfLines={1}
+            onLayout={handleMeasuredLayout(setTitleMeasurement, tasksTitle)}
+            style={[styles.title, styles.measurementText]}
+          >
+            {tasksTitle}
+          </Text>
+          <Text
+            key={`tasks-summary-measurement:${headerTaskSummary}`}
+            numberOfLines={1}
+            onLayout={handleMeasuredLayout(setSummaryMeasurement, headerTaskSummary)}
+            style={[styles.subtitle, styles.measurementText]}
+          >
+            {headerTaskSummary}
+          </Text>
+          <Text
+            key={`tasks-filter-measurement:${selectedCountLabel}`}
+            numberOfLines={1}
+            onLayout={handleMeasuredLayout(setFilterLabelMeasurement, selectedCountLabel)}
+            style={[styles.filterLabel, styles.measurementText]}
+          >
+            {selectedCountLabel}
+          </Text>
         </View>
       </View>
 
@@ -1585,10 +1667,11 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: TASKS_HEADER_GAP,
   },
   headerCopy: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     minWidth: 0,
   },
   title: {
@@ -1604,19 +1687,20 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   filterButton: {
-    minHeight: 44,
-    maxWidth: 190,
+    flexShrink: 1,
+    minHeight: FILTER_BUTTON_HEIGHT,
+    maxWidth: FILTER_BUTTON_MAX_WIDTH,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingLeft: 8,
-    paddingRight: 10,
+    paddingLeft: FILTER_BUTTON_PADDING_LEFT,
+    paddingRight: FILTER_BUTTON_PADDING_RIGHT,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: FILTER_BUTTON_CONTENT_GAP,
   },
   filterIcon: {
-    width: 30,
-    height: 30,
+    width: FILTER_ICON_SIZE,
+    height: FILTER_ICON_SIZE,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
@@ -1625,6 +1709,17 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 13,
     fontWeight: "800",
+  },
+  measurementLayer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    opacity: 0,
+    alignItems: "flex-start",
+  },
+  measurementText: {
+    flexShrink: 0,
+    alignSelf: "flex-start",
   },
   content: {
     flex: 1,
@@ -1813,6 +1908,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontSize: 15,
+  },
+  completedTitle: {
+    fontWeight: "700",
+    textDecorationLine: "line-through",
   },
   lessonTimeButton: {
     marginLeft: "auto",

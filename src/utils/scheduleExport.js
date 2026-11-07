@@ -2,6 +2,7 @@ import { buildDayTimeline, getScheduleWeekNumbers, calculateScheduleWeek, getLas
 import { getLinkOpenUrl } from "./contactData";
 import { getLocale, normalizeLanguage, t } from "./i18n";
 import { getDocumentBranding } from "../config/documentBranding";
+import { getScheduleDisplayName } from "./scheduleDisplay";
 
 const text = (value) => typeof value === "string" ? value.trim() : "";
 const asList = (value) => Array.isArray(value) ? value : value ? [value] : [];
@@ -144,7 +145,7 @@ export const buildScheduleExport = (schedule, language, options = {}) => {
     location: options.shareLocations === false, teacher: options.shareTeachers === false,
     links: options.shareLinks === false, notes: options.shareNotes !== true };
   return {
-    title: text(schedule.name) || t("common.schedule", lang),
+    title: getScheduleDisplayName(schedule, lang, t("common.schedule", lang)),
     author: options.shareAuthorName ? text(options.authorName) : "",
     cycleStart, lang, settings, weeks, empty: t("share.no_classes", lang),
     weekCalendar: buildScheduleWeekCalendar(schedule, lang, options),
