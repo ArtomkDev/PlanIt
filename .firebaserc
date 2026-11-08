@@ -1,10 +1,14 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "planitflow-dev",
+    "dev": "planitflow-dev",
+    "prod": "planit-hub"
+  },
   "targets": {
     "planit-hub": {
       "hosting": {
         "app": [
-          "planit-demo"
+          "planitflow-app"
         ]
       }
     }

@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { CaretDown, CaretUp, DownloadSimple, ArrowLeft } from 'phosphor-react-native';
-import PlanItWordmark from '../../components/ui/PlanItWordmark';
+import { CaretDown, CaretUp, DownloadSimple, ArrowLeft, Moon, Sun } from 'phosphor-react-native';
+import PlanItWordmark, { WEBSITE_ACCENT_DARK } from '../../components/ui/PlanItWordmark';
 import SharedScheduleAccessSheet from '../../components/schedule/SharedScheduleAccessSheet';
 import { hasLegalAcceptance, recordLegalAcceptance } from '../../services/legalAcceptanceService';
 import { fetchSharedSchedule, prepareSharedScheduleImport, readSharedScheduleImport, clearSharedScheduleImport } from '../../services/shareService';
@@ -11,15 +11,18 @@ import { StatusBar } from 'expo-status-bar';
 import { useScheduleActions, useScheduleData } from '../../context/ScheduleProvider';
 import useAppTheme from '../../hooks/useAppTheme';
 import MorphingLoader from '../../components/ui/MorphingLoader';
-import { getSharedScheduleErrorKey, subscribeToSharedSchedule } from '../../services/shareService';
+import { createSharedScheduleAndroidIntentUrl, getSharedScheduleErrorKey, subscribeToSharedSchedule } from '../../services/shareService';
 import { sanitizeImportedSchedule } from '../../utils/scheduleValidation';
-import { getLocale, t } from '../../utils/i18n';
+import { SUPPORTED_LANGUAGES, getLocale, t } from '../../utils/i18n';
 import { getLegalDocumentBrowserUrl } from '../../utils/legalDocumentLinks';
 import SharedSchedulePreview from '../../components/schedule/SharedSchedulePreview';
+import { getSharedSchedulePreviewPageWidth } from '../../components/schedule/sharedSchedulePreviewModel';
+
+const isAndroidBrowser = Platform.OS === 'web' && typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
 
 export default function SharedScheduleScreen({ route, navigation, fallbackRoute, onGuestLogin }) {
   const { lang, user, guest, isLoading } = useScheduleData();
-  const { addSchedule } = useScheduleActions();
+  const { addSchedule, setSignedOutPreferences } = useScheduleActions();
   const { colors, colorScheme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const code = route.params?.code;
@@ -89,6 +92,9 @@ export default function SharedScheduleScreen({ route, navigation, fallbackRoute,
   }, [code, attempt]));
 
   const shared = result?.code === code ? result.data : null;
+  const sharedScheduleData = shared?.scheduleData;
+  // The header widens with the content so their edges stay aligned.
+  const pageWidth = useMemo(() => sharedScheduleData ? getSharedSchedulePreviewPageWidth(sharedScheduleData) : undefined, [sharedScheduleData]);
   useEffect(() => {
     if (!shared) return;
     const expire = () => {
@@ -102,9 +108,8 @@ export default function SharedScheduleScreen({ route, navigation, fallbackRoute,
     return () => clearTimeout(timer);
   }, [shared]);
 
-  const openSavedCopy = () => navigation.reset({ index: 0, routes: [{
-    name: 'MainLayout', params: { screen: 'Tabs', params: { screen: 'ScheduleTab' } },
-  }] });
+  // Navigate rather than reset: on web a reset replaces the browser entry, so Back could not return here.
+  const openSavedCopy = () => navigation.navigate('MainLayout', { screen: 'Tabs', params: { screen: 'ScheduleTab' } });
 
   const saveCopy = async () => {
     if (!shared || busyRef.current || saved || scopeRef.current !== scope || ((user || guest) && isLoading)) return;
@@ -209,33 +214,64 @@ export default function SharedScheduleScreen({ route, navigation, fallbackRoute,
     catch { setLegalLinkError(true); }
   };
 
-  const saveButton = <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('share.save_copy', lang)}
+  const saveLabel = t(saved ? 'share.copy_saved' : saving ? 'share.preparing' : 'share.save_copy', lang);
+  const saveButton = <TouchableOpacity accessibilityRole="button" accessibilityLabel={saveLabel}
     accessibilityState={{ disabled: saving || saved || !shared || (!!(user || guest) && isLoading), busy: saving }}
     disabled={saving || saved || !shared || (!!(user || guest) && isLoading)} onPress={saveCopy}
-    style={[styles.saveButton, { backgroundColor: colors.accentColor, opacity: saving || !shared ? 0.6 : 1 }]}>
-    <DownloadSimple size={20} color={colors.textOnAccent} accessible={false} />
-    <Text style={[styles.buttonText, { color: colors.textOnAccent }]}>{t(saving ? 'share.preparing' : 'share.save_copy', lang)}</Text>
+    style={[styles.saveButton, { backgroundColor: colors.textColor, opacity: saving || !shared ? 0.6 : 1 }]}>
+    <DownloadSimple size={16} weight="bold" color={colors.backgroundColor} accessible={false} />
+    <Text style={[styles.saveButtonText, { color: colors.backgroundColor }]}>{saveLabel}</Text>
   </TouchableOpacity>;
   const DetailCaret = detailsVisible ? CaretUp : CaretDown;
+  const isDark = colorScheme === 'dark';
+  const languageIndex = SUPPORTED_LANGUAGES.findIndex(item => item.code === lang);
+  const nextLanguage = SUPPORTED_LANGUAGES[(languageIndex + 1) % SUPPORTED_LANGUAGES.length];
+  const headerIconStyle = [styles.headerIcon, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }];
+  // Same controls as the planitflow.com header: the language button names the language it switches to,
+  // the theme button shows the current theme.
+  const visitorPreferences = !user && !guest && <>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('share.switch_language', lang, { language: nextLanguage.label })}
+      onPress={() => setSignedOutPreferences({ language: nextLanguage.code })} style={headerIconStyle}>
+      <Text style={[styles.headerIconText, { color: colors.textColor }]}>{nextLanguage.code.toUpperCase()}</Text>
+    </TouchableOpacity>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={t(isDark ? 'share.switch_to_light' : 'share.switch_to_dark', lang)}
+      onPress={() => setSignedOutPreferences({ theme: [isDark ? 'light' : 'dark', 'blue'] })} style={headerIconStyle}>
+      {isDark ? <Moon size={20} weight="duotone" color={WEBSITE_ACCENT_DARK} accessible={false} />
+        : <Sun size={20} weight="duotone" color="#F59E0B" accessible={false} />}
+    </TouchableOpacity>
+  </>;
 
   return <View style={[styles.screen, { backgroundColor: colors.backgroundColor, paddingTop: insets.top }]}>
-    <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    <StatusBar style={isDark ? 'light' : 'dark'} />
     <View style={[styles.topBar, { borderColor: colors.borderColor }]}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: width < 640 ? 16 : 24 }, pageWidth && { maxWidth: pageWidth }]}>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('share.back_to_planit', lang)}
           disabled={saving} onPress={closePreview} style={styles.backButton}>
-          <ArrowLeft size={20} color={colors.textColor2} accessible={false} />
-          <PlanItWordmark fontSize={24} color={colors.textColor} isDark={colorScheme === 'dark'} />
+          {Platform.OS !== 'web' && <ArrowLeft size={20} color={colors.textColor2} accessible={false} />}
+          <PlanItWordmark fontSize={24} color={colors.textColor} isDark={isDark} />
         </TouchableOpacity>
-        {desktop && saveButton}
+        <View style={styles.headerActions}>
+          {desktop && saveButton}
+          {visitorPreferences}
+        </View>
       </View>
     </View>
-    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 }, pageWidth && { maxWidth: pageWidth }]} showsVerticalScrollIndicator={false}>
       <View style={styles.heading}>
         <Text style={[styles.eyebrow, { color: colors.accentTextColor }]}>{t('share.read_only', lang)}</Text>
         <Text accessibilityRole="header" style={[styles.title, { color: colors.textColor }]}>{shared?.scheduleData.name || t('share.open_title', lang)}</Text>
         <Text style={[styles.meta, { color: colors.textColor2 }]}>{t('share.preview_short', lang)}</Text>
       </View>
+      {isAndroidBrowser && <View style={[styles.appBanner, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
+        <View style={styles.appBannerText}>
+          <Text style={[styles.buttonText, { color: colors.textColor }]}>{t('share.app_banner_title', lang)}</Text>
+          <Text style={[styles.meta, { color: colors.textColor2 }]}>{t('share.app_banner_hint', lang)}</Text>
+        </View>
+        <TouchableOpacity accessibilityRole="link" href={createSharedScheduleAndroidIntentUrl(code)}
+          style={[styles.button, { borderColor: colors.accentColor }]}>
+          <Text style={[styles.buttonText, { color: colors.accentTextColor }]}>{t('share.app_banner_open', lang)}</Text>
+        </TouchableOpacity>
+      </View>}
       {saveError && <Text accessibilityRole="alert" style={[styles.meta, { color: colors.textColor }]}>{t(saveError, lang)}</Text>}
       {errorKey ? <View style={styles.state}>
         <Text accessibilityRole="alert" style={[styles.meta, { color: colors.textColor }]}>{t(errorKey, lang)}</Text>
@@ -255,7 +291,7 @@ export default function SharedScheduleScreen({ route, navigation, fallbackRoute,
             date: new Intl.DateTimeFormat(getLocale(lang), { dateStyle: 'medium', timeStyle: 'short' }).format(shared.expiresAt),
           })}</Text>
           <Text style={[styles.meta, { color: colors.textColor2 }]}>{t('share.snapshot_hint', lang)}</Text>
-          {Platform.OS === 'web' && <TouchableOpacity accessibilityRole="link" href={'planit://share/' + encodeURIComponent(code)} style={styles.legalLink}>
+          {Platform.OS === 'web' && !isAndroidBrowser && <TouchableOpacity accessibilityRole="link" href={'planit://share/' + encodeURIComponent(code)} style={styles.legalLink}>
             <Text style={{ color: colors.accentTextColor }}>{t('share.open_in_app', lang)}</Text>
           </TouchableOpacity>}
         </View>}
@@ -280,18 +316,24 @@ export default function SharedScheduleScreen({ route, navigation, fallbackRoute,
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   topBar: { borderBottomWidth: StyleSheet.hairlineWidth },
-  header: { width: '100%', maxWidth: 1280, alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  header: { width: '100%', maxWidth: 1280, height: 64, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   backButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerIcon: { width: 44, height: 44, borderWidth: 1, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  headerIconText: { fontSize: 12, fontWeight: '800' },
   content: { width: '100%', maxWidth: 1280, alignSelf: 'center', padding: 24, gap: 20 },
   heading: { gap: 8 },
   eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 0.7, textTransform: 'uppercase' },
   title: { fontSize: 30, fontWeight: '700', lineHeight: 38 },
   meta: { fontSize: 14, lineHeight: 21 },
   button: { minHeight: 48, paddingHorizontal: 18, paddingVertical: 12, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  saveButton: { minHeight: 50, paddingHorizontal: 20, paddingVertical: 14, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  saveButton: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  saveButtonText: { fontSize: 14, fontWeight: '700' },
   buttonText: { fontSize: 15, fontWeight: '600' },
   aboutButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   info: { gap: 8, padding: 16, borderWidth: 1, borderRadius: 16 },
+  appBanner: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: 16, borderWidth: 1, borderRadius: 16 },
+  appBannerText: { flexGrow: 1, flexBasis: 200, gap: 4 },
   state: { alignItems: 'center', paddingVertical: 40, gap: 20 },
   legalLinks: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20, borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12 },
   legalLink: { minHeight: 44, justifyContent: 'center', paddingVertical: 10 },

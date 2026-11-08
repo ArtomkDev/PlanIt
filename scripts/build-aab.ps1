@@ -48,6 +48,11 @@ try {
     $env:CI = "1"
     $env:NODE_ENV = "production"
 
+    $productionProjectId = & node -p "require('./src/config/firebaseProjects.cjs').FIREBASE_PRODUCTION_PROJECT_ID"
+    if ($env:EXPO_PUBLIC_FIREBASE_PROJECT_ID -ne $productionProjectId) {
+        throw "Release builds must use the production Firebase project '$productionProjectId'."
+    }
+
     $packageJson = Get-Content -Raw -Path package.json | ConvertFrom-Json
     $version = $packageJson.version
     $versionCode = & node -p "require('./src/config/appVersion.cjs').getAndroidVersionCode(require('./package.json').version)"

@@ -123,6 +123,9 @@ test('public shares are immutable, expire, and cannot reveal another owner share
   const anonymous = environment.unauthenticatedContext().firestore();
   await assertSucceeds(getDoc(doc(anonymous, location)));
   await assertFails(updateDoc(doc(db, location), { scheduleName: 'Replaced share' }));
+  await assertFails(setDoc(doc(db, location), { ...share, scheduleName: 'Replaced share' }));
+  await assertFails(setDoc(doc(context('other').firestore(), location), { ...share, ownerId: 'other', scheduleName: 'Taken code' }));
+  assert.equal((await getDoc(doc(db, location))).data().scheduleName, 'Public schedule');
   await assertFails(getDocs(collection(anonymous, 'shared_schedules')));
   await assertFails(getDocs(query(collection(anonymous, 'shared_schedules'), where('ownerId', '==', 'owner'))));
   await assertFails(setDoc(doc(anonymous, 'shared_schedules/ANONYMOUS1234567'), { ...share, id: 'ANONYMOUS1234567' }));

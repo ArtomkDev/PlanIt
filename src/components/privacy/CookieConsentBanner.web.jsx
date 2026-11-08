@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
+  Animated,
   Linking,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { ArrowRight, Cookie, X } from 'phosphor-react-native';
 
 import {
   readCookieConsent,
@@ -17,11 +20,64 @@ import {
 import { t } from '../../utils/i18n';
 import { getLegalDocumentBrowserUrl } from '../../utils/legalDocumentLinks';
 
-export default function CookieConsentBanner({ lang = 'en' }) {
+// planitflow.com palette: the banner looks the same in the web app and on the website.
+const PALETTE = {
+  light: {
+    bg: '#f7f7fa',
+    surface: '#ffffff',
+    surfaceMuted: '#f5f5f8',
+    text: '#18181b',
+    muted: '#515866',
+    border: '#dfe1e8',
+    borderStrong: '#c9cdd7',
+    brand: '#f45b8a',
+    brandStrong: '#b92f60',
+    brandSoft: '#fbe7ee',
+    shadow: 'rgba(24, 24, 39, 0.12)',
+  },
+  dark: {
+    bg: '#09090b',
+    surface: '#18181b',
+    surfaceMuted: '#27272a',
+    text: '#fafafa',
+    muted: '#b4b4bf',
+    border: '#27272a',
+    borderStrong: '#3f3f46',
+    brand: '#3ef7d2',
+    brandStrong: '#82ffe6',
+    brandSoft: '#0d332e',
+    shadow: 'rgba(0, 0, 0, 0.55)',
+  },
+};
+
+function ConsentCategory({ title, description, badge, isBadgeActive, palette, isLast }) {
+  return (
+    <View style={[styles.category, !isLast && { borderBottomWidth: 1, borderBottomColor: palette.borderStrong }]}>
+      <View style={styles.categoryText}>
+        <Text style={[styles.categoryTitle, { color: palette.text }]}>{title}</Text>
+        <Text style={[styles.categoryDescription, { color: palette.muted }]}>{description}</Text>
+      </View>
+      <Text
+        style={[
+          styles.badge,
+          isBadgeActive
+            ? { backgroundColor: palette.brandSoft, color: palette.brandStrong, borderColor: palette.brandSoft }
+            : { color: palette.muted, borderColor: palette.borderStrong },
+        ]}
+      >
+        {badge}
+      </Text>
+    </View>
+  );
+}
+
+export default function CookieConsentBanner({ lang = 'en', isDark = false }) {
   const { width } = useWindowDimensions();
+  const palette = isDark ? PALETTE.dark : PALETTE.light;
   const [consent, setConsent] = useState(() => readCookieConsent());
   const [isPreferenceEditorOpen, setIsPreferenceEditorOpen] = useState(false);
-  const isNarrow = width < 700;
+  const appearance = useRef(new Animated.Value(0)).current;
+  const isWide = width >= 640;
   const shouldShow = !consent || isPreferenceEditorOpen;
 
   useEffect(() => {
@@ -38,6 +94,30 @@ export default function CookieConsentBanner({ lang = 'en' }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!shouldShow) {
+      appearance.setValue(0);
+      return undefined;
+    }
+
+    let animation;
+    let isActive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (!isActive) return;
+      animation = Animated.timing(appearance, {
+        toValue: 1,
+        duration: reduceMotion ? 0 : 220,
+        useNativeDriver: false,
+      });
+      animation.start();
+    });
+
+    return () => {
+      isActive = false;
+      animation?.stop();
+    };
+  }, [appearance, shouldShow]);
+
   const chooseAnalytics = (status) => {
     const nextConsent = saveCookieConsent(status);
     setConsent(nextConsent);
@@ -46,187 +126,224 @@ export default function CookieConsentBanner({ lang = 'en' }) {
 
   if (!shouldShow) return null;
 
+  const analyticsBadge = !consent
+    ? t('cookie_consent.analytics_optional', lang)
+    : t(consent.analytics === 'granted' ? 'cookie_consent.analytics_on' : 'cookie_consent.analytics_off', lang);
+
   return (
-    <View
-      style={[styles.banner, isNarrow && styles.bannerNarrow]}
+    <Animated.View
+      style={[
+        styles.banner,
+        isWide ? styles.bannerWide : styles.bannerNarrow,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+          boxShadow: `0 28px 70px -36px ${palette.shadow}`,
+          opacity: appearance,
+          transform: [{ translateY: appearance.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
+        },
+      ]}
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <View style={styles.content}>
-        <Text style={styles.title}>
+      <View style={styles.header}>
+        <View style={[styles.iconTile, { backgroundColor: palette.brandSoft }]}>
+          <Cookie size={24} weight="duotone" color={palette.brand} />
+        </View>
+        <Text style={[styles.title, { color: palette.text }]} accessibilityRole="header">
           {t('cookie_consent.title', lang)}
         </Text>
-        <Text style={styles.description}>
-          {t('cookie_consent.description', lang)}
-        </Text>
-        <Text style={styles.categoryText}>
-          <Text style={styles.categoryLabel}>
-            {t('cookie_consent.necessary_title', lang)}:{' '}
-          </Text>
-          {t('cookie_consent.necessary_desc', lang)}
-        </Text>
-        <Text style={styles.categoryText}>
-          <Text style={styles.categoryLabel}>
-            {t('cookie_consent.analytics_title', lang)}:{' '}
-          </Text>
-          {t('cookie_consent.analytics_desc', lang)}
-        </Text>
         {consent ? (
-          <Text style={styles.currentChoice}>
-            {t('cookie_consent.current_choice', lang)}{' '}
-            {t(
-              consent.analytics === 'granted'
-                ? 'cookie_consent.granted'
-                : 'cookie_consent.denied',
-              lang,
-            )}
-          </Text>
-        ) : null}
-        <TouchableOpacity
-          onPress={() => Linking.openURL(getLegalDocumentBrowserUrl('cookies', lang))}
-          accessibilityRole="link"
-          accessibilityLabel={t('cookie_consent.read_policy', lang)}
-        >
-          <Text style={styles.policyLink}>
-            {t('cookie_consent.read_policy', lang)}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.actions, isNarrow && styles.actionsNarrow]}>
-        <TouchableOpacity
-          style={styles.choiceButton}
-          onPress={() => chooseAnalytics('denied')}
-          accessibilityRole="button"
-          accessibilityLabel={t('cookie_consent.reject', lang)}
-        >
-          <Text style={styles.choiceButtonText}>
-            {t('cookie_consent.reject', lang)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.choiceButton}
-          onPress={() => chooseAnalytics('granted')}
-          accessibilityRole="button"
-          accessibilityLabel={t('cookie_consent.accept', lang)}
-        >
-          <Text style={styles.choiceButtonText}>
-            {t('cookie_consent.accept', lang)}
-          </Text>
-        </TouchableOpacity>
-        {consent ? (
-          <TouchableOpacity
-            style={styles.closeButton}
+          <Pressable
             onPress={() => setIsPreferenceEditorOpen(false)}
+            style={({ hovered }) => [styles.closeButton, hovered && { backgroundColor: palette.surfaceMuted }]}
             accessibilityRole="button"
             accessibilityLabel={t('cookie_consent.close', lang)}
           >
-            <Text style={styles.closeButtonText}>
-              {t('cookie_consent.close', lang)}
-            </Text>
-          </TouchableOpacity>
+            <X size={18} weight="bold" color={palette.muted} />
+          </Pressable>
         ) : null}
       </View>
-    </View>
+
+      <Text style={[styles.description, { color: palette.muted }]}>
+        {t('cookie_consent.description', lang)}
+      </Text>
+
+      <View style={[styles.categories, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+        <ConsentCategory
+          title={t('cookie_consent.necessary_title', lang)}
+          description={t('cookie_consent.necessary_desc', lang)}
+          badge={t('cookie_consent.necessary_badge', lang)}
+          isBadgeActive
+          palette={palette}
+        />
+        <ConsentCategory
+          title={t('cookie_consent.analytics_title', lang)}
+          description={t('cookie_consent.analytics_desc', lang)}
+          badge={analyticsBadge}
+          isBadgeActive={consent?.analytics === 'granted'}
+          palette={palette}
+          isLast
+        />
+      </View>
+
+      <View style={styles.actions}>
+        {[
+          { status: 'denied', label: t('cookie_consent.reject', lang) },
+          { status: 'granted', label: t('cookie_consent.accept', lang) },
+        ].map(({ status, label }) => (
+          <Pressable
+            key={status}
+            onPress={() => chooseAnalytics(status)}
+            style={({ hovered }) => [
+              styles.choiceButton,
+              { backgroundColor: hovered ? palette.bg : palette.surfaceMuted, borderColor: palette.borderStrong },
+            ]}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.choiceButtonText, { color: palette.text }]}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Pressable
+        onPress={() => Linking.openURL(getLegalDocumentBrowserUrl('cookies', lang))}
+        style={styles.policyLink}
+        accessibilityRole="link"
+      >
+        {({ hovered }) => {
+          const color = hovered ? palette.brandStrong : palette.muted;
+          return (
+            <>
+              <Text style={[styles.policyLinkText, { color }]}>{t('cookie_consent.read_policy', lang)}</Text>
+              <ArrowRight size={14} weight="bold" color={color} />
+            </>
+          );
+        }}
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   banner: {
     position: 'fixed',
+    zIndex: 10000,
+    maxHeight: 'calc(100dvh - 32px)',
+    overflowY: 'auto',
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  bannerWide: {
+    left: 24,
+    bottom: 24,
+    width: 420,
+  },
+  bannerNarrow: {
     left: 16,
     right: 16,
     bottom: 16,
-    zIndex: 10000,
-    maxWidth: 920,
-    alignSelf: 'center',
+  },
+  header: {
     flexDirection: 'row',
-    gap: 20,
-    padding: 20,
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    marginRight: -6,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  description: {
+    marginTop: 12,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  categories: {
+    marginTop: 16,
+    paddingHorizontal: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#334155',
-    backgroundColor: '#111827',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
   },
-  bannerNarrow: {
-    flexDirection: 'column',
-    gap: 14,
+  category: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
   },
-  content: {
+  categoryText: {
     flex: 1,
     minWidth: 0,
   },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  description: {
-    color: '#E2E8F0',
+  categoryTitle: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 10,
-  },
-  categoryText: {
-    color: '#CBD5E1',
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 5,
-  },
-  categoryLabel: {
-    color: '#FFFFFF',
     fontWeight: '700',
   },
-  currentChoice: {
-    color: '#CBD5E1',
+  categoryDescription: {
     fontSize: 13,
-    marginTop: 6,
+    lineHeight: 18,
   },
-  policyLink: {
-    color: '#93C5FD',
-    fontSize: 13,
+  badge: {
+    flexShrink: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: '700',
-    marginTop: 10,
-    textDecorationLine: 'underline',
   },
   actions: {
-    width: 190,
-    justifyContent: 'center',
-    gap: 9,
-  },
-  actionsNarrow: {
-    width: '100%',
+    marginTop: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   choiceButton: {
+    flexGrow: 1,
+    flexBasis: 140,
     minHeight: 44,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#93C5FD',
-    backgroundColor: '#1E3A5F',
     alignItems: 'center',
     justifyContent: 'center',
   },
   choiceButtonText: {
-    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     textAlign: 'center',
   },
-  closeButton: {
+  policyLink: {
+    alignSelf: 'flex-start',
     minHeight: 36,
+    marginTop: 8,
+    marginBottom: -8,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
   },
-  closeButtonText: {
-    color: '#CBD5E1',
+  policyLinkText: {
     fontSize: 13,
     fontWeight: '600',
-    textDecorationLine: 'underline',
   },
 });

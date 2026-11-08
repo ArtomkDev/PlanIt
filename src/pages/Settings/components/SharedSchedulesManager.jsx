@@ -8,12 +8,22 @@ import useSharedScheduleClock from '../../../hooks/useSharedScheduleClock';
 import { createSharedScheduleLink, getSharedScheduleStatus, getSharedScheduleTimestamp, getUserSharedSchedules } from '../../../services/shareService';
 import SettingsScreenLayout from '../../../layouts/SettingsScreenLayout';
 import MorphingLoader from '../../../components/ui/MorphingLoader';
-import TabSwitcher from '../../../components/ui/TabSwitcher';
 import themes from '../../../config/themes';
 import { t, getLocale } from '../../../utils/i18n';
 
 const EMPTY_LIST = [];
 const PAGE_SIZE = 20;
+
+const formatRemaining = (expiresAt, now, lang) => {
+  const minutes = Math.ceil((getSharedScheduleTimestamp(expiresAt) - now) / 60000);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const units = days ? [['days', days], ['hours', hours]]
+    : hours ? [['hours', hours], ['minutes', minutes % 60]] : [['minutes', minutes]];
+  const time = units.filter(([, count], index) => index === 0 || count)
+    .map(([unit, count]) => t('share.remaining_' + unit, lang, { count })).join(' ');
+  return t('share.remaining', lang, { time });
+};
 
 export default function SharedSchedulesManager({ navigation }) {
   const { user, global, lang } = useScheduleData();
@@ -22,7 +32,6 @@ export default function SharedSchedulesManager({ navigation }) {
   const colors = themes.getColors(mode, accent);
   const [result, setResult] = useState({ userId, items: EMPTY_LIST, loading: true, error: false });
   const [attempt, setAttempt] = useState(0);
-  const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(0);
   const current = result.userId === userId;
   const items = current ? result.items : EMPTY_LIST;
@@ -31,7 +40,7 @@ export default function SharedSchedulesManager({ navigation }) {
     setResult(previous => previous.userId === userId ? { ...previous, items: previous.items.filter(item => item.id !== code) } : previous);
   } });
 
-  useEffect(() => { setFilter('all'); setPage(0); }, [userId]);
+  useEffect(() => { setPage(0); }, [userId]);
   useFocusEffect(useCallback(() => {
     let active = true;
     if (!userId) {
@@ -47,11 +56,11 @@ export default function SharedSchedulesManager({ navigation }) {
     return () => { active = false; };
   }, [userId, attempt]));
 
-  const activeCount = items.filter(item => getSharedScheduleStatus(item, now) === 'active').length;
-  const filtered = items.filter(item => filter === 'all' || (getSharedScheduleStatus(item, now) === 'active') === (filter === 'active'));
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Expired shares are hidden at once; Firestore TTL removes their documents later.
+  const activeItems = items.filter(item => getSharedScheduleStatus(item, now) === 'active');
+  const pageCount = Math.max(1, Math.ceil(activeItems.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
-  const visibleItems = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const visibleItems = activeItems.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
   const loading = !current || result.loading;
   const dateLabel = value => {
     const timestamp = getSharedScheduleTimestamp(value);
@@ -63,7 +72,7 @@ export default function SharedSchedulesManager({ navigation }) {
       <View style={styles.intro}>
         <View style={[styles.heroIcon, { backgroundColor: colors.accentColor + '18' }]}><ShareNetwork size={26} color={colors.accentTextColor} accessible={false} /></View>
         <View style={styles.introText}>
-          <Text accessibilityRole="header" style={[styles.title, { color: colors.textColor }]}>{t('share.manager_summary', lang, { count: activeCount })}</Text>
+          <Text accessibilityRole="header" style={[styles.title, { color: colors.textColor }]}>{t('share.manager_summary', lang, { count: activeItems.length })}</Text>
           <Text style={[styles.meta, { color: colors.textColor2 }]}>{t('share.manager_hint', lang)}</Text>
         </View>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('share.manager_refresh', lang)} disabled={loading || !!actions.pending || !userId}
@@ -72,11 +81,6 @@ export default function SharedSchedulesManager({ navigation }) {
         </TouchableOpacity>
       </View>
       {!userId ? <Text style={[styles.empty, { color: colors.textColor2 }]}>{t('share.manager_account_required', lang)}</Text> : <>
-        {!!items.length && <TabSwitcher themeColors={colors} activeTab={filter} onTabPress={value => { setFilter(value); setPage(0); }} tabs={[
-          { id: 'all', label: t('share.manager_all', lang) + ' · ' + items.length },
-          { id: 'active', label: t('share.manager_active', lang) + ' · ' + activeCount },
-          { id: 'ended', label: t('share.manager_ended', lang) + ' · ' + (items.length - activeCount) },
-        ]} />}
         {current && result.error && <View style={styles.feedback}>
           <Text accessibilityRole="alert" style={[styles.meta, { color: colors.textColor }]}>{t('share.manager_load_failed', lang)}</Text>
           <TouchableOpacity accessibilityRole="button" onPress={() => setAttempt(value => value + 1)} disabled={loading} style={styles.refresh}>
@@ -84,22 +88,20 @@ export default function SharedSchedulesManager({ navigation }) {
           </TouchableOpacity>
         </View>}
         {loading && !items.length ? <View accessibilityRole="progressbar" accessibilityLabel={t('schedule.loading', lang)} style={styles.empty}><MorphingLoader size={58} /></View>
-          : !filtered.length && !result.error ? <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: colors.textColor }]}>{t(items.length ? 'share.manager_filter_empty' : 'share.manager_empty', lang)}</Text>
-            <Text style={[styles.meta, { color: colors.textColor2 }]}>{t(items.length ? 'share.manager_filter_hint' : 'share.manager_empty_hint', lang)}</Text>
+          : !activeItems.length && !result.error ? <View style={styles.empty}>
+            <Text style={[styles.emptyTitle, { color: colors.textColor }]}>{t('share.manager_empty', lang)}</Text>
+            <Text style={[styles.meta, { color: colors.textColor2 }]}>{t('share.manager_empty_hint', lang)}</Text>
           </View> : visibleItems.map(item => {
-            const status = getSharedScheduleStatus(item, now);
-            const isActive = status === 'active';
             const copied = actions.copied?.code === item.id && actions.copied.action === 'link';
             const CopyIcon = copied ? Check : Copy;
             return <View key={item.id} style={[styles.card, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }]}>
               <View style={styles.cardHeader}>
                 <Text style={[styles.name, { color: colors.textColor }]} numberOfLines={2}>{item.scheduleName || t('share.open_title', lang)}</Text>
-                <View style={[styles.badge, { backgroundColor: isActive ? colors.accentColor + '18' : colors.backgroundColor3 }]}>
-                  <Text style={[styles.status, { color: isActive ? colors.accentTextColor : colors.textColor2 }]}>{t('share.status_' + status, lang)}</Text>
+                <View style={[styles.badge, { backgroundColor: colors.accentColor + '18' }]}>
+                  <Text style={[styles.status, { color: colors.accentTextColor }]}>{formatRemaining(item.expiresAt, now, lang)}</Text>
                 </View>
               </View>
-              <Text selectable style={[styles.url, { color: isActive ? colors.accentTextColor : colors.textColor2 }]}>{createSharedScheduleLink(item.id)}</Text>
+              <Text selectable style={[styles.url, { color: colors.accentTextColor }]}>{createSharedScheduleLink(item.id)}</Text>
               <View style={styles.dates}>
                 <Text style={[styles.meta, { color: colors.textColor2 }]}>{t('share.manager_expires', lang)}: {dateLabel(item.expiresAt)}</Text>
                 <Text style={[styles.meta, { color: colors.textColor2 }]}>{t('share.code_label', lang)}: {item.id}</Text>
@@ -113,9 +115,9 @@ export default function SharedSchedulesManager({ navigation }) {
                   <Text style={[styles.buttonLabel, { color: colors.textColor }]}>{t('share.manager_details', lang)}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('share.copy_link', lang) + ': ' + item.scheduleName}
-                  accessibilityState={{ disabled: !isActive || !!actions.pending, busy: actions.pending?.code === item.id }}
-                  disabled={!isActive || !!actions.pending} onPress={() => actions.copyLink(item)}
-                  style={[styles.button, { backgroundColor: colors.accentColor, opacity: !isActive || actions.pending ? 0.45 : 1 }]}>
+                  accessibilityState={{ disabled: !!actions.pending, busy: actions.pending?.code === item.id }}
+                  disabled={!!actions.pending} onPress={() => actions.copyLink(item)}
+                  style={[styles.button, { backgroundColor: colors.accentColor, opacity: actions.pending ? 0.45 : 1 }]}>
                   <CopyIcon size={19} color={colors.textOnAccent} accessible={false} />
                   <Text accessibilityLiveRegion="polite" style={[styles.buttonLabel, { color: colors.textOnAccent }]}>{t(copied ? 'common.copied' : 'share.copy_link', lang)}</Text>
                 </TouchableOpacity>

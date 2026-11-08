@@ -45,7 +45,7 @@ const shareService = compileModule(shareServicePath, new Map([
   ['../utils/scheduleValidation', { sanitizeSharedScheduleForPreview: value => value }],
 ]));
 
-test('new public shares use long random codes and do not expose the account email', async () => {
+test('new public shares start with 8-character random codes and do not expose the account email', async () => {
   const writes = [];
   const service = compileModule(shareServicePath, new Map([
     ['react-native', { Platform: { OS: 'web' } }],
@@ -58,11 +58,62 @@ test('new public shares use long random codes and do not expose the account emai
     ['../utils/scheduleValidation', { sanitizeSharedScheduleForPreview: value => value }],
   ]));
   const code = await service.createSharedSchedule({ uid: 'owner', email: 'private@example.com' }, { name: 'Share' }, 7);
-  assert.equal(code.length, 16);
-  assert.match(code, /^[A-Z0-9]{16}$/);
+  assert.equal(code.length, 8);
+  assert.match(code, /^[A-Z0-9]{8}$/);
   assert.equal(writes[0].value.ownerName, 'User');
   assert.equal(JSON.stringify(writes[0].value).includes('private@example.com'), false);
   assert.equal(service.normalizeShareCodeInput('ABCDE'), 'ABCDE');
+});
+
+const shareServiceWith = ({ isTaken, isHidden = () => false, canCreate = true }) => {
+  const attempts = [];
+  const created = [];
+  let seed = 0;
+  const denied = () => Object.assign(new Error('denied'), { code: 'permission-denied' });
+  const service = compileModule(shareServicePath, new Map([
+    ['react-native', { Platform: { OS: 'web' } }],
+    ['firebase/firestore', {
+      doc: (_db, ...segments) => segments.join('/'),
+      setDoc: async (reference) => {
+        const code = reference.split('/').pop();
+        attempts.push(code);
+        if (isTaken(code) || isHidden(code) || !canCreate) throw denied();
+        created.push(code);
+      },
+      getDocFromServer: async (reference) => {
+        const code = reference.split('/').pop();
+        if (isHidden(code)) throw denied();
+        return { exists: () => isTaken(code) };
+      },
+    }],
+    ['expo-crypto', { getRandomBytes: length => new Uint8Array(length).fill(seed++ % 36) }],
+    ['../config/firebase', { db: {} }],
+    ['../utils/scheduleValidation', { sanitizeSharedScheduleForPreview: value => value }],
+  ]));
+  const share = () => service.createSharedSchedule({ uid: 'owner' }, { name: 'Share' }, 7);
+  return { attempts, created, share };
+};
+
+test('an occupied share code is never overwritten and the code grows when a length is exhausted', async () => {
+  const { attempts, created, share } = shareServiceWith({ isTaken: code => code.length === 8, isHidden: code => code === attempts[1] });
+  const code = await share();
+  assert.equal(code.length, 9);
+  assert.deepEqual(attempts.map(attempt => attempt.length), [8, 8, 8, 8, 8, 9]);
+  assert.deepEqual(created, [code]);
+});
+
+test('a share write rejected for another reason reports that error instead of retrying', async () => {
+  const { attempts, share } = shareServiceWith({ isTaken: () => false, canCreate: false });
+  await assert.rejects(share(), { code: 'permission-denied' });
+  assert.equal(attempts.length, 1);
+});
+
+test('share code generation stops with a clear error after every length up to 32 is occupied', async () => {
+  const { attempts, created, share } = shareServiceWith({ isTaken: () => true });
+  await assert.rejects(share(), /share_code_generation_failed/);
+  assert.equal(attempts.length, (32 - 8 + 1) * 5);
+  assert.equal(attempts.at(-1).length, 32);
+  assert.deepEqual(created, []);
 });
 
 const schedule = (overrides = {}) => ({

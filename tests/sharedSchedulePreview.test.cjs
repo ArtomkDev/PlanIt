@@ -104,13 +104,20 @@ test('share input accepts complete native and HTTPS links and rejects truncated 
     'https://example.com/share/' + 'A'.repeat(33), 'SHARED123/extra']) assert.throws(() => service.normalizeShareCodeInput(input), /invalid_code/);
 });
 
-const native = { View: 'View', Text: 'Text', ScrollView: 'Scroll', TouchableOpacity: 'Button',
+test('Android browser intent opens the shared schedule in the app and falls back to Google Play', () => {
+  const { service } = serviceHarness();
+  assert.equal(service.createSharedScheduleAndroidIntentUrl('shared123'), 'intent://share/SHARED123#Intent;scheme=planit;'
+    + 'package=com.artomk.planit;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.artomk.planit;end');
+  assert.throws(() => service.createSharedScheduleAndroidIntentUrl('bad/code'), /invalid_code/);
+});
+
+const native = { View: 'View', Text: 'Text', ScrollView: 'Scroll', TouchableOpacity: 'Button', Pressable: 'WeekButton',
   Platform: { OS: 'web' }, StyleSheet: { create: value => value, hairlineWidth: 1 }, Linking: { openURL: async () => {} }, useWindowDimensions: () => ({ width: 390 }),
   AppState: { addEventListener: () => ({ remove() {} }) } };
 
 async function mountScreen(t, options = {}) {
   const listeners = [], appListeners = [], added = [], selected = [];
-  const navigation = [], guestStarts = [];
+  const navigation = [], guestStarts = [], preferences = [];
   const legalReads = [], legalWrites = [];
   let pending = options.pending || null;
   let tree;
@@ -121,7 +128,7 @@ async function mountScreen(t, options = {}) {
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
     'expo-status-bar': { StatusBar: 'StatusBar' },
     'expo-crypto': crypto,
-    'phosphor-react-native': { CaretDown: 'Icon', CaretUp: 'Icon', DownloadSimple: 'Icon', ArrowLeft: 'Icon' },
+    'phosphor-react-native': { CaretDown: 'Icon', CaretUp: 'Icon', DownloadSimple: 'Icon', ArrowLeft: 'Icon', Moon: 'Icon', Sun: 'Icon' },
     '../../components/ui/PlanItWordmark': 'Wordmark',
     '../../components/schedule/SharedScheduleAccessSheet': 'AccessSheet',
     '../../services/legalAcceptanceService': {
@@ -130,7 +137,7 @@ async function mountScreen(t, options = {}) {
     },
     '../../context/ScheduleProvider': {
       useScheduleData: () => state,
-      useScheduleActions: () => ({ addSchedule: async (copy, config) => {
+      useScheduleActions: () => ({ setSignedOutPreferences: value => preferences.push(value), addSchedule: async (copy, config) => {
         const owner = state.user?.uid || state.guest;
         added.push({ copy, config }); await options.persist?.();
         if (config.select && owner === (state.user?.uid || state.guest)) selected.push(copy.id);
@@ -152,7 +159,7 @@ async function mountScreen(t, options = {}) {
     },
   }).default;
   const render = code => React.createElement(screen, { route: { params: { code } }, navigation: {
-    reset: value => navigation.push(value), navigate: (...args) => navigation.push(args),
+    reset: () => { throw new Error('reset replaces the browser history entry'); }, navigate: (...args) => navigation.push(args),
     push: name => navigation.push(['push', name]), replace: name => navigation.push(['replace', name]),
     canGoBack: () => options.canGoBack === true, goBack: () => navigation.push(['back']),
   }, fallbackRoute: options.fallbackRoute || 'Auth', onGuestLogin: () => guestStarts.push(true) });
@@ -160,7 +167,7 @@ async function mountScreen(t, options = {}) {
   t.after(async () => act(async () => tree.unmount()));
   const emit = async (value = { ...payload(), expiresAt: Date.now() + 3600000 }) => act(async () => listeners.at(-1).next(value));
   const save = () => tree.root.findAllByType('Button').find(node => node.props.accessibilityLabel === 'Save a separate copy');
-  return { tree, added, selected, listeners, state, emit, save, appListeners, navigation, guestStarts, legalReads, legalWrites, pending: () => pending,
+  return { tree, added, selected, listeners, state, emit, save, appListeners, navigation, guestStarts, legalReads, legalWrites, preferences, pending: () => pending,
     update: async code => act(async () => tree.update(render(code))) };
 }
 
@@ -181,6 +188,24 @@ test('signed-out visitors read the schedule without creating a guest session or 
   assert.equal(env.tree.root.findAllByType('Preview').length, 0);
 });
 
+test('signed-out visitors switch theme and language from the preview header', async t => {
+  const env = await mountScreen(t);
+  const button = label => env.tree.root.findAllByType('Button').find(node => node.props.accessibilityLabel === label);
+  await act(async () => button('Switch to dark theme').props.onPress());
+  await act(async () => button('Switch language to Українська').props.onPress());
+  env.state.lang = 'uk';
+  await env.update('SHARED123');
+  await act(async () => button('Змінити мову на English').props.onPress());
+  assert.deepEqual(env.preferences, [{ theme: ['dark', 'blue'] }, { language: 'uk' }, { language: 'en' }]);
+});
+
+for (const state of [{ user: { uid: 'existing-user' } }, { guest: true }]) {
+  test(`${state.guest ? 'guest' : 'account'} sessions keep appearance in Settings instead of the preview header`, async t => {
+    const env = await mountScreen(t, { state });
+    assert.equal(env.tree.root.findAllByType('Button').some(node => /theme|language/.test(node.props.accessibilityLabel || '')), false);
+  });
+}
+
 for (const [name, state] of [['account', { user: { uid: 'existing-user' } }], ['guest', { guest: true }]]) {
   for (const storageFails of [false, true]) {
     test(`an active ${name} saves and opens a copy without a legal prompt when its receipt is ${storageFails ? 'unreadable' : 'missing'}`, async t => {
@@ -190,7 +215,7 @@ for (const [name, state] of [['account', { user: { uid: 'existing-user' } }], ['
       await act(async () => env.save().props.onPress());
       assert.equal(env.tree.root.findByType('AccessSheet').props.visible, false);
       assert.equal(env.added.length, 1);
-      assert.equal(env.navigation[0].routes[0].name, 'MainLayout');
+      assert.deepEqual(env.navigation, [['MainLayout', { screen: 'Tabs', params: { screen: 'ScheduleTab' } }]]);
       assert.deepEqual(env.legalReads, []);
       assert.deepEqual(env.legalWrites, []);
     });
@@ -285,21 +310,21 @@ test('saving is explicit and duplicate presses and persistence retries keep one 
 
 test('the actual preview renders times, notes, weeks and safe browser links', async t => {
   const Component = load('src/components/schedule/SharedSchedulePreview.jsx', {
-    'react-native': native, '../ui/TabSwitcher': 'Tabs',
-    'phosphor-react-native': { ArrowClockwise: 'Icon', CaretDown: 'Icon', CaretUp: 'Icon' },
+    'react-native': native,
+    'phosphor-react-native': { ArrowClockwise: 'Icon', ArrowRight: 'Icon', CalendarBlank: 'Icon', CalendarCheck: 'Icon', CaretDown: 'Icon', CaretUp: 'Icon', Clock: 'Icon' },
   }).default;
   let tree;
   await act(async () => { tree = create(React.createElement(Component, { schedule: fixture(), lang: 'en', themeColors: {} })); });
   t.after(async () => act(async () => tree.unmount()));
   const text = () => tree.root.findAllByType('Text').map(node => React.Children.toArray(node.props.children).join(' ')).join('\n');
-  await act(async () => tree.root.findByType('Tabs').props.onTabPress('1'));
+  await act(async () => tree.root.findAllByType('WeekButton').find(node => node.props.accessibilityLabel === 'Week 1').props.onPress());
   assert.match(text(), /09:15 – 10:15/);
   assert.match(text(), /Math/);
   assert.doesNotMatch(text(), /Shared note/);
   await act(async () => tree.root.findAllByType('Button').find(node => node.props.accessibilityLabel?.includes('Math')).props.onPress());
   assert.match(text(), /Shared note/);
   assert.equal(tree.root.findAllByType('Button').find(node => node.props.href).props.href, 'https://example.com/class');
-  await act(async () => tree.root.findByType('Tabs').props.onTabPress('2'));
+  await act(async () => tree.root.findAllByType('WeekButton').find(node => node.props.accessibilityLabel === 'Week 2').props.onPress());
   assert.match(text(), /14:15 – 15:00/);
 });
 
@@ -395,8 +420,7 @@ test('an accepted guest session automatically resumes and opens the saved schedu
   assert.equal(env.added.length, 1);
   assert.equal(env.added[0].copy.id, 'stable-copy');
   assert.equal(env.added[0].config.select, true);
-  assert.equal(env.navigation[0].routes[0].name, 'MainLayout');
-  assert.equal(env.navigation[0].routes[0].params.params.screen, 'ScheduleTab');
+  assert.deepEqual(env.navigation, [['MainLayout', { screen: 'Tabs', params: { screen: 'ScheduleTab' } }]]);
   assert.equal(env.pending(), null);
 });
 
@@ -458,4 +482,41 @@ test('all session choices stay disabled until the legal checkbox is explicitly s
   assert.ok(choices().every(node => !node.props.disabled));
   await act(async () => choices()[0].props.onPress());
   assert.deepEqual(calls, [['guest', true]]);
+});
+
+test('a twelve-week cycle keeps empty weeks dimmed but selectable and names them on hover', async t => {
+  const Component = load('src/components/schedule/SharedSchedulePreview.jsx', {
+    'react-native': native,
+    'phosphor-react-native': { ArrowClockwise: 'Icon', ArrowRight: 'Icon', CalendarBlank: 'Icon', CalendarCheck: 'Icon', CaretDown: 'Icon', CaretUp: 'Icon', Clock: 'Icon' },
+  }).default;
+  let tree;
+  await act(async () => { tree = create(React.createElement(Component, { schedule: { ...fixture(), repeat: 12 }, lang: 'en', themeColors: {} })); });
+  t.after(async () => act(async () => tree.unmount()));
+  const weekButton = number => tree.root.findAllByType('WeekButton').find(node => node.props.accessibilityLabel.split(',')[0] === `Week ${number}`);
+  assert.ok(Array.from({ length: 12 }, (_, index) => weekButton(index + 1)).every(Boolean));
+  assert.equal(weekButton(1).props.accessibilityLabel, 'Week 1');
+  assert.equal(weekButton(3).props.accessibilityLabel, 'Week 3, Empty');
+  const numberOpacity = number => weekButton(number).findByType('Text').props.style.at(-1).opacity;
+  assert.equal(numberOpacity(1), 1);
+  assert.ok(numberOpacity(3) < 1);
+  const tooltip = () => weekButton(3).findAllByType('Text').filter(node => node.props.children === 'Empty');
+  assert.equal(tooltip().length, 0);
+  await act(async () => weekButton(3).props.onHoverIn());
+  assert.equal(tooltip().length, 1);
+  await act(async () => weekButton(3).props.onHoverOut());
+  assert.equal(tooltip().length, 0);
+  await act(async () => weekButton(12).props.onPress());
+  assert.deepEqual(weekButton(12).props.accessibilityState, { selected: true });
+  assert.ok(tree.root.findAllByType('Text').some(node => node.props.children === 'Week 12: no classes'));
+  const nextLesson = tree.root.findAllByType('Button').find(node => node.findAllByType('Text').some(text => /^Show the (next class|class in progress)$/.test(text.props.children)));
+  assert.ok(nextLesson);
+  await act(async () => nextLesson.props.onPress());
+  assert.deepEqual(weekButton(1).props.accessibilityState, { selected: true });
+});
+
+test('screens keep browser history instead of resetting the navigation state', () => {
+  const root = path.resolve(__dirname, '..', 'src');
+  const files = fs.readdirSync(root, { recursive: true }).filter(file => /\.jsx?$/.test(file));
+  const offenders = files.filter(file => /navigation\.reset\(|CommonActions\.reset/.test(fs.readFileSync(path.join(root, file), 'utf8')));
+  assert.deepEqual(offenders, [], 'On web a reset replaces the current browser entry, so Back cannot return to the previous page. Navigate or push instead.');
 });

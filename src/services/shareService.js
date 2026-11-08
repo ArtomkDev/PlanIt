@@ -7,12 +7,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SHARE_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const MIN_SHARE_CODE_LENGTH = 5;
-const DEFAULT_SHARE_CODE_LENGTH = 16;
+const DEFAULT_SHARE_CODE_LENGTH = 8;
 const MAX_SHARE_CODE_LENGTH = 32;
 const SHARE_CODE_ATTEMPTS_PER_LENGTH = 5;
 const SHARE_CODE_RE = /^[A-Z0-9]{5,32}$/;
 const IMPORT_INTENT_KEY = 'planit_shared_schedule_import_v1';
 const IMPORT_INTENT_LIFETIME = 24 * 60 * 60 * 1000;
+const ANDROID_PACKAGE_NAME = 'com.artomk.planit';
+const GOOGLE_PLAY_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_NAME}`;
 
 export const readSharedScheduleImport = async () => {
   const raw = await AsyncStorage.getItem(IMPORT_INTENT_KEY);
@@ -96,6 +98,16 @@ export const createSharedSchedulePath = (shareCode) => `/share/${normalizeShareC
 
 export const createSharedScheduleLink = (shareCode) => `${WEB_APP_URL}${createSharedSchedulePath(shareCode)}`;
 
+// Android browsers open the installed app for this intent and fall back to the Play listing otherwise.
+export const createSharedScheduleAndroidIntentUrl = (shareCode) => `intent:/${createSharedSchedulePath(shareCode)}`
+  + `#Intent;scheme=planit;package=${ANDROID_PACKAGE_NAME};S.browser_fallback_url=${encodeURIComponent(GOOGLE_PLAY_URL)};end`;
+
+// Rules hide expired or revoked shares from other users, so a denied read also means the code exists.
+const isShareCodeTaken = async (docRef) => {
+  try { return (await getDocFromServer(docRef)).exists(); }
+  catch (error) { if (error?.code === "permission-denied") return true; throw error; }
+};
+
 export const createSharedSchedule = async (user, scheduleData, durationDays) => {
   if (!user || !scheduleData) throw new Error("Missing user or schedule data");
 
@@ -122,7 +134,8 @@ export const createSharedSchedule = async (user, scheduleData, durationDays) => 
         await setDoc(docRef, sharedDoc);
         return shareCode;
       } catch (error) {
-        if (error?.code === "permission-denied") continue;
+        // Rules allow only creating a new share, so an occupied code is rejected instead of overwritten.
+        if (error?.code === "permission-denied" && await isShareCodeTaken(docRef)) continue;
         throw error;
       }
     }

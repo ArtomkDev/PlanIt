@@ -22,12 +22,14 @@ import {
   SMTP_PORT,
   SMTP_USER,
 } from './accountEmailConfig.js';
+import { restoreCredentials as restoreCredentialsHandler } from './restoreCredentials.js';
 import { syncScheduleWidgets as widgetSyncHandler } from './widgetSync.js';
 
 if (getApps().length === 0) {
   initializeApp();
 }
 
+export const restoreCredentials = restoreCredentialsHandler;
 export const syncScheduleWidgets = widgetSyncHandler;
 
 const APPLE_CLIENT_ID = defineSecret('APPLE_CLIENT_ID');

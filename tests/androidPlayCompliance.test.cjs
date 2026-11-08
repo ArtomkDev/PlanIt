@@ -51,6 +51,21 @@ test('the root compiler uses the configured Kotlin version before native library
   assert.throws(() => patchProjectBuildGradle('buildscript {}'), /root Kotlin Gradle plugin dependency/);
 });
 
+test('release manifest blocks permissions PlanIt does not use', () => {
+  const appConfig = fs.readFileSync(path.resolve(__dirname, '../app.config.js'), 'utf8');
+  const blocked = appConfig.match(/blockedPermissions:\s*\[([^\]]*)\]/)?.[1] || '';
+  assert.match(blocked, /"android\.permission\.RECORD_AUDIO"/);
+  assert.match(blocked, /"android\.permission\.SYSTEM_ALERT_WINDOW"/);
+
+  const attachmentService = fs.readFileSync(
+    path.resolve(__dirname, '../src/services/attachmentService.js'),
+    'utf8',
+  );
+  const mediaTypes = [...attachmentService.matchAll(/mediaTypes:\s*(\[[^\]]*\])/g)].map(match => match[1]);
+  assert.ok(mediaTypes.length > 0);
+  for (const types of mediaTypes) assert.equal(types, '["images"]');
+});
+
 test('production hardening fails loudly for an unsupported Gradle template', () => {
   assert.throws(
     () => patchAppBuildGradle('apply plugin: "com.android.application"\n'),

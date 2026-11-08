@@ -76,6 +76,7 @@ const loadHandlers = ({
     console: { error: () => {} },
     createHash,
     widgetSyncHandler: () => {},
+    restoreCredentialsHandler: () => {},
     createAccountActionEmailContent,
     normalizeAccountEmailLocale,
     ...accountEmailConfig,

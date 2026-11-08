@@ -687,8 +687,9 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
 
     return {
       ...baseGlobal,
-      // Before sign-in, screens follow the device theme like the auth screen does.
-      theme: guest || user ? (devicePrefs.theme || baseGlobal.theme || systemTheme) : systemTheme,
+      // Before sign-in, screens follow the device theme like the auth screen does, unless the
+      // visitor picked one while viewing a shared schedule. It never replaces a session's theme.
+      theme: guest || user ? (devicePrefs.theme || baseGlobal.theme || systemTheme) : (devicePrefs.signedOutTheme || systemTheme),
       blur: devicePrefs.blur !== undefined ? devicePrefs.blur : (baseGlobal.blur ?? true),
       navigationStyle: resolveNavigationStyle(devicePrefs.navigationStyle || baseGlobal.navigationStyle || getDefaultNavigationStyle()),
       navigationLabels: devicePrefs.navigationLabels !== undefined
@@ -994,6 +995,15 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       return nextData;
     });
   }, [setDataDraft, syncDevicePrefsUpdate]);
+
+  const setSignedOutPreferences = useCallback(({ language, theme }) => {
+    if (guest || user) return;
+    syncDevicePrefsUpdate({
+      ...devicePrefsRef.current,
+      ...(language && { language }),
+      ...(theme && { signedOutTheme: theme }),
+    });
+  }, [guest, user, syncDevicePrefsUpdate]);
 
   const addSchedule = useCallback((scheduleObj, { persistLocally = false, select = false } = {}) => {
     if (!dataRef.current) throw new Error('schedule_not_ready');
@@ -1634,6 +1644,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     setData: setDataDraft,
     setScheduleDraft,
     setGlobalDraft,
+    setSignedOutPreferences,
     addSchedule,
     removeSchedule,
     saveNow,
@@ -1647,6 +1658,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
     setDataDraft,
     setScheduleDraft,
     setGlobalDraft,
+    setSignedOutPreferences,
     addSchedule,
     removeSchedule,
     saveNow,

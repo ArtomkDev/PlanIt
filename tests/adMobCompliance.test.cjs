@@ -788,4 +788,7 @@ test('keeps the banner out of the navigation controls and hardens build configur
   ]) {
     assert.match(packageConfig.scripts[command], /npm run build:aab$/);
   }
+  for (const command of ['deploy:web:patch', 'deploy:web:minor', 'deploy:web:major']) {
+    assert.match(packageConfig.scripts[command], /npm run deploy:web$/);
+  }
 });

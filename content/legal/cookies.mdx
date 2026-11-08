@@ -4,9 +4,9 @@ export const legalMetadata = {
   "navigationTitle": "Cookie Policy",
   "summary": "Your choices at a glance",
   "effectiveDateLabel": "Effective and last updated:",
-  "effectiveDate": "2026-07-24",
-  "effectiveDateDisplay": "July 24, 2026",
-  "version": "1.0"
+  "effectiveDate": "2026-11-07",
+  "effectiveDateDisplay": "November 7, 2026",
+  "version": "1.1"
 };
 
 <div className="summary">
@@ -20,6 +20,9 @@ export const legalMetadata = {
       and reject controls are presented together without a preselected analytics choice.</li>
     <li>Your analytics choice is stored without a unique consent identifier for up to 12 months. You can change
       it at any time through the persistent <strong>Cookie settings</strong> control in the web app.</li>
+    <li>The PlanIt website at planitflow.com asks separately. Its Firebase Analytics runs only on the English and
+      Ukrainian home pages after you select <strong>Accept analytics</strong> there, and you can change that choice
+      through <strong>Cookie preferences</strong> in the website footer.</li>
     <li>These hosted legal pages do not include a Firebase Analytics script. They may still be opened in a
       browser profile that already contains PlanIt storage from the web app.</li>
   </ul>
@@ -47,6 +50,9 @@ export const legalMetadata = {
     technologies that store information on, or access information from, a browser or device. Related
     technologies include local storage, session storage, IndexedDB, browser cache, SDK identifiers, and
     temporary authentication state.</p>
+  <p>PlanIt-hosted pages include the PlanIt website at <strong>planitflow.com</strong> and the web app at
+    <strong>app.planitflow.com</strong>. Browsers keep storage separately for each of these origins, so the website
+    and the web app each keep their own analytics choice.</p>
   <p>The Service is operated by the independent developer publishing under the name
     <strong>Artomk</strong>, based in Ukraine (<strong>“PlanIt,” “we,” “us,”</strong> or
     <strong>“Controller”</strong>). Contact:
@@ -102,6 +108,12 @@ export const legalMetadata = {
     attempts to remove first-party Google Analytics cookies accessible to the current origin. It does not
     retroactively erase lawfully collected records already held by Google; see the Privacy Policy for deletion
     and objection rights.</p>
+  <p>The PlanIt website shows a similar notice on its English and Ukrainian home pages, with
+    <strong>Reject analytics</strong> and <strong>Accept analytics</strong> at the same level and no preselected
+    option. It stores the choice in <code>planit-cookie-consent</code> for up to 12 months; the record contains only
+    whether analytics was accepted or rejected, a format version, and the time of the choice. You can change it at
+    any time through <strong>Cookie preferences</strong> in the website footer. Withdrawal disables future website
+    Analytics collection; it does not retroactively erase records already held by Google.</p>
 </section>
 
 <section id="necessary">
@@ -170,6 +182,24 @@ export const legalMetadata = {
             follow the provider's own settings and policy.</td>
         </tr>
         <tr>
+          <td><code>planit-cookie-consent</code></td>
+          <td>Local storage; first party (website)</td>
+          <td>Remembers the website analytics choice so the website respects it and does not repeatedly ask.</td>
+          <td>Up to 12 months, or until changed or browser site data is cleared.</td>
+        </tr>
+        <tr>
+          <td><code>theme</code>, <code>planit:locale</code>, and the <code>NEXT_LOCALE</code> cookie</td>
+          <td>Local storage and first-party cookie (website)</td>
+          <td>Remember the website colour theme and language you choose.</td>
+          <td>Until changed or browser site data is cleared; <code>NEXT_LOCALE</code> lasts up to 12 months.</td>
+        </tr>
+        <tr>
+          <td><code>planit:legal-loading:v3:*</code></td>
+          <td>Local storage; first party (website)</td>
+          <td>Caches the outline of a legal document so it can be shown while the document loads.</td>
+          <td>Until replaced by a newer document version or browser site data is cleared.</td>
+        </tr>
+        <tr>
           <td>Static asset and network cache</td>
           <td>Browser cache; first party / Firebase Hosting</td>
           <td>Loads application code, styles, fonts, and images efficiently and supports normal web delivery.</td>
@@ -190,6 +220,13 @@ export const legalMetadata = {
     page, approximate location derived from IP address, and technical identifiers. PlanIt's current custom web
     event call sends the route/screen name; it is not designed to send schedule text, attachment contents,
     passwords, or authentication tokens.</p>
+  <p>On the PlanIt website, Firebase Analytics is initialized only on the English and Ukrainian home pages after
+    website analytics consent. In addition to the page views Analytics records automatically, the website records
+    three events: <code>cta_click</code> (which web app or Google Play button was used and in which part of the
+    page), <code>demo_interaction</code> (which interactive demo was used), and <code>faq_open</code> (which question
+    was opened). Their parameters are limited to fixed values; the website does not send text typed into demos,
+    codes, URLs, or account data. Legal documents and account-action pages on the website do not collect
+    Analytics. The storage listed below may also be set for the website origin.</p>
 
   <div className="table-scroll">
     <table>
@@ -263,6 +300,14 @@ export const legalMetadata = {
     <li>Open <strong>Settings → Cookie Settings</strong>.</li>
     <li>Select <strong>Accept analytics</strong> or <strong>Reject analytics</strong>. The new choice applies
       to future collection from that browser profile.</li>
+  </ol>
+
+  <h3>Change the website's analytics choice</h3>
+  <ol>
+    <li>Open the PlanIt website at planitflow.com.</li>
+    <li>Select <strong>Cookie preferences</strong> in the footer.</li>
+    <li>Select <strong>Accept analytics</strong> or <strong>Reject analytics</strong>. The new choice applies
+      to future website collection from that browser profile.</li>
   </ol>
 
   <h3>Use browser controls</h3>

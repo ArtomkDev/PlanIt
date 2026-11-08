@@ -10,8 +10,8 @@ const LETTERS_PATH = 'M1313 -961Q1313 -814 1239 -700Q1164 -586 1026 -523Q888 -46
 const DOT_PATH = 'M6231 -178Q6231 -87 6167 -31Q6103 25 5990 25Q5887 25 5821 -33Q5756 -92 5756 -178Q5756 -266 5820 -320Q5885 -375 5994 -375Q6100 -375 6165 -320Q6231 -266 6231 -178Z';
 
 // Website accent colors: pink in light theme, teal in dark.
-const ACCENT_LIGHT = '#f45b8a';
-const ACCENT_DARK = '#3ef7d2';
+export const WEBSITE_ACCENT_LIGHT = '#f45b8a';
+export const WEBSITE_ACCENT_DARK = '#3ef7d2';
 
 const PlanItWordmark = ({ fontSize, color, isDark, style }) => {
   const scale = fontSize / UNITS_PER_EM;
@@ -24,7 +24,7 @@ const PlanItWordmark = ({ fontSize, color, isDark, style }) => {
         viewBox={`${VIEW_BOX.x} ${VIEW_BOX.y} ${VIEW_BOX.width} ${VIEW_BOX.height}`}
       >
         <Path fill={color} d={LETTERS_PATH} />
-        <Path fill={isDark ? ACCENT_DARK : ACCENT_LIGHT} d={DOT_PATH} />
+        <Path fill={isDark ? WEBSITE_ACCENT_DARK : WEBSITE_ACCENT_LIGHT} d={DOT_PATH} />
       </Svg>
     </View>
   );

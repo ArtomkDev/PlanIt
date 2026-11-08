@@ -11,9 +11,11 @@ export default function useSharedScheduleClock(shares) {
       clearTimeout(timer);
       const current = Date.now();
       setNow(current);
-      const next = Math.min(...shares.filter(item => item.isActive)
-        .map(item => getSharedScheduleTimestamp(item.expiresAt)).filter(value => value !== null && value > current));
-      if (Number.isFinite(next)) timer = setTimeout(update, Math.min(next - current + 1, 2147483647));
+      const remaining = shares.filter(item => item.isActive)
+        .map(item => getSharedScheduleTimestamp(item.expiresAt)).filter(value => value !== null && value > current)
+        .map(value => value - current);
+      // Wake up whenever a remaining-minute countdown changes; the last wake-up is the expiry itself.
+      if (remaining.length) timer = setTimeout(update, Math.min(...remaining.map(value => value % 60000 || 60000)) + 1);
     };
     update();
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') update(); });

@@ -19,11 +19,11 @@ export const LEGAL_DOCUMENTS = {
     "navigationTitle": "Privacy Policy",
     "summary": "Privacy at a glance",
     "effectiveDateLabel": "Effective and last updated:",
-    "effectiveDate": "2026-08-30",
-    "effectiveDateDisplay": "August 30, 2026",
-    "version": "2.3",
+    "effectiveDate": "2026-11-07",
+    "effectiveDateDisplay": "November 7, 2026",
+    "version": "2.4",
     "type": "privacy",
-    "effectiveDateLine": "Effective and last updated: August 30, 2026",
+    "effectiveDateLine": "Effective and last updated: November 7, 2026",
     "sourceFile": "content/legal/privacy.mdx",
     "sections": [
       {
@@ -32,7 +32,7 @@ export const LEGAL_DOCUMENTS = {
         "blocks": [
           {
             "type": "bullet",
-            "text": "Guest schedules are kept on the device and are not uploaded to PlanIt's account database. Native advertising/analytics, crash reporting, update, and basic network services may still process technical data. Optional web Firebase Analytics remains off until the browser user accepts it."
+            "text": "Guest schedules are kept on the device and are not uploaded to PlanIt's account database. Native advertising/analytics, crash reporting, update, and basic network services may still process technical data. Optional web Firebase Analytics remains off until the browser user accepts it; the PlanIt website at planitflow.com asks for this choice separately."
           },
           {
             "type": "bullet",
@@ -58,7 +58,7 @@ export const LEGAL_DOCUMENTS = {
         "blocks": [
           {
             "type": "paragraph",
-            "text": "This Privacy Policy explains how the PlanIt mobile and web applications, the PlanIt account and synchronization services, and the PlanIt-hosted legal pages (together, the “Service”) handle personal data."
+            "text": "This Privacy Policy explains how the PlanIt mobile and web applications, the PlanIt account and synchronization services, and the PlanIt website at planitflow.com, including its legal pages (together, the “Service”) handle personal data."
           },
           {
             "type": "paragraph",
@@ -122,6 +122,11 @@ export const LEGAL_DOCUMENTS = {
             "type": "definition",
             "term": "Legal-page and network data",
             "text": "When you visit these static pages, Firebase Hosting and network providers necessarily receive technical request information such as IP address, browser type, requested URL, and timestamps for delivery, security, and abuse prevention. These pages do not intentionally load third-party fonts, advertising scripts, or PlanIt analytics scripts."
+          },
+          {
+            "type": "definition",
+            "term": "Website data",
+            "text": "The PlanIt website receives the same technical request information. It remembers your language, theme, and cookie choice in your browser. Only if you accept analytics on its English or Ukrainian home page does it load Firebase Analytics, which records page views and three fixed events: which web app or Google Play button you used and in which part of the page, which interactive demo you used, and which FAQ question you opened. The website does not send text typed into demos, codes, URLs, or account data."
           },
           {
             "type": "subheading",
@@ -305,6 +310,10 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "paragraph",
             "text": "PlanIt records screen views and Firebase may automatically collect app-instance, device, session, and engagement events. Analytics helps us understand whether features operate and which screens are used. In the web app, optional Firebase Analytics is not initialized before affirmative analytics consent. Rejecting it does not block core features; the user can later grant or withdraw consent using the persistent Cookie settings control. Withdrawal disables future PlanIt web Analytics collection and attempts to remove accessible first-party Analytics cookies. See the Cookie & Similar Technologies Policy."
+          },
+          {
+            "type": "paragraph",
+            "text": "On the PlanIt website, optional Firebase Analytics runs only on the English and Ukrainian home pages after the visitor accepts it in the website's cookie notice. It helps us understand which parts of the website are useful and how visitors reach the app. Rejecting it does not limit the website. The visitor can change the choice through Cookie preferences in the website footer; withdrawal disables future website Analytics collection."
           },
           {
             "type": "paragraph",
@@ -955,11 +964,11 @@ export const LEGAL_DOCUMENTS = {
     "navigationTitle": "Cookie Policy",
     "summary": "Your choices at a glance",
     "effectiveDateLabel": "Effective and last updated:",
-    "effectiveDate": "2026-07-24",
-    "effectiveDateDisplay": "July 24, 2026",
-    "version": "1.0",
+    "effectiveDate": "2026-11-07",
+    "effectiveDateDisplay": "November 7, 2026",
+    "version": "1.1",
     "type": "cookies",
-    "effectiveDateLine": "Effective and last updated: July 24, 2026",
+    "effectiveDateLine": "Effective and last updated: November 7, 2026",
     "sourceFile": "content/legal/cookies.mdx",
     "sections": [
       {
@@ -984,6 +993,10 @@ export const LEGAL_DOCUMENTS = {
           },
           {
             "type": "bullet",
+            "text": "The PlanIt website at planitflow.com asks separately. Its Firebase Analytics runs only on the English and Ukrainian home pages after you select Accept analytics there, and you can change that choice through Cookie preferences in the website footer."
+          },
+          {
+            "type": "bullet",
             "text": "These hosted legal pages do not include a Firebase Analytics script. They may still be opened in a browser profile that already contains PlanIt storage from the web app."
           }
         ]
@@ -995,6 +1008,10 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "paragraph",
             "text": "This Policy explains how the PlanIt web application and PlanIt-hosted pages use cookies and related technologies that store information on, or access information from, a browser or device. Related technologies include local storage, session storage, IndexedDB, browser cache, SDK identifiers, and temporary authentication state."
+          },
+          {
+            "type": "paragraph",
+            "text": "PlanIt-hosted pages include the PlanIt website at planitflow.com and the web app at app.planitflow.com. Browsers keep storage separately for each of these origins, so the website and the web app each keep their own analytics choice."
           },
           {
             "type": "paragraph",
@@ -1063,6 +1080,10 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "paragraph",
             "text": "You can withdraw or grant analytics consent at any time through Settings → Cookie Settings in the web app. Withdrawal disables future PlanIt Analytics collection and attempts to remove first-party Google Analytics cookies accessible to the current origin. It does not retroactively erase lawfully collected records already held by Google; see the Privacy Policy for deletion and objection rights."
+          },
+          {
+            "type": "paragraph",
+            "text": "The PlanIt website shows a similar notice on its English and Ukrainian home pages, with Reject analytics and Accept analytics at the same level and no preselected option. It stores the choice in planit-cookie-consent for up to 12 months; the record contains only whether analytics was accepted or rejected, a format version, and the time of the choice. You can change it at any time through Cookie preferences in the website footer. Withdrawal disables future website Analytics collection; it does not retroactively erase records already held by Google."
           }
         ]
       },
@@ -1140,6 +1161,33 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "tableRow",
             "cells": [
+              "planit-cookie-consent",
+              "Local storage; first party (website)",
+              "Remembers the website analytics choice so the website respects it and does not repeatedly ask.",
+              "Up to 12 months, or until changed or browser site data is cleared."
+            ]
+          },
+          {
+            "type": "tableRow",
+            "cells": [
+              "theme, planit:locale, and the NEXT_LOCALE cookie",
+              "Local storage and first-party cookie (website)",
+              "Remember the website colour theme and language you choose.",
+              "Until changed or browser site data is cleared; NEXT_LOCALE lasts up to 12 months."
+            ]
+          },
+          {
+            "type": "tableRow",
+            "cells": [
+              "planit:legal-loading:v3:*",
+              "Local storage; first party (website)",
+              "Caches the outline of a legal document so it can be shown while the document loads.",
+              "Until replaced by a newer document version or browser site data is cleared."
+            ]
+          },
+          {
+            "type": "tableRow",
+            "cells": [
               "Static asset and network cache",
               "Browser cache; first party / Firebase Hosting",
               "Loads application code, styles, fonts, and images efficiently and supports normal web delivery.",
@@ -1159,6 +1207,10 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "paragraph",
             "text": "After analytics consent, PlanIt initializes Firebase Analytics for the web and records screen-view events. Google Analytics may also automatically process session, engagement, browser/device, timestamp, referring page, approximate location derived from IP address, and technical identifiers. PlanIt's current custom web event call sends the route/screen name; it is not designed to send schedule text, attachment contents, passwords, or authentication tokens."
+          },
+          {
+            "type": "paragraph",
+            "text": "On the PlanIt website, Firebase Analytics is initialized only on the English and Ukrainian home pages after website analytics consent. In addition to the page views Analytics records automatically, the website records three events: cta_click (which web app or Google Play button was used and in which part of the page), demo_interaction (which interactive demo was used), and faq_open (which question was opened). Their parameters are limited to fixed values; the website does not send text typed into demos, codes, URLs, or account data. Legal documents and account-action pages on the website do not collect Analytics. The storage listed below may also be set for the website origin."
           },
           {
             "type": "tableRow",
@@ -1255,6 +1307,22 @@ export const LEGAL_DOCUMENTS = {
           {
             "type": "bullet",
             "text": "Select Accept analytics or Reject analytics. The new choice applies to future collection from that browser profile."
+          },
+          {
+            "type": "subheading",
+            "text": "Change the website's analytics choice"
+          },
+          {
+            "type": "bullet",
+            "text": "Open the PlanIt website at planitflow.com."
+          },
+          {
+            "type": "bullet",
+            "text": "Select Cookie preferences in the footer."
+          },
+          {
+            "type": "bullet",
+            "text": "Select Accept analytics or Reject analytics. The new choice applies to future website collection from that browser profile."
           },
           {
             "type": "subheading",
@@ -2223,12 +2291,12 @@ export const LEGAL_DOCUMENTS_UK = {
     "navigationTitle": "Політика конфіденційності",
     "summary": "Конфіденційність коротко",
     "effectiveDateLabel": "Дата набрання чинності та останнього оновлення:",
-    "effectiveDate": "2026-08-30",
-    "effectiveDateDisplay": "30 серпня 2026 року",
-    "version": "2.3",
-    "translationSourceHash": "cfb9574a941dbc6581d6dc280477fa13b3afa9309b044e7cf60eba36f274b4bd",
+    "effectiveDate": "2026-11-07",
+    "effectiveDateDisplay": "7 листопада 2026 року",
+    "version": "2.4",
+    "translationSourceHash": "58a320d2f5356dc21def41e8ee77109fc3a9a73f340f4b6f0af510f817798140",
     "type": "privacy",
-    "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 30 серпня 2026 року",
+    "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 7 листопада 2026 року",
     "sourceFile": "content/legal/uk/privacy.mdx",
     "sections": [
       {
@@ -2237,7 +2305,7 @@ export const LEGAL_DOCUMENTS_UK = {
         "blocks": [
           {
             "type": "bullet",
-            "text": "Гостьові розклади зберігаються на пристрої та не завантажуються до бази облікових записів PlanIt. Нативна реклама й аналітика, звіти про збої, оновлення та базові мережеві сервіси все одно можуть обробляти технічні дані. Необов’язкова вебверсія Firebase Analytics залишається вимкненою, доки користувач браузера не погодиться на неї."
+            "text": "Гостьові розклади зберігаються на пристрої та не завантажуються до бази облікових записів PlanIt. Нативна реклама й аналітика, звіти про збої, оновлення та базові мережеві сервіси все одно можуть обробляти технічні дані. Необов’язкова вебверсія Firebase Analytics залишається вимкненою, доки користувач браузера не погодиться на неї; сайт PlanIt planitflow.com запитує цей вибір окремо."
           },
           {
             "type": "bullet",
@@ -2263,7 +2331,7 @@ export const LEGAL_DOCUMENTS_UK = {
         "blocks": [
           {
             "type": "paragraph",
-            "text": "Ця Політика конфіденційності пояснює обробку персональних даних мобільними й вебзастосунками PlanIt, його сервісами облікових записів і синхронізації та розміщеними юридичними сторінками PlanIt (разом — «Сервіс»)."
+            "text": "Ця Політика конфіденційності пояснює обробку персональних даних мобільними й вебзастосунками PlanIt, його сервісами облікових записів і синхронізації та сайтом PlanIt planitflow.com разом з його юридичними сторінками (разом — «Сервіс»)."
           },
           {
             "type": "paragraph",
@@ -2327,6 +2395,11 @@ export const LEGAL_DOCUMENTS_UK = {
             "type": "definition",
             "term": "Дані юридичних сторінок і мережі",
             "text": "Під час відвідування цих статичних сторінок Firebase Hosting і мережеві постачальники неминуче отримують технічні відомості запиту: IP-адресу, тип браузера, запитану URL-адресу й час — для доставки, безпеки та запобігання зловживанням. Ці сторінки навмисно не завантажують сторонні шрифти, рекламні скрипти або скрипти аналітики PlanIt."
+          },
+          {
+            "type": "definition",
+            "term": "Дані сайту",
+            "text": "Сайт PlanIt отримує ті самі технічні відомості запиту. Він запам’ятовує у вашому браузері мову, тему та вибір щодо cookie. Лише якщо ви дозволите аналітику на його українській чи англійській головній сторінці, сайт завантажує Firebase Analytics, яка записує перегляди сторінок і три фіксовані події: яку кнопку вебзастосунку чи Google Play ви натиснули та в якій частині сторінки, яким інтерактивним демо скористалися та яке запитання FAQ відкрили. Сайт не надсилає текст, введений у демо, коди, URL-адреси чи дані облікового запису."
           },
           {
             "type": "subheading",
@@ -2510,6 +2583,10 @@ export const LEGAL_DOCUMENTS_UK = {
           {
             "type": "paragraph",
             "text": "PlanIt записує перегляди екранів, а Firebase може автоматично збирати події екземпляра застосунку, пристрою, сеансів і взаємодій. Аналітика допомагає з’ясувати, чи працюють функції та які екрани використовуються. У вебверсії необов’язкова Firebase Analytics не ініціалізується без явної згоди. Відмова не блокує основних функцій; згодом згоду можна надати чи відкликати через постійно доступні «Налаштування cookie». Відкликання вимикає подальший збір вебаналітики PlanIt і запускає спробу видалення доступних власних cookies Analytics. Див. Політику щодо cookies та подібних технологій."
+          },
+          {
+            "type": "paragraph",
+            "text": "На сайті PlanIt необов’язкова Firebase Analytics працює лише на українській та англійській головних сторінках після того, як відвідувач дозволить її в повідомленні про cookie на сайті. Вона допомагає зрозуміти, які частини сайту корисні та як відвідувачі переходять до застосунку. Відмова не обмежує сайт. Змінити вибір можна через «Налаштування cookie» у футері сайту; відкликання вимикає подальший збір аналітики сайту."
           },
           {
             "type": "paragraph",
@@ -3161,12 +3238,12 @@ export const LEGAL_DOCUMENTS_UK = {
     "navigationTitle": "Політика cookies",
     "summary": "Ваш вибір коротко",
     "effectiveDateLabel": "Дата набрання чинності та останнього оновлення:",
-    "effectiveDate": "2026-07-24",
-    "effectiveDateDisplay": "24 липня 2026 року",
-    "version": "1.0",
-    "translationSourceHash": "7acc0783e6f42094f4d75b07c0443de15c8197fc96ac924407d88c4398b2083d",
+    "effectiveDate": "2026-11-07",
+    "effectiveDateDisplay": "7 листопада 2026 року",
+    "version": "1.1",
+    "translationSourceHash": "138ff198786d87beda8f49418b2127539893ca981eac7df6579d65165ecb5951",
     "type": "cookies",
-    "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 24 липня 2026 року",
+    "effectiveDateLine": "Дата набрання чинності та останнього оновлення: 7 листопада 2026 року",
     "sourceFile": "content/legal/uk/cookies.mdx",
     "sections": [
       {
@@ -3191,6 +3268,10 @@ export const LEGAL_DOCUMENTS_UK = {
           },
           {
             "type": "bullet",
+            "text": "Сайт PlanIt planitflow.com запитує згоду окремо. Його Firebase Analytics працює лише на українській та англійській головних сторінках після вибору «Дозволити аналітику» на сайті, а змінити цей вибір можна через «Налаштування cookie» у футері сайту."
+          },
+          {
+            "type": "bullet",
             "text": "Ці розміщені юридичні сторінки не містять скрипту Firebase Analytics. Проте їх можна відкрити в профілі браузера, де вже є сховище PlanIt від вебзастосунку."
           }
         ]
@@ -3202,6 +3283,10 @@ export const LEGAL_DOCUMENTS_UK = {
           {
             "type": "paragraph",
             "text": "Ця Політика пояснює використання вебзастосунком і розміщеними сторінками PlanIt файлів cookies та пов’язаних технологій, що зберігають інформацію у браузері чи на пристрої або отримують до неї доступ. До них належать локальне й сеансове сховище, IndexedDB, кеш браузера, ідентифікатори SDK та тимчасовий стан автентифікації."
+          },
+          {
+            "type": "paragraph",
+            "text": "До розміщених сторінок PlanIt належать сайт PlanIt planitflow.com і вебзастосунок app.planitflow.com. Браузери зберігають дані окремо для кожного з цих вебджерел, тому сайт і вебзастосунок мають власний вибір щодо аналітики."
           },
           {
             "type": "paragraph",
@@ -3270,6 +3355,10 @@ export const LEGAL_DOCUMENTS_UK = {
           {
             "type": "paragraph",
             "text": "Згоду на аналітику можна будь-коли надати або відкликати через «Налаштування → Налаштування cookie» у вебзастосунку. Відкликання вимикає подальший збір аналітики PlanIt та запускає спробу видалити власні cookies Google Analytics, доступні поточному вебджерелу. Воно не стирає заднім числом законно зібрані записи, які вже є у Google; права на видалення й заперечення описано в Політиці конфіденційності."
+          },
+          {
+            "type": "paragraph",
+            "text": "Сайт PlanIt показує подібне повідомлення на українській та англійській головних сторінках: «Відхилити аналітику» і «Дозволити аналітику» рівнозначні, попередньо вибраного варіанта немає. Вибір зберігається в planit-cookie-consent до 12 місяців; запис містить лише прийняття чи відмову, версію формату та час вибору. Його можна будь-коли змінити через «Налаштування cookie» у футері сайту. Відкликання вимикає подальший збір аналітики сайту; воно не стирає заднім числом записи, які вже є у Google."
           }
         ]
       },
@@ -3347,6 +3436,33 @@ export const LEGAL_DOCUMENTS_UK = {
           {
             "type": "tableRow",
             "cells": [
+              "planit-cookie-consent",
+              "Локальне сховище; власне (сайт)",
+              "Запам’ятовує вибір щодо аналітики сайту, щоб сайт його поважав і не запитував повторно.",
+              "До 12 місяців або до зміни вибору чи очищення даних сайту."
+            ]
+          },
+          {
+            "type": "tableRow",
+            "cells": [
+              "theme, planit:locale та cookie NEXT_LOCALE",
+              "Локальне сховище та власний cookie (сайт)",
+              "Запам’ятовують вибрані на сайті тему й мову.",
+              "До зміни вибору чи очищення даних сайту; NEXT_LOCALE діє до 12 місяців."
+            ]
+          },
+          {
+            "type": "tableRow",
+            "cells": [
+              "planit:legal-loading:v3:*",
+              "Локальне сховище; власне (сайт)",
+              "Кешує структуру юридичного документа, щоб показати її під час завантаження документа.",
+              "До заміни новішою версією документа або очищення даних сайту."
+            ]
+          },
+          {
+            "type": "tableRow",
+            "cells": [
               "Кеш статичних ресурсів і мережевих даних",
               "Кеш браузера; власний / Firebase Hosting",
               "Ефективно завантажує код, стилі, шрифти та зображення застосунку й забезпечує звичайну вебдоставку.",
@@ -3366,6 +3482,10 @@ export const LEGAL_DOCUMENTS_UK = {
           {
             "type": "paragraph",
             "text": "Після згоди на аналітику PlanIt ініціалізує Firebase Analytics для вебверсії та записує події перегляду екранів. Google Analytics також може автоматично обробляти сеанси, взаємодії, відомості браузера й пристрою, час, сторінку переходу, приблизне місцезнаходження за IP-адресою та технічні ідентифікатори. Поточний спеціальний виклик вебподії PlanIt надсилає назву маршруту чи екрана; він не призначений для надсилання тексту розкладу, вмісту вкладень, паролів або токенів автентифікації."
+          },
+          {
+            "type": "paragraph",
+            "text": "На сайті PlanIt Firebase Analytics ініціалізується лише на українській та англійській головних сторінках після згоди на аналітику сайту. Окрім переглядів сторінок, які Analytics записує автоматично, сайт записує три події: cta_click (яку кнопку вебзастосунку чи Google Play натиснуто та в якій частині сторінки), demo_interaction (яким інтерактивним демо скористалися) та faq_open (яке запитання відкрито). Їхні параметри обмежені фіксованими значеннями; сайт не надсилає текст, введений у демо, коди, URL-адреси чи дані облікового запису. Юридичні документи та сторінки дій з обліковим записом на сайті не збирають аналітику. Наведене нижче сховище також може встановлюватися для вебджерела сайту."
           },
           {
             "type": "tableRow",
@@ -3462,6 +3582,22 @@ export const LEGAL_DOCUMENTS_UK = {
           {
             "type": "bullet",
             "text": "Виберіть «Дозволити аналітику» або «Відхилити аналітику». Новий вибір діє для подальшого збору в цьому профілі браузера."
+          },
+          {
+            "type": "subheading",
+            "text": "Зміна вибору аналітики сайту"
+          },
+          {
+            "type": "bullet",
+            "text": "Відкрийте сайт PlanIt planitflow.com."
+          },
+          {
+            "type": "bullet",
+            "text": "Виберіть «Налаштування cookie» у футері."
+          },
+          {
+            "type": "bullet",
+            "text": "Виберіть «Дозволити аналітику» або «Відхилити аналітику». Новий вибір діє для подальшого збору на сайті в цьому профілі браузера."
           },
           {
             "type": "subheading",

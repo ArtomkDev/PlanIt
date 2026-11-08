@@ -36,6 +36,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useReducedMotionPreference from '../../hooks/useReducedMotionPreference';
 
 const TOTAL_STEPS = 5;
+const CONTENT_MAX_WIDTH = 560;
+const CONTENT_GUTTER = 16;
 const STEP_INDICES = Array.from({ length: TOTAL_STEPS }, (_, index) => index);
 const INITIAL_STEP_HEIGHTS = Array.from({ length: TOTAL_STEPS }, () => 400);
 const ICONS = [HandWaving, PencilSimple, CalendarDots, Clock, Bell];
@@ -284,14 +286,13 @@ export default function OnboardingWizard({ onImportSchedule, onLayout }) {
       extrapolate: 'clamp'
     });
 
-  const firstHeaderHeight = 200 + insets.top;
+  const contentEdge = Math.max(CONTENT_GUTTER, (width - CONTENT_MAX_WIDTH) / 2);
+  const firstHeaderHeight = 148 + insets.top;
   const compactH = 64 + insets.top;
   const compactIconTop = insets.top - 12;
   const compactDotsTop = insets.top + 25;
-  const dotsLiftTop = compactH + 42;
   const compactContentSpacerHeight = compactH + (Platform.OS === 'ios' ? 14 : 18);
   const compactInputRange = [0, 0.4, ...STEP_INDICES.slice(1)];
-  const compactDotInputRange = [0, 0.6, ...STEP_INDICES.slice(1)];
   const headerHeight = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(firstHeaderHeight, compactH), extrapolate: 'clamp' });
   const contentTopSpacerHeight = position.interpolate({
     inputRange: [0, 0.35, 1, ...STEP_INDICES.slice(2)],
@@ -305,12 +306,12 @@ export default function OnboardingWizard({ onImportSchedule, onLayout }) {
   });
   const dynamicBorderColor = scrollY.interpolate({ inputRange: [0, 20], outputRange: ['transparent', themeColors.borderColor], extrapolate: 'clamp' });
 
-  const iconTop = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(40 + insets.top, compactIconTop), extrapolate: 'clamp' });
-  const iconLeft = position.interpolate({ inputRange: compactInputRange, outputRange: [width / 2 - 40, ...Array.from({ length: TOTAL_STEPS }, () => 4)], extrapolate: 'clamp' });
+  const iconTop = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(28 + insets.top, compactIconTop), extrapolate: 'clamp' });
+  const iconLeft = position.interpolate({ inputRange: compactInputRange, outputRange: [width / 2 - 40, ...Array.from({ length: TOTAL_STEPS }, () => contentEdge - 12)], extrapolate: 'clamp' });
   const iconScale = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(1, 0.5), extrapolate: 'clamp' });
 
-  const dotsTop = position.interpolate({ inputRange: compactDotInputRange, outputRange: [140 + insets.top, dotsLiftTop, ...Array.from({ length: TOTAL_STEPS - 1 }, () => compactDotsTop)], extrapolate: 'clamp' });
-  const dotsLeft = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(width / 2 - 40, 84), extrapolate: 'clamp' });
+  const dotsTop = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(124 + insets.top, compactDotsTop), extrapolate: 'clamp' });
+  const dotsLeft = position.interpolate({ inputRange: STEP_INDICES, outputRange: expandFirstOutputRange(width / 2 - 40, contentEdge + 68), extrapolate: 'clamp' });
 
   const renderStep0 = () => (
     <View style={styles.stepContent}>
@@ -347,7 +348,11 @@ export default function OnboardingWizard({ onImportSchedule, onLayout }) {
         </View>
         <CaretRight size={20} color={themeColors.accentTextColor} weight="bold" />
       </TouchableOpacity>
-      {__DEV__ && React.createElement(require('../../components/development/CreateTestScheduleButton').default, { themeColors })}
+      {__DEV__ && (
+        <View style={styles.devTools}>
+          {React.createElement(require('../../components/development/CreateTestScheduleButton').default, { themeColors })}
+        </View>
+      )}
       <Text style={[styles.swipeHint, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_to_continue', lang)} -&gt;</Text>
       <Text style={[styles.swipeHintSub, { color: themeColors.textColor2 }]}>{t('onboarding.swipe_hint_sub', lang)}</Text>
     </View>
@@ -466,7 +471,7 @@ export default function OnboardingWizard({ onImportSchedule, onLayout }) {
           </Animated.View>
         </Animated.ScrollView>
 
-        <Animated.View style={[styles.header, { height: headerHeight, borderBottomColor: dynamicBorderColor }]}>
+        <Animated.View style={[styles.header, { height: headerHeight, backgroundColor: themeColors.backgroundColor, borderBottomColor: dynamicBorderColor }]}>
           <AnimatedTouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t('onboarding.navigation', lang)}
@@ -475,6 +480,7 @@ export default function OnboardingWizard({ onImportSchedule, onLayout }) {
               styles.toggleNavBtn,
               {
                 top: insets.top + 10,
+                right: contentEdge + 8,
                 backgroundColor: themeColors.backgroundColor,
                 borderColor: themeColors.borderColor,
                 transform: [{ scale: toggleBtnScale }]
@@ -539,36 +545,38 @@ export default function OnboardingWizard({ onImportSchedule, onLayout }) {
           <View style={StyleSheet.absoluteFill}>
             <AppBlur style={StyleSheet.absoluteFill} />
           </View>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back', lang)}
-            accessibilityState={{ disabled: step === 0 || isFinishing }}
-            style={[styles.navBtn, { backgroundColor: themeColors.backgroundColor2, opacity: step === 0 ? 0.4 : 1 }]}
-            disabled={step === 0 || isFinishing}
-            onPress={() => navigateToStep(step - 1)}
-            activeOpacity={0.7}
-          >
-            <CaretLeft size={20} color={themeColors.textColor} weight="bold" />
-          </TouchableOpacity>
+          <View style={styles.navRow}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back', lang)}
+              accessibilityState={{ disabled: step === 0 || isFinishing }}
+              style={[styles.navBtn, { backgroundColor: themeColors.backgroundColor2, opacity: step === 0 ? 0.4 : 1 }]}
+              disabled={step === 0 || isFinishing}
+              onPress={() => navigateToStep(step - 1)}
+              activeOpacity={0.7}
+            >
+              <CaretLeft size={20} color={themeColors.textColor} weight="bold" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={step === TOTAL_STEPS - 1 ? t('common.done', lang) : t('onboarding.next', lang)}
-            accessibilityState={{ disabled: isFinishing, busy: isFinishing }}
-            disabled={isFinishing}
-            style={[styles.navBtnMain, { backgroundColor: themeColors.accentColor }]}
-            onPress={() => navigateToStep(step + 1)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.navBtnMainText, { color: themeColors.textOnAccent }]}>
-              {step === TOTAL_STEPS - 1 ? t('common.done', lang) : t('onboarding.next', lang)}
-            </Text>
-            {step === TOTAL_STEPS - 1 ? (
-              <Check size={20} color={themeColors.textOnAccent} weight="bold" style={{ marginLeft: 8 }} />
-            ) : (
-              <CaretRight size={20} color={themeColors.textOnAccent} weight="bold" style={{ marginLeft: 8 }} />
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={step === TOTAL_STEPS - 1 ? t('common.done', lang) : t('onboarding.next', lang)}
+              accessibilityState={{ disabled: isFinishing, busy: isFinishing }}
+              disabled={isFinishing}
+              style={[styles.navBtnMain, { backgroundColor: themeColors.accentColor }]}
+              onPress={() => navigateToStep(step + 1)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.navBtnMainText, { color: themeColors.textOnAccent }]}>
+                {step === TOTAL_STEPS - 1 ? t('common.done', lang) : t('onboarding.next', lang)}
+              </Text>
+              {step === TOTAL_STEPS - 1 ? (
+                <Check size={20} color={themeColors.textOnAccent} weight="bold" style={{ marginLeft: 8 }} />
+              ) : (
+                <CaretRight size={20} color={themeColors.textOnAccent} weight="bold" style={{ marginLeft: 8 }} />
+              )}
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
       </Animated.View>
@@ -580,31 +588,33 @@ export default function OnboardingWizard({ onImportSchedule, onLayout }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { position: 'absolute', top: 0, left: 0, right: 0, borderBottomWidth: StyleSheet.hairlineWidth, overflow: 'hidden', backgroundColor: 'transparent', zIndex: 30 },
-  toggleNavBtn: { position: 'absolute', right: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, zIndex: 50 },
+  toggleNavBtn: { position: 'absolute', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, zIndex: 50 },
   toggleNavText: { fontSize: 13, fontWeight: '600', marginLeft: 6 },
   dotsWrapper: { position: 'absolute', flexDirection: 'row', alignItems: 'center' },
   dot: { height: 8, borderRadius: 4, marginHorizontal: 4 },
   iconCircle: { position: 'absolute', width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { flexGrow: 1 },
-  contentContainer: { position: 'relative', paddingTop: 20 },
-  stepWrapper: { position: 'absolute', top: 20, left: 0, paddingHorizontal: 16 },
-  stepContent: { alignItems: 'center', width: '100%', paddingBottom: 20 },
+  contentContainer: { position: 'relative', paddingTop: 20, ...(Platform.OS === 'web' && { overflow: 'hidden' }) },
+  stepWrapper: { position: 'absolute', top: 20, left: 0, paddingHorizontal: CONTENT_GUTTER },
+  stepContent: { alignItems: 'center', alignSelf: 'center', width: '100%', maxWidth: CONTENT_MAX_WIDTH, paddingBottom: 20 },
   title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
   subtitle: { fontSize: 16, textAlign: 'center', marginBottom: 40, lineHeight: 24, paddingHorizontal: 10 },
   welcomeBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, marginBottom: 18 },
   welcomeBadgeText: { fontSize: 13, fontWeight: '700' },
   welcomeTitle: { marginBottom: 10 },
   welcomeSubtitle: { marginBottom: 8 },
-  importScheduleCard: { width: '100%', maxWidth: 520, minHeight: 88, borderRadius: 20, borderWidth: 1, padding: 14, marginTop: 24, flexDirection: 'row', alignItems: 'center' },
+  importScheduleCard: { width: '100%', minHeight: 80, borderRadius: 20, borderWidth: 1, padding: 14, marginTop: 20, flexDirection: 'row', alignItems: 'center' },
   importScheduleIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   importScheduleText: { flex: 1, paddingRight: 10 },
   importScheduleTitle: { fontSize: 16, fontWeight: '800', marginBottom: 4 },
   importScheduleDesc: { fontSize: 13, lineHeight: 18 },
-  swipeHint: { fontSize: 15, fontWeight: '600', marginTop: 28, opacity: 0.6 },
-  swipeHintSub: { fontSize: 13, marginTop: 12, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 },
+  devTools: { width: '100%', marginTop: 16 },
+  swipeHint: { fontSize: 15, fontWeight: '600', marginTop: 24, opacity: 0.6 },
+  swipeHintSub: { fontSize: 13, marginTop: 8, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 },
   finishSummary: { width: '100%', minHeight: 54, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 12, marginTop: 18, flexDirection: 'row', alignItems: 'center' },
   finishSummaryText: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '600', marginLeft: 10 },
-  bottomNavContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 36 : 20, borderTopWidth: StyleSheet.hairlineWidth, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'transparent', overflow: 'hidden' },
+  bottomNavContainer: { alignItems: 'center', paddingHorizontal: CONTENT_GUTTER, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 36 : 20, borderTopWidth: StyleSheet.hairlineWidth, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'transparent', overflow: 'hidden' },
+  navRow: { flexDirection: 'row', alignItems: 'center', width: '100%', maxWidth: CONTENT_MAX_WIDTH },
   navBtn: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   navBtnMain: { flex: 1, height: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 16 },
   navBtnMainText: { color: '#FFF', fontSize: 16, fontWeight: '700' }

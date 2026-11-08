@@ -1,6 +1,9 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import pkg from './package.json';
 import nativeEnglish from './src/locales/native/en.json';
 import { getAndroidVersionCode } from './src/config/appVersion.cjs';
+import { FIREBASE_PRODUCTION_PROJECT_ID } from './src/config/firebaseProjects.cjs';
 import { WEB_APP_URL } from './src/config/website.cjs';
 
 const versionCode = getAndroidVersionCode(pkg.version);
@@ -20,6 +23,36 @@ const normalizeHost = (value) => (value || '')
   .replace(/^https?:\/\//, '')
   .split('/')[0];
 const firebaseProjectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+const androidGoogleServicesFile =
+  process.env.GOOGLE_SERVICES_FILE || './google-services.json';
+const iosGoogleServicesFile =
+  process.env.GOOGLE_SERVICE_INFO_PLIST || './GoogleService-Info.plist';
+
+// .env.development switches `expo start` and dev-client builds to the
+// development Firebase project; release commands run with NODE_ENV=production.
+if (process.env.NODE_ENV === 'development' && firebaseProjectId === FIREBASE_PRODUCTION_PROJECT_ID) {
+  throw new Error(
+    `Development runs must not use the production Firebase project "${FIREBASE_PRODUCTION_PROJECT_ID}". `
+    + 'Create .env.development from .env.example.',
+  );
+}
+
+const nativeFirebaseProjectIds = {
+  [androidGoogleServicesFile]: (contents) => JSON.parse(contents).project_info?.project_id,
+  [iosGoogleServicesFile]: (contents) => contents.match(/<key>PROJECT_ID<\/key>\s*<string>([^<]+)<\/string>/)?.[1],
+};
+for (const [file, readProjectId] of Object.entries(nativeFirebaseProjectIds)) {
+  const filePath = path.resolve(__dirname, file);
+  if (!firebaseProjectId || !fs.existsSync(filePath)) continue;
+  const nativeProjectId = readProjectId(fs.readFileSync(filePath, 'utf8'));
+  if (nativeProjectId !== firebaseProjectId) {
+    throw new Error(
+      `${file} belongs to Firebase project "${nativeProjectId}", `
+      + `but EXPO_PUBLIC_FIREBASE_PROJECT_ID is "${firebaseProjectId}".`,
+    );
+  }
+}
+
 const firebaseAuthLinkHost = normalizeHost(
   process.env.EXPO_PUBLIC_FIREBASE_AUTH_LINK_DOMAIN
   || process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
@@ -105,9 +138,7 @@ export default {
       bundleIdentifier: "com.artomk.planit",
       userInterfaceStyle: "automatic",
       usesAppleSignIn: true,
-      googleServicesFile:
-        process.env.GOOGLE_SERVICE_INFO_PLIST
-        || "./GoogleService-Info.plist",
+      googleServicesFile: iosGoogleServicesFile,
       associatedDomains: [
         ...(firebaseAuthLinkHost ? [`applinks:${firebaseAuthLinkHost}`] : []),
         `applinks:${shareLinkHost}`,
@@ -119,10 +150,16 @@ export default {
     android: {
       package: "com.artomk.planit",
       versionCode: versionCode,
-      googleServicesFile: "./google-services.json",
+      googleServicesFile: androidGoogleServicesFile,
       intentFilters: [
         ...authLinkIntentFilters,
         ...shareLinkIntentFilters,
+      ],
+      // Attachments are photos only, and overlays are needed only by the debug
+      // dev client, whose own manifest keeps SYSTEM_ALERT_WINDOW.
+      blockedPermissions: [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
       ],
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
@@ -216,6 +253,7 @@ export default {
         }
       ],
       "./plugins/withWidgetUpdateScheduler",
+      "./plugins/withRestoreCredentials",
       "./plugins/withAndroidPlayCompliance"
     ]
   }

@@ -131,19 +131,15 @@ async function mount(t, options = {}) {
   };
 }
 
-test('the manager filters by status, opens details by code and copies the canonical HTTPS link', async t => {
+test('the manager lists only active shares with a countdown, opens details by code and copies the canonical HTTPS link', async t => {
   const env = await mount(t, { items: [share(), share({ id: 'EXPIRED123', scheduleName: 'Old', expiresAt: 1 })] });
+  assert.doesNotMatch(env.text(), /Old/);
+  assert.match(env.text(), /share.remaining/);
   await act(async () => env.button('share.copy_link: University').props.onPress());
   assert.deepEqual(env.copies, ['https://app.planitflow.com/share/SHARED123']);
   assert.match(env.text(), /common.copied/);
-  assert.equal(env.button('share.copy_link: Old').props.disabled, true);
-  await act(async () => env.button('share.manager_details: Old').props.onPress());
-  assert.deepEqual(env.navigations, [['SharedScheduleDetails', { code: 'EXPIRED123' }]]);
-  await act(async () => env.tree.root.findByType('Tabs').props.onTabPress('active'));
-  assert.doesNotMatch(env.text(), /Old/);
-  await act(async () => env.tree.root.findByType('Tabs').props.onTabPress('ended'));
-  assert.match(env.text(), /Old/);
-  assert.doesNotMatch(env.text(), /University/);
+  await act(async () => env.button('share.manager_details: University').props.onPress());
+  assert.deepEqual(env.navigations, [['SharedScheduleDetails', { code: 'SHARED123' }]]);
 });
 
 test('long share histories render one page at a time and refresh on returning from details', async t => {
@@ -285,7 +281,7 @@ test('revocation failures keep the snapshot visible and a successful retry retur
   assert.deepEqual(env.navigations, [['back']]);
 });
 
-test('share expiry updates the open list without polling the backend', async t => {
+test('an expiring share disappears from the open list without polling the backend', async t => {
   let current = 1000, expire;
   t.mock.method(Date, 'now', () => current);
   const nativeSetTimeout = global.setTimeout;
@@ -297,8 +293,21 @@ test('share expiry updates the open list without polling the backend', async t =
   assert.equal(env.button('share.copy_link: University').props.disabled, false);
   current = 1101;
   await act(async () => expire());
-  assert.equal(env.button('share.copy_link: University').props.disabled, true);
+  assert.equal(env.button('share.copy_link: University'), undefined);
+  assert.match(env.text(), /share.manager_empty/);
   assert.equal(env.requests.length, 1);
+});
+
+test('the countdown wakes up when its remaining minute changes', async t => {
+  const timers = [];
+  t.mock.method(Date, 'now', () => 0);
+  const nativeSetTimeout = global.setTimeout;
+  t.mock.method(global, 'setTimeout', (callback, delay, ...args) => {
+    if (delay > 1000) { timers.push(delay); return 123; }
+    return nativeSetTimeout(callback, delay, ...args);
+  });
+  await mount(t, { items: [share({ expiresAt: 2 * 86400000 + 5 * 3600000 + 90000 })] });
+  assert.equal(timers.at(-1), 30001);
 });
 
 test('the private details URL round-trips by code without embedding snapshot data', () => {

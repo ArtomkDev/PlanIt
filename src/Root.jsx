@@ -37,6 +37,7 @@ import mainLayoutLinking from './navigation/mainLayoutLinking';
 import { clearWidgetScheduleData, syncWidgetPushSubscription } from './widgets/widgetService';
 import { readSharedScheduleImport, clearSharedScheduleImport, resolveSharedScheduleImportUrl } from './services/shareService';
 import { claimEntryLegalAcceptance, hasLegalAcceptance } from './services/legalAcceptanceService';
+import { clearRestoreCredential, restoreSignIn, syncRestoreCredential } from './services/restoreCredentialService';
 
 initGlobalErrorHandling();
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -79,6 +80,14 @@ function StartupScreen({ colors, lang, style }) {
       <MorphingLoader size={80} />
     </View>
   );
+}
+
+// Reads the provider language and theme so a choice made in the app, including on the shared schedule
+// preview before sign-in, also applies to the banner.
+function AppCookieConsentBanner() {
+  const { isLangLoading, lang } = useScheduleData();
+  const { colorScheme } = useAppTheme();
+  return isLangLoading ? null : <CookieConsentBanner lang={lang} isDark={colorScheme === 'dark'} />;
 }
 
 const ThemedNavigationContainer = React.forwardRef(function ThemedNavigationContainer({ hasInitialLayout, ...props }, ref) {
@@ -181,6 +190,7 @@ export default function RootApp() {
           setGuest(false);
           setAuthResolved(true); 
           setCrashlyticsUser(firebaseUser.uid);
+          syncRestoreCredential(firebaseUser).catch(console.error);
           
           try {
             await registerDevice(firebaseUser.uid, {
@@ -212,10 +222,14 @@ export default function RootApp() {
         if (wasLoggedIn.current) {
           clearSharedScheduleImport().catch(console.error);
           clearWidgetScheduleData().catch(console.error);
+          clearRestoreCredential().catch(console.error);
           setGuest(false);
           wasLoggedIn.current = false;
           setAuthResolved(true);
         } else {
+          // A successful restore signs in, which emits the restored user to this listener.
+          if (await restoreSignIn().catch((error) => { console.error(error); return false; })) return;
+          if (!isCurrentSession()) return;
           try {
             const localSchedule = await getLocalSchedule(null);
             const pendingImport = await readSharedScheduleImport().catch(() => null);
@@ -337,9 +351,9 @@ export default function RootApp() {
                 </ThemedNavigationContainer>
               </BottomSheetPresentationProvider>
               </AppDialogProvider>
+              <AppCookieConsentBanner />
             </ScheduleProvider>
           </AdsProvider>
-          <CookieConsentBanner lang={lang} />
         </AttachmentImagePreviewProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

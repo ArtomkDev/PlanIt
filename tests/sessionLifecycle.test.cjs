@@ -89,6 +89,11 @@ async function mountRoot(t, options = {}) {
     './services/shareService': { readSharedScheduleImport: async () => options.pending || null,
       clearSharedScheduleImport: async () => {}, resolveSharedScheduleImportUrl: options.resolveImportUrl || (url => url) },
     './services/legalAcceptanceService': { claimEntryLegalAcceptance: async () => {}, hasLegalAcceptance: options.readAcceptance || (async () => true) },
+    './services/restoreCredentialService': {
+      syncRestoreCredential: options.syncRestore || (async () => {}),
+      clearRestoreCredential: options.clearRestore || (async () => {}),
+      restoreSignIn: options.restoreSignIn || (async () => false),
+    },
   };
   for (const name of ['./auth/AuthScreen', './layouts/MainLayout', './pages/Settings/components/LegalDocumentScreen', './components/privacy/CookieConsentBanner', './components/ui/WebThemeStyles', './auth/PasswordResetScreen']) mocks[name] = wrapper;
   mocks['./layouts/MainLayout'] = { default: host('private-layout') };
@@ -275,6 +280,48 @@ test('leaving an authenticated session clears its widget without clearing a gues
   await act(async () => env.emit({ uid: 'owner', emailVerified: true }));
   await act(async () => env.emit(null));
   assert.equal(clears, 1);
+});
+
+test('verified sessions keep a restore key that is cleared when the session ends', async t => {
+  const events = [];
+  const env = await mountRoot(t, {
+    syncRestore: async user => events.push(`sync:${user.uid}`),
+    clearRestore: async () => events.push('clear'),
+  });
+  await act(async () => env.emit({ uid: 'unverified', emailVerified: false }));
+  await act(async () => env.emit(null));
+  assert.deepEqual(events, []);
+  await act(async () => env.emit(env.user('owner')));
+  await act(async () => env.emit(null));
+  assert.deepEqual(events, ['sync:owner', 'clear']);
+});
+
+test('a transferred restore key signs in before the signed-out startup is shown', async t => {
+  const restoring = gate();
+  let guestReads = 0;
+  const env = await mountRoot(t, {
+    restoreSignIn: () => restoring.promise,
+    readGuest: async () => { guestReads++; return { schedules: [] }; },
+  });
+  let startup;
+  await act(async () => { startup = env.emit(null); });
+  assert.equal(env.tree.root.findAllByType('schedule-provider').length, 0);
+  await act(async () => { restoring.resolve(true); await startup; });
+  assert.equal(guestReads, 0);
+  assert.equal(env.tree.root.findAllByType('schedule-provider').length, 0);
+
+  await act(async () => env.emit(env.user('restored')));
+  assert.equal(env.tree.root.findByType('schedule-provider').props.user.uid, 'restored');
+});
+
+test('a failed restore falls back to the normal signed-out startup', async t => {
+  const env = await mountRoot(t, {
+    restoreSignIn: async () => { throw new Error('offline'); },
+    readGuest: async () => ({ schedules: [{ id: 'local' }] }),
+  });
+  t.mock.method(console, 'error', () => {});
+  await act(async () => env.emit(null));
+  assert.equal(env.tree.root.findByType('schedule-provider').props.guest, true);
 });
 
 test('a registered installation retries the widget push subscription after account startup', async t => {

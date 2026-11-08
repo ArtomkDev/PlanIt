@@ -1,6 +1,6 @@
 {
   "name": "planit",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "main": "index.js",
   "scripts": {
     "icons:generate": "node scripts/generate-subject-patterns.cjs",
@@ -11,11 +11,14 @@
     "test:web": "npm run test:password-reset && npm run test:native-guards && npm run test:sessions && node --test tests/webHosting.test.cjs tests/scheduleSync.test.cjs",
     "preview:web": "expo serve --port 5002",
     "deploy:web": "npm run test:web && npm run build:web && node scripts/check-web.cjs --config && npx --yes --package=firebase-tools@15.34.1 firebase deploy --project planit-hub --only hosting:app",
+    "deploy:web:patch": "npm version patch --no-git-tag-version && npm run deploy:web",
+    "deploy:web:minor": "npm version minor --no-git-tag-version && npm run deploy:web",
+    "deploy:web:major": "npm version major --no-git-tag-version && npm run deploy:web",
     "check:web:live": "node scripts/check-web.cjs --live",
     "config:sync": "node scripts/sync-website-config.cjs",
     "config:check": "node scripts/sync-website-config.cjs --check",
     "test": "node --test tests/*.test.cjs",
-    "test:sessions": "node --test tests/sessionLifecycle.test.cjs",
+    "test:sessions": "node --test tests/sessionLifecycle.test.cjs tests/restoreCredentialService.test.cjs",
     "test:notifications": "node --test tests/deviceNotificationData.test.cjs",
     "test:rules": "npx --yes --package=firebase-tools@15.34.1 -- node scripts/test-firebase-rules.cjs",
     "test:release": "npm run config:check && npm run legal:check && npm run locales:check && npm test && npm --prefix functions run check && npm --prefix functions test && expo install --check",

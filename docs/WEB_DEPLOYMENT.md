@@ -14,9 +14,14 @@ published through `hosting:website` with build `4f154d032980`, version
 indexable pages and the app's live file/routing checks passed. Earlier account-test
 limitations in the historical checkpoint below are separate from this cleanup.
 
+On 7 November 2026 the app moved from the legacy `planit-demo` site to
+`planitflow-app` (the live release was cloned, then `app.planitflow.com` was
+re-attached). `planit-demo` keeps the pre-move releases for rollback. Development
+uses the separate `planitflow-dev` project; see [FIREBASE_ENVIRONMENTS.md](FIREBASE_ENVIRONMENTS.md).
+
 | Repository | Firebase project | Hosting target | Site | Output |
 | --- | --- | --- | --- | --- |
-| PlanIt | planit-hub | app | planit-demo | dist |
+| PlanIt | planit-hub | app | planitflow-app | dist |
 | planit-website | planit-hub | website | planit-hub | out |
 
 ## Application releases

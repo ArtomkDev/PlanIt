@@ -15,7 +15,10 @@ const mainOptions = [
   { label: 'APK для Android', options: versionOptions('build:apk', 'release') },
   { label: 'AAB для Google Play', options: versionOptions('build:aab', 'playstore') },
   { label: 'Зібрати вебзастосунок локально', script: 'build:web' },
-  { label: `Опублікувати вебзастосунок · ${new URL(WEB_APP_URL).host}`, script: 'deploy:web', publish: true },
+  {
+    label: `Опублікувати вебзастосунок · ${new URL(WEB_APP_URL).host}`,
+    options: versionOptions('deploy:web', 'deploy:web').map((option) => ({ ...option, publish: true })),
+  },
   { label: 'Юридичні документи · політика конфіденційності', options: legalOptions },
   { label: 'Зібрати Android Dev Client', script: 'build:dev' },
 ];
@@ -94,7 +97,7 @@ async function chooseAction() {
           } else if (item.publish) {
             screens.push({
               title: item.label,
-              options: [{ label: 'Підтвердити публікацію', script: item.script }, back],
+              options: [{ label: 'Підтвердити публікацію', script: item.script, version: item.version }, back],
               index: 1,
             });
           } else {

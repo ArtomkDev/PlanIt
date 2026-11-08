@@ -132,7 +132,7 @@ export const buildScheduleExport = (schedule, language, options = {}) => {
           return {
             start: lesson.timeInfo.start, end: lesson.timeInfo.end,
             time: `${lesson.timeInfo.start} – ${lesson.timeInfo.end}`, number: lesson.slotNumber,
-            title: text(subject.name) || t("common.subject", lang),
+            title: text(subject.name) || t("common.subject", lang), icon: text(subject.icon),
             type, location, teacher, note, links: lessonLinks,
             details: [type, location, teacher, note].filter(Boolean),
           };

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { load } = require('@expo/env');
+const { FIREBASE_PRODUCTION_PROJECT_ID } = require('../src/config/firebaseProjects.cjs');
 const { WEBSITE_URL, WEB_APP_URL } = require('../src/config/website.cjs');
 
 const root = path.resolve(__dirname, '..');
@@ -12,7 +13,7 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 function checkConfig() {
   process.env.NODE_ENV ||= 'production';
   load(root, { silent: true });
-  assert.equal(process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID, 'planit-hub', 'Use the existing production Firebase project.');
+  assert.equal(process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID, FIREBASE_PRODUCTION_PROJECT_ID, 'Use the production Firebase project.');
   assert.equal(process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN, new URL(WEB_APP_URL).host, 'Serve the popup OAuth callback from the app origin.');
   for (const key of ['API_KEY', 'APP_ID', 'STORAGE_BUCKET']) {
     assert.ok(process.env[`EXPO_PUBLIC_FIREBASE_${key}`], `Missing public Firebase ${key}.`);
@@ -20,7 +21,7 @@ function checkConfig() {
   const config = readJson('firebase.json');
   assert.equal(config.hosting.target, 'app');
   assert.equal(config.hosting.public, 'dist');
-  assert.deepEqual(readJson('.firebaserc').targets['planit-hub'].hosting.app, ['planit-demo']);
+  assert.deepEqual(readJson('.firebaserc').targets[FIREBASE_PRODUCTION_PROJECT_ID].hosting.app, ['planitflow-app']);
   return config.hosting;
 }
 
@@ -94,7 +95,7 @@ async function checkExport(origin) {
       const helper = await get('/__/auth/iframe.js');
       assert.match(helper.headers.get('content-type'), /javascript/);
       const firebase = await (await get('/__/firebase/init.json')).json();
-      assert.equal(firebase.projectId, 'planit-hub');
+      assert.equal(firebase.projectId, FIREBASE_PRODUCTION_PROJECT_ID);
     }
   }
   assert.ok(hosting.headers.some(rule => rule.headers.some(header => header.key === 'X-Robots-Tag' && header.value === 'noindex')));
