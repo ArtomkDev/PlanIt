@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <title>%WEB_TITLE%</title>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="PlanIt" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+        background-color: #F2F4F7;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background-color: #121214;
+        }
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+    <script>
+      // iOS home-screen apps drawn under the status bar lay the page out one
+      // status-bar height short of the screen bottom.
+      if (navigator.standalone) {
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top)';
+        document.body.append(probe);
+        const fitScreen = () => {
+          const topInset = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+          const screenHeight = innerWidth > innerHeight
+            ? Math.min(screen.width, screen.height)
+            : Math.max(screen.width, screen.height);
+          document.documentElement.style.height = `${Math.min(screenHeight, innerHeight + topInset)}px`;
+        };
+        fitScreen();
+        addEventListener('resize', fitScreen);
+      }
+    </script>
+  </body>
+</html>

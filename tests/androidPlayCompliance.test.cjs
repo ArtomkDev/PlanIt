@@ -109,6 +109,8 @@ test('release AAB build archives and validates its matching R8 mapping', () => {
   assert.doesNotMatch(buildScript, /Get-FileHash/);
   assert.match(buildScript, /mappingEmbeddedInBundle/);
   assert.match(buildScript, /\.release\.json/);
+  assert.match(buildScript, /\$type\.ToUpperInvariant\(\)\)_\$artifactBaseName/);
+  assert.match(buildScript, /Join-Path \$artifactDir "\$artifactBaseName\.\$type"/);
   assert.match(compliancePlugin, /-Xmx4096m/);
   assert.match(compliancePlugin, /MaxMetaspaceSize=1024m/);
 });

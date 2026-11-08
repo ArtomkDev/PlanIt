@@ -322,7 +322,7 @@ export default function Header({ currentDate, onTodayPress, onTitlePress }) {
               <Reanimated.View
                 pointerEvents="none"
                 style={[
-                  StyleSheet.absoluteFillObject,
+                  StyleSheet.absoluteFill,
                   scheduleButtonColorStyle,
                 ]}
               />

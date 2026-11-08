@@ -269,7 +269,7 @@ const mountPager = async (initialDay = 7, reducedMotion = false, initialLayout =
 const compileWeekStrip = (runtime) => {
   const colors = { backgroundColor: '#fff', backgroundColor2: '#eee', accentColor: '#00f', textOnAccent: '#fff' };
   return compile('src/pages/Schedule/components/WeekStrip.jsx', {
-    'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', StyleSheet: { create: (x) => x, absoluteFillObject: {} } },
+    'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'Button', StyleSheet: { create: (x) => x, absoluteFill: {} } },
     'react-native-reanimated': { ...runtime.reanimated, default: { View: 'AnimatedView', Text: 'AnimatedText' }, interpolateColor: (amount, range, colors) => amount >= 1 ? colors[1] : colors[0] },
     'react-native-gesture-handler': { Gesture: runtime.Gesture, GestureDetector: 'GestureDetector' },
     '../../../config/themes': { __esModule: true, default: { getColors: () => colors } },

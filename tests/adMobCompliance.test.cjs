@@ -791,4 +791,11 @@ test('keeps the banner out of the navigation controls and hardens build configur
   for (const command of ['deploy:web:patch', 'deploy:web:minor', 'deploy:web:major']) {
     assert.match(packageConfig.scripts[command], /npm run deploy:web$/);
   }
+  assert.equal(
+    packageConfig.scripts['build:ultimate'],
+    'npm run legal:sync && powershell -ExecutionPolicy Bypass -File ./scripts/build-aab.ps1 -ArtifactType all && npm run deploy:web',
+  );
+  for (const command of ['ultimate:patch', 'ultimate:minor', 'ultimate:major']) {
+    assert.match(packageConfig.scripts[command], /npm run build:ultimate$/);
+  }
 });

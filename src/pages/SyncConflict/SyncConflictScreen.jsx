@@ -204,7 +204,7 @@ export default function SyncConflictScreen({
 
 const styles = StyleSheet.create({
   absoluteOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 99999,
     elevation: 999,
   },

@@ -104,7 +104,9 @@ async function mountRoot(t, options = {}) {
   return {
     tree, signouts, listeners,
     emit(user) { auth.currentUser = user; return onAuth(user); },
-    user(uid) { return { uid, emailVerified: true }; },
+    user(uid) {
+      return { uid, emailVerified: true, getIdTokenResult: async () => ({ claims: { email_verified: true } }) };
+    },
     async updateScheduleState(patch) {
       Object.assign(scheduleState, patch);
       await act(async () => tree.update(React.createElement(Root)));
@@ -217,6 +219,31 @@ test('an explicitly chosen guest import survives a restart before its first sche
   assert.equal(env.tree.root.findByType('navigation').props.initialState.routes[0].name, 'SharedSchedule');
 });
 
+test('leaving guest mode after joining from a shared link opens sign-in instead of replaying the link', async t => {
+  const shareUrl = 'https://app.planitflow.com/share/SHARED123';
+  const env = await mountRoot(t, { renderMainLayout: true, initialURL: shareUrl,
+    readGuest: async () => ({ schedules: [{ id: 'shared-copy' }] }) });
+  await act(async () => env.emit(null));
+  const launchNavigation = env.tree.root.findByType('navigation');
+  assert.equal(await launchNavigation.props.linking.getInitialURL(), shareUrl);
+  await act(async () => launchNavigation.props.onReady());
+
+  // Settings signs out before leaving guest mode, which emits a signed-out user again.
+  await act(async () => {
+    await env.emit(null);
+    env.tree.root.findByType('private-layout').props.onExitGuest();
+  });
+  await act(async () => env.emit(null));
+
+  assert.equal(env.tree.root.findByType('schedule-provider').props.guest, false);
+  const names = env.tree.root.findAllByType('screen').map(node => node.props.name);
+  assert.ok(names.includes('Auth'));
+  assert.equal(names.includes('MainLayout'), false);
+  const navigation = env.tree.root.findByType('navigation');
+  assert.equal(navigation.props.initialState, undefined);
+  assert.equal(await navigation.props.linking.getInitialURL(), null);
+});
+
 test('startup keeps the splash until session restoration, navigation and the themed layout are ready', async t => {
   const frames = [];
   t.mock.method(global, 'requestAnimationFrame', callback => { frames.push(callback); return frames.length; });
@@ -277,9 +304,22 @@ test('leaving an authenticated session clears its widget without clearing a gues
   const env = await mountRoot(t, { clearWidget: async () => { clears++; } });
   await act(async () => env.emit(null));
   assert.equal(clears, 0);
-  await act(async () => env.emit({ uid: 'owner', emailVerified: true }));
+  await act(async () => env.emit(env.user('owner')));
   await act(async () => env.emit(null));
   assert.equal(clears, 1);
+});
+
+test('a just-verified email refreshes the stale ID token before the session starts', async t => {
+  const events = [];
+  const env = await mountRoot(t, { register: async uid => { events.push(`register:${uid}`); } });
+  await act(async () => env.emit({
+    uid: 'owner',
+    emailVerified: true,
+    getIdTokenResult: async () => ({ claims: { email_verified: false } }),
+    getIdToken: async force => { events.push(`refresh:${force}`); return 'fresh-token'; },
+  }));
+  assert.deepEqual(events, ['refresh:true', 'register:owner']);
+  assert.equal(env.tree.root.findByType('schedule-provider').props.user.uid, 'owner');
 });
 
 test('verified sessions keep a restore key that is cleared when the session ends', async t => {

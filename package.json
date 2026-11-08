@@ -1,6 +1,6 @@
 {
   "name": "planit",
-  "version": "0.2.3",
+  "version": "0.2.5",
   "main": "index.js",
   "scripts": {
     "icons:generate": "node scripts/generate-subject-patterns.cjs",
@@ -48,6 +48,10 @@
     "playstore:patch": "npm version patch --no-git-tag-version && npm run build:aab",
     "playstore:minor": "npm version minor --no-git-tag-version && npm run build:aab",
     "playstore:major": "npm version major --no-git-tag-version && npm run build:aab",
+    "build:ultimate": "npm run legal:sync && powershell -ExecutionPolicy Bypass -File ./scripts/build-aab.ps1 -ArtifactType all && npm run deploy:web",
+    "ultimate:patch": "npm version patch --no-git-tag-version && npm run build:ultimate",
+    "ultimate:minor": "npm version minor --no-git-tag-version && npm run build:ultimate",
+    "ultimate:major": "npm version major --no-git-tag-version && npm run build:ultimate",
     "build:dev": "npm run legal:sync && powershell -ExecutionPolicy Bypass -File ./scripts/build-dev.ps1",
     "dev-start": "npm run legal:sync && npx expo start --dev-client",
     "graphify": "powershell -ExecutionPolicy Bypass -File ./scripts/graphify.ps1",

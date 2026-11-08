@@ -1150,7 +1150,7 @@ const styles = StyleSheet.create({
   responsiveContainer: { width: '100%', maxWidth: 440, flex: 1, justifyContent: 'center' },
   contentBlock: { flex: 1, justifyContent: 'space-between', paddingBottom: 20 },
   formBlock: { width: '100%', paddingBottom: 24, paddingHorizontal: 20, borderRadius: 24, borderWidth: 1 },
-  glassCard: { padding: 20, borderRadius: 24, borderWidth: 1, backdropFilter: 'blur(20px)' },
+  glassCard: { padding: 20, borderRadius: 24, borderWidth: 1 },
   formBlockSpacing: { marginTop: 12 },
   verifyFormBlock: { width: '100%', justifyContent: 'center', paddingVertical: 40 },
   welcomeHeader: { alignItems: 'center', marginTop: '15%', marginBottom: '10%' },

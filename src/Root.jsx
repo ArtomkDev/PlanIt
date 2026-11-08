@@ -137,6 +137,13 @@ export default function RootApp() {
   const wasLoggedIn = useRef(false);
   const navigationRef = useRef();
   const routeNameRef = useRef();
+  // Android keeps returning the launch link for the whole process, so a navigation remounted for a
+  // new session would open that link again.
+  const launchUrlHandledRef = useRef(false);
+  const navigationLinking = useMemo(() => ({
+    ...linking,
+    getInitialURL: async () => (launchUrlHandledRef.current ? null : linking.getInitialURL()),
+  }), []);
   const sessionScope = user ? `user:${user.uid}` : guest ? 'guest' : null;
   const [initialNavigation, setInitialNavigation] = useState(null);
   useEffect(() => {
@@ -144,7 +151,7 @@ export default function RootApp() {
     let active = true;
     (async () => {
       const [url, intent] = await Promise.all([
-        linking.getInitialURL().catch(() => null), readSharedScheduleImport().catch(() => null),
+        navigationLinking.getInitialURL().catch(() => null), readSharedScheduleImport().catch(() => null),
       ]);
       const resolved = resolveSharedScheduleImportUrl(url, intent, sessionScope);
       const initialState = resolved !== url && resolved?.startsWith('planit://')
@@ -160,6 +167,7 @@ export default function RootApp() {
     let deviceListenerUnsubscribe = () => {};
     let active = true;
     let sessionGeneration = 0;
+    let startupResolved = false;
 
     const authUnsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       const generation = ++sessionGeneration;
@@ -182,6 +190,13 @@ export default function RootApp() {
       
       if (firebaseUser) {
         if (firebaseUser.emailVerified) {
+          // reload() reports the verified email before the ID token carries the claim that
+          // Firestore rules check, so a stale token would fail the first schedule load.
+          const tokenResult = await firebaseUser.getIdTokenResult().catch(() => null);
+          if (tokenResult && tokenResult.claims.email_verified !== true) {
+            await firebaseUser.getIdToken(true).catch(console.error);
+          }
+          if (!isCurrentSession()) return;
           await claimEntryLegalAcceptance(firebaseUser.uid).catch(console.error);
           if (!isCurrentSession()) return;
           wasLoggedIn.current = true;
@@ -226,8 +241,10 @@ export default function RootApp() {
           setGuest(false);
           wasLoggedIn.current = false;
           setAuthResolved(true);
-        } else {
-          // A successful restore signs in, which emits the restored user to this listener.
+        } else if (!startupResolved) {
+          // Only startup restores a session: leaving guest mode signs out again, and restoring the
+          // guest then would undo the exit. A successful restore signs in, which emits the restored
+          // user to this listener.
           if (await restoreSignIn().catch((error) => { console.error(error); return false; })) return;
           if (!isCurrentSession()) return;
           try {
@@ -241,7 +258,10 @@ export default function RootApp() {
             if (e?.code === 'local-storage/corrupt-data') setGuest(true);
             console.warn(e);
           } finally {
-            if (isCurrentSession()) setAuthResolved(true);
+            if (isCurrentSession()) {
+              startupResolved = true;
+              setAuthResolved(true);
+            }
           }
         }
       }
@@ -284,10 +304,11 @@ export default function RootApp() {
                 <ThemedNavigationContainer
                 ref={navigationRef}
                 hasInitialLayout={hasInitialLayout}
-                linking={linking}
+                linking={navigationLinking}
                 initialState={initialNavigation.initialState}
                 documentTitle={documentTitle}
                 onReady={() => {
+                  launchUrlHandledRef.current = true;
                   if (navigationRef.current) {
                     routeNameRef.current = navigationRef.current.getCurrentRoute().name;
                   }

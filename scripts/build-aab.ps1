@@ -1,11 +1,14 @@
 param(
-    [ValidateSet("aab", "apk")]
+    [ValidateSet("aab", "apk", "all")]
     [string]$ArtifactType = "aab",
     [ValidateSet("production", "test")]
     [string]$AdsMode = "production"
 )
 
 $ErrorActionPreference = "Stop"
+
+$artifactTypes = @($ArtifactType)
+if ($ArtifactType -eq "all") { $artifactTypes = @("apk", "aab") }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $originalLocation = Get-Location
@@ -37,7 +40,7 @@ try {
         }
     }
 
-    if ($ArtifactType -eq "aab" -and $AdsMode -ne "production") {
+    if ($artifactTypes -contains "aab" -and $AdsMode -ne "production") {
         throw "Play Store app bundles require production ads. Use the test APK command for test ads."
     }
 
@@ -139,14 +142,15 @@ try {
         throw "Release configuration error: Gradle needs 4 GiB heap and 1 GiB metaspace for R8."
     }
 
-    Write-Host "2. Starting Gradle $ArtifactType release build with R8..." -ForegroundColor Cyan
+    Write-Host "2. Starting Gradle $($artifactTypes -join ' + ') release build with R8..." -ForegroundColor Cyan
     $androidDir = Join-Path $projectRoot "android"
     $keystoreAbsPath = Join-Path $androidDir "app\my-release-key.keystore"
 
     Push-Location $androidDir
     try {
         $gradleArguments = @(
-            $(if ($ArtifactType -eq "aab") { "bundleRelease" } else { "assembleRelease" }),
+            $artifactTypes | ForEach-Object { if ($_ -eq "aab") { "bundleRelease" } else { "assembleRelease" } }
+        ) + @(
             "-Pandroid.injected.signing.store.file=$keystoreAbsPath",
             "-Pandroid.injected.signing.store.password=$env:ANDROID_KEYSTORE_PASSWORD",
             "-Pandroid.injected.signing.key.alias=$env:ANDROID_KEYSTORE_ALIAS",
@@ -169,14 +173,16 @@ try {
         Pop-Location
     }
 
-    $aabSource = Join-Path $projectRoot "android\app\build\outputs\bundle\release\app-release.aab"
-    if ($ArtifactType -eq "apk") {
-        $aabSource = Join-Path $projectRoot "android\app\build\outputs\apk\release\app-release.apk"
+    $artifactSources = @{
+        aab = Join-Path $projectRoot "android\app\build\outputs\bundle\release\app-release.aab"
+        apk = Join-Path $projectRoot "android\app\build\outputs\apk\release\app-release.apk"
     }
     $mappingSource = Join-Path $projectRoot "android\app\build\outputs\mapping\release\mapping.txt"
 
-    if (!(Test-Path -LiteralPath $aabSource)) {
-        throw "Build failed: release $ArtifactType was not generated at '$aabSource'."
+    foreach ($type in $artifactTypes) {
+        if (!(Test-Path -LiteralPath $artifactSources[$type])) {
+            throw "Build failed: release $type was not generated at '$($artifactSources[$type])'."
+        }
     }
     if (!(Test-Path -LiteralPath $mappingSource)) {
         throw "Build failed: R8 mapping.txt was not generated at '$mappingSource'."
@@ -187,58 +193,61 @@ try {
         throw "Build failed: mapping.txt is not a valid R8 mapping file."
     }
 
-    if (!(Test-Path -Path $buildsDir)) {
-        New-Item -ItemType Directory -Path $buildsDir | Out-Null
-    }
-
     $artifactBaseName = "PlanIt_v$version`_$date"
     if ($AdsMode -eq "test") { $artifactBaseName = "PlanIt-TestAds_v$version`_$date" }
-    $aabDest = Join-Path $buildsDir "$artifactBaseName.$ArtifactType"
-    $mappingDest = Join-Path $buildsDir "$artifactBaseName-mapping.txt"
-    $releaseManifestDest = Join-Path $buildsDir "$artifactBaseName.release.json"
-
-    Copy-Item -LiteralPath $aabSource -Destination $aabDest -Force
-    Copy-Item -LiteralPath $mappingSource -Destination $mappingDest -Force
-
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $bundleArchive = [System.IO.Compression.ZipFile]::OpenRead($aabDest)
-    try {
-        $embeddedMappingPath = "BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map"
-        $mappingEmbeddedInBundle = $null -ne $bundleArchive.GetEntry($embeddedMappingPath)
-    } finally {
-        $bundleArchive.Dispose()
-    }
 
-    $releaseManifest = [ordered]@{
-        appVersion = $version
-        versionCode = $versionCode
-        artifactType = $ArtifactType
-        adsMode = $AdsMode
-        builtAtUtc = (Get-Date).ToUniversalTime().ToString('o')
-        r8Enabled = $true
-        mappingEmbeddedInBundle = $mappingEmbeddedInBundle
-        aab = [ordered]@{
-            file = Split-Path -Leaf $aabDest
-            sha256 = Get-Sha256 -Path $aabDest
+    foreach ($type in $artifactTypes) {
+        $artifactDir = Join-Path $buildsDir "$($type.ToUpperInvariant())_$artifactBaseName"
+        New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
+
+        $aabDest = Join-Path $artifactDir "$artifactBaseName.$type"
+        $mappingDest = Join-Path $artifactDir "$artifactBaseName-mapping.txt"
+        $releaseManifestDest = Join-Path $artifactDir "$artifactBaseName.release.json"
+
+        Copy-Item -LiteralPath $artifactSources[$type] -Destination $aabDest -Force
+        Copy-Item -LiteralPath $mappingSource -Destination $mappingDest -Force
+
+        $bundleArchive = [System.IO.Compression.ZipFile]::OpenRead($aabDest)
+        try {
+            $embeddedMappingPath = "BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map"
+            $mappingEmbeddedInBundle = $null -ne $bundleArchive.GetEntry($embeddedMappingPath)
+        } finally {
+            $bundleArchive.Dispose()
         }
-        deobfuscationMapping = [ordered]@{
-            file = Split-Path -Leaf $mappingDest
-            sha256 = Get-Sha256 -Path $mappingDest
+
+        $releaseManifest = [ordered]@{
+            appVersion = $version
+            versionCode = $versionCode
+            artifactType = $type
+            adsMode = $AdsMode
+            builtAtUtc = (Get-Date).ToUniversalTime().ToString('o')
+            r8Enabled = $true
+            mappingEmbeddedInBundle = $mappingEmbeddedInBundle
+            aab = [ordered]@{
+                file = Split-Path -Leaf $aabDest
+                sha256 = Get-Sha256 -Path $aabDest
+            }
+            deobfuscationMapping = [ordered]@{
+                file = Split-Path -Leaf $mappingDest
+                sha256 = Get-Sha256 -Path $mappingDest
+            }
         }
-    }
-    $releaseManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $releaseManifestDest -Encoding UTF8
+        $releaseManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $releaseManifestDest -Encoding UTF8
 
-    Write-Host "$ArtifactType build finished successfully:" -ForegroundColor Green
-    Write-Host "  Bundle:  $aabDest" -ForegroundColor Green
-    Write-Host "  R8 map:  $mappingDest" -ForegroundColor Green
-    Write-Host "  Manifest: $releaseManifestDest" -ForegroundColor Green
+        Write-Host "$type build finished successfully:" -ForegroundColor Green
+        Write-Host "  Folder:   $artifactDir" -ForegroundColor Green
+        Write-Host "  Bundle:   $(Split-Path -Leaf $aabDest)" -ForegroundColor Green
+        Write-Host "  R8 map:   $(Split-Path -Leaf $mappingDest)" -ForegroundColor Green
+        Write-Host "  Manifest: $(Split-Path -Leaf $releaseManifestDest)" -ForegroundColor Green
 
-    if ($ArtifactType -eq "apk") {
-        Write-Host "Keep the matching R8 mapping with this APK for crash deobfuscation." -ForegroundColor Green
-    } elseif ($mappingEmbeddedInBundle) {
-        Write-Host "The R8 mapping is embedded in the AAB; Play should associate it automatically." -ForegroundColor Green
-    } else {
-        Write-Host "Upload the matching *-mapping.txt as the ReTrace mapping file for this AAB in Play Console." -ForegroundColor Yellow
+        if ($type -eq "apk") {
+            Write-Host "Keep the matching R8 mapping with this APK for crash deobfuscation." -ForegroundColor Green
+        } elseif ($mappingEmbeddedInBundle) {
+            Write-Host "The R8 mapping is embedded in the AAB; Play should associate it automatically." -ForegroundColor Green
+        } else {
+            Write-Host "Upload the matching *-mapping.txt as the ReTrace mapping file for this AAB in Play Console." -ForegroundColor Yellow
+        }
     }
 } catch {
     Write-Error $_

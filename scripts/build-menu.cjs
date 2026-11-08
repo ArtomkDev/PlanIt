@@ -12,6 +12,10 @@ const legalOptions = [
 ];
 
 const mainOptions = [
+  {
+    label: `Ultimate · APK + AAB + вебзастосунок · ${new URL(WEB_APP_URL).host}`,
+    options: versionOptions('build:ultimate', 'ultimate').map((option) => ({ ...option, publish: true })),
+  },
   { label: 'APK для Android', options: versionOptions('build:apk', 'release') },
   { label: 'AAB для Google Play', options: versionOptions('build:aab', 'playstore') },
   { label: 'Зібрати вебзастосунок локально', script: 'build:web' },

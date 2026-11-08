@@ -4,11 +4,16 @@ import useAppTheme from '../../hooks/useAppTheme';
 export default function WebThemeStyles() {
   const { colorScheme, colors } = useAppTheme();
 
-  return <style>{`
+  return <>
+    <meta name="theme-color" content={colors.backgroundColor} />
+    <style>{`
     :root {
       color-scheme: ${colorScheme};
       --planit-scrollbar-thumb: ${colors.textColor3};
       --planit-scrollbar-thumb-hover: ${colors.textColor2};
+    }
+    html, body {
+      background-color: ${colors.backgroundColor};
     }
     * {
       --planit-scrollbar-top: 0px;
@@ -46,5 +51,6 @@ export default function WebThemeStyles() {
         }
       }
     }
-  `}</style>;
+    `}</style>
+  </>;
 }

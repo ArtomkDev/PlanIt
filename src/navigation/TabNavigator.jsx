@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   inactiveOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 999,
   },
   notificationLayer: {

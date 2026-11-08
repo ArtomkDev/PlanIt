@@ -1838,7 +1838,7 @@ const styles = StyleSheet.create({
     }),
   },
   cardHighlight: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 18,
     borderWidth: 1.15,
     zIndex: 4,
@@ -1850,7 +1850,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   completedCardOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#000",
     zIndex: 2,
   },
