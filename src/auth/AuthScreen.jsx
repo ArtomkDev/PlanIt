@@ -140,10 +140,10 @@ const AnimatedGradientBackground = ({ currentView, colors, isDark }) => {
   const baseColor = colors.backgroundColor;
   
   const palettes = {
-    welcome: { secondary: isDark ? '#2e1065' : '#e0e7ff', accent: isDark ? '#7c3aed' : '#4f46e5' },
-    signin: { secondary: isDark ? '#020617' : '#e0f2fe', accent: isDark ? '#0369a1' : '#0284c7' },
-    signup: { secondary: isDark ? '#022c22' : '#dcfce7', accent: isDark ? '#059669' : '#10b981' },
-    verify: { secondary: isDark ? '#164e63' : '#cffafe', accent: isDark ? '#06b6d4' : '#0891b2' }
+    welcome: { secondary: isDark ? '#2a0f18' : '#f6e3e8', accent: isDark ? '#e2537a' : '#e895ab' },
+    signin: { secondary: isDark ? '#0a1a33' : '#e1e9f7', accent: isDark ? '#2563eb' : '#6b9be8' },
+    signup: { secondary: isDark ? '#06302c' : '#e2f1ef', accent: isDark ? '#14b8a6' : '#5eb8ad' },
+    verify: { secondary: isDark ? '#2b1608' : '#f7e8dc', accent: isDark ? '#ea7a2f' : '#eba373' }
   };
 
   const renderLayer = (opacityAnim, palette) => (

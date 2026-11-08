@@ -68,6 +68,8 @@ const BottomSheet = forwardRef(function BottomSheet(
   const visibleRef = useRef(visible);
   const phaseRef = useRef("idle");
   const dismissReasonRef = useRef(null);
+  const headerRef = useRef(null);
+  const contentRef = useRef(null);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isDesktop = Platform.OS === "web" && width >= DESKTOP_BREAKPOINT;
@@ -103,6 +105,14 @@ const BottomSheet = forwardRef(function BottomSheet(
       if (phaseRef.current !== "presented") return;
       phaseRef.current = "dismissing";
       dismissReasonRef.current = reason;
+      if (Platform.OS === "web") {
+        // A closing sheet must not take focus back (e.g. a dialog restoring focus to the button that
+        // opened it): the browser would scroll the document to the off-screen control and shift the
+        // whole app. Set on the DOM directly because the modal portal stops re-rendering while dismissing.
+        [headerRef.current, contentRef.current].forEach((node) => {
+          if (node) node.inert = true;
+        });
+      }
       Keyboard.dismiss();
       modalRef.current?.dismiss();
     },
@@ -171,7 +181,7 @@ const BottomSheet = forwardRef(function BottomSheet(
   }, [onClose, onMinimize, present, sheetId, unregisterSheet]);
 
   const renderHandle = useCallback((props) => (
-    <View style={{ backgroundColor }}>
+    <View ref={headerRef} style={{ backgroundColor }}>
       {headerBackground && (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           {headerBackground}
@@ -261,6 +271,7 @@ const BottomSheet = forwardRef(function BottomSheet(
         aria-modal={Platform.OS === 'web' ? true : undefined}
         accessibilityLabel={accessibilityLabel}
         style={[styles.content, { backgroundColor }, contentStyle]}
+        ref={contentRef}
         testID={testID}
       >
         {children}

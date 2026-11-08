@@ -1279,7 +1279,7 @@ test('guest share UI exports Word without creating a public schedule and explain
   t.after(async () => { await act(async () => tree.unmount()); });
   const row = label => tree.root.findAllByType('Row').find(item => item.props.label === label);
   const chooseFormat = async label => {
-    await act(async () => row('Формат файла').props.onPress());
+    await act(async () => row('Формат файлу').props.onPress());
     await act(async () => row(label).props.onPress());
   };
   assert.equal(row('Word (.docx)'), undefined);

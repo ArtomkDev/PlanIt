@@ -216,7 +216,7 @@ test('guest copies use provider; copy failure unlocks UI and displays an error',
   const failed = await renderScreen(t, { failCopy: true });
   await failed.menu('Навчання');
   await act(async () => failed.action('Створити копію').props.onPress());
-  assert.match(failed.text(), /Не вдалося завершити дію/);
+  assert.match(failed.text(), /Не вдалося виконати дію/);
   assert.ok(failed.tree.root.findAllByType('Button').every(n => !n.props.disabled));
 });
 
@@ -227,7 +227,7 @@ test('moving a local schedule cannot delete its source before the account copy i
   await act(async () => ui.action('Перемістити до акаунта').props.onPress());
   assert.equal(ui.calls.persisted, true);
   assert.equal(ui.calls.saved.length, 0);
-  assert.match(ui.text(), /Не вдалося завершити дію/);
+  assert.match(ui.text(), /Не вдалося виконати дію/);
 });
 
 test('schedule identity changes retarget only task links to the transferred schedule', () => {

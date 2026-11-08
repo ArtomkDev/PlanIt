@@ -205,7 +205,7 @@ test('the desktop preview renders aligned rows with accessible empty Thursday ce
   assert.equal(rows.length, 5);
   const emptyThursday = screen.tree.root.findAllByType('View').filter(node => /^Thursday,.*Free$/.test(node.props.accessibilityLabel || ''));
   assert.equal(emptyThursday.length, 3);
-  assert.ok(rows[4].findAllByType('Text').some(node => node.props.children === 'Lesson 4'));
+  assert.ok(rows[4].findAllByType('Text').some(node => node.props.children === 'Class 4'));
   assert.equal(rows[1].findAllByType('Button').some(node => /13:10/.test(node.props.accessibilityLabel || '')), false);
   assert.equal(rows[4].findAllByType('Button').filter(node => /13:10/.test(node.props.accessibilityLabel || '')).length, 2);
 });
@@ -263,8 +263,8 @@ test('the preview marks the class in progress, the next class and today', async 
   const buttons = () => screen.tree.root.findAllByType('Button');
   const status = screen.tree.root.findAll(node => /^Now, Math, /.test(node.props.accessibilityLabel || ''))[0];
   assert.equal(status.props.accessibilityLabel, 'Now, Math, 08:30 – 09:50 · 50 min left, Then Math at 10:00');
-  assert.ok(buttons().some(node => (node.props.accessibilityLabel || '').startsWith('Now · 50 min left, Lesson 1, 08:30 – 09:50')));
-  assert.ok(buttons().some(node => (node.props.accessibilityLabel || '').startsWith('Next, Lesson 2, 10:00 – 11:20')));
+  assert.ok(buttons().some(node => (node.props.accessibilityLabel || '').startsWith('Now · 50 min left, Class 1, 08:30 – 09:50')));
+  assert.ok(buttons().some(node => (node.props.accessibilityLabel || '').startsWith('Next, Class 2, 10:00 – 11:20')));
   assert.ok(buttons().some(node => node.props.accessibilityLabel === 'Tuesday, Today'));
 });
 

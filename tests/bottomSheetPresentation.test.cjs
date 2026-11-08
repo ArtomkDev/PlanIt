@@ -28,6 +28,7 @@ function load(relative, mocks) {
 
 function runtime({ reduceMotion = false, platform = 'web', width = 390 } = {}) {
   const modals = new Map();
+  const nodes = new Map();
   const backHandlers = new Set();
   const keys = new Set();
   const originalDocument = global.document;
@@ -93,13 +94,21 @@ function runtime({ reduceMotion = false, platform = 'web', width = 390 } = {}) {
   }
   return {
     modals,
+    nodes,
     async render(sheets) {
       const tree = React.createElement(provider.BottomSheetPresentationProvider, null,
         React.createElement(Observer),
         sheets.map((props) => React.createElement(Sheet, { key: props.testID, ...props })));
       await act(async () => {
         if (renderer) renderer.update(tree);
-        else renderer = create(tree);
+        else renderer = create(tree, {
+          createNodeMock: (element) => {
+            const key = element.props.testID;
+            if (!key) return null;
+            if (!nodes.has(key)) nodes.set(key, {});
+            return nodes.get(key);
+          },
+        });
       });
     },
     scene: () => renderer.root.findByType('AnimatedScene').props,
@@ -187,6 +196,18 @@ test('hidden sheets never dismiss an unpresented modal; controlled reopen waits 
   assert.equal(closes, 0);
   assert.equal(app.scene().pointerEvents, 'none');
 });
+
+for (const platform of ['web', 'android']) {
+test(platform + ' closing sheet content cannot take focus back while it animates out', async (t) => {
+  const app = runtime({ platform });
+  t.after(() => app.cleanup());
+  await app.render([{ testID: 'viewer' }]);
+  assert.equal(app.nodes.get('viewer').inert, undefined);
+  await app.render([{ testID: 'viewer', visible: false }]);
+  assert.equal(app.modals.get('viewer').dismisses, 1);
+  assert.equal(app.nodes.get('viewer').inert, platform === 'web' ? true : undefined);
+});
+}
 
 test('Escape closes only the top sheet even when lower listeners were registered later', async (t) => {
   const app = runtime();

@@ -38,6 +38,17 @@ PlanIt is an Expo/React Native application targeting Android, iOS, and React Nat
 - Never use the repository root as scratch space. Put disposable exports, screenshots, copied fixtures, and one-off scripts in the OS temp directory when possible, then remove task-created artifacts.
 - Never use `git reset --hard`, `git clean -fd`, or broad restore operations. Do not delete untracked, ignored, generated, credential, native, release, dependency, or Graphify content without establishing its exact purpose and ownership.
 
+## UI copy and localization
+
+- Every user-facing string lives in both `src/locales/en.js` and `src/locales/uk.js`; add, change, or remove it in both in the same change. Write each language natively; do not translate word for word.
+- Write like a person, not an assistant. Say only what the user needs to act: what happened, or what to do next. Cut sentences that reassure ("You can change this later", "Your other schedules are always within reach"), restate what the UI already shows ("Changes are applied immediately"), explain internal reasons ("so its authorization can be revoked", "to protect your data"), or sell ("perfect", "smart", "Make it yours", exclamation-mark success titles).
+- Prefer one short sentence. A hint adds a fact the user cannot see; otherwise leave it out. Errors say what failed, then one concrete next step ("Couldn't copy. Select and copy the link manually."). Confirmations ask a direct question ("Delete schedule «{name}»?"), not "Are you sure you want to…".
+- Keep terms consistent. English: "class" (never "lesson" or "session" in UI), "slot", "schedule", "sign in", "account". Ukrainian: «заняття», «комірка», «розклад», «увійти», «акаунт», «сеанс». Upload is «завантажити в хмару»; download to the device is «зберегти на пристрій» — never use bare «завантажити» for both. Discarding edits is «Не зберігати», not «Відхилити». Reuse the existing colour and option names instead of inventing synonyms.
+- Ukrainian style: no «Будь ласка» in errors or prompts; «Виберіть», not «Оберіть»; full official names («Політика конфіденційності», «Умови користування»); «» quotes and ’ apostrophes; current orthography (вебсайт, вебаналітика, з’єднання); neutral forms where gender would otherwise be guessed.
+- Keep every `{placeholder}` identical across languages. Countable strings use plural objects: English `one`/`other`, Ukrainian `one`/`few`/`many`/`other`; never build "{count} weeks selected" style strings that break at 1.
+- Legal, consent, privacy, and destructive-action texts may be shortened only without losing what is stated (what is deleted, what is shared, what requires consent).
+- Tests assert some copy. When wording changes, update those assertions to the new text; never weaken them. Run `npm.cmd run locales:check` after any locale change.
+
 ## Verification
 
 - For local Android development and widget work, build and install a development client with `npm.cmd run build:dev -- -Install -DeviceSerial <serial>` and run Metro with `npm.cmd run dev-start`. Keep Fast Refresh available; do not replace the development client with a release, preview, or standalone APK unless the user explicitly requests that build type.
