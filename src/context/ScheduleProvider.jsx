@@ -184,6 +184,14 @@ const applyCommittedSync = (currentData, savedData, committed) => {
   };
 };
 
+// Light or dark picked before sign-in starts a brand-new guest or account; existing data keeps its theme.
+const createSessionDefaultData = (signedOutTheme) => {
+  const defaultData = createDefaultData();
+  const mode = signedOutTheme?.[0];
+  if (mode !== 'light' && mode !== 'dark') return defaultData;
+  return { ...defaultData, global: { ...defaultData.global, theme: [mode, defaultData.global.theme[1]] } };
+};
+
 export const ScheduleProvider = ({ children, guest = false, user = null }) => {
   const [data, setData] = useState(null);
   const systemColorScheme = useColorScheme();
@@ -313,10 +321,15 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
       setIsDevicePrefsReady(true);
       const local = guest || user?.uid ? await getLocalSchedule(scopeUserId) : null;
       if (cancelled) return;
+      const createNewSessionData = () => {
+        const newData = createSessionDefaultData(prefs?.signedOutTheme);
+        if (prefs?.signedOutTheme) syncDevicePrefsUpdate({ ...prefs, theme: newData.global.theme });
+        return newData;
+      };
 
       if (guest) {
         if (local) lastLocalSaveFingerprintRef.current = `guest:${getScheduleDataFingerprint(local)}`;
-        const initialData = local || createDefaultData();
+        const initialData = local || createNewSessionData();
         dataRef.current = initialData;
         setData(initialData);
         setLoadedScopeKey('guest');
@@ -353,7 +366,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
               updateDeviceSyncTimeAndCleanUp(user.uid, { force: true });
               updateIsDirty(hasDirtyScheduleData(initialCloudData));
             } else {
-              const defaultData = createDefaultData();
+              const defaultData = createNewSessionData();
               dataRef.current = defaultData;
               setData(defaultData);
               await saveLocalScheduleIfChanged(defaultData, user.uid);
@@ -391,7 +404,7 @@ export const ScheduleProvider = ({ children, guest = false, user = null }) => {
         saveLocalSchedule(latestData, scopeUserId).catch(() => {});
       }
     };
-  }, [guest, user?.uid, loadAttempt, saveLocalScheduleIfChanged, updateIsDirty]);
+  }, [guest, user?.uid, loadAttempt, saveLocalScheduleIfChanged, updateIsDirty, syncDevicePrefsUpdate]);
 
   useEffect(() => {
     if (!data || isLoading) return;

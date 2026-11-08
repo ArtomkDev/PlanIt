@@ -1018,6 +1018,7 @@ export default {
     session_required: "To save a copy, sign in or continue as a guest. Guest schedules are saved on this device.",
     auth_continue_hint: "After signing in, we will save this copy and open it. You do not need to create a first schedule.",
     back_to_preview: "Back to the preview",
+    skip_copy: "Don't save the copy",
     file_format: "File format",
     customize_optional: "Adjust details if needed",
     weeks_all_summary: "All weeks · {count}",

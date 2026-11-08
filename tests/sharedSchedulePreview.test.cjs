@@ -130,6 +130,7 @@ async function mountScreen(t, options = {}) {
     'expo-crypto': crypto,
     'phosphor-react-native': { CaretDown: 'Icon', CaretUp: 'Icon', DownloadSimple: 'Icon', ArrowLeft: 'Icon', Moon: 'Icon', Sun: 'Icon' },
     '../../components/ui/PlanItWordmark': 'Wordmark',
+    './PlanItWordmark': { WEBSITE_ACCENT_DARK: '#000' },
     '../../components/schedule/SharedScheduleAccessSheet': 'AccessSheet',
     '../../services/legalAcceptanceService': {
       hasLegalAcceptance: async scope => { legalReads.push(scope); return options.readAcceptance ? options.readAcceptance(scope) : options.accepted !== false; },
@@ -371,7 +372,7 @@ test('expired and malformed pending imports never resume', async () => {
 test('continuation restores only its own link and preserves legal, password reset and widget destinations', () => {
   const { service } = serviceHarness();
   const intent = { code: 'SHARED123', stage: 'auth' };
-  assert.equal(service.resolveSharedScheduleImportUrl('https://app.planitflow.com/auth', intent, null), 'planit://auth');
+  assert.equal(service.resolveSharedScheduleImportUrl('https://app.planitflow.com/auth', intent, null), 'planit://auth?share=SHARED123');
   assert.equal(service.resolveSharedScheduleImportUrl('https://app.planitflow.com/auth', intent, 'user:one'), 'planit://share/SHARED123');
   for (const url of ['planit://legal/privacy', 'planit://password-reset?oobCode=secret', 'planit://widget/lesson', 'https://app.planitflow.com/share/OTHER123']) {
     assert.equal(service.resolveSharedScheduleImportUrl(url, intent, 'guest'), url);
@@ -400,7 +401,7 @@ test('sign-up preserves the import intent without saving before authorization', 
   await act(async () => env.tree.root.findByType('AccessSheet').props.onContinue('signup', true));
   assert.equal(env.pending().stage, 'auth');
   assert.equal(env.pending().authView, 'signup');
-  assert.deepEqual(env.navigation, [['Auth', { importRequestId: 'copy-id' }]]);
+  assert.deepEqual(env.navigation, [['Auth', { share: 'SHARED123' }]]);
   assert.deepEqual(env.added, []);
 });
 

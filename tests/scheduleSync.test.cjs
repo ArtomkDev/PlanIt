@@ -146,6 +146,21 @@ test('initial data never creates a schedule before onboarding finishes', () => {
   assert.equal(initialData.global.currentScheduleId, null);
 });
 
+test('a theme picked before sign-in starts only brand-new guest and account data', () => {
+  const providerSource = fs.readFileSync(path.resolve(__dirname, '../src/context/ScheduleProvider.jsx'), 'utf8');
+  const start = providerSource.indexOf('const createSessionDefaultData = ');
+  const functionEnd = /\r?\n\};/.exec(providerSource.slice(start));
+  const functionSource = providerSource.slice(start, start + functionEnd.index + functionEnd[0].length);
+  const createSessionDefaultData = new Function('createDefaultData',
+    `${functionSource} return createSessionDefaultData;`)(createDefaultData);
+
+  assert.deepEqual(createSessionDefaultData(['light', 'blue']).global.theme, ['light', 'cyan']);
+  assert.deepEqual(createSessionDefaultData(undefined).global.theme, createDefaultData().global.theme);
+  assert.deepEqual(createSessionDefaultData(['oled', 'blue']).global.theme, createDefaultData().global.theme);
+  assert.equal((providerSource.match(/createNewSessionData\(\)/g) || []).length, 2);
+  assert.match(providerSource, /local \|\| createNewSessionData\(\)/);
+});
+
 test('friend schedule import accepts a raw code or a complete share link', () => {
   assert.equal(shareService.normalizeShareCodeInput('abc12'), 'ABC12');
   assert.equal(

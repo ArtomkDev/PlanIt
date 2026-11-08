@@ -268,8 +268,8 @@ export default function RootApp() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: systemColors.backgroundColor }}>
       <SafeAreaProvider>
-        {/* Base of the status bar stack: system-themed screens such as Auth follow the device
-            theme, and screens with an app theme mount their own StatusBar on top of this one. */}
+        {/* Base of the status bar stack: system-themed screens follow the device theme, and
+            screens with an app theme mount their own StatusBar on top of this one. */}
         <StatusBar style="auto" />
         <AttachmentImagePreviewProvider key={user?.uid || (guest ? 'guest' : 'signed-out')}>
           <AdsProvider>

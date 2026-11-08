@@ -2,9 +2,9 @@ import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { AppleIcon, GoogleIcon } from '../../components/ui/BrandIcons';
-import useSystemThemeColors from '../../hooks/useSystemThemeColors';
+import useAppTheme from '../../hooks/useAppTheme';
 import { useAppDialog } from '../../context/AppDialogContext';
-import useAppLanguage from '../../hooks/useAppLanguage';
+import { useScheduleData } from '../../context/ScheduleProvider';
 import MorphingLoader from '../../components/ui/MorphingLoader';
 import { t } from '../../utils/i18n';
 import { setManualLogin } from '../../utils/authFlags';
@@ -32,8 +32,9 @@ if (Platform.OS !== 'web' && !isExpoGo) {
 }
 
 const SocialAuthButtons = ({ onAuthSuccess, onAuthError, onBeforeAuth, disabled = false, isLinking = false }) => {
-  const { colors, isDark } = useSystemThemeColors('blue');
-  const { lang } = useAppLanguage();
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
+  const { lang } = useScheduleData();
   const dialog = useAppDialog();
   const [loadingProvider, setLoadingProvider] = useState(null);
   const busyRef = useRef(false);

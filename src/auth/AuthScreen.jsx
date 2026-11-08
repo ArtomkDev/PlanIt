@@ -9,8 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Planet, RocketLaunch, Compass, Fingerprint, IdentificationCard, ShieldCheck, 
   UserPlus, CalendarBlank, PencilSimple, EnvelopeOpen, PaperPlaneRight, CheckCircle,
-  Eye, EyeClosed, ArrowLeft, User, EnvelopeSimple, LockKey, WarningCircle
+  Eye, EyeClosed, ArrowLeft, User, EnvelopeSimple, LockKey, WarningCircle, DownloadSimple, X
 } from 'phosphor-react-native';
+import { StatusBar } from 'expo-status-bar';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -21,9 +22,10 @@ import GradientBackground from '../components/ui/GradientBackground';
 
 import { auth } from '../config/firebase'; 
 import SocialAuthButtons from './components/SocialAuthButtons';
-import useSystemThemeColors from '../hooks/useSystemThemeColors';
+import useAppTheme from '../hooks/useAppTheme';
+import { useScheduleData } from '../context/ScheduleProvider';
+import SignedOutHeader from '../components/ui/SignedOutHeader';
 import useReducedMotionPreference from '../hooks/useReducedMotionPreference';
-import useAppLanguage from '../hooks/useAppLanguage';
 import { t } from '../utils/i18n';
 import MorphingLoader from '../components/ui/MorphingLoader';
 import TermsCheckbox from '../components/privacy/TermsCheckbox';
@@ -32,7 +34,7 @@ import { setManualLogin } from '../utils/authFlags';
 import { triggerHaptic } from '../utils/haptics';
 import { getLegalDocumentBrowserUrl } from '../utils/legalDocumentLinks';
 import { hasLegalAcceptance, recordLegalAcceptance } from '../services/legalAcceptanceService';
-import { readSharedScheduleImport, clearSharedScheduleImport, prepareSharedScheduleImport } from '../services/shareService';
+import { readSharedScheduleImport, clearSharedScheduleImport, prepareSharedScheduleImport, normalizeShareCodeInput } from '../services/shareService';
 import {
   requestEmailVerification,
   requestPasswordResetEmailForEmail,
@@ -349,7 +351,42 @@ const AuthMorphingLoader = ({ compact }) => {
   );
 };
 
-const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, acceptedTerms, onToggleTerms, onTermsMissing, termsError, isDark, formError, onOpenLegalDocument, busy }) => {
+const PendingImportNotice = ({ colors, lang, onBack, onSkip, disabled }) => (
+  <View style={[styles.importNotice, { backgroundColor: colors.accentColorLight, borderColor: colors.accentColor + '33' }]}>
+    <View style={[styles.importNoticeIcon, { backgroundColor: colors.accentColor }]}>
+      <DownloadSimple size={16} weight="bold" color={colors.textOnAccent} accessible={false} />
+    </View>
+    <View style={styles.importNoticeBody}>
+      <Text style={[styles.importNoticeText, { color: colors.textColor }]}>{t('share.auth_continue_hint', lang)}</Text>
+      <View style={styles.importNoticeActions}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          hitSlop={8}
+          onPress={onBack}
+          style={styles.importNoticeAction}
+        >
+          <ArrowLeft size={16} weight="bold" color={colors.accentTextColor} style={styles.importNoticeActionIcon} accessible={false} />
+          <Text style={[styles.importNoticeActionText, { color: colors.accentTextColor }]}>{t('share.back_to_preview', lang)}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          hitSlop={8}
+          onPress={onSkip}
+          style={styles.importNoticeAction}
+        >
+          <X size={16} weight="bold" color="#ef4444" style={styles.importNoticeActionIcon} accessible={false} />
+          <Text style={[styles.importNoticeActionText, { color: '#ef4444' }]}>{t('share.skip_copy', lang)}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+);
+
+const WelcomeContent = ({ onNavigate, colors, lang, onGuestLogin, acceptedTerms, onToggleTerms, onTermsMissing, termsError, isDark, formError, onOpenLegalDocument, busy, notice }) => {
   const checkTerms = (action) => {
     if (!acceptedTerms) {
       onTermsMissing();
@@ -359,13 +396,13 @@ const WelcomeContent = ({ onNavigate, colors, lang, insets, onGuestLogin, accept
   };
 
   return (
-    <View style={[styles.contentBlock, { paddingTop: insets.top + 40 }]}>
+    <View style={styles.contentBlock}>
       <View style={styles.welcomeHeader}>
         <PlanItWordmark fontSize={52} color={colors.textColor} isDark={isDark} style={styles.welcomeTitle} />
         <Text style={[styles.welcomeSubtitle, { color: colors.textColor2 }]}>{t('auth.welcome.subtitle', lang)}</Text>
       </View>
       <View style={[styles.glassCard, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.4)', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
-        
+        {notice}
         {formError ? (
           <View
             accessibilityRole="alert"
@@ -399,8 +436,9 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotionPreference();
   const { width: vw, height: vh } = useWindowDimensions(); 
-  const { lang, isLangLoading } = useAppLanguage();
-  const { colors, isDark } = useSystemThemeColors('blue');
+  const { lang, isLangLoading } = useScheduleData();
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   
   const [currentView, setCurrentView] = useState(() => {
     if (auth.currentUser && !auth.currentUser.emailVerified) return 'verify';
@@ -424,10 +462,17 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const currentViewRef = useRef(currentView);
   currentViewRef.current = currentView;
+  const shareParam = route?.params?.share;
   useEffect(() => {
     let active = true;
     (async () => {
-      const intent = await readSharedScheduleImport();
+      const stored = await readSharedScheduleImport();
+      let linkedCode = null;
+      try { if (shareParam) linkedCode = normalizeShareCodeInput(shareParam); } catch {}
+      // The link keeps the share code, so the continuation survives cleared storage or a new tab.
+      const intent = linkedCode && (stored?.code !== linkedCode || stored.stage !== 'auth')
+        ? await prepareSharedScheduleImport(linkedCode, { stage: 'auth', scope: null })
+        : stored;
       if (!active || intent?.stage !== 'auth') return;
       setPendingImport(intent);
       const accepted = await hasLegalAcceptance('entry');
@@ -436,7 +481,7 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
       if (!auth.currentUser || auth.currentUser.emailVerified) setCurrentView(intent.authView === 'signup' ? 'signup' : 'signin');
     })().catch(() => { if (active) setFormError(t('common.action_failed', lang)); });
     return () => { active = false; };
-  }, [route?.params?.importRequestId]);
+  }, [shareParam]);
 
   const beforeAuth = async (scope = 'entry') => {
     if (!acceptedTerms) { handleTermsMissing(); return false; }
@@ -458,6 +503,14 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
     try {
       await clearSharedScheduleImport(pendingImport.copyId);
       navigation.navigate('SharedSchedule', { code: pendingImport.code });
+    } catch { setFormError(t('common.action_failed', lang)); }
+  };
+  const skipImport = async () => {
+    try {
+      await clearSharedScheduleImport(pendingImport.copyId);
+      configureAuthLayoutAnimation(reduceMotion);
+      setPendingImport(null);
+      navigation?.setParams?.({ share: undefined });
     } catch { setFormError(t('common.action_failed', lang)); }
   };
   useEffect(() => navigation?.addListener?.('beforeRemove', event => {
@@ -784,6 +837,10 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
   };
 
   const currentConfigs = getIconConfig(vw, vh)[currentView] || getIconConfig(vw, vh).welcome;
+  const statusBar = <StatusBar style={isDark ? 'light' : 'dark'} />;
+  const importNotice = pendingImport ? (
+    <PendingImportNotice colors={colors} lang={lang} onBack={cancelImport} onSkip={skipImport} disabled={isLoading || entryBusy} />
+  ) : null;
 
   const renderFormElements = () => {
     const elements = [];
@@ -857,6 +914,8 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
           </Text>
         </View>
       );
+
+      if (importNotice) elements.push(<React.Fragment key="importNotice">{importNotice}</React.Fragment>);
 
       elements.push(
         <View key="inputs" style={styles.formGroup}>
@@ -1004,6 +1063,7 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
   if (isLangLoading) {
     return (
       <View style={[styles.loadingWrapper, { backgroundColor: colors.backgroundColor }]}>
+        {statusBar}
         <MorphingLoader size={70} />
       </View>
     );
@@ -1011,6 +1071,7 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
 
   return (
     <View style={[styles.container, { paddingLeft: insets.left, paddingRight: insets.right }]}>
+      {statusBar}
       <KeyboardAvoidingView behavior="padding" enabled={Platform.OS === 'ios'} style={styles.container}>
         
         <AnimatedGradientBackground currentView={currentView} colors={colors} isDark={isDark} />
@@ -1021,7 +1082,13 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
           ))}
         </View>
 
-        <ScrollView 
+        <View style={{ paddingTop: insets.top }}>
+          <SignedOutHeader>
+            {currentView !== 'welcome' && <PlanItWordmark fontSize={24} color={colors.textColor} isDark={isDark} />}
+          </SignedOutHeader>
+        </View>
+
+        <ScrollView
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={[
             styles.scrollContent, 
@@ -1031,18 +1098,11 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.responsiveContainer}>
-            {pendingImport && <View style={{ padding: 16, gap: 8 }}>
-              <Text style={{ color: colors.textColor2 }}>{t('share.auth_continue_hint', lang)}</Text>
-              <TouchableOpacity accessibilityRole="button" disabled={isLoading || entryBusy} onPress={cancelImport} style={{ minHeight: 44, justifyContent: 'center' }}>
-                <Text style={{ color: colors.accentTextColor }}>{t('share.back_to_preview', lang)}</Text>
-              </TouchableOpacity>
-            </View>}
             {currentView === 'welcome' && (
               <WelcomeContent 
                 onNavigate={handleNavigate} 
                 colors={colors} 
                 lang={lang} 
-                insets={insets} 
                 onGuestLogin={enterGuest}
                 busy={entryBusy}
                 acceptedTerms={acceptedTerms}
@@ -1052,6 +1112,7 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
                 isDark={isDark}
                 formError={formError}
                 onOpenLegalDocument={openLegalDocument}
+                notice={importNotice}
               />
             )}
 
@@ -1060,7 +1121,7 @@ const AuthScreen = ({ onGuestLogin, navigation, route }) => {
                 styles.formBlock, 
                 styles.glassCard,
                 { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.45)', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
-                currentView === 'verify' ? styles.verifyFormBlock : { marginTop: insets.top + 24 }
+                currentView === 'verify' ? styles.verifyFormBlock : styles.formBlockSpacing
               ]}>
                 {renderFormElements()}
               </View>
@@ -1090,6 +1151,7 @@ const styles = StyleSheet.create({
   contentBlock: { flex: 1, justifyContent: 'space-between', paddingBottom: 20 },
   formBlock: { width: '100%', paddingBottom: 24, paddingHorizontal: 20, borderRadius: 24, borderWidth: 1 },
   glassCard: { padding: 20, borderRadius: 24, borderWidth: 1, backdropFilter: 'blur(20px)' },
+  formBlockSpacing: { marginTop: 12 },
   verifyFormBlock: { width: '100%', justifyContent: 'center', paddingVertical: 40 },
   welcomeHeader: { alignItems: 'center', marginTop: '15%', marginBottom: '10%' },
   welcomeTitle: { marginBottom: 18 },
@@ -1128,6 +1190,16 @@ const styles = StyleSheet.create({
   successText: { color: '#10b981', fontSize: 14, fontWeight: '500', flex: 1 },
   spamBox: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1, marginTop: 20, gap: 12, width: '100%' },
   spamText: { fontSize: 14, fontWeight: '600', flex: 1, lineHeight: 20 },
+  importNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 16, borderWidth: 1, marginBottom: 20 },
+  importNoticeIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  importNoticeBody: { flex: 1, gap: 8 },
+  importNoticeText: { fontSize: 14, lineHeight: 20 },
+  // Always stacked: a row that wraps only in longer languages would change the card height on a language switch.
+  importNoticeActions: { gap: 8 },
+  importNoticeAction: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 24 },
+  importNoticeActionText: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  // Cyrillic text sits below its line-box center, so the glyph is nudged down to look centered.
+  importNoticeActionIcon: { marginTop: 1 },
 });
 
 export default AuthScreen;

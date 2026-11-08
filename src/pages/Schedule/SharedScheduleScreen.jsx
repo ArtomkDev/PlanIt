@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { CaretDown, CaretUp, DownloadSimple, ArrowLeft, Moon, Sun } from 'phosphor-react-native';
-import PlanItWordmark, { WEBSITE_ACCENT_DARK } from '../../components/ui/PlanItWordmark';
+import { CaretDown, CaretUp, DownloadSimple, ArrowLeft } from 'phosphor-react-native';
+import PlanItWordmark from '../../components/ui/PlanItWordmark';
+import SignedOutHeader from '../../components/ui/SignedOutHeader';
 import SharedScheduleAccessSheet from '../../components/schedule/SharedScheduleAccessSheet';
 import { hasLegalAcceptance, recordLegalAcceptance } from '../../services/legalAcceptanceService';
 import { fetchSharedSchedule, prepareSharedScheduleImport, readSharedScheduleImport, clearSharedScheduleImport } from '../../services/shareService';
@@ -13,7 +14,7 @@ import useAppTheme from '../../hooks/useAppTheme';
 import MorphingLoader from '../../components/ui/MorphingLoader';
 import { createSharedScheduleAndroidIntentUrl, getSharedScheduleErrorKey, subscribeToSharedSchedule } from '../../services/shareService';
 import { sanitizeImportedSchedule } from '../../utils/scheduleValidation';
-import { SUPPORTED_LANGUAGES, getLocale, t } from '../../utils/i18n';
+import { getLocale, t } from '../../utils/i18n';
 import { getLegalDocumentBrowserUrl } from '../../utils/legalDocumentLinks';
 import SharedSchedulePreview from '../../components/schedule/SharedSchedulePreview';
 import { getSharedSchedulePreviewPageWidth } from '../../components/schedule/sharedSchedulePreviewModel';
@@ -22,7 +23,7 @@ const isAndroidBrowser = Platform.OS === 'web' && typeof navigator !== 'undefine
 
 export default function SharedScheduleScreen({ route, navigation, fallbackRoute, onGuestLogin }) {
   const { lang, user, guest, isLoading } = useScheduleData();
-  const { addSchedule, setSignedOutPreferences } = useScheduleActions();
+  const { addSchedule } = useScheduleActions();
   const { colors, colorScheme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const code = route.params?.code;
@@ -181,7 +182,7 @@ export default function SharedScheduleScreen({ route, navigation, fallbackRoute,
         const intent = await prepareSharedScheduleImport(code, { stage: 'auth', authView: mode, scope: null });
         if (scopeRef.current !== continuingScope) return;
         setAccessVisible(false);
-        navigation.navigate('Auth', { importRequestId: intent.copyId });
+        navigation.navigate('Auth', { share: intent.code });
       }
     } catch { setSaveError('common.action_failed'); }
     finally { if (scopeRef.current === continuingScope) { busyRef.current = false; setSaving(false); } }
@@ -224,37 +225,17 @@ export default function SharedScheduleScreen({ route, navigation, fallbackRoute,
   </TouchableOpacity>;
   const DetailCaret = detailsVisible ? CaretUp : CaretDown;
   const isDark = colorScheme === 'dark';
-  const languageIndex = SUPPORTED_LANGUAGES.findIndex(item => item.code === lang);
-  const nextLanguage = SUPPORTED_LANGUAGES[(languageIndex + 1) % SUPPORTED_LANGUAGES.length];
-  const headerIconStyle = [styles.headerIcon, { backgroundColor: colors.backgroundColor2, borderColor: colors.borderColor }];
-  // Same controls as the planitflow.com header: the language button names the language it switches to,
-  // the theme button shows the current theme.
-  const visitorPreferences = !user && !guest && <>
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('share.switch_language', lang, { language: nextLanguage.label })}
-      onPress={() => setSignedOutPreferences({ language: nextLanguage.code })} style={headerIconStyle}>
-      <Text style={[styles.headerIconText, { color: colors.textColor }]}>{nextLanguage.code.toUpperCase()}</Text>
-    </TouchableOpacity>
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel={t(isDark ? 'share.switch_to_light' : 'share.switch_to_dark', lang)}
-      onPress={() => setSignedOutPreferences({ theme: [isDark ? 'light' : 'dark', 'blue'] })} style={headerIconStyle}>
-      {isDark ? <Moon size={20} weight="duotone" color={WEBSITE_ACCENT_DARK} accessible={false} />
-        : <Sun size={20} weight="duotone" color="#F59E0B" accessible={false} />}
-    </TouchableOpacity>
-  </>;
 
   return <View style={[styles.screen, { backgroundColor: colors.backgroundColor, paddingTop: insets.top }]}>
     <StatusBar style={isDark ? 'light' : 'dark'} />
     <View style={[styles.topBar, { borderColor: colors.borderColor }]}>
-      <View style={[styles.header, { paddingHorizontal: width < 640 ? 16 : 24 }, pageWidth && { maxWidth: pageWidth }]}>
+      <SignedOutHeader style={pageWidth && { maxWidth: pageWidth }} actions={desktop && saveButton}>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('share.back_to_planit', lang)}
           disabled={saving} onPress={closePreview} style={styles.backButton}>
           {Platform.OS !== 'web' && <ArrowLeft size={20} color={colors.textColor2} accessible={false} />}
           <PlanItWordmark fontSize={24} color={colors.textColor} isDark={isDark} />
         </TouchableOpacity>
-        <View style={styles.headerActions}>
-          {desktop && saveButton}
-          {visitorPreferences}
-        </View>
-      </View>
+      </SignedOutHeader>
     </View>
     <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 }, pageWidth && { maxWidth: pageWidth }]} showsVerticalScrollIndicator={false}>
       <View style={styles.heading}>
@@ -316,11 +297,7 @@ export default function SharedScheduleScreen({ route, navigation, fallbackRoute,
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   topBar: { borderBottomWidth: StyleSheet.hairlineWidth },
-  header: { width: '100%', maxWidth: 1280, height: 64, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   backButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerIcon: { width: 44, height: 44, borderWidth: 1, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  headerIconText: { fontSize: 12, fontWeight: '800' },
   content: { width: '100%', maxWidth: 1280, alignSelf: 'center', padding: 24, gap: 20 },
   heading: { gap: 8 },
   eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 0.7, textTransform: 'uppercase' },

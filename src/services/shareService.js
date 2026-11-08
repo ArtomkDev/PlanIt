@@ -59,7 +59,7 @@ export const resolveSharedScheduleImportUrl = (url, intent, scope) => {
     if (!['/', '/auth', `/share/${intent.code}`].includes(path.replace(/\/$/, '') || '/')) return url;
   }
   if (scope && (!intent.scope || intent.scope === scope)) return `planit://share/${intent.code}`;
-  if (!scope && intent.stage === 'auth') return 'planit://auth';
+  if (!scope && intent.stage === 'auth') return `planit://auth?share=${intent.code}`;
   return url;
 };
 
